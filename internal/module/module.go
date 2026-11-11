@@ -28,6 +28,11 @@ type Contract struct {
 	Public bool `json:"public,omitempty"`
 	// Mutates marks a verb that changes state; its success is audited.
 	Mutates bool `json:"mutates,omitempty"`
+	// Open marks a verb callable before logging in. Only the login is.
+	Open bool `json:"open,omitempty"`
+	// Login marks the verb whose success authenticates the connection as the
+	// user its result names ({"user": …}).
+	Login bool `json:"login,omitempty"`
 }
 
 // Verb is a Contract and its handler. A verb takes zero or one param, an object.

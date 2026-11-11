@@ -10,12 +10,21 @@ import (
 	"github.com/caddyserver/certmagic"
 
 	"github.com/yongjohnlee80/autopanel/internal/certs"
+	"github.com/yongjohnlee80/autopanel/internal/keyslot"
 )
 
-// Blobs is certs' Blobs port on the cert_blob table.
-func (s *Store) Blobs() certs.Blobs { return blobs{s} }
+// Blobs is certs' Blobs port on the cert_blob table. Every value is sealed
+// under the master key, bound to its key (R5): a blob copied to another key
+// fails to open. While the vault is locked, reads and writes answer
+// keyslot.ErrLocked, and no certificate can be obtained or served.
+func (s *Store) Blobs(v *keyslot.Vault) certs.Blobs { return blobs{s, v} }
 
-type blobs struct{ s *Store }
+type blobs struct {
+	s *Store
+	v *keyslot.Vault
+}
+
+func blobAAD(key string) string { return "autopanel:certblob:" + key + ":v1" }
 
 // below bounds the keys under a prefix as a range: "p/" ≤ key < "p0", since
 // '0' follows '/' in byte order (SQLite compares bytes; PostgreSQL's columns
@@ -23,7 +32,11 @@ type blobs struct{ s *Store }
 func below(prefix string) (lo, hi string) { return prefix + "/", prefix + "0" }
 
 func (b blobs) Put(ctx context.Context, key string, value []byte) error {
-	_, err := b.s.conn.ExecContext(ctx, b.s.q(`INSERT INTO cert_blob(key, value, modified_at) VALUES (?, ?, ?)
+	value, err := b.v.Seal(blobAAD(key), value)
+	if err != nil {
+		return err
+	}
+	_, err = b.s.conn.ExecContext(ctx, b.s.q(`INSERT INTO cert_blob(key, value, modified_at) VALUES (?, ?, ?)
 ON CONFLICT (key) DO UPDATE SET value = excluded.value, modified_at = excluded.modified_at`), key, value, b.s.now().UnixNano())
 	return err
 }
@@ -44,7 +57,7 @@ func (b blobs) Get(ctx context.Context, key string) ([]byte, error) {
 	if err := rows.Scan(&v); err != nil {
 		return nil, err
 	}
-	return v, nil
+	return b.v.Open(blobAAD(key), v)
 }
 
 func (b blobs) Delete(ctx context.Context, key string) error {
@@ -107,7 +120,7 @@ func (b blobs) Stat(ctx context.Context, key string) (certmagic.KeyInfo, error) 
 		if err != nil {
 			return certmagic.KeyInfo{}, err
 		}
-		return certmagic.KeyInfo{Key: key, Modified: time.Unix(0, at), Size: size, IsTerminal: true}, nil
+		return certmagic.KeyInfo{Key: key, Modified: time.Unix(0, at), Size: size - keyslot.Overhead, IsTerminal: true}, nil
 	}
 	if err := rows.Close(); err != nil {
 		return certmagic.KeyInfo{}, err

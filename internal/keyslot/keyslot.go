@@ -23,6 +23,7 @@ import (
 	"crypto/subtle"
 	"errors"
 	"fmt"
+	"sync"
 
 	"golang.org/x/crypto/argon2"
 )
@@ -54,9 +55,11 @@ type Params struct {
 	Threads uint8  `json:"p"`
 }
 
-// DefaultParams are RFC 9106's second recommended option: 64 MiB, one pass,
-// four lanes. They fit the staging host's memory budget for a login.
-var DefaultParams = Params{Time: 1, MemKiB: 64 * 1024, Threads: 4}
+// DefaultParams are OWASP's minimum for Argon2id: 19 MiB, two passes, one
+// lane. A derivation must fit inside the controller's 100 MB budget (epic §5),
+// and logins run one at a time. A slot keeps its own parameters, so raising
+// these later never strands an existing slot.
+var DefaultParams = Params{Time: 2, MemKiB: 19 * 1024, Threads: 1}
 
 // PassphraseSlot is the master key wrapped under a passphrase.
 type PassphraseSlot struct {
@@ -195,4 +198,59 @@ func gcm(key []byte) (cipher.AEAD, error) {
 		return nil, err
 	}
 	return cipher.NewGCM(b)
+}
+
+// ErrLocked is a seal or open asked of a Vault that holds no master key: the
+// keyfile didn't open the service slot, and no one has logged in yet.
+var ErrLocked = errors.New("keyslot: locked; log in with the master passphrase to unlock")
+
+// Vault holds the unlocked master key in memory, and seals and opens with it.
+type Vault struct {
+	mu sync.RWMutex
+	mk []byte
+}
+
+// Unlock sets the master key. The first unlock wins; a later one with another
+// key is refused, since it would mean two masters for one store.
+func (v *Vault) Unlock(mk []byte) error {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	if v.mk != nil {
+		if subtle.ConstantTimeCompare(v.mk, mk) != 1 {
+			return errors.New("keyslot: a different master key")
+		}
+		return nil
+	}
+	if len(mk) != KeySize {
+		return fmt.Errorf("keyslot: a master key is %d bytes", KeySize)
+	}
+	v.mk = append([]byte(nil), mk...)
+	return nil
+}
+
+// Unlocked reports whether the vault holds the key.
+func (v *Vault) Unlocked() bool {
+	v.mu.RLock()
+	defer v.mu.RUnlock()
+	return v.mk != nil
+}
+
+// Seal encrypts plaintext under the master key, bound to aad.
+func (v *Vault) Seal(aad string, plaintext []byte) ([]byte, error) {
+	v.mu.RLock()
+	defer v.mu.RUnlock()
+	if v.mk == nil {
+		return nil, ErrLocked
+	}
+	return Seal(v.mk, aad, plaintext)
+}
+
+// Open decrypts what Seal made under aad.
+func (v *Vault) Open(aad string, sealed []byte) ([]byte, error) {
+	v.mu.RLock()
+	defer v.mu.RUnlock()
+	if v.mk == nil {
+		return nil, ErrLocked
+	}
+	return Open(v.mk, aad, sealed)
 }

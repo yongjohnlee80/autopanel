@@ -34,6 +34,7 @@ type Options struct {
 // Manager serves certificates to the gate's TLS listener and obtains them on
 // demand, for allowed names only.
 type Manager struct {
+	cache  *certmagic.Cache
 	magic  *certmagic.Config
 	issuer *certmagic.ACMEIssuer
 	opts   Options
@@ -60,7 +61,7 @@ func New(opts Options) (*Manager, error) {
 	}
 	m.issuer = certmagic.NewACMEIssuer(magic, tmpl)
 	magic.Issuers = []certmagic.Issuer{m.issuer}
-	m.magic = magic
+	m.magic, m.cache = magic, cache
 	return m, nil
 }
 
@@ -83,6 +84,14 @@ func (m *Manager) TLSConfig() *tls.Config {
 	cfg.MinVersion = tls.VersionTLS12
 	return cfg
 }
+
+// GetCertificate serves a handshake: CertMagic's, behind the on-demand gate.
+func (m *Manager) GetCertificate(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
+	return m.magic.GetCertificate(hello)
+}
+
+// Stop ends the manager's background renewal. A replaced manager is stopped.
+func (m *Manager) Stop() { m.cache.Stop() }
 
 // HTTPChallengeHandler answers ACME's HTTP-01 challenge on the gate's :80
 // listener and passes every other request to next.

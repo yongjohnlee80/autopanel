@@ -14,7 +14,32 @@ import (
 
 	"github.com/yongjohnlee80/autopanel/core/audit"
 	"github.com/yongjohnlee80/autopanel/core/gate"
+	"github.com/yongjohnlee80/autopanel/internal/auth"
+	"github.com/yongjohnlee80/autopanel/internal/keyslot"
 )
+
+var cheap = keyslot.Params{Time: 1, MemKiB: 1024, Threads: 1}
+
+type slots map[string]keyslot.PassphraseSlot
+
+func (s slots) PassphraseSlot(_ context.Context, name string) (keyslot.PassphraseSlot, error) {
+	if p, ok := s[name]; ok {
+		return p, nil
+	}
+	return keyslot.PassphraseSlot{}, errors.New("no such user")
+}
+
+type auditLog struct {
+	mu      sync.Mutex
+	entries []string
+}
+
+func (a *auditLog) Audit(_ context.Context, actor, action, subject, detail string) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.entries = append(a.entries, actor+" "+action+" "+subject+" "+detail)
+	return nil
+}
 
 // memRoutes is gate.Routes in memory, recording each write's actor.
 type memRoutes struct {
@@ -60,7 +85,19 @@ func TestTheControlSocketServesVerbsAndKeepsErrorsPublicOrBare(t *testing.T) {
 	routes := &memRoutes{}
 	reloads := 0
 	gm := gate.NewModule(routes, func(context.Context) error { reloads++; return nil })
-	srv, err := Listen(sock, slog.New(slog.NewTextHandler(io.Discard, nil)), gm)
+	mk, _ := keyslot.NewMasterKey()
+	rootSlot, err := keyslot.SealPassphrase(mk, "a long master passphrase", cheap)
+	if err != nil {
+		t.Fatal(err)
+	}
+	vault := &keyslot.Vault{}
+	unlocked := 0
+	log := &auditLog{}
+	am, err := auth.New(slots{"root": rootSlot}, log, vault, func(context.Context) { unlocked++ }, cheap)
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv, err := Listen(sock, slog.New(slog.NewTextHandler(io.Discard, nil)), gm, am)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,21 +112,6 @@ func TestTheControlSocketServesVerbsAndKeepsErrorsPublicOrBare(t *testing.T) {
 	}
 	defer c.Close()
 
-	var added gate.RouteView
-	if err := c.Call(dctx, "gate.route.add", gate.RouteSpec{Host: "Example.com", Upstream: "http://127.0.0.1:8080"}, &added); err != nil {
-		t.Fatal(err)
-	}
-	if added.ID != 1 || added.Host != "example.com" || added.PathPrefix != "/" || reloads != 1 {
-		t.Fatalf("add = %+v (reloads %d)", added, reloads)
-	}
-	if len(routes.actors) != 1 || routes.actors[0] == "unknown" {
-		t.Fatalf("the write's actor = %v; want the socket's local:<uid>", routes.actors)
-	}
-	var list []gate.RouteView
-	if err := c.Call(dctx, "gate.route.list", nil, &list); err != nil || len(list) != 1 {
-		t.Fatalf("list = %+v, %v", list, err)
-	}
-
 	wireErr := func(err error) *rpc.Error {
 		var re *rpc.Error
 		if !errors.As(err, &re) {
@@ -97,6 +119,45 @@ func TestTheControlSocketServesVerbsAndKeepsErrorsPublicOrBare(t *testing.T) {
 		}
 		return re
 	}
+	if re := wireErr(c.Call(dctx, "gate.route.list", nil, nil)); re.Code != rpc.CodeAccessDenied {
+		t.Fatalf("a verb before login answered %+v; want access denied", re)
+	}
+	if re := wireErr(c.Call(dctx, "auth.login", auth.Login{User: "root", Passphrase: "wrong"}, nil)); re.Code != -32160 {
+		t.Fatalf("a wrong passphrase answered %+v; want auth.bad_login", re)
+	}
+	if re := wireErr(c.Call(dctx, "auth.login", auth.Login{User: "nobody", Passphrase: "a long master passphrase"}, nil)); re.Code != -32160 {
+		t.Fatalf("an unknown user answered %+v; want the same auth.bad_login", re)
+	}
+	if re := wireErr(c.Call(dctx, "auth.login", auth.Login{User: "root", Passphrase: "a long master passphrase"}, nil)); re.Code != -32161 {
+		t.Fatalf("a retry inside the wait answered %+v; want auth.throttled", re)
+	}
+	time.Sleep(1100 * time.Millisecond) // root failed once: a one-second wait
+	var in auth.LoggedIn
+	if err := c.Call(dctx, "auth.login", auth.Login{User: "root", Passphrase: "a long master passphrase"}, &in); err != nil {
+		t.Fatal(err)
+	}
+	if in.User != "root" || !in.Unlocked || !vault.Unlocked() || unlocked != 1 {
+		t.Fatalf("login = %+v, vault unlocked %v, onUnlock ran %d times", in, vault.Unlocked(), unlocked)
+	}
+
+	var added gate.RouteView
+	if err := c.Call(dctx, "gate.route.add", gate.RouteSpec{Host: "Example.com", Upstream: "http://127.0.0.1:8080"}, &added); err != nil {
+		t.Fatal(err)
+	}
+	if added.ID != 1 || added.Host != "example.com" || added.PathPrefix != "/" || reloads != 1 {
+		t.Fatalf("add = %+v (reloads %d)", added, reloads)
+	}
+	if len(routes.actors) != 1 || len(routes.actors[0]) < 6 || routes.actors[0][:6] != "root (" {
+		t.Fatalf("the write's actor = %v; want root (local:<uid>)", routes.actors)
+	}
+	if len(log.entries) < 2 || !containsAny(log.entries[0], "attempt") {
+		t.Errorf("the login's attempt was not audited first: %v", log.entries)
+	}
+	var list []gate.RouteView
+	if err := c.Call(dctx, "gate.route.list", nil, &list); err != nil || len(list) != 1 {
+		t.Fatalf("list = %+v, %v", list, err)
+	}
+
 	if re := wireErr(c.Call(dctx, "gate.route.add", gate.RouteSpec{Host: "example.com", Upstream: "http://127.0.0.1:9"}, nil)); re.Code != -32151 {
 		t.Errorf("a duplicate answered %+v; want gate.duplicate (-32151)", re)
 	}

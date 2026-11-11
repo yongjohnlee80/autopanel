@@ -145,7 +145,7 @@ func TestTheScriptsApplyOnPostgres(t *testing.T) {
 		t.Fatal(err)
 	}
 	clear := func() {
-		for _, table := range []string{"route", "audit", "cert_blob", "store_lease"} {
+		for _, table := range []string{"route", "audit", "cert_blob", "store_lease", "secret", "keyslot", "app_user"} {
 			_, _ = db.ExecContext(context.Background(), "DELETE FROM "+table) // before Apply, the tables may not exist yet
 		}
 	}
