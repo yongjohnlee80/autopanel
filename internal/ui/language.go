@@ -67,6 +67,7 @@ func (h *host) languageChanged() {
 		h.setStatus(*h.status)
 	}
 	h.mon.render(h)
+	_ = h.p.Set("App.terminalEmpty", h.tr("autopanel.terminal.empty"))
 }
 
 // wording is a catalog's text for a function that composes it: the host, in

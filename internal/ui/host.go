@@ -156,6 +156,7 @@ func (h *host) state() map[string]any {
 		"App.confirmTitle":    tui.Msg("autopanel.confirm.title"),
 		"App.confirmQuestion": "",
 		"App.terminalShown":   false,
+		"App.terminalEmpty":   englishText("autopanel.terminal.empty"),
 	}
 	for name, v := range languageChecks(h.language) {
 		s[name] = v

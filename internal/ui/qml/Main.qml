@@ -337,7 +337,7 @@ Window {
                         hostKeys: "F11, Ctrl+Tab, Ctrl+Shift+Tab"
                         modeKey: "Ctrl+T"
                         vimKeys: false
-                        emptyText: qsTrId("autopanel.terminal.empty")
+                        emptyText: App.terminalEmpty   // a string: the host keeps it in the UI's language
                         minimumContrast: 4.5
                         palette.base: Theme.document.base
                         palette.text: Theme.app.text

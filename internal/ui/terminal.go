@@ -60,7 +60,8 @@ func hostShells() (own shell, root *shell) {
 	}
 	for _, tool := range loginTools {
 		if fi, err := os.Stat(tool); err == nil && fi.Mode().IsRegular() {
-			return shell{label: u.Username, path: tool, args: []string{"-l", u.Username}}, &own
+			mine := own // root's: the panel's own
+			return shell{label: u.Username, path: tool, args: []string{"-l", u.Username}}, &mine
 		}
 	}
 	return own, nil
