@@ -9,24 +9,85 @@ are recorded under [docs/decisions](docs/decisions/README.md) as they are made.
 
 ## Install
 
-On a Linux server with systemd, as root:
+AutoPanel runs on a Linux server with systemd. Point a name's DNS at the server and open ports 80
+and 443 first.
+
+**Install or upgrade, in one line:**
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/yongjohnlee80/autopanel/main/install.sh | sudo sh
+```
+
+**Or read the script before you run it:**
 
 ```sh
 curl -fsSLO https://raw.githubusercontent.com/yongjohnlee80/autopanel/main/install.sh
-less install.sh    # read it first
-sudo sh install.sh --email admin@example.com
+less install.sh
+sudo sh install.sh
 ```
 
+A first install asks two things on the terminal:
+
+1. **A contact email** for the Let's Encrypt account that issues the certificates. It is sent only
+   to Let's Encrypt.
+2. **A master passphrase** of at least 12 characters, twice. It is the `root` login for the admin
+   TUI and the only way to open the stored secrets without the server's keyfile, so keep it.
+
 The installer downloads the latest release for the machine and checks its SHA-256. When there is
-no release to download, it builds from source on the host, which needs git and Go 1.26 or later.
-`--version v0.1.0` names a release, and `--source` always builds. It asks for a master passphrase,
-which is the login for the admin TUI:
+no release to download, it builds from source on the server, which needs git and Go 1.26 or later.
+It then creates the `autopanel` system user, installs the binary and the systemd unit, and starts
+the service. Running it again upgrades the binary and keeps the configuration, the store and the
+keys.
+
+**With no terminal** (a provisioning script), give both answers as options. The passphrase file
+must be mode 0600, and you can delete it afterwards:
+
+```sh
+sudo sh install.sh --email admin@example.com --passphrase-file /root/autopanel-passphrase
+```
+
+| Option | Meaning |
+| --- | --- |
+| `--email <address>` | the Let's Encrypt contact, instead of being asked |
+| `--passphrase-file <path>` | read the master passphrase from a 0600 file |
+| `--version <tag>` | install that release (for example `v0.1.0`) instead of the latest |
+| `--source` | build from source on the server instead of downloading |
+| `--binary <path>` | install a binary you built yourself |
+| `--ca staging\|production` | the Let's Encrypt directory; staging is the default |
+| `--http <addr>`, `--https <addr>` | the listeners; `:80` and `:443` by default |
+| `--restart always\|on-failure\|no` | the service's restart policy |
+| `--no-start` | install without starting the service |
+
+### Serve your first site
+
+Open the admin TUI on the server, and log in as `root` with the master passphrase:
 
 ```sh
 sudo -u autopanel autopanel --ui
 ```
 
-`sudo autopanel-uninstall --check` lists what a removal would take.
+Press `a` to add a route: the host name (`example.com`), a path prefix (`/`), and the upstream it
+forwards to (`http://127.0.0.1:8080`). `e` edits the selected route, `d` removes it, `r` refreshes
+and `q` quits. AutoPanel gets the certificate for a routed name on its first HTTPS request, and
+redirects plain HTTP to HTTPS.
+
+Certificates come from Let's Encrypt's **staging** directory at first, which browsers don't trust,
+so test with `curl -k`. When it works, switch to real certificates:
+
+```sh
+sudo sed -i 's/^AUTOPANEL_ACME_CA=.*/AUTOPANEL_ACME_CA=production/' /etc/autopanel/autopanel.env
+sudo systemctl restart autopanel
+```
+
+### Check and remove
+
+```sh
+systemctl status autopanel
+journalctl -u autopanel -e
+sudo autopanel-uninstall --check     # lists what a removal would take; changes nothing
+sudo autopanel-uninstall --apply     # removes the service and the binary; keeps data, config and keys
+sudo autopanel-uninstall --purge     # removes everything, after backing the store up
+```
 
 ## Planned first features
 
