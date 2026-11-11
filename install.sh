@@ -1,11 +1,21 @@
 #!/usr/bin/env sh
 #
-# AutoPanel installer. Run as root on the server, from the unpacked release
-# (make dist): autopanel, install.sh, uninstall.sh, autopanel.service and
-# autopanel.env.example side by side.
+# AutoPanel installer. Run as root on the server.
 #
 #   sudo ./install.sh --email admin@example.com              # first install: asks for the master passphrase
 #   sudo ./install.sh                                        # upgrade: replaces the binary, keeps everything else
+#
+# Where the binary comes from, in this order:
+#   a. --binary <path>, or an unpacked release (make dist) with autopanel,
+#      uninstall.sh and autopanel.service beside this script;
+#   b. the release tarball for this machine from GitHub: the latest release, or
+#      the one --version names. Its published SHA-256 is checked, and a
+#      mismatch stops the install;
+#   c. when no release can be downloaded, a build from source on this host
+#      (git and Go 1.26 or later): the tag, or main when there is no release yet.
+#      --source goes straight here.
+# All of that happens in a temporary directory, before anything on the host is
+# changed.
 #
 # What it does, in order:
 #   1. creates the system user "autopanel" (no login shell, no home);
@@ -35,8 +45,17 @@ KEYFILE=$KEY_DIR/service.key
 STATE_DIR=/var/lib/autopanel
 SVC_USER=autopanel
 
+REPO=yongjohnlee80/autopanel
+MIN_GO_MAJOR=1
+MIN_GO_MINOR=26
+
 HERE=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
-BINARY=$HERE/autopanel
+BINARY=""         # --binary; otherwise found beside this script, downloaded or built
+FILES=""          # the directory holding autopanel.service and uninstall.sh
+RELEASE=latest    # --version
+FROM=auto         # auto | source
+WANT_VERSION=""   # what a downloaded or built binary must report
+TMP=""
 EMAIL=""
 CA=""
 HTTP_ADDR=":80"
@@ -48,7 +67,9 @@ RESTART=always
 
 say()  { printf '%s\n' "$*"; }
 info() { printf '  %s\n' "$*"; }
+warn() { printf 'warning: %s\n' "$*" >&2; }
 die()  { printf 'error: %s\n' "$*" >&2; exit 1; }
+need() { command -v "$1" >/dev/null 2>&1 || die "$1 is required $2"; }
 
 usage() {
   cat <<'USAGE'
@@ -58,7 +79,9 @@ USAGE:
   sudo ./install.sh [OPTIONS]
 
 OPTIONS:
-  --binary <path>          The autopanel binary. Default: ./autopanel beside this script
+  --binary <path>          Use this autopanel binary (uninstall.sh and autopanel.service beside this script)
+  --version <tag>          The release to download or build (e.g. v0.1.0). Default: latest
+  --source                 Build from source on this host instead of downloading a release
   --email <address>        ACME account contact (required on first install)
   --ca staging|production  Let's Encrypt directory. Default: staging (first install only)
   --http <addr>            The gate's plain listener. Default: :80
@@ -75,6 +98,8 @@ USAGE
 while [ $# -gt 0 ]; do
   case "$1" in
     --binary) BINARY=${2:?}; shift 2 ;;
+    --version) RELEASE=${2:?}; shift 2 ;;
+    --source) FROM=source; shift ;;
     --email) EMAIL=${2:?}; shift 2 ;;
     --ca) CA=${2:?}; shift 2 ;;
     --http) HTTP_ADDR=${2:?}; shift 2 ;;
@@ -93,12 +118,11 @@ done
 [ "$(id -u)" -eq 0 ] || die "run as root (sudo ./install.sh)"
 [ "$(uname -s)" = Linux ] || die "AutoPanel installs on Linux with systemd"
 command -v systemctl >/dev/null 2>&1 || die "systemd (systemctl) is required"
-[ -f "$BINARY" ] || die "no binary at $BINARY (use --binary)"
-[ -f "$HERE/autopanel.service" ] || die "autopanel.service is missing beside install.sh"
-[ -f "$HERE/uninstall.sh" ] || die "uninstall.sh is missing beside install.sh"
+case "$RELEASE" in latest|v[0-9]*) ;; *) die "--version is a release tag such as v0.1.0" ;; esac
+case "$RELEASE" in *[!A-Za-z0-9._-]*) die "--version is a release tag such as v0.1.0" ;; esac
+[ -z "$BINARY" ] || [ "$FROM$RELEASE" = autolatest ] || die "--binary can't be combined with --version or --source"
 case "$CA" in ""|staging|production) ;; *) die "--ca is staging or production" ;; esac
 case "$RESTART" in always|on-failure|no) ;; *) die "--restart is always, on-failure or no" ;; esac
-VERSION=$("$BINARY" --version 2>/dev/null) || die "$BINARY does not run on this host"
 
 # What a first install needs is checked here, before anything is changed: a
 # refused install leaves the host as it was.
@@ -117,6 +141,125 @@ if [ ! -f "$KEYFILE" ]; then
     have_tty || die "the master passphrase needs a terminal (or --passphrase-file)"
   fi
 fi
+
+# --- the release files -------------------------------------------------------
+# Found beside this script, downloaded, or built: all in a temporary directory,
+# so a refused or failed fetch still leaves the host as it was.
+
+# shellcheck disable=SC2317  # reached through the trap
+cleanup() { [ -z "$TMP" ] || rm -rf "$TMP"; }
+trap cleanup EXIT
+trap 'exit 130' INT TERM
+
+detect_arch() {
+  case "$(uname -m)" in
+    x86_64|amd64) ARCH=amd64 ;;
+    aarch64|arm64) ARCH=arm64 ;;
+    *) ARCH="" ;;
+  esac
+}
+
+# resolve_latest prints the latest release's tag, or fails when there is none.
+# It follows the /releases/latest redirect rather than the API, which is
+# rate-limited for unauthenticated callers and would need a JSON parser.
+resolve_latest() {
+  url=$(curl -fsSL -o /dev/null -w '%{url_effective}' "https://github.com/$REPO/releases/latest" 2>/dev/null) || return 1
+  tag=${url##*/}
+  case "$tag" in v[0-9]*) printf '%s\n' "$tag" ;; *) return 1 ;; esac
+}
+
+# verify_sha256 <file> <file holding "<sum>  <name>">. It fails closed: an
+# empty or unreadable side is a failure, never two empty strings that match.
+verify_sha256() {
+  [ -s "$1" ] || die "the downloaded $1 is missing or empty"
+  [ -s "$2" ] || die "the checksum file $2 is missing or empty"
+  command -v sha256sum >/dev/null 2>&1 || die "sha256sum is required to verify the download"
+  want=$(cut -d' ' -f1 < "$2")
+  got=$(sha256sum "$1" | cut -d' ' -f1)
+  [ -n "$want" ] || die "no checksum could be read from $2"
+  [ -n "$got" ] || die "no checksum could be computed for $1"
+  [ "$want" = "$got" ] || die "checksum mismatch for $(basename "$1"): expected $want, got $got; nothing was installed"
+  info "checksum verified"
+}
+
+# download <tag> fetches and unpacks the release tarball. It returns 1 when the
+# release isn't there to download; a bad checksum or a bad tarball stops the install.
+download() {
+  asset=autopanel-$1-linux-$ARCH.tar.gz
+  base=https://github.com/$REPO/releases/download/$1
+  info "downloading $asset"
+  curl -fsSL -o "$TMP/$asset" "$base/$asset" 2>/dev/null || return 1
+  curl -fsSL -o "$TMP/$asset.sha256" "$base/$asset.sha256" 2>/dev/null || return 1
+  verify_sha256 "$TMP/$asset" "$TMP/$asset.sha256"
+  tar -xzf "$TMP/$asset" -C "$TMP" || die "$asset could not be unpacked"
+  FILES=$TMP/autopanel-$1-linux-$ARCH
+  BINARY=$FILES/autopanel
+  WANT_VERSION=$1
+}
+
+go_version_ok() {
+  raw=$(go env GOVERSION 2>/dev/null || true) # go1.26.9
+  raw=${raw#go}
+  major=${raw%%.*}
+  rest=${raw#*.}
+  minor=${rest%%.*}
+  case "$major$minor" in *[!0-9]*|"") return 1 ;; esac
+  [ "$major" -gt "$MIN_GO_MAJOR" ] && return 0
+  [ "$major" -eq "$MIN_GO_MAJOR" ] && [ "$minor" -ge "$MIN_GO_MINOR" ] && return 0
+  return 1
+}
+
+# build_source <ref> builds the binary from the repository at a tag or branch.
+build_source() {
+  need git "to build from source"
+  need go "to build from source (or pass --binary with one built elsewhere)"
+  go_version_ok || die "Go $MIN_GO_MAJOR.$MIN_GO_MINOR or later is required to build from source (found ${raw:-none})"
+  info "cloning $REPO at $1"
+  git clone --quiet --depth 1 --branch "$1" "https://github.com/$REPO.git" "$TMP/src" >/dev/null 2>&1 \
+    || die "could not clone $REPO at $1"
+  WANT_VERSION=$(git -C "$TMP/src" describe --tags --always) || die "could not read the source's version"
+  info "building $WANT_VERSION (go $(go env GOVERSION), CGO disabled)"
+  mkdir "$TMP/build"
+  ( cd "$TMP/src" && CGO_ENABLED=0 go build -trimpath \
+      -ldflags "-s -w -X github.com/$REPO/app.Version=$WANT_VERSION" \
+      -o "$TMP/build/autopanel" ./cmd/autopanel ) || die "the build failed; nothing was installed"
+  cp "$TMP/src/uninstall.sh" "$TMP/src/deploy/autopanel.service" "$TMP/build/" || die "the source has no uninstall.sh or unit"
+  FILES=$TMP/build
+  BINARY=$FILES/autopanel
+}
+
+fetch() {
+  need curl "to download a release"
+  need tar "to unpack a release"
+  detect_arch
+  TMP=$(mktemp -d) || die "could not create a temporary directory"
+  tag=$RELEASE
+  if [ "$tag" = latest ]; then tag=$(resolve_latest) || tag=""; fi
+  if [ "$FROM" = auto ] && [ -n "$tag" ] && [ -n "$ARCH" ] && download "$tag"; then
+    return
+  fi
+  if [ "$FROM" = auto ]; then
+    if [ -z "$tag" ]; then warn "no release to download yet; building main from source"
+    else warn "no release tarball for $tag on linux/$(uname -m); building it from source"; fi
+  fi
+  build_source "${tag:-main}"
+}
+
+if [ -n "$BINARY" ]; then
+  [ -f "$BINARY" ] || die "no binary at $BINARY"
+  FILES=$HERE
+elif [ "$FROM$RELEASE" = autolatest ] && [ -f "$HERE/autopanel" ] && [ -f "$HERE/autopanel.service" ] && [ -f "$HERE/uninstall.sh" ]; then
+  BINARY=$HERE/autopanel
+  FILES=$HERE
+else
+  fetch
+fi
+[ -f "$FILES/autopanel.service" ] || die "autopanel.service is missing from $FILES"
+[ -f "$FILES/uninstall.sh" ] || die "uninstall.sh is missing from $FILES"
+VERSION=$("$BINARY" --version 2>/dev/null) || die "$BINARY does not run on this host"
+# The binary must be the one asked for: compare the version token exactly.
+[ -z "$WANT_VERSION" ] || [ "${VERSION#autopanel }" = "$WANT_VERSION" ] \
+  || die "the binary reports \"${VERSION#autopanel }\", not $WANT_VERSION; nothing was installed"
 say "Installing $VERSION"
 
 # --- 1. the service user -----------------------------------------------------
@@ -131,7 +274,7 @@ fi
 # --- 2. the binary and the unit ----------------------------------------------
 
 install -m 0755 "$BINARY" "$PREFIX_BIN/autopanel"
-install -m 0644 "$HERE/autopanel.service" "$UNIT"
+install -m 0644 "$FILES/autopanel.service" "$UNIT"
 DROPIN=/etc/systemd/system/autopanel.service.d/restart.conf
 if [ "$RESTART" = always ]; then
   rm -f "$DROPIN"
@@ -203,7 +346,7 @@ fi
 # --- 5. the uninstaller ------------------------------------------------------
 
 install -d -m 0755 "$(dirname "$UNINSTALLER")"
-install -m 0755 "$HERE/uninstall.sh" "$UNINSTALLER"
+install -m 0755 "$FILES/uninstall.sh" "$UNINSTALLER"
 info "installed $UNINSTALLER"
 
 # --- 6. the service ----------------------------------------------------------

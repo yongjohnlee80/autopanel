@@ -3,8 +3,30 @@
 A lightweight control plane for self-hosted web services, written in Go: a reverse-proxy gate with
 automatic TLS certificates first, with mail, storage and container deploys planned to follow.
 
-**Status: design.** There is no code yet. The core architecture is being decided, and its decisions
-will be recorded under [docs/decisions](docs/decisions/README.md) as they are made.
+**Status: early.** The first slice runs: the proxy gate, automatic certificates, the control socket,
+an admin TUI and an installer. It has not been released, and its interfaces will change. Decisions
+are recorded under [docs/decisions](docs/decisions/README.md) as they are made.
+
+## Install
+
+On a Linux server with systemd, as root:
+
+```sh
+curl -fsSLO https://raw.githubusercontent.com/yongjohnlee80/autopanel/main/install.sh
+less install.sh    # read it first
+sudo sh install.sh --email admin@example.com
+```
+
+The installer downloads the latest release for the machine and checks its SHA-256. When there is
+no release to download, it builds from source on the host, which needs git and Go 1.26 or later.
+`--version v0.1.0` names a release, and `--source` always builds. It asks for a master passphrase,
+which is the login for the admin TUI:
+
+```sh
+sudo -u autopanel autopanel --ui
+```
+
+`sudo autopanel-uninstall --check` lists what a removal would take.
 
 ## Planned first features
 

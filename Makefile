@@ -15,11 +15,13 @@ build:
 build-linux:
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GO) build -trimpath -ldflags "$(LDFLAGS)" -o $(DIST)/autopanel ./cmd/autopanel
 
-# The release tarball install.sh runs from: binary, scripts and unit side by side.
+# The release tarball install.sh downloads or runs from: binary, scripts and unit side by
+# side, with the checksum install.sh verifies.
 dist: build-linux
 	install -m 0755 install.sh uninstall.sh $(DIST)/
 	install -m 0644 deploy/autopanel.service deploy/autopanel.env.example $(DIST)/
 	tar -C bin -czf $(DIST).tar.gz $(notdir $(DIST))
+	cd bin && sha256sum $(notdir $(DIST)).tar.gz > $(notdir $(DIST)).tar.gz.sha256
 	@echo $(DIST).tar.gz
 
 vet:
