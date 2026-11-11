@@ -11,13 +11,21 @@ package certs
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"errors"
+	"net"
 	"net/http"
+	"net/url"
+	"time"
 
 	"github.com/caddyserver/certmagic"
 
 	"github.com/yongjohnlee80/autopanel/core/gate"
 )
+
+// ACMETLS1 is the ALPN protocol of a TLS-ALPN-01 challenge handshake
+// (RFC 8737): the validating server offers it alone.
+const ACMETLS1 = "acme-tls/1"
 
 // ErrUnknownHost refuses a certificate for a name no route holds.
 var ErrUnknownHost = errors.New("certs: no route names this host")
@@ -89,6 +97,95 @@ func (m *Manager) TLSConfig() *tls.Config {
 func (m *Manager) GetCertificate(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
 	return m.magic.GetCertificate(hello)
 }
+
+// For is the certificate for name, as a handshake for it would get: from the
+// cache, from the store, or obtained first when the name is allowed and has
+// none. With alpn it is the TLS-ALPN-01 challenge certificate of an order in
+// flight for name. It serves the gate process, which terminates TLS but holds
+// no store: it goes through CertMagic's own handshake entry point, so the
+// on-demand gate (decide) and the challenge lookup stay CertMagic's.
+//
+// The certificate's Leaf is always set.
+func (m *Manager) For(ctx context.Context, name string, alpn bool) (*tls.Certificate, error) {
+	// CertMagic logs the hello's peer, so it needs a connection to ask.
+	hello := &tls.ClientHelloInfo{ServerName: name, Conn: linkConn{}}
+	if alpn {
+		hello.SupportedProtos = []string{ACMETLS1}
+	}
+	c, err := m.magic.GetCertificateWithContext(ctx, hello)
+	if err != nil {
+		return nil, err
+	}
+	if c == nil || len(c.Certificate) == 0 {
+		return nil, errors.New("certs: no certificate")
+	}
+	if c.Leaf == nil {
+		leaf, err := x509.ParseCertificate(c.Certificate[0])
+		if err != nil {
+			return nil, err
+		}
+		cp := *c // CertMagic's own copy stays as it was
+		cp.Leaf = leaf
+		c = &cp
+	}
+	return c, nil
+}
+
+// Challenge answers an ACME HTTP-01 request the gate process received for
+// host at path. ok is false for a request that is no challenge of ours: the
+// gate then serves it as any other.
+func (m *Manager) Challenge(ctx context.Context, host, path string) (status int, body []byte, ok bool) {
+	r := (&http.Request{Method: http.MethodGet, Host: host, URL: &url.URL{Path: path}, Header: http.Header{}}).WithContext(ctx)
+	w := &recorder{header: http.Header{}}
+	if !m.issuer.HandleHTTPChallenge(w, r) {
+		return 0, nil, false
+	}
+	if w.status == 0 {
+		w.status = http.StatusOK
+	}
+	return w.status, w.body, true
+}
+
+// recorder keeps what a handler wrote: the status and the body.
+type recorder struct {
+	header http.Header
+	status int
+	body   []byte
+}
+
+func (r *recorder) Header() http.Header { return r.header }
+
+func (r *recorder) WriteHeader(status int) {
+	if r.status == 0 {
+		r.status = status
+	}
+}
+
+func (r *recorder) Write(b []byte) (int, error) {
+	if r.status == 0 {
+		r.status = http.StatusOK
+	}
+	r.body = append(r.body, b...)
+	return len(b), nil
+}
+
+// linkConn stands for the connection of a hello that came over the link: it
+// has addresses to log and carries nothing.
+type linkConn struct{}
+
+type linkAddr struct{}
+
+func (linkAddr) Network() string { return "unix" }
+func (linkAddr) String() string  { return "gate" }
+
+func (linkConn) Read([]byte) (int, error)         { return 0, net.ErrClosed }
+func (linkConn) Write([]byte) (int, error)        { return 0, net.ErrClosed }
+func (linkConn) Close() error                     { return nil }
+func (linkConn) LocalAddr() net.Addr              { return linkAddr{} }
+func (linkConn) RemoteAddr() net.Addr             { return linkAddr{} }
+func (linkConn) SetDeadline(time.Time) error      { return nil }
+func (linkConn) SetReadDeadline(time.Time) error  { return nil }
+func (linkConn) SetWriteDeadline(time.Time) error { return nil }
 
 // Stop ends the manager's background renewal. A replaced manager is stopped.
 func (m *Manager) Stop() { m.cache.Stop() }

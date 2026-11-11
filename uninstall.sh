@@ -3,7 +3,7 @@
 # AutoPanel uninstaller. install.sh puts a copy at /usr/local/sbin/autopanel-uninstall.
 #
 #   autopanel-uninstall --check            # list what would go; changes nothing (the default)
-#   sudo autopanel-uninstall --apply       # remove the service and the binary; keep data, config and keys
+#   sudo autopanel-uninstall --apply       # remove the services and the binary; keep data, config and keys
 #   sudo autopanel-uninstall --purge       # also the store, the config, the keyfile and the user
 #
 # WHAT IS UNRECOVERABLE, said before anything else. The store holds the routes,
@@ -21,7 +21,10 @@
 
 set -eu
 
-UNIT=/etc/systemd/system/autopanel.service
+UNIT_DIR=/etc/systemd/system
+CORE_UNIT=$UNIT_DIR/autopanel-core.service
+GATE_UNIT=$UNIT_DIR/autopanel-gate.service
+OLD_UNIT=$UNIT_DIR/autopanel.service   # the one service of v0.1.4 and earlier
 BIN=/usr/local/bin/autopanel
 SELF=/usr/local/sbin/autopanel-uninstall
 CONF_DIR=/etc/autopanel
@@ -46,7 +49,7 @@ USAGE:
 
 MODES:
   --check        List what would be removed. Changes nothing. (default)
-  --apply        Stop and remove the service, the binary and this uninstaller.
+  --apply        Stop and remove the two services, the binary and this uninstaller.
                  Keeps /var/lib/autopanel, /etc/autopanel (with the keyfile) and the user,
                  so a reinstall picks up where it left off.
   --purge        --apply, plus the store, the configuration, the keyfile and the user.
@@ -82,7 +85,8 @@ fi
 
 say "AutoPanel uninstall: $MODE"
 say "Removed by --apply:"
-for f in "$UNIT" /etc/systemd/system/autopanel.service.d "$BIN" "$SELF"; do show "$f"; done
+for f in "$CORE_UNIT" "$GATE_UNIT" "$UNIT_DIR/autopanel-core.service.d" "$BIN" "$SELF"; do show "$f"; done
+if exists "$OLD_UNIT"; then info "$OLD_UNIT (the one service of an earlier version)"; fi
 say "Kept by --apply, removed by --purge:"
 for f in "$STATE_DIR" "$CONF_DIR"; do show "$f"; done
 if id "$SVC_USER" >/dev/null 2>&1; then info "system user $SVC_USER"; else info "system user $SVC_USER (absent)"; fi
@@ -100,16 +104,18 @@ if [ "$MODE" = purge ] && [ "$YES" -eq 0 ]; then
   [ "$answer" = purge ] || die "not confirmed; nothing was removed"
 fi
 
-# --- the service, the binary --------------------------------------------------
+# --- the services, the binary --------------------------------------------------
 
-if systemctl list-unit-files autopanel.service >/dev/null 2>&1; then
-  systemctl disable --now autopanel >/dev/null 2>&1 || true
-fi
-rm -f "$UNIT"
-rm -rf /etc/systemd/system/autopanel.service.d
+# The gate first, then the core that runs it; then the one service of an
+# earlier version, if it is still here.
+systemctl stop autopanel-gate >/dev/null 2>&1 || true
+systemctl disable --now autopanel-core >/dev/null 2>&1 || true
+systemctl disable --now autopanel >/dev/null 2>&1 || true
+rm -f "$CORE_UNIT" "$GATE_UNIT" "$OLD_UNIT"
+rm -rf "$UNIT_DIR/autopanel-core.service.d" "$UNIT_DIR/autopanel.service.d"
 systemctl daemon-reload
-rm -f "$BIN"
-info "removed the service and $BIN"
+rm -f "$BIN" "$BIN.previous"
+info "removed the services and $BIN"
 
 # --- data, configuration, keys, user (--purge) ---------------------------------
 

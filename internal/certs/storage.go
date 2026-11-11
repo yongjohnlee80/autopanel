@@ -35,30 +35,40 @@ type storage struct {
 
 var _ certmagic.Storage = (*storage)(nil)
 
+// bg is ctx, or the background context when CertMagic passes none: it reads a
+// handshake's context from the ClientHelloInfo, and one made outside a
+// handshake (Manager.For) has none.
+func bg(ctx context.Context) context.Context {
+	if ctx == nil {
+		return context.Background()
+	}
+	return ctx
+}
+
 func (s *storage) Store(ctx context.Context, key string, value []byte) error {
-	return s.blobs.Put(ctx, key, value)
+	return s.blobs.Put(bg(ctx), key, value)
 }
 
 func (s *storage) Load(ctx context.Context, key string) ([]byte, error) {
-	return s.blobs.Get(ctx, key)
+	return s.blobs.Get(bg(ctx), key)
 }
 
-func (s *storage) Delete(ctx context.Context, key string) error { return s.blobs.Delete(ctx, key) }
+func (s *storage) Delete(ctx context.Context, key string) error { return s.blobs.Delete(bg(ctx), key) }
 
 func (s *storage) Exists(ctx context.Context, key string) bool {
-	_, err := s.blobs.Stat(ctx, key)
+	_, err := s.blobs.Stat(bg(ctx), key)
 	return err == nil
 }
 
 func (s *storage) List(ctx context.Context, prefix string, recursive bool) ([]string, error) {
-	return s.blobs.List(ctx, prefix, recursive)
+	return s.blobs.List(bg(ctx), prefix, recursive)
 }
 
 func (s *storage) Stat(ctx context.Context, key string) (certmagic.KeyInfo, error) {
-	return s.blobs.Stat(ctx, key)
+	return s.blobs.Stat(bg(ctx), key)
 }
 
-func (s *storage) Lock(ctx context.Context, name string) error { return s.locks.lock(ctx, name) }
+func (s *storage) Lock(ctx context.Context, name string) error { return s.locks.lock(bg(ctx), name) }
 
 func (s *storage) Unlock(_ context.Context, name string) error { return s.locks.unlock(name) }
 

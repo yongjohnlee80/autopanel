@@ -189,6 +189,29 @@ func TestOnlyARoutedHostMayHaveACertificate(t *testing.T) {
 	}
 }
 
+// TestForAndChallengeServeTheGateWithoutAHandshake asks as the link does, with
+// no TLS connection behind the hello: a name no route holds is refused before
+// any order, a challenge handshake with no order in flight fails cleanly, and
+// a plain request that is no challenge of ours is passed back.
+func TestForAndChallengeServeTheGateWithoutAHandshake(t *testing.T) {
+	m := newManager(t, "a.example.com")
+	defer m.Stop()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if c, err := m.For(ctx, "stranger.example.com", false); !errors.Is(err, ErrUnknownHost) {
+		t.Errorf("For a name no route holds = %v, %v; want ErrUnknownHost", c, err)
+	}
+	if c, err := m.For(ctx, "a.example.com", true); err == nil {
+		t.Errorf("a challenge certificate with no order in flight = %v; want an error", c)
+	}
+	if _, _, ok := m.Challenge(ctx, "a.example.com", "/index.html"); ok {
+		t.Error("a request that is no challenge was handled")
+	}
+	if status, body, ok := m.Challenge(ctx, "a.example.com", "/.well-known/acme-challenge/no-such-token"); ok {
+		t.Errorf("a challenge with no order in flight was answered: %d %q", status, body)
+	}
+}
+
 func TestTLSConfigOffersHTTPAndKeepsTheALPNChallenge(t *testing.T) {
 	cfg := newManager(t).TLSConfig()
 	if !slices.Equal(cfg.NextProtos, []string{"h2", "http/1.1", "acme-tls/1"}) {

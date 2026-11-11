@@ -20,25 +20,55 @@ import (
 // The shipped defaults bind loopback; a deployment widens the gate to :80 and
 // :443 (security-core-hardening, "loopback by default").
 type Config struct {
-	StateDir  string // the SQLite store; systemd's StateDirectory
-	Socket    string // the control socket; under systemd's RuntimeDirectory
-	Engine    string // "sqlite" (default) or "postgres"
-	DSN       string // PostgreSQL, from AUTOPANEL_POSTGRES_DSN
-	HTTPAddr  string // the gate's plain listener: ACME HTTP-01 and the redirect to HTTPS
-	HTTPSAddr string // the gate's TLS listener
-	CA        string // the ACME directory URL
-	Email     string // the ACME account contact
-	Keyfile   string // the service keyslot's keyfile, outside the state directory
-	Trusted   []netip.Prefix
+	StateDir   string // the SQLite store; systemd's StateDirectory
+	Socket     string // the control socket, for the panel and the CLI; in the core's own runtime directory
+	LinkSocket string // the link socket, for the gate process; in a directory the gate's group can enter
+	GateUser   string // the user the gate process runs as: the only peer the link socket admits
+	Engine     string // "sqlite" (default) or "postgres"
+	DSN        string // PostgreSQL, from AUTOPANEL_POSTGRES_DSN
+	HTTPAddr   string // the gate's plain listener: ACME HTTP-01 and the redirect to HTTPS
+	HTTPSAddr  string // the gate's TLS listener
+	CA         string // the ACME directory URL
+	Email      string // the ACME account contact
+	Keyfile    string // the service keyslot's keyfile, outside the state directory
+	Trusted    []netip.Prefix
 }
 
-// The systemd unit's directories (deploy/autopanel.service), and the keyfile
+// The core unit's directories (deploy/autopanel-core.service), and the keyfile
 // install.sh makes, in a directory of its own outside the state directory.
 const (
 	systemState   = "/var/lib/autopanel"
-	systemRuntime = "/run/autopanel"
+	systemRuntime = "/run/autopanel-core" // the control socket: root's alone
+	systemLink    = "/run/autopanel-link" // the link socket: root's, and the gate's group may enter
 	systemKeyfile = "/etc/autopanel/keyslot/service.key"
 )
+
+// linkSocket is where the link socket is: what AUTOPANEL_LINK_SOCKET says,
+// the core unit's directory when it exists, and otherwise beside the control
+// socket in runtime (a development run, where one user runs both processes).
+func linkSocket(runtime string) string {
+	if isDir(systemLink) {
+		runtime = systemLink
+	}
+	return env("AUTOPANEL_LINK_SOCKET", filepath.Join(runtime, "link.sock"))
+}
+
+// userRuntime is this user's own runtime directory for AutoPanel, for a run
+// outside the units.
+func userRuntime(state string) string {
+	runtime := env("XDG_RUNTIME_DIR", state)
+	if runtime != state {
+		runtime = filepath.Join(runtime, "autopanel")
+	}
+	return runtime
+}
+
+// GateLinkSocket is the link socket as the gate process finds it. The gate
+// reads no other configuration: the rest comes over the link.
+func GateLinkSocket() string {
+	home, _ := os.UserHomeDir()
+	return linkSocket(userRuntime(filepath.Join(home, ".local", "state", "autopanel")))
+}
 
 func isDir(p string) bool {
 	fi, err := os.Stat(p)
@@ -65,25 +95,26 @@ func LoadConfig() (Config, error) {
 		}
 		state = filepath.Join(home, ".local", "state", "autopanel")
 	}
-	runtime := os.Getenv("RUNTIME_DIRECTORY")
+	// The core's unit names two runtime directories, so systemd gives them as
+	// a colon-separated list: the control socket's is the first.
+	runtime, _, _ := strings.Cut(os.Getenv("RUNTIME_DIRECTORY"), ":")
 	if runtime == "" && isDir(systemRuntime) {
-		runtime = systemRuntime // so `sudo -u autopanel autopanel --ui` finds the unit's socket
+		runtime = systemRuntime // so `sudo autopanel --ui` finds the unit's socket
 	}
 	if runtime == "" {
-		runtime = env("XDG_RUNTIME_DIR", state)
-		if runtime != state {
-			runtime = filepath.Join(runtime, "autopanel")
-		}
+		runtime = userRuntime(state)
 	}
 	c := Config{
-		StateDir:  state,
-		Socket:    env("AUTOPANEL_SOCKET", filepath.Join(runtime, "control.sock")),
-		Engine:    env("AUTOPANEL_STORE_ENGINE", dao.DialectSQLite),
-		DSN:       os.Getenv("AUTOPANEL_POSTGRES_DSN"),
-		HTTPAddr:  env("AUTOPANEL_HTTP_ADDR", "127.0.0.1:8080"),
-		HTTPSAddr: env("AUTOPANEL_HTTPS_ADDR", "127.0.0.1:8443"),
-		Email:     os.Getenv("AUTOPANEL_ACME_EMAIL"),
-		Keyfile:   os.Getenv("AUTOPANEL_KEYFILE"),
+		StateDir:   state,
+		Socket:     env("AUTOPANEL_SOCKET", filepath.Join(runtime, "control.sock")),
+		LinkSocket: linkSocket(runtime),
+		GateUser:   env("AUTOPANEL_GATE_USER", "autopanel"),
+		Engine:     env("AUTOPANEL_STORE_ENGINE", dao.DialectSQLite),
+		DSN:        os.Getenv("AUTOPANEL_POSTGRES_DSN"),
+		HTTPAddr:   env("AUTOPANEL_HTTP_ADDR", "127.0.0.1:8080"),
+		HTTPSAddr:  env("AUTOPANEL_HTTPS_ADDR", "127.0.0.1:8443"),
+		Email:      os.Getenv("AUTOPANEL_ACME_EMAIL"),
+		Keyfile:    os.Getenv("AUTOPANEL_KEYFILE"),
 	}
 	if c.Keyfile == "" {
 		if isDir(filepath.Dir(systemKeyfile)) {

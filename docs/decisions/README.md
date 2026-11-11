@@ -5,4 +5,6 @@ comment in the code that says `Decision: docs/decisions/<page>.md#<decision>` po
 these. Each decision says what was decided, why, and where it lives in the code. Where a page and
 the code disagree, the code is right and the page is fixed.
 
-No decisions are recorded yet: the core architecture is still being designed.
+| Page | What it covers |
+| --- | --- |
+| [Processes](processes.md) | the gate and the core, the link between them, host commands, who may open the control socket |

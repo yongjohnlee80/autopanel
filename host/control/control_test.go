@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -16,6 +17,7 @@ import (
 	"github.com/yongjohnlee80/autopanel/core/gate"
 	"github.com/yongjohnlee80/autopanel/internal/auth"
 	"github.com/yongjohnlee80/autopanel/internal/keyslot"
+	"github.com/yongjohnlee80/autopanel/internal/peercred"
 )
 
 var cheap = keyslot.Params{Time: 1, MemKiB: 1024, Threads: 1}
@@ -97,7 +99,7 @@ func TestTheControlSocketServesVerbsAndKeepsErrorsPublicOrBare(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv, err := Listen(sock, slog.New(slog.NewTextHandler(io.Discard, nil)), gm, am)
+	srv, err := Listen(sock, slog.New(slog.NewTextHandler(io.Discard, nil)), Access{}, gm, am)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -175,8 +177,54 @@ func TestTheControlSocketServesVerbsAndKeepsErrorsPublicOrBare(t *testing.T) {
 		t.Errorf("failed writes reloaded the table: %d reloads; want 1", reloads)
 	}
 
-	if _, err := Listen(sock, slog.New(slog.NewTextHandler(io.Discard, nil)), gm); err == nil {
+	if _, err := Listen(sock, slog.New(slog.NewTextHandler(io.Discard, nil)), Access{}, gm); err == nil {
 		t.Error("a second Listen on a live socket succeeded")
+	}
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the server did not stop")
+	}
+}
+
+// TestTheSocketAdmitsOnlyTheUsersItNames binds a socket for another user's
+// processes: this process, which is not that user, is dropped at accept, and
+// a client that expects another user's server refuses this one. The mode is
+// the one asked for.
+func TestTheSocketAdmitsOnlyTheUsersItNames(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	sock := filepath.Join(t.TempDir(), "link.sock")
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	gm := gate.NewModule(&memRoutes{}, func(context.Context) error { return nil })
+	srv, err := Listen(sock, log, Access{Peers: []int{os.Getuid() + 1}, Mode: 0o660}, gm)
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() { done <- srv.Run(ctx) }()
+	if fi, err := os.Stat(sock); err != nil || fi.Mode().Perm() != 0o660 {
+		t.Fatalf("the socket's mode = %v, %v; want 0660", fi.Mode().Perm(), err)
+	}
+
+	dctx, dcancel := context.WithTimeout(ctx, 5*time.Second)
+	defer dcancel()
+	if c, err := Dial(dctx, sock); err == nil {
+		// The dial itself succeeds: the kernel queues it. The server then
+		// drops the connection without a byte, so the first call fails.
+		err = c.Call(dctx, "gate.route.list", nil, nil)
+		_ = c.Close()
+		var re *rpc.Error
+		if err == nil || errors.As(err, &re) {
+			t.Fatalf("a peer the socket does not name was answered: %v", err)
+		}
+	}
+	if c, err := Dial(dctx, sock, os.Getuid()+1); err == nil {
+		_ = c.Close()
+		t.Fatal("a client that expects another user's server connected to this one")
+	} else if !errors.Is(err, peercred.ErrOtherUser) {
+		t.Fatalf("the refusal = %v; want ErrOtherUser", err)
 	}
 	cancel()
 	select {

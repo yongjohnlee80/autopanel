@@ -31,6 +31,9 @@ type sysModule struct {
 	// The host reads, as fields so a test gives its own.
 	listeners func() ([]sysinfo.Listener, error)
 	sshLogins func(ctx context.Context, limit int) ([]sysinfo.SSHLogin, error)
+	// gate runs the gate process's unit; nil when this core does not (a
+	// development run).
+	gate GateControl
 }
 
 // Status is sys.status's answer.
@@ -51,6 +54,8 @@ func (m *sysModule) Errors() []module.PublicError {
 	return []module.PublicError{
 		{Err: errBadPref, Code: -32180, Name: "sys.bad_preference", Message: "a preference is a name of letters, digits and underscores"},
 		{Err: sysinfo.ErrUnsupported, Code: -32181, Name: "sys.unsupported", Message: "this host has no source for it"},
+		{Err: errNoGateControl, Code: -32182, Name: "sys.no_gate_control", Message: "this core does not run the gate's unit; start and stop the gate by hand"},
+		{Err: errGateControl, Code: -32183, Name: "sys.gate_control_failed", Message: "the gate's unit did not do it; the core's log says why"},
 	}
 }
 

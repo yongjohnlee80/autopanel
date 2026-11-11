@@ -11,13 +11,16 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/caddyserver/certmagic"
+	"github.com/yongjohnlee80/golib/server/rpc"
 
 	"github.com/yongjohnlee80/autopanel/core/gate"
 	hostcontrol "github.com/yongjohnlee80/autopanel/host/control"
+	hostgate "github.com/yongjohnlee80/autopanel/host/gate"
 	"github.com/yongjohnlee80/autopanel/internal/auth"
 	"github.com/yongjohnlee80/autopanel/internal/sysinfo"
 	"github.com/yongjohnlee80/autopanel/store"
@@ -33,12 +36,76 @@ func freeAddr(t *testing.T) string {
 	return ln.Addr().String()
 }
 
-// TestTheDaemonEndToEnd runs AutoPanel as --init and --serve make it, in a
-// temporary directory, and drives it as the TUI does: the keyfile unlocks the
-// vault at start, the control socket needs a login, a route added there is
-// served by the gate at once, and a second AutoPanel on the store is refused.
-// No ACME call is made: the test only crosses the plain listener.
-func TestTheDaemonEndToEnd(t *testing.T) {
+// testConfig is a configuration in a temporary directory, with its sockets'
+// directory made.
+func testConfig(t *testing.T) Config {
+	t.Helper()
+	dir := t.TempDir()
+	cfg := Config{
+		StateDir: filepath.Join(dir, "state"), Socket: filepath.Join(dir, "run", "control.sock"),
+		LinkSocket: filepath.Join(dir, "run", "link.sock"),
+		Engine:     "sqlite", HTTPAddr: freeAddr(t), HTTPSAddr: freeAddr(t),
+		CA: certmagic.LetsEncryptStagingCA, Email: "admin@example.com",
+		Keyfile: filepath.Join(dir, "keyslot", "service.key"),
+	}
+	if err := os.MkdirAll(filepath.Dir(cfg.Socket), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	return cfg
+}
+
+// until polls ok for ten seconds.
+func until(t *testing.T, what string, ok func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(10 * time.Second)
+	for !ok() {
+		if time.Now().After(deadline) {
+			t.Fatal(what)
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+}
+
+// wireCode is the code of the wire error err is, or 0.
+func wireCode(err error) int64 {
+	var re *rpc.Error
+	if errors.As(err, &re) {
+		return re.Code
+	}
+	return 0
+}
+
+// recordedGate is a GateControl that only counts what the core asked of it.
+type recordedGate struct {
+	mu                      sync.Mutex
+	starts, restarts, stops int
+	fail                    error
+}
+
+func (g *recordedGate) count(n *int) error {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	*n++
+	return g.fail
+}
+
+func (g *recordedGate) Start(context.Context) error   { return g.count(&g.starts) }
+func (g *recordedGate) Restart(context.Context) error { return g.count(&g.restarts) }
+func (g *recordedGate) Stop(context.Context) error    { return g.count(&g.stops) }
+
+func (g *recordedGate) counts() (int, int, int) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.starts, g.restarts, g.stops
+}
+
+// TestTheCoreAndTheGateEndToEnd runs AutoPanel as --init, --core and --gate
+// make it, in a temporary directory, as two halves joined only by the link
+// socket, and drives it as the TUI does: the keyfile unlocks the vault at
+// start, the control socket needs a login, a route added there reaches the
+// gate over the link, and a second core on the store is refused. No ACME call
+// is made: the test only crosses the plain listener.
+func TestTheCoreAndTheGateEndToEnd(t *testing.T) {
 	// The host reads are the test's own: no real socket table, no journal.
 	defer func(l func() ([]sysinfo.Listener, error), s func(context.Context, int) ([]sysinfo.SSHLogin, error)) {
 		readListeners, readSSHLogins = l, s
@@ -51,13 +118,10 @@ func TestTheDaemonEndToEnd(t *testing.T) {
 		return []sysinfo.SSHLogin{{At: 4102444800, User: "root", From: "192.0.2.66", Result: "failed", Detail: "password"}}, nil
 	}
 
-	dir := t.TempDir()
-	cfg := Config{
-		StateDir: filepath.Join(dir, "state"), Socket: filepath.Join(dir, "run", "control.sock"),
-		Engine: "sqlite", HTTPAddr: freeAddr(t), HTTPSAddr: freeAddr(t),
-		CA: certmagic.LetsEncryptStagingCA, Email: "admin@example.com",
-		Keyfile: filepath.Join(dir, "keyslot", "service.key"),
-	}
+	defer func(d time.Duration) { hostgate.ReportEvery = d }(hostgate.ReportEvery)
+	hostgate.ReportEvery = 50 * time.Millisecond
+
+	cfg := testConfig(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -71,23 +135,28 @@ func TestTheDaemonEndToEnd(t *testing.T) {
 		t.Fatalf("a second Init = %v; want ErrInitialized", err)
 	}
 
-	if err := os.MkdirAll(filepath.Dir(cfg.Socket), 0o700); err != nil {
-		t.Fatal(err)
-	}
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	gc := &recordedGate{}
 	done := make(chan error, 1)
-	go func() { done <- ServeContext(ctx, cfg, log) }()
-	deadline := time.Now().Add(10 * time.Second)
-	for !hostcontrol.InUse(cfg.Socket) {
-		if time.Now().After(deadline) {
-			t.Fatal("the control socket never came up")
-		}
-		time.Sleep(50 * time.Millisecond)
+	go func() { done <- CoreContext(ctx, cfg, log, gc) }()
+	until(t, "the core's sockets never came up", func() bool { return hostcontrol.InUse(cfg.Socket) && hostcontrol.InUse(cfg.LinkSocket) })
+	until(t, "the core never started the gate", func() bool { s, _, _ := gc.counts(); return s == 1 })
+
+	if err := CoreContext(ctx, cfg, log, nil); err == nil || !strings.Contains(err.Error(), "already running") {
+		t.Fatalf("a second core on the same socket = %v", err)
 	}
 
-	if err := ServeContext(ctx, cfg, log); err == nil || !strings.Contains(err.Error(), "already running") {
-		t.Fatalf("a second AutoPanel on the same socket = %v", err)
-	}
+	// The gate, as --gate runs it: it knows the link socket and nothing else.
+	gateDone := make(chan error, 1)
+	go func() { gateDone <- hostgate.Run(ctx, LinkDialer(cfg.LinkSocket), log) }()
+	until(t, "the gate never listened", func() bool {
+		c, err := net.Dial("tcp", cfg.HTTPAddr)
+		if err != nil {
+			return false
+		}
+		_ = c.Close()
+		return true
+	})
 
 	c, err := hostcontrol.Dial(ctx, cfg.Socket)
 	if err != nil {
@@ -108,9 +177,55 @@ func TestTheDaemonEndToEnd(t *testing.T) {
 
 	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = io.WriteString(w, "upstream") }))
 	defer up.Close()
+	// The link socket, as the gate sees it: its configuration, the table held
+	// open until it changes, and no certificate for a name no route holds.
+	// Each socket offers its own verbs and none of the other's.
+	lc, err := hostcontrol.Dial(ctx, cfg.LinkSocket)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lc.Close()
+	var hello hostgate.Hello
+	if err := lc.Call(ctx, hostgate.VerbHello, nil, &hello); err != nil || hello.HTTP != cfg.HTTPAddr || hello.HTTPS != cfg.HTTPSAddr {
+		t.Fatalf("link.hello = %+v, %v", hello, err)
+	}
+	var table hostgate.Routes
+	if err := lc.Call(ctx, hostgate.VerbRoutes, hostgate.After{}, &table); err != nil || table.Rev == 0 || len(table.Routes) != 0 {
+		t.Fatalf("link.routes = %+v, %v; want an empty table with a revision", table, err)
+	}
+	next := make(chan hostgate.Routes, 1)
+	go func() {
+		var r hostgate.Routes
+		if err := lc.Call(ctx, hostgate.VerbRoutes, hostgate.After{After: table.Rev}, &r); err == nil {
+			next <- r
+		}
+	}()
+	select {
+	case r := <-next:
+		t.Fatalf("link.routes answered %+v with nothing changed", r)
+	case <-time.After(200 * time.Millisecond):
+	}
+	if err := lc.Call(ctx, hostgate.VerbCert, hostgate.Name{Name: "stranger.example.com"}, nil); wireCode(err) != -32190 {
+		t.Fatalf("link.cert for a name no route holds = %v; want link.unknown_host", err)
+	}
+	if err := lc.Call(ctx, "sys.status", nil, nil); wireCode(err) != rpc.CodeMethodNotFound {
+		t.Fatalf("the link socket answered a control verb: %v", err)
+	}
+	if err := c.Call(ctx, hostgate.VerbHello, nil, nil); wireCode(err) != rpc.CodeMethodNotFound {
+		t.Fatalf("the control socket answered a link verb: %v", err)
+	}
+
 	var added gate.RouteView
 	if err := c.Call(ctx, "gate.route.add", gate.RouteSpec{Host: "app.example.com", Upstream: up.URL}, &added); err != nil {
 		t.Fatal(err)
+	}
+	select {
+	case r := <-next:
+		if r.Rev == table.Rev || len(r.Routes) != 1 || r.Routes[0].Host != "app.example.com" || r.Routes[0].Upstream != up.URL {
+			t.Fatalf("the held link.routes answered %+v; want the new route", r)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("the held link.routes never answered the added route")
 	}
 
 	noRedirect := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }, Timeout: 5 * time.Second}
@@ -138,8 +253,11 @@ func TestTheDaemonEndToEnd(t *testing.T) {
 	// host's SSH logins; the ports name AutoPanel's own and a route's
 	// upstream; the preferences are kept.
 	var ms Metrics
-	if err := c.Call(ctx, "sys.metrics", nil, &ms); err != nil || ms.HTTPRequests != 1 || ms.Goroutines == 0 || ms.RuntimeBytes == 0 || ms.Routes != 1 {
-		t.Fatalf("sys.metrics = %+v, %v", ms, err)
+	until(t, "the gate's request count never reached the core", func() bool {
+		return c.Call(ctx, "sys.metrics", nil, &ms) == nil && ms.HTTPRequests == 1
+	})
+	if ms.Goroutines == 0 || ms.RuntimeBytes == 0 || ms.Routes != 1 {
+		t.Fatalf("sys.metrics = %+v", ms)
 	}
 	var entries []store.AuditEntry
 	if err := c.Call(ctx, "sys.audit.list", Limit{Limit: 3}, &entries); err != nil || len(entries) != 3 || entries[0].ID <= entries[1].ID {
@@ -148,6 +266,31 @@ func TestTheDaemonEndToEnd(t *testing.T) {
 	if entries[0].Action != "secret.delete" || !strings.HasPrefix(entries[0].Actor, "root") {
 		t.Fatalf("the newest audit entry = %+v; want the token's removal, by root", entries[0])
 	}
+	// The gate's lifecycle is the core's: each action is audited before it
+	// runs, and its outcome after.
+	if err := c.Call(ctx, "sys.gate.restart", nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, restarts, stops := gc.counts(); restarts != 1 || stops != 0 {
+		t.Fatalf("after sys.gate.restart the gate saw %d restarts, %d stops", restarts, stops)
+	}
+	if err := c.Call(ctx, "sys.audit.list", Limit{Limit: 2}, &entries); err != nil || len(entries) != 2 ||
+		entries[0].Action != "gate.restart" || entries[0].Detail != "ok" || entries[1].Action != "gate.restart" || entries[1].Detail != "attempt" {
+		t.Fatalf("the restart's audit entries = %+v, %v; want the attempt, then ok", entries, err)
+	}
+	gc.mu.Lock()
+	gc.fail = errors.New("the unit is masked")
+	gc.mu.Unlock()
+	if err := c.Call(ctx, "sys.gate.stop", nil, nil); wireCode(err) != -32183 || strings.Contains(err.Error(), "masked") {
+		t.Fatalf("a failed sys.gate.stop = %v; want sys.gate_control_failed, without the host's detail", err)
+	}
+	if err := c.Call(ctx, "sys.audit.list", Limit{Limit: 1}, &entries); err != nil || entries[0].Action != "gate.stop" || entries[0].Detail != "failed" {
+		t.Fatalf("the failed stop's audit entry = %+v, %v", entries, err)
+	}
+	if _, err := (&sysModule{}).gateStop(ctx, struct{}{}); !errors.Is(err, errNoGateControl) {
+		t.Fatalf("a core that runs no gate unit answered %v", err)
+	}
+
 	var ls Logins
 	if err := c.Call(ctx, "sys.logins", nil, &ls); err != nil || ls.SSHNote != "" || len(ls.Attempts) != 2 {
 		t.Fatalf("sys.logins = %+v, %v", ls, err)
@@ -201,12 +344,14 @@ func TestTheDaemonEndToEnd(t *testing.T) {
 	}
 
 	cancel()
-	select {
-	case err := <-done:
-		if err != nil {
-			t.Fatalf("Serve stopped with %v", err)
+	for name, ch := range map[string]chan error{"the core": done, "the gate": gateDone} {
+		select {
+		case err := <-ch:
+			if err != nil {
+				t.Fatalf("%s stopped with %v", name, err)
+			}
+		case <-time.After(15 * time.Second):
+			t.Fatalf("%s did not stop", name)
 		}
-	case <-time.After(15 * time.Second):
-		t.Fatal("Serve did not stop")
 	}
 }
