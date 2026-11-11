@@ -99,6 +99,24 @@ command -v systemctl >/dev/null 2>&1 || die "systemd (systemctl) is required"
 case "$CA" in ""|staging|production) ;; *) die "--ca is staging or production" ;; esac
 case "$RESTART" in always|on-failure|no) ;; *) die "--restart is always, on-failure or no" ;; esac
 VERSION=$("$BINARY" --version 2>/dev/null) || die "$BINARY does not run on this host"
+
+# What a first install needs is checked here, before anything is changed: a
+# refused install leaves the host as it was.
+# have_tty opens the terminal rather than testing the node: /dev/tty is
+# readable by mode even when the process has no controlling terminal.
+have_tty() { ( : <>/dev/tty ) 2>/dev/null; }
+if [ ! -f "$ENV_FILE" ]; then
+  [ -n "$EMAIL" ] || die "--email is required on a first install (the ACME account's contact)"
+  case "$EMAIL" in *@*.*) ;; *) die "--email $EMAIL is not an address" ;; esac
+fi
+if [ ! -f "$KEYFILE" ]; then
+  if [ -n "$PASSFILE" ]; then
+    [ -f "$PASSFILE" ] || die "no passphrase file at $PASSFILE"
+    case "$(stat -c %a "$PASSFILE")" in 600|400) ;; *) die "$PASSFILE must be mode 0600" ;; esac
+  else
+    have_tty || die "the master passphrase needs a terminal (or --passphrase-file)"
+  fi
+fi
 say "Installing $VERSION"
 
 # --- 1. the service user -----------------------------------------------------
@@ -134,9 +152,7 @@ if [ -f "$ENV_FILE" ]; then
   info "kept $ENV_FILE"
   [ -z "$EMAIL$CA" ] || info "(--email and --ca apply only to a first install; edit $ENV_FILE to change them)"
 else
-  [ -n "$EMAIL" ] || die "--email is required on a first install (the ACME account's contact)"
-  case "$EMAIL" in *@*.*) ;; *) die "--email $EMAIL is not an address" ;; esac
-  umask 027
+  umask 027 # --email was checked in the preflight
   {
     printf '# Written by install.sh. root:%s 0640. Holds no secrets: the Cloudflare\n' "$SVC_USER"
     printf '# token is set with certs.cloudflare.set and kept sealed in the store.\n'
@@ -160,13 +176,11 @@ as_service() {
 }
 
 read_passphrase() {
+  # The file and the terminal were checked in the preflight.
   if [ -n "$PASSFILE" ]; then
-    [ -f "$PASSFILE" ] || die "no passphrase file at $PASSFILE"
-    case "$(stat -c %a "$PASSFILE")" in 600|400) ;; *) die "$PASSFILE must be mode 0600" ;; esac
     head -n 1 "$PASSFILE"
     return
   fi
-  [ -r /dev/tty ] || die "the master passphrase needs a terminal (or --passphrase-file)"
   old=$(stty -g </dev/tty)
   trap 'stty "$old" </dev/tty' EXIT INT TERM
   printf 'Master passphrase for %s (at least 12 characters): ' "$ROOT_USER" >/dev/tty

@@ -92,7 +92,9 @@ if id "$SVC_USER" >/dev/null 2>&1; then info "system user $SVC_USER"; else info 
 [ "$(id -u)" -eq 0 ] || die "run as root"
 
 if [ "$MODE" = purge ] && [ "$YES" -eq 0 ]; then
-  [ -r /dev/tty ] || die "--purge needs a terminal to confirm, or --yes"
+  # Open the terminal rather than test the node: /dev/tty is readable by mode
+  # even when the process has no controlling terminal.
+  ( : <>/dev/tty ) 2>/dev/null || die "--purge needs a terminal to confirm, or --yes"
   printf 'This destroys the store and the keyfile. Type "purge" to go on: ' >/dev/tty
   IFS= read -r answer </dev/tty
   [ "$answer" = purge ] || die "not confirmed; nothing was removed"
