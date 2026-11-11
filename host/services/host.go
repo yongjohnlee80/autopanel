@@ -93,9 +93,13 @@ func ids(name string) (uid, gid int, ok bool, err error) {
 	return uid, gid, true, nil
 }
 
-// manager addresses a user's systemd from root: systemctl --user -M <user>@.
-func manager(usr string, args ...string) []string {
-	return append([]string{"--user", "-M", usr + "@"}, args...)
+// userSystemctl runs systemctl against a user's own systemd, as that user:
+// runuser, with the user's runtime directory named, so systemctl finds the
+// manager's private socket. systemctl's own way from root (-M <user>@) needs
+// the user's D-Bus session bus, which a server need not have.
+func userSystemctl(ctx context.Context, usr string, uid int, args ...string) ([]byte, error) {
+	run := []string{"-u", usr, "--", "/usr/bin/env", "XDG_RUNTIME_DIR=/run/user/" + strconv.Itoa(uid), "/usr/bin/systemctl", "--user"}
+	return hostcmd.Run(ctx, hostcmd.Runuser, append(run, args...)...)
 }
 
 // Install makes the service's user (with its sub-id ranges and a systemd of
@@ -134,7 +138,7 @@ func (h *Host) Install(ctx context.Context, u services.Unit) error {
 	if err := writeFiles(home, uid, gid, u.Files); err != nil {
 		return err
 	}
-	_, err = hostcmd.Run(ctx, hostcmd.Systemctl, manager(usr, "daemon-reload")...)
+	_, err = userSystemctl(ctx, usr, uid, "daemon-reload")
 	return err
 }
 
@@ -279,8 +283,8 @@ func writeFiles(home string, uid, gid int, files []services.File) error {
 	return nil
 }
 
-func (h *Host) unit(ctx context.Context, name string, args ...string) error {
-	_, err := hostcmd.Run(ctx, hostcmd.Systemctl, manager(services.UserOf(name), append(args, name+".service")...)...)
+func (h *Host) unit(ctx context.Context, usr string, uid int, name string, args ...string) error {
+	_, err := userSystemctl(ctx, usr, uid, append(args, name+".service")...)
 	return err
 }
 
@@ -304,7 +308,7 @@ func (h *Host) up(ctx context.Context, name, verb string) error {
 	if err := linger(ctx, usr, uid); err != nil {
 		return err
 	}
-	return h.unit(ctx, name, "--no-block", verb)
+	return h.unit(ctx, usr, uid, name, "--no-block", verb)
 }
 
 // Restart is Start for a unit that may be running.
@@ -312,7 +316,15 @@ func (h *Host) Restart(ctx context.Context, name string) error {
 	return h.up(ctx, name, "restart")
 }
 
-func (h *Host) Stop(ctx context.Context, name string) error { return h.unit(ctx, name, "stop") }
+// Stop stops the unit. A service with no user has nothing to stop.
+func (h *Host) Stop(ctx context.Context, name string) error {
+	usr := services.UserOf(name)
+	uid, _, ok, err := ids(usr)
+	if err != nil || !ok {
+		return err
+	}
+	return h.unit(ctx, usr, uid, name, "stop")
+}
 
 // Uninstall stops the unit, ends the user's systemd and deletes the user.
 // With purge the directory goes too; without, it is kept as root's, under a
@@ -362,12 +374,14 @@ func (h *Host) Uninstall(ctx context.Context, name string, purge bool) error {
 // Running is the unit's state as the user's systemd reports it.
 func (h *Host) Running(ctx context.Context, name string) (services.Running, error) {
 	usr := services.UserOf(name)
-	if _, _, ok, err := ids(usr); err != nil {
+	uid, _, ok, err := ids(usr)
+	if err != nil {
 		return services.Running{}, err
-	} else if !ok {
+	}
+	if !ok {
 		return services.Running{Active: "absent"}, nil
 	}
-	out, err := hostcmd.Run(ctx, hostcmd.Systemctl, manager(usr, "show", name+".service", "-p", "ActiveState,SubState,MemoryCurrent")...)
+	out, err := userSystemctl(ctx, usr, uid, "show", name+".service", "-p", "ActiveState,SubState,MemoryCurrent")
 	if err != nil {
 		return services.Running{}, err
 	}

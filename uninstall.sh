@@ -145,7 +145,7 @@ fi
 # directory.
 if [ "$KEEP_SERVICES" -eq 0 ]; then
   for n in $SERVICES; do
-    systemctl --user -M "ap-$n@" stop "$n.service" >/dev/null 2>&1 || true
+    runuser -u "ap-$n" -- env XDG_RUNTIME_DIR="/run/user/$(id -u "ap-$n")" systemctl --user stop "$n.service" >/dev/null 2>&1 || true
     loginctl disable-linger "ap-$n" >/dev/null 2>&1 || true
     loginctl terminate-user "ap-$n" >/dev/null 2>&1 || true
     if [ "$MODE" = purge ]; then

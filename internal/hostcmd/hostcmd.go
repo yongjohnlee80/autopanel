@@ -30,6 +30,7 @@ var (
 	Usermod    = Tool{"/usr/sbin/usermod"}
 	Userdel    = Tool{"/usr/sbin/userdel"}
 	Podman     = Tool{"/usr/bin/podman"}
+	Runuser    = Tool{"/usr/sbin/runuser"}
 )
 
 const (
