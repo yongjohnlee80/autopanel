@@ -2,7 +2,8 @@
 #
 # AutoPanel installer. Run as root on the server.
 #
-#   sudo ./install.sh --email admin@example.com              # first install: asks for the master passphrase
+#   sudo ./install.sh                                        # first install: asks for the contact email and the master passphrase
+#   sudo ./install.sh --email admin@example.com              # the same, with the email given
 #   sudo ./install.sh                                        # upgrade: replaces the binary, keeps everything else
 #
 # Where the binary comes from, in this order:
@@ -82,7 +83,7 @@ OPTIONS:
   --binary <path>          Use this autopanel binary (uninstall.sh and autopanel.service beside this script)
   --version <tag>          The release to download or build (e.g. v0.1.0). Default: latest
   --source                 Build from source on this host instead of downloading a release
-  --email <address>        ACME account contact (required on first install)
+  --email <address>        ACME account contact. A first install asks for it when it is not given
   --ca staging|production  Let's Encrypt directory. Default: staging (first install only)
   --http <addr>            The gate's plain listener. Default: :80
   --https <addr>           The gate's TLS listener. Default: :443
@@ -129,9 +130,34 @@ case "$RESTART" in always|on-failure|no) ;; *) die "--restart is always, on-fail
 # have_tty opens the terminal rather than testing the node: /dev/tty is
 # readable by mode even when the process has no controlling terminal.
 have_tty() { ( : <>/dev/tty ) 2>/dev/null; }
+# valid_email admits only what an address needs: the value is written to the
+# service's environment file, so no spaces, quotes or other shell characters.
+valid_email() {
+  case "$1" in *[!A-Za-z0-9@._+-]*|"") return 1 ;; esac
+  case "$1" in ?*@?*.?*) return 0 ;; *) return 1 ;; esac
+}
+# ask_email asks on the terminal, so it works when the script itself is piped in.
+ask_email() {
+  {
+    printf "\nAutoPanel gets its certificates from Let's Encrypt, which asks for a contact\n"
+    printf "address for the account. It is sent only to Let's Encrypt.\n"
+  } >/dev/tty
+  tries=0
+  while [ "$tries" -lt 3 ]; do
+    printf 'Contact email: ' >/dev/tty
+    IFS= read -r EMAIL </dev/tty || EMAIL=""
+    if valid_email "$EMAIL"; then return 0; fi
+    printf '  That is not an email address. Try again.\n' >/dev/tty
+    tries=$((tries + 1))
+  done
+  die "no email address was given; nothing was installed"
+}
 if [ ! -f "$ENV_FILE" ]; then
-  [ -n "$EMAIL" ] || die "--email is required on a first install (the ACME account's contact)"
-  case "$EMAIL" in *@*.*) ;; *) die "--email $EMAIL is not an address" ;; esac
+  if [ -z "$EMAIL" ]; then
+    have_tty || die "--email is required on a first install when there is no terminal to ask on (the ACME account's contact)"
+    ask_email
+  fi
+  valid_email "$EMAIL" || die "--email $EMAIL is not an email address"
 fi
 if [ ! -f "$KEYFILE" ]; then
   if [ -n "$PASSFILE" ]; then
