@@ -159,6 +159,14 @@
         <source>&amp;Type</source>
         <translation>유형(&amp;t)</translation>
     </message>
+    <message id="autopanel.menu.go">
+        <source>&amp;Go</source>
+        <translation>이동(&amp;g)</translation>
+    </message>
+    <message id="autopanel.menu.go.terminal">
+        <source>&amp;Terminal</source>
+        <translation>터미널(&amp;t)</translation>
+    </message>
     <message id="autopanel.menu.help">
         <source>&amp;Help</source>
         <translation>도움말(&amp;h)</translation>
@@ -355,6 +363,14 @@
         <source>routes: %1</source>
         <translation>라우트: %1</translation>
     </message>
+    <message id="autopanel.notice.shellExited">
+        <source>The shell exited with status %1</source>
+        <translation>셸이 상태 %1(으)로 종료되었습니다</translation>
+    </message>
+    <message id="autopanel.notice.shellFailed">
+        <source>The shell could not start: %1</source>
+        <translation>셸을 시작할 수 없습니다: %1</translation>
+    </message>
     <message id="autopanel.notice.theme">
         <source>theme: %1</source>
         <translation>테마: %1</translation>
@@ -442,6 +458,46 @@
     <message id="autopanel.status.signedOut">
         <source>not signed in</source>
         <translation>로그인하지 않음</translation>
+    </message>
+    <message id="autopanel.terminal.confirmStop">
+        <source>Stop the running shells (%1) and close the terminal?</source>
+        <translation>실행 중인 셸(%1개)을 중지하고 터미널을 닫을까요?</translation>
+    </message>
+    <message id="autopanel.terminal.confirmTitle">
+        <source>Close the terminal</source>
+        <translation>터미널 닫기</translation>
+    </message>
+    <message id="autopanel.terminal.empty">
+        <source>No shell running. Press + to start one.</source>
+        <translation>실행 중인 셸이 없습니다. +를 눌러 시작하세요.</translation>
+    </message>
+    <message id="autopanel.terminal.help">
+        <source>Ctrl+T scroll and copy (i to type again) · F11 maximize · ≡ shells · a hidden terminal keeps its shells</source>
+        <translation>Ctrl+T 스크롤 및 복사 (i로 다시 입력) · F11 최대화 · ≡ 셸 · 숨긴 터미널의 셸은 계속 실행됩니다</translation>
+    </message>
+    <message id="autopanel.terminal.menu.close">
+        <source>&amp;Close this shell</source>
+        <translation>이 셸 닫기(&amp;c)</translation>
+    </message>
+    <message id="autopanel.terminal.menu.hide">
+        <source>Hi&amp;de</source>
+        <translation>숨기기(&amp;d)</translation>
+    </message>
+    <message id="autopanel.terminal.menu.maximize">
+        <source>&amp;Maximize or restore</source>
+        <translation>최대화 또는 복원(&amp;m)</translation>
+    </message>
+    <message id="autopanel.terminal.menu.new">
+        <source>&amp;New shell</source>
+        <translation>새 셸(&amp;n)</translation>
+    </message>
+    <message id="autopanel.terminal.menu.newRoot">
+        <source>New &amp;root shell</source>
+        <translation>새 root 셸(&amp;r)</translation>
+    </message>
+    <message id="autopanel.terminal.title">
+        <source>Terminal</source>
+        <translation>터미널</translation>
     </message>
 </context>
 </TS>

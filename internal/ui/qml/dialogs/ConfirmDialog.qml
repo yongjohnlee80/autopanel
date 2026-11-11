@@ -1,14 +1,15 @@
-// ConfirmDialog.qml — asks before a route is removed.
+// ConfirmDialog.qml — asks before something that cannot be undone: a route
+// removed, the terminal's running shells stopped.
 //
-// The host names the route in App.confirmQuestion, then opens it. Yes (y)
-// removes it; No (n), Enter and Escape leave it: the safe answer is the
-// default, since the other cannot be undone.
+// The host sets App.confirmTitle and App.confirmQuestion, then opens it. Yes
+// (y) goes on; No (n), Enter and Escape leave it: the safe answer is the
+// default.
 
 Dialog {
-    title: qsTrId("autopanel.confirm.title")
+    title: App.confirmTitle
     standardButtons: Dialog.Yes | Dialog.No
     defaultButton: Dialog.No
-    onAccepted: App.removeConfirmed()
+    onAccepted: App.confirmed()
 
     Text {
         text: App.confirmQuestion

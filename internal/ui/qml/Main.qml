@@ -105,6 +105,11 @@ Window {
             MenuItem { text: qsTrId("autopanel.menu.users.manage"); enabled: false }
         }
         Menu {
+            title: qsTrId("autopanel.menu.go")
+            // checked while the panel is open; its shells run on while it is hidden
+            MenuItem { text: qsTrId("autopanel.menu.go.terminal"); checkable: true; checked: App.terminalShown; onTriggered: App.toggleTerminal() }
+        }
+        Menu {
             title: qsTrId("autopanel.menu.help")
             MenuItem { text: qsTrId("autopanel.menu.help.about"); onTriggered: aboutDialog.open() }
         }
@@ -279,6 +284,67 @@ Window {
             }
             Text { text: App.portsNote }
             Text { text: qsTrId("autopanel.monitor.help") }
+        }
+    }
+
+    // ---- the terminal -----------------------------------------------------
+    //
+    // Go › Terminal: shells on this host, a tab each (terminal.go). The strip
+    // is the view's own: a tab per shell, + for another, ≡ for the tab's menu,
+    // and the window controls: _ minimizes the panel, its shells kept; the
+    // box maximizes it; x stops every shell and closes it.
+    //
+    // While a shell has the keyboard every key is its program's, but the ones
+    // hostKeys names. Ctrl+T leaves the program for the scrollback: move,
+    // select and copy as in vim, i to go back. There, q and Esc hide the panel
+    // (its shells run on), and the keys shadowed below stay out of the
+    // Window's: Ctrl+C would quit the panel, and its shells with it.
+    Drawer {
+        id: terminalPanel
+        key: "terminal"; label: "Terminal"
+        modal: false
+        closeOnQ: true
+        edge: Tui.Center
+        size: 80
+        length: 90
+        movable: true
+        windowResize: true
+        maximizable: true
+        minimizable: true
+        closable: true
+        onOpened: App.terminalOpened()
+        onClosed: App.terminalClosed()
+        onChanged: App.panelChanged(operation)
+        Frame {
+            title: qsTrId("autopanel.terminal.title")
+            palette.window: Theme.document.base
+            Flex {
+                direction: Tui.Vertical
+                FocusScope {
+                    Layout.fillHeight: true
+                    Shortcut { sequence: "F11"; onActivated: terminalPanel.toggleMaximize() }
+                    Shortcut { sequence: "Ctrl+Tab"; onActivated: App.nextShell() }
+                    Shortcut { sequence: "Ctrl+Shift+Tab"; onActivated: App.previousShell() }
+                    Shortcut { sequence: "Ctrl+C"; onActivated: App.nothing() }
+                    Shortcut { sequence: "r"; onActivated: App.nothing() }
+                    TerminalTabs {
+                        id: terminalView
+                        windowButtons: true
+                        onAddRequested: App.newShell()
+                        onMinimizeRequested: terminalPanel.minimize()
+                        onMaximizeRequested: terminalPanel.toggleMaximize()
+                        onCloseRequested: App.stopShells()
+                        hostKeys: "F11, Ctrl+Tab, Ctrl+Shift+Tab"
+                        modeKey: "Ctrl+T"
+                        vimKeys: false
+                        emptyText: App.terminalEmpty   // a string: the host keeps it in the UI's language
+                        minimumContrast: 4.5
+                        palette.base: Theme.document.base
+                        palette.text: Theme.app.text
+                    }
+                }
+                Text { text: qsTrId("autopanel.terminal.help") }
+            }
         }
     }
 

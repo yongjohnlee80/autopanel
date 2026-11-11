@@ -159,6 +159,14 @@
         <source>&amp;Type</source>
         <translation>種類(&amp;t)</translation>
     </message>
+    <message id="autopanel.menu.go">
+        <source>&amp;Go</source>
+        <translation>移動(&amp;g)</translation>
+    </message>
+    <message id="autopanel.menu.go.terminal">
+        <source>&amp;Terminal</source>
+        <translation>ターミナル(&amp;t)</translation>
+    </message>
     <message id="autopanel.menu.help">
         <source>&amp;Help</source>
         <translation>ヘルプ(&amp;h)</translation>
@@ -355,6 +363,14 @@
         <source>routes: %1</source>
         <translation>ルート: %1</translation>
     </message>
+    <message id="autopanel.notice.shellExited">
+        <source>The shell exited with status %1</source>
+        <translation>シェルがステータス %1 で終了しました</translation>
+    </message>
+    <message id="autopanel.notice.shellFailed">
+        <source>The shell could not start: %1</source>
+        <translation>シェルを起動できませんでした: %1</translation>
+    </message>
     <message id="autopanel.notice.theme">
         <source>theme: %1</source>
         <translation>テーマ: %1</translation>
@@ -442,6 +458,46 @@
     <message id="autopanel.status.signedOut">
         <source>not signed in</source>
         <translation>サインインしていません</translation>
+    </message>
+    <message id="autopanel.terminal.confirmStop">
+        <source>Stop the running shells (%1) and close the terminal?</source>
+        <translation>実行中のシェル (%1) を停止してターミナルを閉じますか?</translation>
+    </message>
+    <message id="autopanel.terminal.confirmTitle">
+        <source>Close the terminal</source>
+        <translation>ターミナルを閉じる</translation>
+    </message>
+    <message id="autopanel.terminal.empty">
+        <source>No shell running. Press + to start one.</source>
+        <translation>実行中のシェルはありません。+ を押して起動します。</translation>
+    </message>
+    <message id="autopanel.terminal.help">
+        <source>Ctrl+T scroll and copy (i to type again) · F11 maximize · ≡ shells · a hidden terminal keeps its shells</source>
+        <translation>Ctrl+T スクロールとコピー (i で入力に戻る) · F11 最大化 · ≡ シェル · 隠したターミナルのシェルは動き続けます</translation>
+    </message>
+    <message id="autopanel.terminal.menu.close">
+        <source>&amp;Close this shell</source>
+        <translation>このシェルを閉じる(&amp;c)</translation>
+    </message>
+    <message id="autopanel.terminal.menu.hide">
+        <source>Hi&amp;de</source>
+        <translation>隠す(&amp;d)</translation>
+    </message>
+    <message id="autopanel.terminal.menu.maximize">
+        <source>&amp;Maximize or restore</source>
+        <translation>最大化または元に戻す(&amp;m)</translation>
+    </message>
+    <message id="autopanel.terminal.menu.new">
+        <source>&amp;New shell</source>
+        <translation>新しいシェル(&amp;n)</translation>
+    </message>
+    <message id="autopanel.terminal.menu.newRoot">
+        <source>New &amp;root shell</source>
+        <translation>新しい root シェル(&amp;r)</translation>
+    </message>
+    <message id="autopanel.terminal.title">
+        <source>Terminal</source>
+        <translation>ターミナル</translation>
     </message>
 </context>
 </TS>

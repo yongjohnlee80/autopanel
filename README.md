@@ -102,6 +102,7 @@ move with the arrow keys. `r` refreshes and `q` quits.
 | Routes | **Proxy routes**: the host names AutoPanel serves and where each one goes |
 | Certs | **Type**: which Let's Encrypt service issues the certificates, staging or production |
 | Services, Users | not built yet; their rows are greyed out |
+| Go | **Terminal**: shells on the server, a tab each |
 | Help | **About**: the panel's version and the running service's |
 
 To serve a site, open **Routes → Proxy routes** and press `a` to add a route: the host name
@@ -128,6 +129,35 @@ it again.
 | Open ports | every listening TCP port and bound UDP port, the address it listens on, the process that holds it (named by its executable, with its number) and the user it belongs to, and what it is for when AutoPanel knows: its own listeners, a route's upstream, or, for a socket whose process could not be read, the port's usual service |
 
 SSH logins come from the system journal, which the core reads. The gate has no access to it.
+
+### Open a shell
+
+**Go → Terminal** opens a terminal on the server, inside the panel. Choosing it again hides the
+terminal; its shells keep running, and the row is checked while it is open.
+
+Each shell is a tab. `+` on the tab strip starts another, and `≡` (or a right click on the strip)
+opens the tab's menu: go to a shell, start one, close this one, maximize or hide the terminal. At
+the right of the strip, `_` minimizes the terminal, the box maximizes it, and `x` stops every shell
+and closes it, asking first while one is running.
+
+The panel runs as root, but a new tab is a login shell of **the user who ran `sudo`**, named on
+the tab. Use `sudo` there as you would in any terminal, or choose **New root shell** in the tab's
+menu. If you logged in as root itself, every shell is root's.
+
+While a shell has the keyboard, every key goes to its program. The exceptions:
+
+| Key | What it does |
+| --- | --- |
+| Ctrl+T | leaves the program for the scrollback: move, search (`/`), select (`v`) and copy (`y`) as in vim; `i` goes back to typing |
+| F11 | maximizes the terminal, or restores it |
+| Ctrl+Tab, Ctrl+Shift+Tab | the next shell, the one before. Many terminals do not send these keys; the tab's menu and the mouse always work |
+
+In the scrollback, `q` or Esc hides the terminal. A shell ends when its program exits, when its
+tab is closed, or when the panel quits: nothing started in a tab outlives the panel unless you
+detach it yourself (`nohup`, `tmux`).
+
+What is typed in a shell is not in AutoPanel's audit log. The shells are ordinary processes of
+the panel, and the daemon neither starts nor sees them.
 
 ### Themes and languages
 

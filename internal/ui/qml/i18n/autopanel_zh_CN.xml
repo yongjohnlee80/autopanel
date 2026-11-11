@@ -159,6 +159,14 @@
         <source>&amp;Type</source>
         <translation>类型(&amp;t)</translation>
     </message>
+    <message id="autopanel.menu.go">
+        <source>&amp;Go</source>
+        <translation>转到(&amp;g)</translation>
+    </message>
+    <message id="autopanel.menu.go.terminal">
+        <source>&amp;Terminal</source>
+        <translation>终端(&amp;t)</translation>
+    </message>
     <message id="autopanel.menu.help">
         <source>&amp;Help</source>
         <translation>帮助(&amp;h)</translation>
@@ -355,6 +363,14 @@
         <source>routes: %1</source>
         <translation>路由: %1</translation>
     </message>
+    <message id="autopanel.notice.shellExited">
+        <source>The shell exited with status %1</source>
+        <translation>Shell 已退出，状态为 %1</translation>
+    </message>
+    <message id="autopanel.notice.shellFailed">
+        <source>The shell could not start: %1</source>
+        <translation>无法启动 Shell：%1</translation>
+    </message>
     <message id="autopanel.notice.theme">
         <source>theme: %1</source>
         <translation>主题: %1</translation>
@@ -442,6 +458,46 @@
     <message id="autopanel.status.signedOut">
         <source>not signed in</source>
         <translation>未登录</translation>
+    </message>
+    <message id="autopanel.terminal.confirmStop">
+        <source>Stop the running shells (%1) and close the terminal?</source>
+        <translation>停止正在运行的 Shell（%1 个）并关闭终端？</translation>
+    </message>
+    <message id="autopanel.terminal.confirmTitle">
+        <source>Close the terminal</source>
+        <translation>关闭终端</translation>
+    </message>
+    <message id="autopanel.terminal.empty">
+        <source>No shell running. Press + to start one.</source>
+        <translation>没有正在运行的 Shell。按 + 启动一个。</translation>
+    </message>
+    <message id="autopanel.terminal.help">
+        <source>Ctrl+T scroll and copy (i to type again) · F11 maximize · ≡ shells · a hidden terminal keeps its shells</source>
+        <translation>Ctrl+T 滚动和复制（按 i 返回输入）· F11 最大化 · ≡ Shell · 隐藏的终端会保留其 Shell</translation>
+    </message>
+    <message id="autopanel.terminal.menu.close">
+        <source>&amp;Close this shell</source>
+        <translation>关闭此 Shell(&amp;c)</translation>
+    </message>
+    <message id="autopanel.terminal.menu.hide">
+        <source>Hi&amp;de</source>
+        <translation>隐藏(&amp;d)</translation>
+    </message>
+    <message id="autopanel.terminal.menu.maximize">
+        <source>&amp;Maximize or restore</source>
+        <translation>最大化或还原(&amp;m)</translation>
+    </message>
+    <message id="autopanel.terminal.menu.new">
+        <source>&amp;New shell</source>
+        <translation>新建 Shell(&amp;n)</translation>
+    </message>
+    <message id="autopanel.terminal.menu.newRoot">
+        <source>New &amp;root shell</source>
+        <translation>新建 root Shell(&amp;r)</translation>
+    </message>
+    <message id="autopanel.terminal.title">
+        <source>Terminal</source>
+        <translation>终端</translation>
     </message>
 </context>
 </TS>

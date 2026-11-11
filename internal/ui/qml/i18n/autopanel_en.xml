@@ -159,6 +159,14 @@
         <source>&amp;Type</source>
         <translation>&amp;Type</translation>
     </message>
+    <message id="autopanel.menu.go">
+        <source>&amp;Go</source>
+        <translation>&amp;Go</translation>
+    </message>
+    <message id="autopanel.menu.go.terminal">
+        <source>&amp;Terminal</source>
+        <translation>&amp;Terminal</translation>
+    </message>
     <message id="autopanel.menu.help">
         <source>&amp;Help</source>
         <translation>&amp;Help</translation>
@@ -355,6 +363,14 @@
         <source>routes: %1</source>
         <translation>routes: %1</translation>
     </message>
+    <message id="autopanel.notice.shellExited">
+        <source>The shell exited with status %1</source>
+        <translation>The shell exited with status %1</translation>
+    </message>
+    <message id="autopanel.notice.shellFailed">
+        <source>The shell could not start: %1</source>
+        <translation>The shell could not start: %1</translation>
+    </message>
     <message id="autopanel.notice.theme">
         <source>theme: %1</source>
         <translation>theme: %1</translation>
@@ -442,6 +458,46 @@
     <message id="autopanel.status.signedOut">
         <source>not signed in</source>
         <translation>not signed in</translation>
+    </message>
+    <message id="autopanel.terminal.confirmStop">
+        <source>Stop the running shells (%1) and close the terminal?</source>
+        <translation>Stop the running shells (%1) and close the terminal?</translation>
+    </message>
+    <message id="autopanel.terminal.confirmTitle">
+        <source>Close the terminal</source>
+        <translation>Close the terminal</translation>
+    </message>
+    <message id="autopanel.terminal.empty">
+        <source>No shell running. Press + to start one.</source>
+        <translation>No shell running. Press + to start one.</translation>
+    </message>
+    <message id="autopanel.terminal.help">
+        <source>Ctrl+T scroll and copy (i to type again) · F11 maximize · ≡ shells · a hidden terminal keeps its shells</source>
+        <translation>Ctrl+T scroll and copy (i to type again) · F11 maximize · ≡ shells · a hidden terminal keeps its shells</translation>
+    </message>
+    <message id="autopanel.terminal.menu.close">
+        <source>&amp;Close this shell</source>
+        <translation>&amp;Close this shell</translation>
+    </message>
+    <message id="autopanel.terminal.menu.hide">
+        <source>Hi&amp;de</source>
+        <translation>Hi&amp;de</translation>
+    </message>
+    <message id="autopanel.terminal.menu.maximize">
+        <source>&amp;Maximize or restore</source>
+        <translation>&amp;Maximize or restore</translation>
+    </message>
+    <message id="autopanel.terminal.menu.new">
+        <source>&amp;New shell</source>
+        <translation>&amp;New shell</translation>
+    </message>
+    <message id="autopanel.terminal.menu.newRoot">
+        <source>New &amp;root shell</source>
+        <translation>New &amp;root shell</translation>
+    </message>
+    <message id="autopanel.terminal.title">
+        <source>Terminal</source>
+        <translation>Terminal</translation>
     </message>
 </context>
 </TS>

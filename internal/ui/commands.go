@@ -16,23 +16,31 @@ import (
 // of this package is reachable from it.
 func (h *host) commands() map[string]decl.HandlerFunc {
 	return map[string]decl.HandlerFunc{
-		"App.login":           twoStrings("App.login", h.login),
-		"App.loginDeclined":   none(h.loginDeclined),
-		"App.openRoutes":      none(func() error { return h.openPanel("routes", "routesPanel", "routesTable") }),
-		"App.setCA":           oneString("App.setCA", h.setCA),
-		"App.panelLeft":       none(h.panelLeft),
-		"App.panelChanged":    oneString("App.panelChanged", h.panelChanged),
-		"App.openMonitor":     oneString("App.openMonitor", h.openMonitor),
-		"App.reloadMonitor":   oneString("App.reloadMonitor", h.reloadMonitor),
-		"App.useTheme":        oneString("App.useTheme", h.useTheme),
-		"App.setLanguage":     oneString("App.setLanguage", h.setLanguage),
-		"App.add":             none(h.add),
-		"App.edit":            oneRow("App.edit", h.edit),
-		"App.remove":          oneRow("App.remove", h.remove),
-		"App.removeConfirmed": none(h.removeConfirmed),
-		"App.submit":          threeStrings("App.submit", h.submit),
-		"App.refresh":         none(func() error { h.refresh(); return nil }),
-		"App.quit":            none(func() error { h.p.Quit(); return nil }),
+		"App.login":          twoStrings("App.login", h.login),
+		"App.loginDeclined":  none(h.loginDeclined),
+		"App.openRoutes":     none(func() error { return h.openPanel("routes", "routesPanel", "routesTable") }),
+		"App.setCA":          oneString("App.setCA", h.setCA),
+		"App.panelLeft":      none(h.panelLeft),
+		"App.panelChanged":   oneString("App.panelChanged", h.panelChanged),
+		"App.openMonitor":    oneString("App.openMonitor", h.openMonitor),
+		"App.reloadMonitor":  oneString("App.reloadMonitor", h.reloadMonitor),
+		"App.useTheme":       oneString("App.useTheme", h.useTheme),
+		"App.setLanguage":    oneString("App.setLanguage", h.setLanguage),
+		"App.add":            none(h.add),
+		"App.edit":           oneRow("App.edit", h.edit),
+		"App.remove":         oneRow("App.remove", h.remove),
+		"App.confirmed":      none(h.confirm),
+		"App.toggleTerminal": none(h.toggleTerminal),
+		"App.terminalOpened": none(h.terminalOpened),
+		"App.terminalClosed": none(h.terminalClosed),
+		"App.newShell":       none(h.newShell),
+		"App.stopShells":     none(h.stopShells),
+		"App.nextShell":      none(func() error { return h.cycleShell(1) }),
+		"App.previousShell":  none(func() error { return h.cycleShell(-1) }),
+		"App.nothing":        none(func() error { return nil }),
+		"App.submit":         threeStrings("App.submit", h.submit),
+		"App.refresh":        none(func() error { h.refresh(); return nil }),
+		"App.quit":           none(func() error { h.p.Quit(); return nil }),
 	}
 }
 
@@ -134,10 +142,7 @@ func (h *host) remove(row int) error {
 		return nil
 	}
 	h.removeID = r.ID
-	if err := h.p.Set("App.confirmQuestion", h.trf("autopanel.confirm.remove", describe(r))); err != nil {
-		return err
-	}
-	return h.p.Call("confirmDialog", "open")
+	return h.ask("autopanel.confirm.title", h.trf("autopanel.confirm.remove", describe(r)), h.removeConfirmed)
 }
 
 // removeConfirmed removes the route the confirmation named, off the loop.
