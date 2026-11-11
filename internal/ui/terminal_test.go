@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	tuidecl "github.com/yongjohnlee80/golib/tui/decl"
 	"github.com/yongjohnlee80/golib/tui/decl/decltest"
@@ -107,8 +108,19 @@ func TestTheTerminalRunsShellsInTabs(t *testing.T) {
 	s.Keys(t, decltest.Type("exit\r")...)
 	waitTabs(t, h, s, "tester 2")
 	s.WaitForText(t, "two-42")
-	s.Keys(t, decltest.Type("echo back-$((40+3))\r")...) // the keyboard went to the shell left
-	s.WaitForText(t, "back-43")
+	// The keyboard goes to the shell left, once the closed tab has gone: a
+	// line typed before that may lose its start, so it is typed until it lands.
+	landed := false
+	for i := 0; i < 20 && !landed; i++ {
+		s.Keys(t, decltest.Type("echo back-$((40+3))\r")...)
+		for j := 0; j < 10 && !landed; j++ {
+			time.Sleep(50 * time.Millisecond)
+			landed = strings.Contains(s.String(), "back-43")
+		}
+	}
+	if !landed {
+		t.Fatalf("the shell left never took the keyboard:\n%s", s.String())
+	}
 
 	// Hidden, the shell runs on; shown again, it is as it was.
 	run(t, h, h.toggleTerminal)

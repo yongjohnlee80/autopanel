@@ -370,7 +370,7 @@ func TestShowsRoutesRefreshesAndQuits(t *testing.T) {
 	// The menu bar, the overview and the status bar; the routes are not on
 	// the main screen.
 	// the menus, in their order
-	s.WaitForText(t, "System    Routes    Certs    Services    Users    Help")
+	s.WaitForText(t, "System    Routes    Certs    Services    Users    Go    Help")
 	for _, part := range []string{"Overview", "Let's Encrypt staging", "CA LE staging", "2 routes", "r refresh"} {
 		s.WaitForText(t, part)
 	}
