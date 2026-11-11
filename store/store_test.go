@@ -328,3 +328,29 @@ func TestSettingsAreKeptWithTheirAuditEntry(t *testing.T) {
 		})
 	}
 }
+
+// TestAuditLogReadsNewestFirst: the log comes back newest first, bounded by
+// the limit, and narrowed to one action when asked.
+func TestAuditLogReadsNewestFirst(t *testing.T) {
+	for engine, s := range engines(t) {
+		t.Run(engine, func(t *testing.T) {
+			ctx := context.Background()
+			for _, e := range [][2]string{{"auth.login", "ok"}, {"route.add", ""}, {"auth.login", "failed"}} {
+				if err := s.Audit(ctx, "root", e[0], "subject", e[1]); err != nil {
+					t.Fatal(err)
+				}
+			}
+			all, err := s.AuditLog(ctx, "", 2)
+			if err != nil || len(all) != 2 || all[0].Detail != "failed" || all[1].Action != "route.add" {
+				t.Fatalf("the newest two = %+v, %v", all, err)
+			}
+			if all[0].ID <= all[1].ID || all[0].At == 0 || all[0].Actor != "root" {
+				t.Fatalf("an entry lost a field or the order: %+v", all)
+			}
+			logins, err := s.AuditLog(ctx, "auth.login", 10)
+			if err != nil || len(logins) != 2 || logins[0].Detail != "failed" || logins[1].Detail != "ok" {
+				t.Fatalf("the logins = %+v, %v", logins, err)
+			}
+		})
+	}
+}

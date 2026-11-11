@@ -112,16 +112,18 @@ func ServeContext(ctx context.Context, cfg Config, log *slog.Logger) error {
 		return err
 	}
 
-	gateHandler := hostgate.Handler(table)
+	counts := &counters{}
+	gateHandler := counted(&counts.https, hostgate.Handler(table))
 	https := httpserver.New(httpserver.Addr(cfg.HTTPSAddr), httpserver.WithTLSConfig(sw.tlsConfig()),
 		httpserver.ReadHeaderTimeout(10*time.Second), httpserver.IdleTimeout(120*time.Second),
 		httpserver.MaxHeaderBytes(64<<10), httpserver.NotFound(gateHandler.ServeHTTP)) // no routes: every request is the gate's
 	plain := httpserver.New(httpserver.Addr(cfg.HTTPAddr),
 		httpserver.ReadHeaderTimeout(10*time.Second), httpserver.IdleTimeout(60*time.Second),
-		httpserver.MaxHeaderBytes(16<<10), httpserver.NotFound(sw.httpChallenge(http.HandlerFunc(toHTTPS)).ServeHTTP))
+		httpserver.MaxHeaderBytes(16<<10), httpserver.NotFound(counted(&counts.http, sw.httpChallenge(http.HandlerFunc(toHTTPS))).ServeHTTP))
 
 	gm := gate.NewModule(st.Routes(), reload)
-	sys := &sysModule{cfg: cfg, table: table, engine: st.Engine(), started: time.Now(), challenge: sw.Challenge, ca: sw.CA}
+	sys := &sysModule{cfg: cfg, table: table, engine: st.Engine(), started: time.Now(), challenge: sw.Challenge, ca: sw.CA,
+		st: st, log: log, counts: counts, listeners: readListeners, sshLogins: readSSHLogins}
 	am, err := auth.New(st, st, vault, func(ctx context.Context) {
 		if err := sw.rebuild(ctx); err != nil {
 			log.Error("certificates after unlock", "err", err)

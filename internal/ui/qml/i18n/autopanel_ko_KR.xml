@@ -1,0 +1,411 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE TS>
+<TS version="2.1" language="ko_KR">
+<context>
+    <name>autopanel</name>
+    <message id="autopanel.about.daemon">
+        <source>Daemon</source>
+        <translation>데몬</translation>
+    </message>
+    <message id="autopanel.about.daemonLine">
+        <source>%1 · up %2</source>
+        <translation>%1 · 가동 %2</translation>
+    </message>
+    <message id="autopanel.about.licence">
+        <source>Licence</source>
+        <translation>라이선스</translation>
+    </message>
+    <message id="autopanel.about.panel">
+        <source>Panel</source>
+        <translation>패널</translation>
+    </message>
+    <message id="autopanel.about.source">
+        <source>Source</source>
+        <translation>소스</translation>
+    </message>
+    <message id="autopanel.about.title">
+        <source>About AutoPanel</source>
+        <translation>AutoPanel 정보</translation>
+    </message>
+    <message id="autopanel.about.what">
+        <source>A lightweight control plane for self-hosted web services.</source>
+        <translation>셀프 호스팅 웹 서비스를 위한 가벼운 컨트롤 플레인입니다.</translation>
+    </message>
+    <message id="autopanel.audit.title">
+        <source>Audit log</source>
+        <translation>감사 로그</translation>
+    </message>
+    <message id="autopanel.ca.name.production">
+        <source>Let's Encrypt production</source>
+        <translation>Let's Encrypt 프로덕션</translation>
+    </message>
+    <message id="autopanel.ca.name.staging">
+        <source>Let's Encrypt staging</source>
+        <translation>Let's Encrypt 스테이징</translation>
+    </message>
+    <message id="autopanel.ca.note.production">
+        <source>Let's Encrypt production: real certificates, trusted by browsers.</source>
+        <translation>Let's Encrypt 프로덕션: 브라우저가 신뢰하는 실제 인증서입니다.</translation>
+    </message>
+    <message id="autopanel.ca.note.staging">
+        <source>Let's Encrypt staging: test certificates, which browsers do not trust. Switch in Certs → Type.</source>
+        <translation>Let's Encrypt 스테이징: 브라우저가 신뢰하지 않는 테스트 인증서입니다. 인증서 → 유형에서 바꿉니다.</translation>
+    </message>
+    <message id="autopanel.ca.short.production">
+        <source>LE production</source>
+        <translation>LE 프로덕션</translation>
+    </message>
+    <message id="autopanel.ca.short.staging">
+        <source>LE staging</source>
+        <translation>LE 스테이징</translation>
+    </message>
+    <message id="autopanel.confirm.remove">
+        <source>Remove route %1?</source>
+        <translation>라우트 %1을(를) 제거할까요?</translation>
+    </message>
+    <message id="autopanel.confirm.title">
+        <source>Remove route</source>
+        <translation>라우트 제거</translation>
+    </message>
+    <message id="autopanel.form.add">
+        <source>Add route</source>
+        <translation>라우트 추가</translation>
+    </message>
+    <message id="autopanel.form.cancel">
+        <source>&amp;Cancel</source>
+        <translation>취소(&amp;c)</translation>
+    </message>
+    <message id="autopanel.form.edit">
+        <source>Edit route #%1</source>
+        <translation>라우트 #%1 편집</translation>
+    </message>
+    <message id="autopanel.form.hint">
+        <source>Tab: next field · Enter: OK · Esc: cancel</source>
+        <translation>Tab: 다음 필드 · Enter: 확인 · Esc: 취소</translation>
+    </message>
+    <message id="autopanel.form.host">
+        <source>Host</source>
+        <translation>호스트</translation>
+    </message>
+    <message id="autopanel.form.ok">
+        <source>&amp;OK</source>
+        <translation>확인(&amp;o)</translation>
+    </message>
+    <message id="autopanel.form.path">
+        <source>Path prefix</source>
+        <translation>경로 접두사</translation>
+    </message>
+    <message id="autopanel.form.upstream">
+        <source>Upstream URL</source>
+        <translation>업스트림 URL</translation>
+    </message>
+    <message id="autopanel.hints">
+        <source>Menus: Alt and a menu's letter, or F10 · r refresh · q quit</source>
+        <translation>메뉴: Alt와 메뉴의 글자, 또는 F10 · r 새로 고침 · q 종료</translation>
+    </message>
+    <message id="autopanel.logins.result.closed">
+        <source>closed</source>
+        <translation>끊김</translation>
+    </message>
+    <message id="autopanel.logins.result.failed">
+        <source>failed</source>
+        <translation>실패</translation>
+    </message>
+    <message id="autopanel.logins.result.ok">
+        <source>ok</source>
+        <translation>성공</translation>
+    </message>
+    <message id="autopanel.logins.title">
+        <source>Login attempts</source>
+        <translation>로그인 시도</translation>
+    </message>
+    <message id="autopanel.menu.certs">
+        <source>&amp;Certs</source>
+        <translation>인증서(&amp;c)</translation>
+    </message>
+    <message id="autopanel.menu.certs.cloudflare">
+        <source>&amp;Cloudflare token…</source>
+        <translation>Cloudflare 토큰(&amp;c)…</translation>
+    </message>
+    <message id="autopanel.menu.certs.production">
+        <source>&amp;Production (trusted certificates)</source>
+        <translation>프로덕션 (신뢰되는 인증서)(&amp;p)</translation>
+    </message>
+    <message id="autopanel.menu.certs.staging">
+        <source>&amp;Staging (test certificates)</source>
+        <translation>스테이징 (테스트 인증서)(&amp;s)</translation>
+    </message>
+    <message id="autopanel.menu.certs.type">
+        <source>&amp;Type</source>
+        <translation>유형(&amp;t)</translation>
+    </message>
+    <message id="autopanel.menu.help">
+        <source>&amp;Help</source>
+        <translation>도움말(&amp;h)</translation>
+    </message>
+    <message id="autopanel.menu.help.about">
+        <source>&amp;About AutoPanel</source>
+        <translation>AutoPanel 정보(&amp;a)</translation>
+    </message>
+    <message id="autopanel.menu.routes">
+        <source>&amp;Routes</source>
+        <translation>라우트(&amp;r)</translation>
+    </message>
+    <message id="autopanel.menu.routes.forwarding">
+        <source>Port &amp;forwarding…</source>
+        <translation>포트 포워딩(&amp;f)…</translation>
+    </message>
+    <message id="autopanel.menu.routes.proxy">
+        <source>&amp;Proxy routes…</source>
+        <translation>프록시 라우트(&amp;p)…</translation>
+    </message>
+    <message id="autopanel.menu.services">
+        <source>&amp;Services</source>
+        <translation>서비스(&amp;s)</translation>
+    </message>
+    <message id="autopanel.menu.services.mail">
+        <source>&amp;Mail server…</source>
+        <translation>메일 서버(&amp;m)…</translation>
+    </message>
+    <message id="autopanel.menu.services.turn">
+        <source>&amp;TURN server…</source>
+        <translation>TURN 서버(&amp;t)…</translation>
+    </message>
+    <message id="autopanel.menu.system">
+        <source>S&amp;ystem</source>
+        <translation>시스템(&amp;y)</translation>
+    </message>
+    <message id="autopanel.menu.system.audit">
+        <source>&amp;Audit log…</source>
+        <translation>감사 로그(&amp;a)…</translation>
+    </message>
+    <message id="autopanel.menu.system.language">
+        <source>Lan&amp;guage</source>
+        <translation>언어(&amp;g)</translation>
+    </message>
+    <message id="autopanel.menu.system.logins">
+        <source>&amp;Login attempts…</source>
+        <translation>로그인 시도(&amp;l)…</translation>
+    </message>
+    <message id="autopanel.menu.system.metrics">
+        <source>&amp;Metrics…</source>
+        <translation>지표(&amp;m)…</translation>
+    </message>
+    <message id="autopanel.menu.system.ports">
+        <source>Open &amp;ports…</source>
+        <translation>열린 포트(&amp;p)…</translation>
+    </message>
+    <message id="autopanel.menu.system.quit">
+        <source>&amp;Quit (q)</source>
+        <translation>종료 (&amp;q)</translation>
+    </message>
+    <message id="autopanel.menu.system.refresh">
+        <source>&amp;Refresh (r)</source>
+        <translation>새로 고침 (&amp;r)</translation>
+    </message>
+    <message id="autopanel.menu.system.theme">
+        <source>&amp;Theme</source>
+        <translation>테마(&amp;t)</translation>
+    </message>
+    <message id="autopanel.menu.users">
+        <source>&amp;Users</source>
+        <translation>사용자(&amp;u)</translation>
+    </message>
+    <message id="autopanel.menu.users.manage">
+        <source>&amp;Manage users…</source>
+        <translation>사용자 관리(&amp;m)…</translation>
+    </message>
+    <message id="autopanel.metrics.availableOf">
+        <source>%1 available of %2</source>
+        <translation>%2 중 %1 사용 가능</translation>
+    </message>
+    <message id="autopanel.metrics.disk">
+        <source>Disk (the store's)</source>
+        <translation>디스크 (저장소)</translation>
+    </message>
+    <message id="autopanel.metrics.freeOf">
+        <source>%1 free of %2</source>
+        <translation>%2 중 %1 남음</translation>
+    </message>
+    <message id="autopanel.metrics.goroutines">
+        <source>Goroutines</source>
+        <translation>고루틴</translation>
+    </message>
+    <message id="autopanel.metrics.hostMemory">
+        <source>Host memory</source>
+        <translation>호스트 메모리</translation>
+    </message>
+    <message id="autopanel.metrics.httpRequests">
+        <source>HTTP requests</source>
+        <translation>HTTP 요청</translation>
+    </message>
+    <message id="autopanel.metrics.httpsRequests">
+        <source>HTTPS requests</source>
+        <translation>HTTPS 요청</translation>
+    </message>
+    <message id="autopanel.metrics.load">
+        <source>Host load</source>
+        <translation>호스트 부하</translation>
+    </message>
+    <message id="autopanel.metrics.loadValue">
+        <source>%1 · %2 · %3 (1, 5 and 15 minutes)</source>
+        <translation>%1 · %2 · %3 (1분, 5분, 15분)</translation>
+    </message>
+    <message id="autopanel.metrics.routes">
+        <source>Routes</source>
+        <translation>라우트</translation>
+    </message>
+    <message id="autopanel.metrics.serviceMemory">
+        <source>Service memory</source>
+        <translation>서비스 메모리</translation>
+    </message>
+    <message id="autopanel.metrics.serviceMemoryValue">
+        <source>%1 in use · %2 held</source>
+        <translation>%1 사용 중 · %2 확보</translation>
+    </message>
+    <message id="autopanel.metrics.title">
+        <source>Metrics</source>
+        <translation>지표</translation>
+    </message>
+    <message id="autopanel.metrics.uptime">
+        <source>Service uptime</source>
+        <translation>서비스 가동 시간</translation>
+    </message>
+    <message id="autopanel.monitor.help">
+        <source>r read again · q close · Alt+drag moves, Alt+right-drag resizes</source>
+        <translation>r 다시 읽기 · q 닫기 · Alt+드래그 이동, Alt+오른쪽 드래그 크기 조절</translation>
+    </message>
+    <message id="autopanel.monitor.readAt">
+        <source>%1 rows, read at %2</source>
+        <translation>%1행, %2에 읽음</translation>
+    </message>
+    <message id="autopanel.monitor.readAtOnly">
+        <source>read at %1</source>
+        <translation>%1에 읽음</translation>
+    </message>
+    <message id="autopanel.notice.added">
+        <source>added %1</source>
+        <translation>%1 추가됨</translation>
+    </message>
+    <message id="autopanel.notice.busy">
+        <source>busy: a change is in flight</source>
+        <translation>작업 중: 변경이 진행 중입니다</translation>
+    </message>
+    <message id="autopanel.notice.caNow">
+        <source>certificates now come from %1</source>
+        <translation>이제 인증서는 %1에서 발급됩니다</translation>
+    </message>
+    <message id="autopanel.notice.error">
+        <source>error: %1</source>
+        <translation>오류: %1</translation>
+    </message>
+    <message id="autopanel.notice.noLanguage">
+        <source>no language %1</source>
+        <translation>%1 언어가 없습니다</translation>
+    </message>
+    <message id="autopanel.notice.noRoute">
+        <source>no route selected</source>
+        <translation>선택한 라우트가 없습니다</translation>
+    </message>
+    <message id="autopanel.notice.noTheme">
+        <source>no theme named %1</source>
+        <translation>%1(이)라는 테마가 없습니다</translation>
+    </message>
+    <message id="autopanel.notice.notKept">
+        <source>the choice is shown but was not kept: %1</source>
+        <translation>선택이 표시되었지만 저장되지 않았습니다: %1</translation>
+    </message>
+    <message id="autopanel.notice.removed">
+        <source>removed #%1</source>
+        <translation>#%1 제거됨</translation>
+    </message>
+    <message id="autopanel.notice.routesError">
+        <source>routes: %1</source>
+        <translation>라우트: %1</translation>
+    </message>
+    <message id="autopanel.notice.theme">
+        <source>theme: %1</source>
+        <translation>테마: %1</translation>
+    </message>
+    <message id="autopanel.notice.updated">
+        <source>updated %1</source>
+        <translation>%1 업데이트됨</translation>
+    </message>
+    <message id="autopanel.overview.certificates">
+        <source>Certificates</source>
+        <translation>인증서</translation>
+    </message>
+    <message id="autopanel.overview.challenge">
+        <source>Challenge</source>
+        <translation>챌린지</translation>
+    </message>
+    <message id="autopanel.overview.http">
+        <source>HTTP</source>
+        <translation>HTTP</translation>
+    </message>
+    <message id="autopanel.overview.httpNote">
+        <source>%1 (certificate checks, and the redirect to HTTPS)</source>
+        <translation>%1 (인증서 확인 및 HTTPS로 리디렉션)</translation>
+    </message>
+    <message id="autopanel.overview.https">
+        <source>HTTPS</source>
+        <translation>HTTPS</translation>
+    </message>
+    <message id="autopanel.overview.routes">
+        <source>Routes</source>
+        <translation>라우트</translation>
+    </message>
+    <message id="autopanel.overview.store">
+        <source>Store</source>
+        <translation>저장소</translation>
+    </message>
+    <message id="autopanel.overview.title">
+        <source>Overview</source>
+        <translation>개요</translation>
+    </message>
+    <message id="autopanel.overview.uptime">
+        <source>Uptime</source>
+        <translation>가동 시간</translation>
+    </message>
+    <message id="autopanel.overview.version">
+        <source>Version</source>
+        <translation>버전</translation>
+    </message>
+    <message id="autopanel.ports.title">
+        <source>Open ports</source>
+        <translation>열린 포트</translation>
+    </message>
+    <message id="autopanel.routes.add">
+        <source>Add</source>
+        <translation>추가</translation>
+    </message>
+    <message id="autopanel.routes.delete">
+        <source>Delete</source>
+        <translation>삭제</translation>
+    </message>
+    <message id="autopanel.routes.edit">
+        <source>Edit</source>
+        <translation>편집</translation>
+    </message>
+    <message id="autopanel.routes.help">
+        <source>a add · e/Enter edit · d delete · q close</source>
+        <translation>a 추가 · e/Enter 편집 · d 삭제 · q 닫기</translation>
+    </message>
+    <message id="autopanel.routes.title">
+        <source>Proxy routes</source>
+        <translation>프록시 라우트</translation>
+    </message>
+    <message id="autopanel.status.error">
+        <source>status: %1</source>
+        <translation>상태: %1</translation>
+    </message>
+    <message id="autopanel.status.line">
+        <source>%1 · CA %2 · %3 routes · up %4</source>
+        <translation>%1 · CA %2 · 라우트 %3개 · 가동 %4</translation>
+    </message>
+    <message id="autopanel.status.loading">
+        <source>loading…</source>
+        <translation>불러오는 중…</translation>
+    </message>
+</context>
+</TS>

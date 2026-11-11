@@ -1,0 +1,411 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE TS>
+<TS version="2.1" language="ja_JP">
+<context>
+    <name>autopanel</name>
+    <message id="autopanel.about.daemon">
+        <source>Daemon</source>
+        <translation>デーモン</translation>
+    </message>
+    <message id="autopanel.about.daemonLine">
+        <source>%1 · up %2</source>
+        <translation>%1 · 稼働 %2</translation>
+    </message>
+    <message id="autopanel.about.licence">
+        <source>Licence</source>
+        <translation>ライセンス</translation>
+    </message>
+    <message id="autopanel.about.panel">
+        <source>Panel</source>
+        <translation>パネル</translation>
+    </message>
+    <message id="autopanel.about.source">
+        <source>Source</source>
+        <translation>ソース</translation>
+    </message>
+    <message id="autopanel.about.title">
+        <source>About AutoPanel</source>
+        <translation>AutoPanel について</translation>
+    </message>
+    <message id="autopanel.about.what">
+        <source>A lightweight control plane for self-hosted web services.</source>
+        <translation>セルフホストの Web サービスのための軽量なコントロールプレーンです。</translation>
+    </message>
+    <message id="autopanel.audit.title">
+        <source>Audit log</source>
+        <translation>監査ログ</translation>
+    </message>
+    <message id="autopanel.ca.name.production">
+        <source>Let's Encrypt production</source>
+        <translation>Let's Encrypt 本番</translation>
+    </message>
+    <message id="autopanel.ca.name.staging">
+        <source>Let's Encrypt staging</source>
+        <translation>Let's Encrypt ステージング</translation>
+    </message>
+    <message id="autopanel.ca.note.production">
+        <source>Let's Encrypt production: real certificates, trusted by browsers.</source>
+        <translation>Let's Encrypt 本番: ブラウザが信頼する正式な証明書です。</translation>
+    </message>
+    <message id="autopanel.ca.note.staging">
+        <source>Let's Encrypt staging: test certificates, which browsers do not trust. Switch in Certs → Type.</source>
+        <translation>Let's Encrypt ステージング: ブラウザが信頼しないテスト用証明書です。証明書 → 種類 で切り替えます。</translation>
+    </message>
+    <message id="autopanel.ca.short.production">
+        <source>LE production</source>
+        <translation>LE 本番</translation>
+    </message>
+    <message id="autopanel.ca.short.staging">
+        <source>LE staging</source>
+        <translation>LE ステージング</translation>
+    </message>
+    <message id="autopanel.confirm.remove">
+        <source>Remove route %1?</source>
+        <translation>ルート %1 を削除しますか?</translation>
+    </message>
+    <message id="autopanel.confirm.title">
+        <source>Remove route</source>
+        <translation>ルートを削除</translation>
+    </message>
+    <message id="autopanel.form.add">
+        <source>Add route</source>
+        <translation>ルートを追加</translation>
+    </message>
+    <message id="autopanel.form.cancel">
+        <source>&amp;Cancel</source>
+        <translation>キャンセル(&amp;c)</translation>
+    </message>
+    <message id="autopanel.form.edit">
+        <source>Edit route #%1</source>
+        <translation>ルート #%1 を編集</translation>
+    </message>
+    <message id="autopanel.form.hint">
+        <source>Tab: next field · Enter: OK · Esc: cancel</source>
+        <translation>Tab: 次の項目 · Enter: OK · Esc: キャンセル</translation>
+    </message>
+    <message id="autopanel.form.host">
+        <source>Host</source>
+        <translation>ホスト</translation>
+    </message>
+    <message id="autopanel.form.ok">
+        <source>&amp;OK</source>
+        <translation>OK(&amp;o)</translation>
+    </message>
+    <message id="autopanel.form.path">
+        <source>Path prefix</source>
+        <translation>パスの接頭辞</translation>
+    </message>
+    <message id="autopanel.form.upstream">
+        <source>Upstream URL</source>
+        <translation>アップストリーム URL</translation>
+    </message>
+    <message id="autopanel.hints">
+        <source>Menus: Alt and a menu's letter, or F10 · r refresh · q quit</source>
+        <translation>メニュー: Alt とメニューの文字、または F10 · r 更新 · q 終了</translation>
+    </message>
+    <message id="autopanel.logins.result.closed">
+        <source>closed</source>
+        <translation>切断</translation>
+    </message>
+    <message id="autopanel.logins.result.failed">
+        <source>failed</source>
+        <translation>失敗</translation>
+    </message>
+    <message id="autopanel.logins.result.ok">
+        <source>ok</source>
+        <translation>成功</translation>
+    </message>
+    <message id="autopanel.logins.title">
+        <source>Login attempts</source>
+        <translation>ログイン試行</translation>
+    </message>
+    <message id="autopanel.menu.certs">
+        <source>&amp;Certs</source>
+        <translation>証明書(&amp;c)</translation>
+    </message>
+    <message id="autopanel.menu.certs.cloudflare">
+        <source>&amp;Cloudflare token…</source>
+        <translation>Cloudflare トークン(&amp;c)…</translation>
+    </message>
+    <message id="autopanel.menu.certs.production">
+        <source>&amp;Production (trusted certificates)</source>
+        <translation>本番 (信頼される証明書)(&amp;p)</translation>
+    </message>
+    <message id="autopanel.menu.certs.staging">
+        <source>&amp;Staging (test certificates)</source>
+        <translation>ステージング (テスト用証明書)(&amp;s)</translation>
+    </message>
+    <message id="autopanel.menu.certs.type">
+        <source>&amp;Type</source>
+        <translation>種類(&amp;t)</translation>
+    </message>
+    <message id="autopanel.menu.help">
+        <source>&amp;Help</source>
+        <translation>ヘルプ(&amp;h)</translation>
+    </message>
+    <message id="autopanel.menu.help.about">
+        <source>&amp;About AutoPanel</source>
+        <translation>AutoPanel について(&amp;a)</translation>
+    </message>
+    <message id="autopanel.menu.routes">
+        <source>&amp;Routes</source>
+        <translation>ルート(&amp;r)</translation>
+    </message>
+    <message id="autopanel.menu.routes.forwarding">
+        <source>Port &amp;forwarding…</source>
+        <translation>ポート転送(&amp;f)…</translation>
+    </message>
+    <message id="autopanel.menu.routes.proxy">
+        <source>&amp;Proxy routes…</source>
+        <translation>プロキシルート(&amp;p)…</translation>
+    </message>
+    <message id="autopanel.menu.services">
+        <source>&amp;Services</source>
+        <translation>サービス(&amp;s)</translation>
+    </message>
+    <message id="autopanel.menu.services.mail">
+        <source>&amp;Mail server…</source>
+        <translation>メールサーバー(&amp;m)…</translation>
+    </message>
+    <message id="autopanel.menu.services.turn">
+        <source>&amp;TURN server…</source>
+        <translation>TURN サーバー(&amp;t)…</translation>
+    </message>
+    <message id="autopanel.menu.system">
+        <source>S&amp;ystem</source>
+        <translation>システム(&amp;y)</translation>
+    </message>
+    <message id="autopanel.menu.system.audit">
+        <source>&amp;Audit log…</source>
+        <translation>監査ログ(&amp;a)…</translation>
+    </message>
+    <message id="autopanel.menu.system.language">
+        <source>Lan&amp;guage</source>
+        <translation>言語(&amp;g)</translation>
+    </message>
+    <message id="autopanel.menu.system.logins">
+        <source>&amp;Login attempts…</source>
+        <translation>ログイン試行(&amp;l)…</translation>
+    </message>
+    <message id="autopanel.menu.system.metrics">
+        <source>&amp;Metrics…</source>
+        <translation>メトリクス(&amp;m)…</translation>
+    </message>
+    <message id="autopanel.menu.system.ports">
+        <source>Open &amp;ports…</source>
+        <translation>開いているポート(&amp;p)…</translation>
+    </message>
+    <message id="autopanel.menu.system.quit">
+        <source>&amp;Quit (q)</source>
+        <translation>終了 (&amp;q)</translation>
+    </message>
+    <message id="autopanel.menu.system.refresh">
+        <source>&amp;Refresh (r)</source>
+        <translation>更新 (&amp;r)</translation>
+    </message>
+    <message id="autopanel.menu.system.theme">
+        <source>&amp;Theme</source>
+        <translation>テーマ(&amp;t)</translation>
+    </message>
+    <message id="autopanel.menu.users">
+        <source>&amp;Users</source>
+        <translation>ユーザー(&amp;u)</translation>
+    </message>
+    <message id="autopanel.menu.users.manage">
+        <source>&amp;Manage users…</source>
+        <translation>ユーザー管理(&amp;m)…</translation>
+    </message>
+    <message id="autopanel.metrics.availableOf">
+        <source>%1 available of %2</source>
+        <translation>%2 のうち %1 が利用可能</translation>
+    </message>
+    <message id="autopanel.metrics.disk">
+        <source>Disk (the store's)</source>
+        <translation>ディスク (ストア)</translation>
+    </message>
+    <message id="autopanel.metrics.freeOf">
+        <source>%1 free of %2</source>
+        <translation>%2 のうち %1 が空き</translation>
+    </message>
+    <message id="autopanel.metrics.goroutines">
+        <source>Goroutines</source>
+        <translation>ゴルーチン</translation>
+    </message>
+    <message id="autopanel.metrics.hostMemory">
+        <source>Host memory</source>
+        <translation>ホストのメモリ</translation>
+    </message>
+    <message id="autopanel.metrics.httpRequests">
+        <source>HTTP requests</source>
+        <translation>HTTP リクエスト</translation>
+    </message>
+    <message id="autopanel.metrics.httpsRequests">
+        <source>HTTPS requests</source>
+        <translation>HTTPS リクエスト</translation>
+    </message>
+    <message id="autopanel.metrics.load">
+        <source>Host load</source>
+        <translation>ホストの負荷</translation>
+    </message>
+    <message id="autopanel.metrics.loadValue">
+        <source>%1 · %2 · %3 (1, 5 and 15 minutes)</source>
+        <translation>%1 · %2 · %3 (1 分、5 分、15 分)</translation>
+    </message>
+    <message id="autopanel.metrics.routes">
+        <source>Routes</source>
+        <translation>ルート</translation>
+    </message>
+    <message id="autopanel.metrics.serviceMemory">
+        <source>Service memory</source>
+        <translation>サービスのメモリ</translation>
+    </message>
+    <message id="autopanel.metrics.serviceMemoryValue">
+        <source>%1 in use · %2 held</source>
+        <translation>%1 使用中 · %2 確保</translation>
+    </message>
+    <message id="autopanel.metrics.title">
+        <source>Metrics</source>
+        <translation>メトリクス</translation>
+    </message>
+    <message id="autopanel.metrics.uptime">
+        <source>Service uptime</source>
+        <translation>サービス稼働時間</translation>
+    </message>
+    <message id="autopanel.monitor.help">
+        <source>r read again · q close · Alt+drag moves, Alt+right-drag resizes</source>
+        <translation>r 再読み込み · q 閉じる · Alt+ドラッグで移動、Alt+右ドラッグでサイズ変更</translation>
+    </message>
+    <message id="autopanel.monitor.readAt">
+        <source>%1 rows, read at %2</source>
+        <translation>%1 行、%2 に読み込み</translation>
+    </message>
+    <message id="autopanel.monitor.readAtOnly">
+        <source>read at %1</source>
+        <translation>%1 に読み込み</translation>
+    </message>
+    <message id="autopanel.notice.added">
+        <source>added %1</source>
+        <translation>%1 を追加しました</translation>
+    </message>
+    <message id="autopanel.notice.busy">
+        <source>busy: a change is in flight</source>
+        <translation>処理中: 変更を適用しています</translation>
+    </message>
+    <message id="autopanel.notice.caNow">
+        <source>certificates now come from %1</source>
+        <translation>証明書は %1 から発行されます</translation>
+    </message>
+    <message id="autopanel.notice.error">
+        <source>error: %1</source>
+        <translation>エラー: %1</translation>
+    </message>
+    <message id="autopanel.notice.noLanguage">
+        <source>no language %1</source>
+        <translation>言語 %1 はありません</translation>
+    </message>
+    <message id="autopanel.notice.noRoute">
+        <source>no route selected</source>
+        <translation>ルートが選択されていません</translation>
+    </message>
+    <message id="autopanel.notice.noTheme">
+        <source>no theme named %1</source>
+        <translation>%1 というテーマはありません</translation>
+    </message>
+    <message id="autopanel.notice.notKept">
+        <source>the choice is shown but was not kept: %1</source>
+        <translation>選択は表示されていますが、保存されませんでした: %1</translation>
+    </message>
+    <message id="autopanel.notice.removed">
+        <source>removed #%1</source>
+        <translation>#%1 を削除しました</translation>
+    </message>
+    <message id="autopanel.notice.routesError">
+        <source>routes: %1</source>
+        <translation>ルート: %1</translation>
+    </message>
+    <message id="autopanel.notice.theme">
+        <source>theme: %1</source>
+        <translation>テーマ: %1</translation>
+    </message>
+    <message id="autopanel.notice.updated">
+        <source>updated %1</source>
+        <translation>%1 を更新しました</translation>
+    </message>
+    <message id="autopanel.overview.certificates">
+        <source>Certificates</source>
+        <translation>証明書</translation>
+    </message>
+    <message id="autopanel.overview.challenge">
+        <source>Challenge</source>
+        <translation>チャレンジ</translation>
+    </message>
+    <message id="autopanel.overview.http">
+        <source>HTTP</source>
+        <translation>HTTP</translation>
+    </message>
+    <message id="autopanel.overview.httpNote">
+        <source>%1 (certificate checks, and the redirect to HTTPS)</source>
+        <translation>%1 (証明書の確認と HTTPS へのリダイレクト)</translation>
+    </message>
+    <message id="autopanel.overview.https">
+        <source>HTTPS</source>
+        <translation>HTTPS</translation>
+    </message>
+    <message id="autopanel.overview.routes">
+        <source>Routes</source>
+        <translation>ルート</translation>
+    </message>
+    <message id="autopanel.overview.store">
+        <source>Store</source>
+        <translation>ストア</translation>
+    </message>
+    <message id="autopanel.overview.title">
+        <source>Overview</source>
+        <translation>概要</translation>
+    </message>
+    <message id="autopanel.overview.uptime">
+        <source>Uptime</source>
+        <translation>稼働時間</translation>
+    </message>
+    <message id="autopanel.overview.version">
+        <source>Version</source>
+        <translation>バージョン</translation>
+    </message>
+    <message id="autopanel.ports.title">
+        <source>Open ports</source>
+        <translation>開いているポート</translation>
+    </message>
+    <message id="autopanel.routes.add">
+        <source>Add</source>
+        <translation>追加</translation>
+    </message>
+    <message id="autopanel.routes.delete">
+        <source>Delete</source>
+        <translation>削除</translation>
+    </message>
+    <message id="autopanel.routes.edit">
+        <source>Edit</source>
+        <translation>編集</translation>
+    </message>
+    <message id="autopanel.routes.help">
+        <source>a add · e/Enter edit · d delete · q close</source>
+        <translation>a 追加 · e/Enter 編集 · d 削除 · q 閉じる</translation>
+    </message>
+    <message id="autopanel.routes.title">
+        <source>Proxy routes</source>
+        <translation>プロキシルート</translation>
+    </message>
+    <message id="autopanel.status.error">
+        <source>status: %1</source>
+        <translation>状態: %1</translation>
+    </message>
+    <message id="autopanel.status.line">
+        <source>%1 · CA %2 · %3 routes · up %4</source>
+        <translation>%1 · CA %2 · ルート %3 件 · 稼働 %4</translation>
+    </message>
+    <message id="autopanel.status.loading">
+        <source>loading…</source>
+        <translation>読み込み中…</translation>
+    </message>
+</context>
+</TS>

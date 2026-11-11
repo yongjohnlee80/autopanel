@@ -16,8 +16,12 @@ import (
 // of this package is reachable from it.
 func (h *host) commands() map[string]decl.HandlerFunc {
 	return map[string]decl.HandlerFunc{
-		"App.openRoutes":      none(func() error { return h.p.Call("routesManager", "open") }),
+		"App.openRoutes":      none(func() error { return h.openPanel("routes", "routesPanel", "routesTable") }),
 		"App.setCA":           oneString("App.setCA", h.setCA),
+		"App.openMonitor":     oneString("App.openMonitor", h.openMonitor),
+		"App.reloadMonitor":   oneString("App.reloadMonitor", h.reloadMonitor),
+		"App.useTheme":        oneString("App.useTheme", h.useTheme),
+		"App.setLanguage":     oneString("App.setLanguage", h.setLanguage),
 		"App.add":             none(h.add),
 		"App.edit":            oneRow("App.edit", h.edit),
 		"App.remove":          oneRow("App.remove", h.remove),
@@ -28,20 +32,20 @@ func (h *host) commands() map[string]decl.HandlerFunc {
 	}
 }
 
-// caNames are the certificate services the Certs menu offers, as messages
-// name them.
-var caNames = map[string]string{"staging": "Let's Encrypt staging", "production": "Let's Encrypt production"}
+// caNames are the certificate services the Certs menu offers: the message
+// that names each.
+var caNames = map[string]string{"staging": "autopanel.ca.name.staging", "production": "autopanel.ca.name.production"}
 
 // setCA chooses the certificate service, off the loop, then reads the status
 // again: the Certs menu checks what the daemon reports, so a refused change
 // leaves the old service checked.
 func (h *host) setCA(ca string) error {
-	name, ok := caNames[ca]
+	nameID, ok := caNames[ca]
 	if !ok {
 		return fmt.Errorf("App.setCA takes staging or production, not %q", ca)
 	}
 	if h.busy {
-		h.say("busy: a change is in flight")
+		h.say(h.tr("autopanel.notice.busy"))
 		h.refresh()
 		return nil
 	}
@@ -49,9 +53,9 @@ func (h *host) setCA(ca string) error {
 	h.background(func(ctx context.Context) error { return h.client.SetCA(ctx, ca) }, func(err error) {
 		h.busy = false
 		if err != nil {
-			h.say("error: " + err.Error())
+			h.say(h.trf("autopanel.notice.error", err.Error()))
 		} else {
-			h.say("certificates now come from " + name)
+			h.say(h.trf("autopanel.notice.caNow", h.tr(nameID)))
 		}
 		h.refresh()
 	})
@@ -61,18 +65,18 @@ func (h *host) setCA(ca string) error {
 // add opens the route form, empty.
 func (h *host) add() error {
 	h.editID = 0
-	return h.openForm("Add route", gate.RouteView{})
+	return h.openForm(h.tr("autopanel.form.add"), gate.RouteView{})
 }
 
 // edit opens the route form on the route at row.
 func (h *host) edit(row int) error {
 	r, ok := h.route(row)
 	if !ok {
-		h.say("no route selected")
+		h.say(h.tr("autopanel.notice.noRoute"))
 		return nil
 	}
 	h.editID = r.ID
-	return h.openForm(fmt.Sprintf("Edit route #%d", r.ID), r)
+	return h.openForm(h.trf("autopanel.form.edit", r.ID), r)
 }
 
 // openForm fills the route form with r and opens it.
@@ -84,7 +88,7 @@ func (h *host) openForm(title string, r gate.RouteView) error {
 	if err := h.fill(map[string]any{"App.formHost": r.Host, "App.formPath": prefix, "App.formUpstream": r.Upstream}); err != nil {
 		return err
 	}
-	if err := h.p.SetMany(map[string]any{"App.formTitle": title, "App.formHelp": formHint}); err != nil {
+	if err := h.p.SetMany(map[string]any{"App.formTitle": title, "App.formHelp": h.tr("autopanel.form.hint")}); err != nil {
 		return err
 	}
 	return h.p.Call("routeDialog", "open")
@@ -95,24 +99,24 @@ func (h *host) openForm(title string, r gate.RouteView) error {
 // open, as typed, with the reason in its help line and the status bar.
 func (h *host) submit(host, prefix, upstream string) error {
 	if h.busy {
-		h.say("busy: a change is in flight")
+		h.say(h.tr("autopanel.notice.busy"))
 		return nil
 	}
 	s := formSpec(h.editID, host, prefix, upstream)
-	verb, call := "added", h.client.Add
+	done, call := "autopanel.notice.added", h.client.Add
 	if s.ID != 0 {
-		verb, call = "updated", h.client.Update
+		done, call = "autopanel.notice.updated", h.client.Update
 	}
 	h.busy = true
 	h.background(func(ctx context.Context) error { return call(ctx, s) }, func(err error) {
 		h.busy = false
 		if err != nil {
-			h.say("error: " + err.Error())
-			_ = h.p.Set("App.formHelp", "error: "+err.Error())
+			h.say(h.trf("autopanel.notice.error", err.Error()))
+			_ = h.p.Set("App.formHelp", h.trf("autopanel.notice.error", err.Error()))
 			return
 		}
 		_ = h.p.Call("routeDialog", "close")
-		h.say(verb + " " + s.Host + s.PathPrefix)
+		h.say(h.trf(done, s.Host+s.PathPrefix))
 		h.refresh()
 	})
 	return nil
@@ -122,11 +126,11 @@ func (h *host) submit(host, prefix, upstream string) error {
 func (h *host) remove(row int) error {
 	r, ok := h.route(row)
 	if !ok {
-		h.say("no route selected")
+		h.say(h.tr("autopanel.notice.noRoute"))
 		return nil
 	}
 	h.removeID = r.ID
-	if err := h.p.Set("App.confirmQuestion", "Remove route "+describe(r)+"?"); err != nil {
+	if err := h.p.Set("App.confirmQuestion", h.trf("autopanel.confirm.remove", describe(r))); err != nil {
 		return err
 	}
 	return h.p.Call("confirmDialog", "open")
@@ -135,7 +139,7 @@ func (h *host) remove(row int) error {
 // removeConfirmed removes the route the confirmation named, off the loop.
 func (h *host) removeConfirmed() error {
 	if h.busy {
-		h.say("busy: a change is in flight")
+		h.say(h.tr("autopanel.notice.busy"))
 		return nil
 	}
 	id := h.removeID
@@ -143,10 +147,10 @@ func (h *host) removeConfirmed() error {
 	h.background(func(ctx context.Context) error { return h.client.Remove(ctx, id) }, func(err error) {
 		h.busy = false
 		if err != nil {
-			h.say("error: " + err.Error())
+			h.say(h.trf("autopanel.notice.error", err.Error()))
 			return
 		}
-		h.say("removed #" + strconv.FormatInt(id, 10))
+		h.say(h.trf("autopanel.notice.removed", id))
 		h.refresh()
 	})
 	return nil

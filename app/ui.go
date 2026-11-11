@@ -40,6 +40,35 @@ func (u uiClient) SetCA(ctx context.Context, ca string) error {
 	return u.c.Call(ctx, "certs.ca.set", CA{CA: ca}, nil)
 }
 
+func (u uiClient) Metrics(ctx context.Context) (ui.Metrics, error) {
+	var m ui.Metrics
+	return m, u.c.Call(ctx, "sys.metrics", nil, &m)
+}
+
+func (u uiClient) AuditLog(ctx context.Context) ([]ui.AuditEntry, error) {
+	var es []ui.AuditEntry
+	return es, u.c.Call(ctx, "sys.audit.list", nil, &es)
+}
+
+func (u uiClient) Logins(ctx context.Context) (ui.Logins, error) {
+	var l ui.Logins
+	return l, u.c.Call(ctx, "sys.logins", nil, &l)
+}
+
+func (u uiClient) Ports(ctx context.Context) ([]ui.Port, error) {
+	var ps []ui.Port
+	return ps, u.c.Call(ctx, "sys.ports", nil, &ps)
+}
+
+func (u uiClient) Prefs(ctx context.Context) (ui.Prefs, error) {
+	var p ui.Prefs
+	return p, u.c.Call(ctx, "sys.prefs.get", nil, &p)
+}
+
+func (u uiClient) SetPrefs(ctx context.Context, p ui.Prefs) error {
+	return u.c.Call(ctx, "sys.prefs.set", Prefs{Theme: p.Theme, Language: p.Language}, nil)
+}
+
 func init() {
 	runUI = func(stderr io.Writer) int {
 		ctx := context.Background()
