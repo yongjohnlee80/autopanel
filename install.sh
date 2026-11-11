@@ -2,7 +2,8 @@
 #
 # AutoPanel installer. Run as root on the server.
 #
-#   sudo ./install.sh                                        # first install: asks for the contact email and the master passphrase
+#   sudo ./install.sh                                        # first install: asks for the contact email, staging or
+#                                                            # production certificates, and the master passphrase
 #   sudo ./install.sh --email admin@example.com              # the same, with the email given
 #   sudo ./install.sh                                        # upgrade: replaces the binary, keeps everything else
 #
@@ -84,7 +85,10 @@ OPTIONS:
   --version <tag>          The release to download or build (e.g. v0.1.0). Default: latest
   --source                 Build from source on this host instead of downloading a release
   --email <address>        ACME account contact. A first install asks for it when it is not given
-  --ca staging|production  Let's Encrypt directory. Default: staging (first install only)
+  --ca staging|production  Which Let's Encrypt service issues the certificates. A first install
+                           asks when it is not given (staging with no terminal to ask on).
+                           staging: test certificates browsers do not trust, loose limits.
+                           production: real certificates, strict limits.
   --http <addr>            The gate's plain listener. Default: :80
   --https <addr>           The gate's TLS listener. Default: :443
   --user <name>            The panel's first user. Default: root
@@ -158,6 +162,40 @@ if [ ! -f "$ENV_FILE" ]; then
     ask_email
   fi
   valid_email "$EMAIL" || die "--email $EMAIL is not an email address"
+fi
+
+# ask_ca asks which Let's Encrypt directory issues the certificates. The choice
+# is not obvious, and the wrong one is costly either way: staging certificates
+# are trusted by nothing, and production locks a misconfigured host out.
+ask_ca() {
+  {
+    printf "\nWhich Let's Encrypt service should issue the certificates?\n\n"
+    printf "  1) staging     Test certificates. Browsers do NOT trust them. Use it to check\n"
+    printf "                 that DNS and ports 80 and 443 are right: its limits are loose,\n"
+    printf "                 so a mistake costs nothing.\n"
+    printf "  2) production  Real certificates, trusted by browsers. Its limits are strict:\n"
+    printf "                 a name that keeps failing is refused for an hour or more.\n\n"
+    printf "You can change it later in %s.\n" "$ENV_FILE"
+  } >/dev/tty
+  tries=0
+  while [ "$tries" -lt 3 ]; do
+    printf 'Choice [1]: ' >/dev/tty
+    IFS= read -r answer </dev/tty || answer=""
+    case "$answer" in
+      ""|1|s|staging) CA=staging; return 0 ;;
+      2|p|production) CA=production; return 0 ;;
+    esac
+    printf '  Type 1 for staging or 2 for production.\n' >/dev/tty
+    tries=$((tries + 1))
+  done
+  die "no certificate service was chosen; nothing was installed"
+}
+if [ ! -f "$ENV_FILE" ] && [ -z "$CA" ]; then
+  if have_tty; then
+    ask_ca
+  else
+    CA=staging # no terminal to ask on: the safe one, and the closing lines say so
+  fi
 fi
 if [ ! -f "$KEYFILE" ]; then
   if [ -n "$PASSFILE" ]; then
@@ -327,7 +365,7 @@ else
     printf '# token is set with certs.cloudflare.set and kept sealed in the store.\n'
     printf 'AUTOPANEL_HTTP_ADDR=%s\n' "$HTTP_ADDR"
     printf 'AUTOPANEL_HTTPS_ADDR=%s\n' "$HTTPS_ADDR"
-    printf 'AUTOPANEL_ACME_CA=%s\n' "${CA:-staging}"
+    printf 'AUTOPANEL_ACME_CA=%s\n' "$CA"
     printf 'AUTOPANEL_ACME_EMAIL=%s\n' "$EMAIL"
     printf 'AUTOPANEL_KEYFILE=%s\n' "$KEYFILE"
     printf '#AUTOPANEL_TRUSTED_PROXIES=\n'
@@ -394,6 +432,14 @@ say ""
 say "Done. Next:"
 info "point a name's DNS at this host, then:  sudo -u $SVC_USER autopanel --ui"
 info "log in as $ROOT_USER with the master passphrase; add a route with 'a'"
-info "staging certificates first; switch AUTOPANEL_ACME_CA=production in $ENV_FILE and restart when they work"
+case "$(sed -n 's/^AUTOPANEL_ACME_CA=//p' "$ENV_FILE" 2>/dev/null)" in
+  staging)
+    info "certificates come from Let's Encrypt STAGING: browsers will not trust them (test with curl -k)"
+    info "when the site answers, switch to real certificates:"
+    info "  sudo sed -i 's/^AUTOPANEL_ACME_CA=.*/AUTOPANEL_ACME_CA=production/' $ENV_FILE && sudo systemctl restart autopanel"
+    ;;
+  production) info "certificates come from Let's Encrypt production: real, trusted certificates" ;;
+  *) info "certificates come from the directory AUTOPANEL_ACME_CA names in $ENV_FILE" ;;
+esac
 info "behind Cloudflare's proxy: sudo -u $SVC_USER autopanel --call certs.cloudflare.set '{\"token\":\"…\"}'"
 info "remove: sudo autopanel-uninstall --check"

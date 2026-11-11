@@ -26,11 +26,13 @@ less install.sh
 sudo sh install.sh
 ```
 
-A first install asks two things on the terminal:
+A first install asks three things on the terminal:
 
 1. **A contact email** for the Let's Encrypt account that issues the certificates. It is sent only
    to Let's Encrypt.
-2. **A master passphrase** of at least 12 characters, twice. It is the `root` login for the admin
+2. **Staging or production certificates.** Choose staging for the first install on a new server,
+   and switch once the site answers: see [Staging and production certificates](#staging-and-production-certificates).
+3. **A master passphrase** of at least 12 characters, twice. It is the `root` login for the admin
    TUI and the only way to open the stored secrets without the server's keyfile, so keep it.
 
 The installer downloads the latest release for the machine and checks its SHA-256. When there is
@@ -39,11 +41,12 @@ It then creates the `autopanel` system user, installs the binary and the systemd
 the service. Running it again upgrades the binary and keeps the configuration, the store and the
 keys.
 
-**With no terminal** (a provisioning script), give both answers as options. The passphrase file
-must be mode 0600, and you can delete it afterwards:
+**With no terminal** (a provisioning script), give the answers as options. The passphrase file
+must be mode 0600, and you can delete it afterwards. Without `--ca`, a no-terminal install uses
+staging:
 
 ```sh
-sudo sh install.sh --email admin@example.com --passphrase-file /root/autopanel-passphrase
+sudo sh install.sh --email admin@example.com --ca production --passphrase-file /root/autopanel-passphrase
 ```
 
 | Option | Meaning |
@@ -53,7 +56,7 @@ sudo sh install.sh --email admin@example.com --passphrase-file /root/autopanel-p
 | `--version <tag>` | install that release (for example `v0.1.0`) instead of the latest |
 | `--source` | build from source on the server instead of downloading |
 | `--binary <path>` | install a binary you built yourself |
-| `--ca staging\|production` | the Let's Encrypt directory; staging is the default |
+| `--ca staging\|production` | which Let's Encrypt service issues the certificates, instead of being asked |
 | `--http <addr>`, `--https <addr>` | the listeners; `:80` and `:443` by default |
 | `--restart always\|on-failure\|no` | the service's restart policy |
 | `--no-start` | install without starting the service |
@@ -71,13 +74,47 @@ forwards to (`http://127.0.0.1:8080`). `e` edits the selected route, `d` removes
 and `q` quits. AutoPanel gets the certificate for a routed name on its first HTTPS request, and
 redirects plain HTTP to HTTPS.
 
-Certificates come from Let's Encrypt's **staging** directory at first, which browsers don't trust,
-so test with `curl -k`. When it works, switch to real certificates:
+### Staging and production certificates
+
+Let's Encrypt runs two services, and the installer asks which one to use:
+
+| | Staging | Production |
+| --- | --- | --- |
+| Certificates | test certificates | real certificates |
+| Trusted by browsers | **no**: a browser shows a certificate error | yes |
+| Limits | loose: a mistake costs nothing | strict: a name that keeps failing its check is refused for an hour or more, and the same certificate is issued only a few times a week |
+| Use it | first, on a new server or a new name | once the site answers on staging |
+
+Both check the name the same way, so a certificate from staging proves that DNS points at the
+server, that ports 80 and 443 are reachable, and that AutoPanel can answer the challenge. That is
+why staging comes first: a wrong DNS record or a closed port fails there for free, where it would
+use up the production limits.
+
+**Check a staging site** with a client that skips verification:
+
+```sh
+curl -kI https://example.com
+```
+
+The certificate's issuer then starts with `(STAGING)`. A browser will refuse the page, and for a
+name under a domain that browsers force to HTTPS (`.app`, `.dev`), it offers no way past the error.
+
+**Switch to production** when the site answers:
 
 ```sh
 sudo sed -i 's/^AUTOPANEL_ACME_CA=.*/AUTOPANEL_ACME_CA=production/' /etc/autopanel/autopanel.env
 sudo systemctl restart autopanel
 ```
+
+AutoPanel gets the real certificate on the next HTTPS request for each routed name. To see which
+service a server uses:
+
+```sh
+grep AUTOPANEL_ACME_CA /etc/autopanel/autopanel.env
+```
+
+If you know the server is set up correctly, install with production from the start: answer `2` at
+the prompt, or pass `--ca production`.
 
 ### Check and remove
 
