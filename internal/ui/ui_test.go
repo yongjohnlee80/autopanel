@@ -561,28 +561,91 @@ func TestSystemMonitors(t *testing.T) {
 	}
 }
 
-// TestAPanelMinimizesAndComesBack: a floating panel has its three window
-// controls; minimized, it leaves the screen and is listed on the hints row,
-// and its menu row brings it back.
-func TestAPanelMinimizesAndComesBack(t *testing.T) {
+// controlAt is the cell of a window control in the routes panel's top row:
+// its three controls are "_", "+" and "x", in that order.
+func controlAt(t *testing.T, s *decltest.Screen, control string) (x, y int) {
+	t.Helper()
+	for y, line := range strings.Split(s.String(), "\n") {
+		if i := strings.Index(line, "_   +   x"); i >= 0 {
+			return len([]rune(line[:i])) + strings.Index("_   +   x", control), y
+		}
+	}
+	t.Fatalf("no window controls on the screen:\n%s", s)
+	return 0, 0
+}
+
+// click presses and releases the left button on a cell.
+func click(t *testing.T, s *decltest.Screen, x, y int) {
+	t.Helper()
+	s.Keys(t, tui.MouseEvent{Kind: tui.MousePress, Button: tui.MouseLeft, X: x, Y: y},
+		tui.MouseEvent{Kind: tui.MouseRelease, Button: tui.MouseLeft, X: x, Y: y})
+}
+
+// TestAPanelsWindowControls: a floating panel has its three window controls,
+// and each works with the mouse. Minimized, the panel leaves the screen and
+// is listed on the hints row, and its menu row brings it back; maximized, it
+// covers the overview; closed, it is gone and the Window's keys work again.
+func TestAPanelsWindowControls(t *testing.T) {
+	f := newFakeClient()
+	s := start(t, f)
+	openRoutes(t, s)
+
+	x, y := controlAt(t, s, "_")
+	click(t, s, x, y)
+	s.WaitFor(t, "the panel to leave the screen", func(sc string) bool { return !strings.Contains(sc, "api.example.com") })
+	s.WaitForText(t, "[ Proxy routes ]") // its entry on the hints row
+
+	openRoutes(t, s) // the menu row restores it
+	s.WaitFor(t, "its entry to leave the hints row", func(sc string) bool { return !strings.Contains(sc, "[ Proxy routes ]") })
+
+	x, y = controlAt(t, s, "+")
+	click(t, s, x, y)
+	s.WaitFor(t, "the maximized panel to cover the overview", func(sc string) bool {
+		return strings.Contains(sc, "api.example.com") && !strings.Contains(sc, "Let's Encrypt staging: test")
+	})
+
+	x, y = controlAt(t, s, "x")
+	click(t, s, x, y)
+	s.WaitFor(t, "the panel to close", func(sc string) bool { return !strings.Contains(sc, "api.example.com") })
+	s.Keys(t, decltest.Rune('r')) // the Window's r, now the panel is gone
+	s.WaitFor(t, "a second read", func(string) bool { _, _, _, reads := f.snapshot(); return reads >= 2 })
+}
+
+// TestAPanelMovesAndResizes: Alt with the left button drags a floating panel,
+// and Alt with the right button resizes it from its corner.
+func TestAPanelMovesAndResizes(t *testing.T) {
 	s := start(t, newFakeClient())
 	openRoutes(t, s)
-	s.Program.Post(func() {
-		if err := s.Program.Call("routesPanel", "minimize"); err != nil {
-			t.Error(err)
+	at := func() (x, y, w int) { // the panel's title cell, and its top row's width
+		for y, line := range strings.Split(s.String(), "\n") {
+			if i := strings.Index(line, "┌ Proxy routes "); i >= 0 {
+				rest := []rune(line[i:])
+				end := 0
+				for end < len(rest) && rest[end] != '┐' {
+					end++
+				}
+				return len([]rune(line[:i])), y, end + 1
+			}
 		}
+		return -1, -1, 0
+	}
+	x0, y0, w0 := at()
+	if x0 < 0 {
+		t.Fatalf("no routes panel on the screen:\n%s", s)
+	}
+	s.Keys(t, tui.MouseEvent{Kind: tui.MousePress, Button: tui.MouseLeft, Mods: tui.ModAlt, X: x0 + 20, Y: y0 + 3},
+		tui.MouseEvent{Kind: tui.MouseMotion, Button: tui.MouseLeft, X: x0 + 14, Y: y0 + 1},
+		tui.MouseEvent{Kind: tui.MouseRelease, Button: tui.MouseLeft, X: x0 + 14, Y: y0 + 1})
+	s.WaitFor(t, "the panel to move 6 left and 2 up", func(string) bool { x, y, _ := at(); return x == x0-6 && y == y0-2 })
+
+	x1, y1, _ := at()
+	s.Keys(t, tui.MouseEvent{Kind: tui.MousePress, Button: tui.MouseRight, Mods: tui.ModAlt, X: x1 + w0 - 2, Y: y1 + 5},
+		tui.MouseEvent{Kind: tui.MouseMotion, Button: tui.MouseRight, X: x1 + w0 - 12, Y: y1 + 5},
+		tui.MouseEvent{Kind: tui.MouseRelease, Button: tui.MouseRight, X: x1 + w0 - 12, Y: y1 + 5})
+	s.WaitFor(t, "the panel to be narrower, its corner kept", func(string) bool {
+		x, y, w := at()
+		return x == x1 && y == y1 && w < w0
 	})
-	s.WaitFor(t, "the panel to leave the screen", func(sc string) bool { return !strings.Contains(sc, "api.example.com") })
-	s.WaitForText(t, "Proxy routes") // its entry on the hints row
-	openRoutes(t, s)
-	s.Program.Post(func() {
-		if err := s.Program.Call("routesPanel", "toggleMaximize"); err != nil {
-			t.Error(err)
-		}
-	})
-	s.WaitForText(t, "api.example.com")
-	s.Keys(t, decltest.Rune('q'))
-	s.WaitFor(t, "the panel to close", func(sc string) bool { return !strings.Contains(sc, "api.example.com") })
 }
 
 // TestLanguageSwitchesEverything: System → Language → 한국어 relabels the
