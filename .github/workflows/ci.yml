@@ -1,0 +1,54 @@
+# Every action is pinned by commit SHA (the tag is a comment). A new action or
+# version is admitted before it lands, like any dependency.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: ci-only-not-a-secret
+          POSTGRES_DB: autopanel_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d autopanel_test"
+          --health-interval 2s --health-timeout 5s --health-retries 30
+    env:
+      GOFLAGS: -mod=readonly
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: gofmt
+        run: test -z "$(gofmt -l .)"
+      - name: vet
+        run: go vet ./...
+      - name: shellcheck
+        run: shellcheck -s sh install.sh uninstall.sh
+      - name: schema for the PostgreSQL tests
+        run: |
+          PGPASSWORD=ci-only-not-a-secret psql -h localhost -U postgres -d autopanel_test -c 'CREATE SCHEMA autopanel'
+      - name: test (SQLite and PostgreSQL), race detector on
+        env:
+          AUTOPANEL_TEST_POSTGRES_DSN: postgres://postgres:ci-only-not-a-secret@localhost:5432/autopanel_test?sslmode=disable&search_path=autopanel
+        run: go test -count=1 -race -p 1 ./...
+      - name: build
+        run: CGO_ENABLED=0 go build -trimpath -o /dev/null ./cmd/autopanel
+
+  vulncheck:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: golang/govulncheck-action@032d45514ae346b1db93c04b0c90b841c370344f # v1.1.0
+        with:
+          go-version-file: go.mod

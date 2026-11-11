@@ -2,6 +2,8 @@ module github.com/yongjohnlee80/autopanel
 
 go 1.26.10
 
+toolchain go1.27.4
+
 require (
 	github.com/caddyserver/certmagic v0.25.6
 	github.com/libdns/cloudflare v0.2.2
@@ -30,7 +32,7 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.28.0 // indirect
 	go.uber.org/zap/exp v0.3.0 // indirect
-	golang.org/x/net v0.59.0 // indirect
+	golang.org/x/net v0.60.0 // indirect
 	golang.org/x/sync v0.24.0 // indirect
 	golang.org/x/text v0.42.0 // indirect
 	modernc.org/libc v1.79.0 // indirect
