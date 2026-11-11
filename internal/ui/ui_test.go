@@ -584,7 +584,7 @@ func click(t *testing.T, s *decltest.Screen, x, y int) {
 // TestAPanelsWindowControls: a floating panel has its three window controls,
 // and each works with the mouse. Minimized, the panel leaves the screen and
 // is listed on the hints row, and its menu row brings it back; maximized, it
-// covers the overview; closed, it is gone and the Window's keys work again.
+// takes the whole Window; closed, it is gone and the Window's keys work again.
 func TestAPanelsWindowControls(t *testing.T) {
 	f := newFakeClient()
 	s := start(t, f)
@@ -600,8 +600,11 @@ func TestAPanelsWindowControls(t *testing.T) {
 
 	x, y = controlAt(t, s, "+")
 	click(t, s, x, y)
-	s.WaitFor(t, "the maximized panel to cover the overview", func(sc string) bool {
-		return strings.Contains(sc, "api.example.com") && !strings.Contains(sc, "Let's Encrypt staging: test")
+	// Maximized, the panel is the whole Window: its frame starts the first
+	// row. The controls are read only once it has settled there; a frame
+	// earlier they are still where the floating panel had them.
+	s.WaitFor(t, "the maximized panel to take the whole Window", func(sc string) bool {
+		return strings.HasPrefix(sc, "┌ Proxy routes") && strings.Contains(sc, "api.example.com")
 	})
 
 	x, y = controlAt(t, s, "x")
