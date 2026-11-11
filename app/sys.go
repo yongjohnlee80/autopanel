@@ -14,10 +14,11 @@ var Version = "dev"
 
 // sysModule is the sys.* verbs: what the TUI's status bar shows.
 type sysModule struct {
-	cfg     Config
-	table   *gate.Table[http.Handler]
-	engine  string
-	started time.Time
+	cfg       Config
+	table     *gate.Table[http.Handler]
+	engine    string
+	started   time.Time
+	challenge func() string
 }
 
 // Status is sys.status's answer.
@@ -43,5 +44,5 @@ func (m *sysModule) Verbs() []module.Verb {
 
 func (m *sysModule) status(context.Context, struct{}) (Status, error) {
 	return Status{Version: Version, HTTPS: m.cfg.HTTPSAddr, HTTP: m.cfg.HTTPAddr, Store: m.engine, CA: m.cfg.CA,
-		Challenge: m.cfg.Challenge(), Routes: len(m.table.Routes()), Uptime: time.Since(m.started).Round(time.Second).String()}, nil
+		Challenge: m.challenge(), Routes: len(m.table.Routes()), Uptime: time.Since(m.started).Round(time.Second).String()}, nil
 }

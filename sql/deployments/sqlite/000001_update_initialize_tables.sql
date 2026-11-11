@@ -1,5 +1,6 @@
 -- 000001: AutoPanel's store. The settings, the routes the gate serves, the
--- audit log, CertMagic's key space, and the lease that keeps one AutoPanel per
+-- audit log, CertMagic's key space, the users and the keyslots that hold the
+-- master key, the sealed secrets, and the lease that keeps one AutoPanel per
 -- store.
 --
 -- The baseline has no revert: undoing it would drop the store. The ledger of
@@ -42,8 +43,7 @@ CREATE TABLE IF NOT EXISTS audit (
 CREATE INDEX IF NOT EXISTS audit_at ON audit (at, id);
 
 -- CertMagic's key space: certificates, their private keys, ACME account keys.
--- The store's file is the owner's only (0700 state directory); sealing the
--- private keys is M1.5's.
+-- Every value is sealed under the master key (AES-256-GCM, AAD naming its key).
 CREATE TABLE IF NOT EXISTS cert_blob (
   key         TEXT PRIMARY KEY,
   value       BLOB NOT NULL,
@@ -57,4 +57,35 @@ CREATE TABLE IF NOT EXISTS store_lease (
   holder     TEXT NOT NULL,
   started_at INTEGER NOT NULL,
   renewed_at INTEGER NOT NULL
+);
+
+-- A panel user. The first, made by --init, is root.
+CREATE TABLE IF NOT EXISTS app_user (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  name       TEXT NOT NULL UNIQUE,
+  created_at INTEGER NOT NULL,
+  CHECK (name <> '')
+);
+
+-- A wrapped copy of the master key. A passphrase slot belongs to a user and is
+-- also that user's login; the service slot (no user) opens with the keyfile.
+-- slot is the keyslot package's JSON: salt, cost parameters, digest, ciphertext.
+CREATE TABLE IF NOT EXISTS keyslot (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  kind       TEXT NOT NULL,
+  user_id    INTEGER REFERENCES app_user(id) ON DELETE CASCADE,
+  slot       TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  CHECK (kind IN ('passphrase', 'service')),
+  CHECK ((kind = 'passphrase') = (user_id IS NOT NULL))
+);
+CREATE UNIQUE INDEX IF NOT EXISTS keyslot_passphrase_user ON keyslot (user_id) WHERE kind = 'passphrase';
+CREATE UNIQUE INDEX IF NOT EXISTS keyslot_one_service ON keyslot (kind) WHERE kind = 'service';
+
+-- A secret the panel keeps (the Cloudflare API token), sealed under the master
+-- key with AAD naming it.
+CREATE TABLE IF NOT EXISTS secret (
+  name       TEXT PRIMARY KEY,
+  value      BLOB NOT NULL,
+  updated_at INTEGER NOT NULL
 );

@@ -12,9 +12,10 @@ import (
 	"github.com/yongjohnlee80/golib/dao"
 )
 
-// Config is AutoPanel's configuration, read from the environment. Secrets (the
-// PostgreSQL DSN, the Cloudflare token) come only from the environment or the
-// unit's credential files, never from a file in the repository (R8).
+// Config is AutoPanel's configuration, read from the environment. The
+// PostgreSQL DSN comes only from the environment; the Cloudflare token is not
+// configuration at all: it is set through certs.cloudflare.set and kept sealed
+// in the store (R8).
 //
 // The shipped defaults bind loopback; a deployment widens the gate to :80 and
 // :443 (security-core-hardening, "loopback by default").
@@ -27,14 +28,16 @@ type Config struct {
 	HTTPSAddr string // the gate's TLS listener
 	CA        string // the ACME directory URL
 	Email     string // the ACME account contact
-	CFToken   string // a Cloudflare API token: set, every certificate uses DNS-01
+	Keyfile   string // the service keyslot's keyfile, outside the state directory
 	Trusted   []netip.Prefix
 }
 
-// The systemd unit's directories (deploy/autopanel.service).
+// The systemd unit's directories (deploy/autopanel.service), and the keyfile
+// install.sh makes, in a directory of its own outside the state directory.
 const (
 	systemState   = "/var/lib/autopanel"
 	systemRuntime = "/run/autopanel"
+	systemKeyfile = "/etc/autopanel/keyslot/service.key"
 )
 
 func isDir(p string) bool {
@@ -80,7 +83,14 @@ func LoadConfig() (Config, error) {
 		HTTPAddr:  env("AUTOPANEL_HTTP_ADDR", "127.0.0.1:8080"),
 		HTTPSAddr: env("AUTOPANEL_HTTPS_ADDR", "127.0.0.1:8443"),
 		Email:     os.Getenv("AUTOPANEL_ACME_EMAIL"),
-		CFToken:   os.Getenv("AUTOPANEL_CLOUDFLARE_API_TOKEN"),
+		Keyfile:   os.Getenv("AUTOPANEL_KEYFILE"),
+	}
+	if c.Keyfile == "" {
+		if isDir(filepath.Dir(systemKeyfile)) {
+			c.Keyfile = systemKeyfile
+		} else {
+			c.Keyfile = filepath.Join(filepath.Dir(state), "autopanel-keyslot", "service.key") // beside, never inside, the state directory
+		}
 	}
 	switch ca := env("AUTOPANEL_ACME_CA", "staging"); ca {
 	case "staging":
@@ -104,12 +114,4 @@ func LoadConfig() (Config, error) {
 		return Config{}, errors.New("AUTOPANEL_STORE_ENGINE=postgres needs AUTOPANEL_POSTGRES_DSN")
 	}
 	return c, nil
-}
-
-// Challenge names how certificates are validated, for status.
-func (c Config) Challenge() string {
-	if c.CFToken != "" {
-		return "dns-01 (cloudflare)"
-	}
-	return "http-01, tls-alpn-01"
 }

@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -19,18 +18,42 @@ import (
 	"github.com/yongjohnlee80/autopanel/core/gate"
 	hostcontrol "github.com/yongjohnlee80/autopanel/host/control"
 	hostgate "github.com/yongjohnlee80/autopanel/host/gate"
-	"github.com/yongjohnlee80/autopanel/internal/certs"
+	"github.com/yongjohnlee80/autopanel/internal/auth"
+	"github.com/yongjohnlee80/autopanel/internal/keyslot"
 	"github.com/yongjohnlee80/autopanel/store"
 )
+
+// unlockWithKeyfile opens the master key with the service keyfile. A store
+// with no keyslots is refused: run --init first.
+func unlockWithKeyfile(ctx context.Context, cfg Config, st *store.Store, vault *keyslot.Vault) error {
+	slot, err := st.ServiceSlot(ctx)
+	if err != nil {
+		return err
+	}
+	kf, err := keyslot.ReadKeyfile(cfg.Keyfile)
+	if err != nil {
+		return err
+	}
+	mk, err := keyslot.OpenService(slot, kf)
+	if err != nil {
+		return err
+	}
+	return vault.Unlock(mk)
+}
 
 // Serve runs AutoPanel until SIGINT or SIGTERM: the store, the gate's two
 // listeners, certificates, and the control socket.
 func Serve(cfg Config, log *slog.Logger) error {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	return ServeContext(ctx, cfg, log)
+}
+
+// ServeContext is Serve until ctx ends.
+func ServeContext(ctx context.Context, cfg Config, log *slog.Logger) error {
 	if cfg.Email == "" {
 		return errors.New("AUTOPANEL_ACME_EMAIL is required: the ACME account's contact")
 	}
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
 
 	if err := os.MkdirAll(cfg.StateDir, 0o700); err != nil {
 		return err
@@ -40,12 +63,25 @@ func Serve(cfg Config, log *slog.Logger) error {
 		return err
 	}
 	defer st.Close()
-	host, _ := os.Hostname()
-	holder := host + ":" + strconv.Itoa(os.Getpid())
+	// The holder is the host, not the process: a restart after a crash takes its
+	// own lease back at once instead of waiting out LeaseTTL. A second AutoPanel
+	// on this host is caught by its live socket before it touches the lease.
+	if hostcontrol.InUse(cfg.Socket) {
+		return fmt.Errorf("an AutoPanel is already running on %s", cfg.Socket)
+	}
+	holder, _ := os.Hostname()
+	if holder == "" {
+		holder = "autopanel"
+	}
 	if err := st.Lease(ctx, holder); err != nil {
 		return err
 	}
-	defer func() { _ = st.Release(context.Background(), holder) }()
+	started := false
+	defer func() {
+		if started { // only an instance that fully started gives the store back
+			_ = st.Release(context.Background(), holder)
+		}
+	}()
 
 	table := gate.NewTable[http.Handler]()
 	reload := func(ctx context.Context) error {
@@ -64,33 +100,41 @@ func Serve(cfg Config, log *slog.Logger) error {
 		return fmt.Errorf("loading routes: %w", err)
 	}
 
-	opts := certs.Options{Blobs: st.Blobs(), Allowed: table.Holds, CA: cfg.CA, Email: cfg.Email}
-	if cfg.CFToken != "" {
-		p, err := certs.Cloudflare(cfg.CFToken)
-		if err != nil {
+	vault := &keyslot.Vault{}
+	if err := unlockWithKeyfile(ctx, cfg, st, vault); err != nil {
+		if errors.Is(err, store.ErrNotInitialized) {
 			return err
 		}
-		opts.DNS = p
+		log.Warn("the vault stays locked until root logs in", "err", err)
 	}
-	cm, err := certs.New(opts)
-	if err != nil {
+	sw := &certSwitch{cfg: cfg, st: st, vault: vault, table: table, log: log}
+	if err := sw.rebuild(ctx); err != nil {
 		return err
 	}
 
 	gateHandler := hostgate.Handler(table)
-	https := httpserver.New(httpserver.Addr(cfg.HTTPSAddr), httpserver.WithTLSConfig(cm.TLSConfig()),
+	https := httpserver.New(httpserver.Addr(cfg.HTTPSAddr), httpserver.WithTLSConfig(sw.tlsConfig()),
 		httpserver.ReadHeaderTimeout(10*time.Second), httpserver.IdleTimeout(120*time.Second),
 		httpserver.MaxHeaderBytes(64<<10), httpserver.NotFound(gateHandler.ServeHTTP)) // no routes: every request is the gate's
 	plain := httpserver.New(httpserver.Addr(cfg.HTTPAddr),
 		httpserver.ReadHeaderTimeout(10*time.Second), httpserver.IdleTimeout(60*time.Second),
-		httpserver.MaxHeaderBytes(16<<10), httpserver.NotFound(cm.HTTPChallengeHandler(http.HandlerFunc(toHTTPS)).ServeHTTP))
+		httpserver.MaxHeaderBytes(16<<10), httpserver.NotFound(sw.httpChallenge(http.HandlerFunc(toHTTPS)).ServeHTTP))
 
 	gm := gate.NewModule(st.Routes(), reload)
-	sys := &sysModule{cfg: cfg, table: table, engine: st.Engine(), started: time.Now()}
-	ctl, err := hostcontrol.Listen(cfg.Socket, log, gm, sys)
+	sys := &sysModule{cfg: cfg, table: table, engine: st.Engine(), started: time.Now(), challenge: sw.Challenge}
+	am, err := auth.New(st, st, vault, func(ctx context.Context) {
+		if err := sw.rebuild(ctx); err != nil {
+			log.Error("certificates after unlock", "err", err)
+		}
+	}, keyslot.DefaultParams)
 	if err != nil {
 		return err
 	}
+	ctl, err := hostcontrol.Listen(cfg.Socket, log, am, gm, &certsModule{sw: sw}, sys)
+	if err != nil {
+		return err
+	}
+	started = true
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -111,7 +155,7 @@ func Serve(cfg Config, log *slog.Logger) error {
 	run("control", ctl.Run)
 	run("lease", func(ctx context.Context) error { return renewLease(ctx, st, holder) })
 	log.Info("autopanel serving", "https", cfg.HTTPSAddr, "http", cfg.HTTPAddr, "socket", cfg.Socket,
-		"store", st.Engine(), "ca", cfg.CA, "challenge", cfg.Challenge(), "routes", len(table.Routes()))
+		"store", st.Engine(), "ca", cfg.CA, "challenge", sw.Challenge(), "routes", len(table.Routes()))
 	<-ctx.Done()
 	wg.Wait()
 	close(errs)

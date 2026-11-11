@@ -13,6 +13,7 @@ import (
 
 	"github.com/caddyserver/certmagic"
 	"github.com/yongjohnlee80/golib/tui"
+	tuidecl "github.com/yongjohnlee80/golib/tui/decl"
 	"github.com/yongjohnlee80/golib/tui/term"
 
 	"github.com/yongjohnlee80/autopanel/core/gate"
@@ -40,6 +41,10 @@ type Client interface {
 }
 
 // Run shows the TUI until the user quits or ctx ends.
+//
+// The screen is QML (qml/Main.qml and qml/dialogs): this package builds no
+// widget. It publishes the routes and the status as the App singleton's
+// sources and runs the commands the document invokes (commands.go).
 func Run(ctx context.Context, c Client) error {
 	if c == nil {
 		return errors.New("ui: nil client")
@@ -48,16 +53,17 @@ func Run(ctx context.Context, c Client) error {
 	if err != nil {
 		return fmt.Errorf("ui: cannot open the terminal: %w", err)
 	}
-	return run(ctx, c, tui.WithBackend(backend))
-}
-
-// run is Run on any backend: the tests drive it on tui.TestBackend.
-func run(ctx context.Context, c Client, opts ...tui.AppOption) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	p := newPanel(c, cancel)
-	app := tui.NewApp(p, append([]tui.AppOption{tui.WithQuit(cancel)}, opts...)...)
-	return app.Run(ctx)
+	h := newHost(ctx, c)
+	// Handler errors go to the status bar as they happen, rather than being
+	// kept until the panel closes.
+	p, err := tuidecl.NewProgram(h.options(func(err error) { h.say("error: " + err.Error()) }, tui.WithBackend(backend))...)
+	if err != nil {
+		return fmt.Errorf("ui: %w", err)
+	}
+	h.attach(p)
+	return p.Run(ctx)
 }
 
 // shortCA names an ACME directory for the status bar: Let's Encrypt's two by

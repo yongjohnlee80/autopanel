@@ -14,7 +14,122 @@ import (
 
 	"github.com/yongjohnlee80/autopanel/core/audit"
 	"github.com/yongjohnlee80/autopanel/core/gate"
+	"github.com/yongjohnlee80/autopanel/internal/keyslot"
 )
+
+func unlocked(t *testing.T) *keyslot.Vault {
+	t.Helper()
+	mk, err := keyslot.NewMasterKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	v := &keyslot.Vault{}
+	if err := v.Unlock(mk); err != nil {
+		t.Fatal(err)
+	}
+	return v
+}
+
+func TestBlobsAreSealedAndBoundToTheirKey(t *testing.T) {
+	for engine, s := range engines(t) {
+		t.Run(engine, func(t *testing.T) {
+			ctx := context.Background()
+			v := unlocked(t)
+			if err := s.Blobs(v).Put(ctx, "certs/a/a.key", []byte("PRIVATE KEY")); err != nil {
+				t.Fatal(err)
+			}
+			rows, err := s.conn.QueryContext(ctx, "SELECT value FROM cert_blob WHERE key = 'certs/a/a.key'")
+			if err != nil {
+				t.Fatal(err)
+			}
+			var raw []byte
+			rows.Next()
+			_ = rows.Scan(&raw)
+			_ = rows.Close()
+			if len(raw) == 0 || containsBytes(raw, []byte("PRIVATE KEY")) {
+				t.Fatalf("the store holds the value in the clear: %q", raw)
+			}
+			if _, err := s.conn.ExecContext(ctx, "INSERT INTO cert_blob(key, value, modified_at) SELECT 'certs/b/b.key', value, 0 FROM cert_blob WHERE key = 'certs/a/a.key'"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := s.Blobs(v).Get(ctx, "certs/b/b.key"); !errors.Is(err, keyslot.ErrOpen) {
+				t.Fatalf("a blob copied to another key opened: %v", err)
+			}
+			if _, err := s.Blobs(&keyslot.Vault{}).Get(ctx, "certs/a/a.key"); !errors.Is(err, keyslot.ErrLocked) {
+				t.Fatalf("a locked vault read a blob: %v", err)
+			}
+		})
+	}
+}
+
+func containsBytes(b, sub []byte) bool {
+	for i := 0; i+len(sub) <= len(b); i++ {
+		if string(b[i:i+len(sub)]) == string(sub) {
+			return true
+		}
+	}
+	return false
+}
+
+func TestInitMakesRootOnceAndItsSlotsOpen(t *testing.T) {
+	for engine, s := range engines(t) {
+		t.Run(engine, func(t *testing.T) {
+			ctx := context.Background()
+			if _, err := s.ServiceSlot(ctx); !errors.Is(err, ErrNotInitialized) {
+				t.Fatalf("ServiceSlot before init = %v", err)
+			}
+			mk, _ := keyslot.NewMasterKey()
+			cheap := keyslot.Params{Time: 1, MemKiB: 1024, Threads: 1}
+			ps, err := keyslot.SealPassphrase(mk, "a long master passphrase", cheap)
+			if err != nil {
+				t.Fatal(err)
+			}
+			kf := make([]byte, keyslot.KeySize)
+			kf[0] = 7
+			ss, err := keyslot.SealService(mk, kf)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := s.InitRoot(ctx, "root", ps, ss); err != nil {
+				t.Fatal(err)
+			}
+			if err := s.InitRoot(ctx, "root2", ps, ss); !errors.Is(err, ErrInitialized) {
+				t.Fatalf("a second init = %v; want ErrInitialized", err)
+			}
+			gotPS, err := s.PassphraseSlot(ctx, "root")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got, err := keyslot.OpenPassphrase(gotPS, "a long master passphrase"); err != nil || !slices.Equal(got, mk) {
+				t.Fatalf("root's slot doesn't open: %v", err)
+			}
+			if _, err := s.PassphraseSlot(ctx, "nobody"); !errors.Is(err, ErrNoUser) {
+				t.Fatalf("an unknown user's slot = %v", err)
+			}
+			gotSS, err := s.ServiceSlot(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got, err := keyslot.OpenService(gotSS, kf); err != nil || !slices.Equal(got, mk) {
+				t.Fatalf("the service slot doesn't open: %v", err)
+			}
+			v := &keyslot.Vault{}
+			_ = v.Unlock(mk)
+			if err := s.PutSecret(ctx, v, "cloudflare_api_token", []byte("tok")); err != nil {
+				t.Fatal(err)
+			}
+			if got, err := s.Secret(ctx, v, "cloudflare_api_token"); err != nil || string(got) != "tok" {
+				t.Fatalf("Secret = %q, %v", got, err)
+			}
+			if err := s.DeleteSecret(ctx, "cloudflare_api_token"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := s.Secret(ctx, v, "cloudflare_api_token"); !errors.Is(err, ErrNoSecret) {
+				t.Fatalf("a deleted secret = %v", err)
+			}
+		})
+	}
+}
 
 // engines are the stores each test runs on: SQLite always, PostgreSQL when
 // AUTOPANEL_TEST_POSTGRES_DSN names a disposable, empty schema.
@@ -34,7 +149,7 @@ func engines(t *testing.T) map[string]*Store {
 			t.Fatal(err)
 		}
 		clear := func() {
-			for _, table := range []string{"route", "audit", "cert_blob", "store_lease"} {
+			for _, table := range []string{"route", "audit", "cert_blob", "store_lease", "secret", "keyslot", "app_user"} {
 				_, _ = p.conn.ExecContext(ctx, "DELETE FROM "+table)
 			}
 		}
@@ -139,7 +254,7 @@ func TestBlobsKeepCertMagicsFileSemantics(t *testing.T) {
 	for engine, s := range engines(t) {
 		t.Run(engine, func(t *testing.T) {
 			ctx := context.Background()
-			b := s.Blobs()
+			b := s.Blobs(unlocked(t))
 			for _, k := range []string{"certs/ca/a.example/a.crt", "certs/ca/a.example/a.key", "certs/ca/ab.example/ab.crt", "certs/ca/a_b%/x"} {
 				if err := b.Put(ctx, k, []byte(k)); err != nil {
 					t.Fatal(err)
@@ -157,7 +272,7 @@ func TestBlobsKeepCertMagicsFileSemantics(t *testing.T) {
 			if st, err := b.Stat(ctx, "certs/ca/a.example"); err != nil || st.IsTerminal {
 				t.Errorf("Stat of a directory = %+v, %v", st, err)
 			}
-			if st, err := b.Stat(ctx, "certs/ca/a.example/a.key"); err != nil || !st.IsTerminal || st.Size != 3 {
+			if st, err := b.Stat(ctx, "certs/ca/a.example/a.key"); err != nil || !st.IsTerminal || st.Size != 3 { // the plaintext size
 				t.Errorf("Stat of a file = %+v, %v", st, err)
 			}
 			if _, err := b.Stat(ctx, "certs/ca/a.ex"); !errors.Is(err, fs.ErrNotExist) {

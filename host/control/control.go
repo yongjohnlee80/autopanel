@@ -29,14 +29,23 @@ type Server struct {
 	path string
 }
 
+// InUse reports whether a running AutoPanel answers on the socket at path.
+func InUse(path string) bool {
+	c, err := net.Dial("unix", path)
+	if err != nil {
+		return false
+	}
+	_ = c.Close()
+	return true
+}
+
 // Listen binds the socket at path. Its directory must be private (CheckDir);
 // a socket left by a crashed run is replaced, a live one is refused.
 func Listen(path string, log *slog.Logger, mods ...module.Module) (*Server, error) {
 	if err := peercred.CheckDir(filepath.Dir(path)); err != nil {
 		return nil, err
 	}
-	if c, err := net.Dial("unix", path); err == nil {
-		_ = c.Close()
+	if InUse(path) {
 		return nil, fmt.Errorf("control: %s is in use by a running AutoPanel", path)
 	}
 	_ = os.Remove(path)
@@ -66,13 +75,32 @@ func Listen(path string, log *slog.Logger, mods ...module.Module) (*Server, erro
 	return &Server{rpc: srv, path: path}, nil
 }
 
-// handler adapts a verb to the wire: the caller is named for the audit log, a
-// declared error crosses with its code and message, and any other error
-// crosses as a bare internal error (R13), its detail kept in the log.
-func handler(v module.Verb, errs []module.PublicError, actor string, log *slog.Logger) rpc.Handler {
+// sessionUser is the session value a successful login sets.
+const sessionUser = "autopanel.user"
+
+// handler adapts a verb to the wire. Every verb but the login needs a logged-in
+// connection; the caller is named for the audit log; a declared error crosses
+// with its code and message, and any other error crosses as a bare internal
+// error (R13), its detail kept in the log.
+func handler(v module.Verb, errs []module.PublicError, local string, log *slog.Logger) rpc.Handler {
 	return func(ctx context.Context, req *rpc.Request) (any, error) {
+		actor := local
+		user, _ := req.Session.Value(sessionUser).(string)
+		switch {
+		case user != "":
+			actor = user + " (" + local + ")"
+		case !v.Open:
+			return nil, &rpc.Error{Code: rpc.CodeAccessDenied, Message: "log in first (auth.login)"}
+		}
 		res, err := v.Call(audit.WithActor(ctx, actor), req.Params)
 		if err == nil {
+			if v.Login {
+				if m, ok := res.(map[string]any); ok {
+					if u, ok := m["user"].(string); ok && u != "" {
+						req.Session.SetValue(sessionUser, u)
+					}
+				}
+			}
 			return res, nil
 		}
 		if errors.Is(err, module.ErrInvalidParams) {

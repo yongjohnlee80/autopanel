@@ -10,6 +10,8 @@
 Description=AutoPanel control plane (reverse-proxy gate, ACME certificates)
 Wants=network-online.target
 After=network-online.target
+# Never give up restarting: a gate that stays down is worse than a retry every 5s.
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
@@ -17,7 +19,10 @@ User=autopanel
 Group=autopanel
 EnvironmentFile=/etc/autopanel/autopanel.env
 ExecStart=/usr/local/bin/autopanel --serve
-Restart=on-failure
+# Comes back on its own after any exit or crash, and at boot (enabled by
+# install.sh). An operator's `systemctl stop` stays stopped. To change the
+# policy: install.sh --restart on-failure|no writes a drop-in.
+Restart=always
 RestartSec=5s
 
 # :80 and :443 without root.
