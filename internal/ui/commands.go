@@ -16,6 +16,8 @@ import (
 // of this package is reachable from it.
 func (h *host) commands() map[string]decl.HandlerFunc {
 	return map[string]decl.HandlerFunc{
+		"App.login":           twoStrings("App.login", h.login),
+		"App.loginDeclined":   none(h.loginDeclined),
 		"App.openRoutes":      none(func() error { return h.openPanel("routes", "routesPanel", "routesTable") }),
 		"App.setCA":           oneString("App.setCA", h.setCA),
 		"App.panelLeft":       none(h.panelLeft),
@@ -189,6 +191,16 @@ func oneString(name string, fn func(string) error) decl.HandlerFunc {
 			return fmt.Errorf("%s takes one string", name)
 		}
 		return fn(args[0].Raw)
+	}
+}
+
+// twoStrings is a command that takes two strings: the login's fields.
+func twoStrings(name string, fn func(a, b string) error) decl.HandlerFunc {
+	return func(args []qml.SpecValue) error {
+		if len(args) != 2 || args[0].Kind != qml.SpecValueString || args[1].Kind != qml.SpecValueString {
+			return fmt.Errorf("%s takes two strings", name)
+		}
+		return fn(args[0].Raw, args[1].Raw)
 	}
 }
 

@@ -20,7 +20,7 @@ import (
 //
 //	import autopanel 1.0              the App singleton: state and commands       (declared)
 //	import autopanel.theme.<name> 1.0 golib's themes: the Theme singleton         (offered)
-//	import autopanel.dialogs 1.0      RouteDialog, ConfirmDialog                  (offered)
+//	import autopanel.dialogs 1.0      Login, RouteDialog, ConfirmDialog           (offered)
 //	import autopanel.views 1.0        About                                       (offered)
 //	import autopanel.panels 1.0       FloatPanel: a floating window with controls (offered)
 //
@@ -66,6 +66,9 @@ type host struct {
 
 	themes *tuidecl.ListModel // App.themes: System › Theme's rows
 	mon    monitors           // the System panels' models and last answers (monitor.go)
+
+	signingIn bool // a login attempt is in flight
+	signedIn  bool // a panel user has logged in; nothing is read before
 
 	editID   int64 // the route the form edits; 0 adds one
 	removeID int64 // the route the confirmation names
@@ -113,12 +116,12 @@ func (h *host) options(sink func(error), app ...tui.AppOption) []tuidecl.Program
 	return opts
 }
 
-// attach binds the host to the program built from its options, and starts
-// the first reads: the routes and status, and the kept preferences.
+// attach binds the host to the program built from its options, and asks for
+// the login. The first reads (the routes and status, the kept preferences)
+// follow a login that succeeds (auth.go).
 func (h *host) attach(p *tuidecl.Program) {
 	h.p = p
-	h.refresh()
-	h.loadPrefs()
+	h.promptLogin()
 }
 
 // state is the App singleton's state, with its starting values. Each is a
@@ -128,7 +131,9 @@ func (h *host) state() map[string]any {
 		"App.routes":          h.model,
 		"App.overview":        h.facts,
 		"App.themes":          h.themes,
-		"App.status":          tui.Msg("autopanel.status.loading"),
+		"App.status":          tui.Msg("autopanel.status.signedOut"),
+		"App.lastUser":        defaultUser,
+		"App.loginError":      "",
 		"App.message":         "",
 		"App.caStaging":       false,
 		"App.caProduction":    false,
@@ -159,8 +164,12 @@ func (h *host) background(fn func(ctx context.Context) error, done func(error)) 
 	}()
 }
 
-// refresh reads the routes and the status again, off the loop.
+// refresh reads the routes and the status again, off the loop. Signed out,
+// it reads nothing: the service would refuse.
 func (h *host) refresh() {
+	if !h.signedIn {
+		return
+	}
 	var (
 		routes    []gate.RouteView
 		st        Status

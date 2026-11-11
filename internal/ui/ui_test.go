@@ -29,8 +29,9 @@ type fakeClient struct {
 	ca      string   // the ACME directory the status reports
 	setCAs  []string // what SetCA was asked for
 	caErr   error
-	prefs   Prefs   // what Prefs answers
-	kept    []Prefs // what SetPrefs was asked to keep
+	logins  []string // the users Login was asked for, a "!" after a refused one
+	prefs   Prefs    // what Prefs answers
+	kept    []Prefs  // what SetPrefs was asked to keep
 	sshNote string
 }
 
@@ -39,6 +40,20 @@ func newFakeClient() *fakeClient {
 		{ID: 1, Host: "app.example.com", PathPrefix: "/", Upstream: "http://127.0.0.1:8080"},
 		{ID: 2, Host: "api.example.com", PathPrefix: "/v1", Upstream: "http://127.0.0.1:9090"},
 	}}
+}
+
+// passphrase is the one the fake service accepts, for any user.
+const passphrase = "a long master passphrase"
+
+func (f *fakeClient) Login(_ context.Context, user, pass string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if pass != passphrase {
+		f.logins = append(f.logins, user+"!")
+		return errors.New("wrong user or passphrase")
+	}
+	f.logins = append(f.logins, user)
+	return nil
 }
 
 func (f *fakeClient) Routes(context.Context) ([]gate.RouteView, error) {
@@ -303,13 +318,32 @@ func TestEveryMessageIsInEveryCatalog(t *testing.T) {
 	}
 }
 
-// start runs the panel on a test backend against c, as Run does on a terminal.
-func start(t *testing.T, c Client) *decltest.Screen {
+// open runs the panel on a test backend against c, as Run does on a
+// terminal: it stops at the login dialog.
+func open(t *testing.T, c Client) *decltest.Screen {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	h := newHost(ctx, c, "v0.1.0")
 	return decltest.RunWith(t, 120, 30, func(p *tuidecl.Program) error { h.attach(p); return nil }, h.options(nil)...)
+}
+
+// signIn answers the login dialog as root: the passphrase field has the
+// keyboard, and Enter signs in.
+func signIn(t *testing.T, s *decltest.Screen) {
+	t.Helper()
+	s.WaitForText(t, "Sign in to AutoPanel")
+	s.Keys(t, decltest.Type(passphrase)...)
+	s.Keys(t, enter)
+	s.WaitFor(t, "the login dialog to close", func(sc string) bool { return !strings.Contains(sc, "Sign in to AutoPanel") })
+}
+
+// start runs the panel against c and signs in.
+func start(t *testing.T, c Client) *decltest.Screen {
+	t.Helper()
+	s := open(t, c)
+	signIn(t, s)
+	return s
 }
 
 // openRoutes opens the proxy routes panel through the menu bar, as a user
@@ -703,6 +737,7 @@ func TestThemeSwitchesAndIsKept(t *testing.T) {
 	g.prefs = Prefs{Theme: "sepia", Language: "en"}
 	h := newHost(context.Background(), g, "v0.1.0")
 	s2 := decltest.RunWith(t, 120, 30, func(p *tuidecl.Program) error { h.attach(p); return nil }, h.options(nil)...)
+	signIn(t, s2)
 	s2.WaitForText(t, "CA LE staging")
 	s2.WaitFor(t, "the kept theme to be shown", func(string) bool {
 		done := make(chan string, 1)
@@ -716,5 +751,76 @@ func TestBytesText(t *testing.T) {
 		if got := bytesText(in); got != want {
 			t.Errorf("bytesText(%d) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+// TestThePanelOpensOnTheLogin: nothing is read before a login. A wrong
+// passphrase opens the dialog again with the reason and the user as typed,
+// and the passphrase is never on the screen; the right one signs in, and the
+// routes and status are then read.
+func TestThePanelOpensOnTheLogin(t *testing.T) {
+	f := newFakeClient()
+	s := open(t, f)
+	for _, part := range []string{"Sign in to AutoPanel", "User", "root", "Passphrase"} {
+		s.WaitForText(t, part)
+	}
+	if _, _, _, reads := f.snapshot(); reads != 0 {
+		t.Fatalf("the panel read the routes %d times before a login", reads)
+	}
+
+	s.Keys(t, decltest.Type("not the passphrase")...)
+	if strings.Contains(s.String(), "not the passphrase") {
+		t.Fatalf("the passphrase is on the screen as typed:\n%s", s)
+	}
+	s.Keys(t, enter)
+	s.WaitForText(t, "error: wrong user or passphrase")
+	s.WaitForText(t, "Sign in to AutoPanel") // open again
+	if _, _, _, reads := f.snapshot(); reads != 0 {
+		t.Fatalf("a refused login read the routes (%d reads)", reads)
+	}
+
+	s.Keys(t, decltest.Type(passphrase)...) // the field was emptied, and has the keyboard
+	s.Keys(t, enter)
+	s.WaitForText(t, "signed in as root")
+	s.WaitForText(t, "CA LE staging")
+	if strings.Contains(s.String(), "Sign in to AutoPanel") {
+		t.Fatalf("the login stayed open after signing in:\n%s", s)
+	}
+	f.mu.Lock()
+	got := strings.Join(f.logins, ",")
+	f.mu.Unlock()
+	if got != "root!,root" {
+		t.Fatalf("logins = %s, want root!,root", got)
+	}
+}
+
+// TestALoginAsAnotherUser: the user field takes another name, kept across a
+// refusal.
+func TestALoginAsAnotherUser(t *testing.T) {
+	f := newFakeClient()
+	s := open(t, f)
+	s.WaitForText(t, "Sign in to AutoPanel")
+	shiftTab := tui.KeyEvent{Kind: tui.KeyPress, Code: tui.KeyTab, Mods: tui.ModShift}
+	s.Keys(t, shiftTab) // back to the user field, from the passphrase
+	s.Keys(t, decltest.Type("2")...)
+	s.Keys(t, tab)
+	s.Keys(t, decltest.Type(passphrase)...)
+	s.Keys(t, enter)
+	s.WaitForText(t, "signed in as root2")
+}
+
+// TestCancellingTheLoginQuits: signed out, the panel has nothing to show.
+func TestCancellingTheLoginQuits(t *testing.T) {
+	f := newFakeClient()
+	s := open(t, f)
+	s.WaitForText(t, "Sign in to AutoPanel")
+	s.Keys(t, escape)
+	select {
+	case <-s.Quit():
+	case <-time.After(decltest.WaitTimeout):
+		t.Fatalf("Escape at the login did not quit:\n%s", s)
+	}
+	if _, _, _, reads := f.snapshot(); reads != 0 {
+		t.Fatalf("a cancelled login read the routes (%d reads)", reads)
 	}
 }

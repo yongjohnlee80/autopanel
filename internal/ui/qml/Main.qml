@@ -13,7 +13,7 @@
 import tui 1.0                 // the widget vocabulary, and the Tui singleton's enums
 import autopanel 1.0           // the App singleton: the panel's state and commands
 import autopanel.theme.dark 1.0  // the Theme singleton; System › Theme switches it
-import autopanel.dialogs 1.0   // RouteDialog, ConfirmDialog
+import autopanel.dialogs 1.0   // Login, RouteDialog, ConfirmDialog
 import autopanel.views 1.0     // About
 import autopanel.panels 1.0    // FloatPanel
 
@@ -285,6 +285,7 @@ Window {
     // The host fills a dialog's sources, then opens it by id; each closes
     // itself on Close, Cancel, No or Escape. The route form stays open on a
     // failed change, showing why; the host closes it once the change is made.
+    Login { id: loginDialog }
     RouteDialog { id: routeDialog }
     ConfirmDialog { id: confirmDialog }
     About { id: aboutDialog }

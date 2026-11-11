@@ -103,6 +103,26 @@
         <source>Menus: Alt and a menu's letter, or F10 · r refresh · q quit</source>
         <translation>Menus: Alt and a menu's letter, or F10 · r refresh · q quit</translation>
     </message>
+    <message id="autopanel.login.passphrase">
+        <source>Passphrase</source>
+        <translation>Passphrase</translation>
+    </message>
+    <message id="autopanel.login.running">
+        <source>another sign-in is still running; try again in a moment</source>
+        <translation>another sign-in is still running; try again in a moment</translation>
+    </message>
+    <message id="autopanel.login.signedIn">
+        <source>signed in as %1</source>
+        <translation>signed in as %1</translation>
+    </message>
+    <message id="autopanel.login.title">
+        <source>Sign in to AutoPanel</source>
+        <translation>Sign in to AutoPanel</translation>
+    </message>
+    <message id="autopanel.login.user">
+        <source>User</source>
+        <translation>User</translation>
+    </message>
     <message id="autopanel.logins.result.closed">
         <source>closed</source>
         <translation>closed</translation>
@@ -406,6 +426,10 @@
     <message id="autopanel.status.loading">
         <source>loading…</source>
         <translation>loading…</translation>
+    </message>
+    <message id="autopanel.status.signedOut">
+        <source>not signed in</source>
+        <translation>not signed in</translation>
     </message>
 </context>
 </TS>

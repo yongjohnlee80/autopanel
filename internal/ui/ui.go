@@ -4,8 +4,9 @@
 // the proxy routes, with a form to add or edit one and a confirmation to
 // remove one, and the System menu's monitors (metrics, the audit log, login
 // attempts, open ports). The certificate service, the theme and the language
-// are chosen in the menus. All of it is over a Client that talks to the
-// daemon. The panel keeps no state of its own: every change goes through the
+// are chosen in the menus. It opens on a login dialog, and reads nothing
+// until a panel user has signed in. All of it is over a Client that talks to
+// the daemon. The panel keeps no state of its own: every change goes through the
 // Client, and the routes and status are read again after it.
 package ui
 
@@ -101,6 +102,10 @@ type Prefs struct {
 
 // Client is everything the TUI may do.
 type Client interface {
+	// Login logs the connection in as a panel user. Every other call is
+	// refused until one has succeeded.
+	Login(ctx context.Context, user, passphrase string) error
+
 	Routes(ctx context.Context) ([]gate.RouteView, error)
 	Status(ctx context.Context) (Status, error)
 	Add(ctx context.Context, s gate.RouteSpec) error

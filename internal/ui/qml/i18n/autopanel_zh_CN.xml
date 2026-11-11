@@ -103,6 +103,26 @@
         <source>Menus: Alt and a menu's letter, or F10 · r refresh · q quit</source>
         <translation>菜单: Alt 加菜单字母，或 F10 · r 刷新 · q 退出</translation>
     </message>
+    <message id="autopanel.login.passphrase">
+        <source>Passphrase</source>
+        <translation>口令</translation>
+    </message>
+    <message id="autopanel.login.running">
+        <source>another sign-in is still running; try again in a moment</source>
+        <translation>另一次登录仍在进行，请稍后再试</translation>
+    </message>
+    <message id="autopanel.login.signedIn">
+        <source>signed in as %1</source>
+        <translation>已以 %1 身份登录</translation>
+    </message>
+    <message id="autopanel.login.title">
+        <source>Sign in to AutoPanel</source>
+        <translation>登录 AutoPanel</translation>
+    </message>
+    <message id="autopanel.login.user">
+        <source>User</source>
+        <translation>用户</translation>
+    </message>
     <message id="autopanel.logins.result.closed">
         <source>closed</source>
         <translation>已断开</translation>
@@ -406,6 +426,10 @@
     <message id="autopanel.status.loading">
         <source>loading…</source>
         <translation>正在加载…</translation>
+    </message>
+    <message id="autopanel.status.signedOut">
+        <source>not signed in</source>
+        <translation>未登录</translation>
     </message>
 </context>
 </TS>
