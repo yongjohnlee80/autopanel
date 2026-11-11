@@ -5,15 +5,16 @@ VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS := -s -w -X github.com/yongjohnlee80/autopanel/app.Version=$(VERSION)
 GO      ?= go
 GOIMAGE ?= golang:1.26
-DIST    := bin/autopanel-$(VERSION)-linux-amd64
+ARCH    ?= amd64
+DIST    := bin/autopanel-$(VERSION)-linux-$(ARCH)
 
-.PHONY: build build-linux dist vet fmt fmt-check test shellcheck check clean
+.PHONY: build build-linux dist release vet fmt fmt-check test shellcheck check clean
 
 build:
 	CGO_ENABLED=0 $(GO) build -trimpath -ldflags "$(LDFLAGS)" -o bin/autopanel ./cmd/autopanel
 
 build-linux:
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GO) build -trimpath -ldflags "$(LDFLAGS)" -o $(DIST)/autopanel ./cmd/autopanel
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(ARCH) $(GO) build -trimpath -ldflags "$(LDFLAGS)" -o $(DIST)/autopanel ./cmd/autopanel
 
 # The release tarball install.sh downloads or runs from: binary, scripts and unit side by
 # side, with the checksum install.sh verifies.
@@ -23,6 +24,11 @@ dist: build-linux
 	tar -C bin -czf $(DIST).tar.gz $(notdir $(DIST))
 	cd bin && sha256sum $(notdir $(DIST)).tar.gz > $(notdir $(DIST)).tar.gz.sha256
 	@echo $(DIST).tar.gz
+
+# Every tarball a release publishes (the release workflow runs this with VERSION set to the tag).
+release:
+	$(MAKE) dist ARCH=amd64
+	$(MAKE) dist ARCH=arm64
 
 vet:
 	$(GO) vet ./...

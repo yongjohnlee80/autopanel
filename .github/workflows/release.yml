@@ -1,0 +1,53 @@
+# Publishes a release when a version tag is pushed: the tarballs install.sh
+# downloads, each with its SHA-256. Every action is pinned by commit SHA, as in
+# ci.yml; the release itself is made with the runner's gh, not another action.
+name: release
+
+on:
+  push:
+    tags: ["v[0-9]*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    env:
+      GOFLAGS: -mod=readonly
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: the tag is a version, and its commit is on main
+        run: |
+          printf '%s\n' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$' \
+            || { echo "::error::$TAG is not a version tag (vX.Y.Z or vX.Y.Z-pre)"; exit 1; }
+          git fetch --quiet origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main \
+            || { echo "::error::$TAG is not on main"; exit 1; }
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: vet and test before anything is published
+        run: |
+          go vet ./...
+          go test -count=1 -race -p 1 ./...
+      - name: build the tarballs
+        run: make release VERSION="$TAG"
+      - name: the tarballs are what install.sh expects
+        run: |
+          cd bin
+          sha256sum -c ./*.sha256
+          tar -xzf "autopanel-$TAG-linux-amd64.tar.gz" -C "$RUNNER_TEMP"
+          got=$("$RUNNER_TEMP/autopanel-$TAG-linux-amd64/autopanel" --version)
+          [ "$got" = "autopanel $TAG" ] || { echo "::error::the binary reports '$got', not 'autopanel $TAG'"; exit 1; }
+      - name: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pre=""
+          case "$TAG" in *-*) pre="--prerelease" ;; esac
+          gh release create "$TAG" --verify-tag --generate-notes $pre \
+            bin/autopanel-"$TAG"-linux-*.tar.gz bin/autopanel-"$TAG"-linux-*.tar.gz.sha256
