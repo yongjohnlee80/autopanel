@@ -247,6 +247,18 @@
         <source>%1 free of %2</source>
         <translation>%2 중 %1 남음</translation>
     </message>
+    <message id="autopanel.metrics.gateMemory">
+        <source>Gate memory</source>
+        <translation>게이트 메모리</translation>
+    </message>
+    <message id="autopanel.metrics.gateMemoryValue">
+        <source>%1 · process %2</source>
+        <translation>%1 · 프로세스 %2</translation>
+    </message>
+    <message id="autopanel.metrics.gateSilent">
+        <source>not reporting</source>
+        <translation>보고 없음</translation>
+    </message>
     <message id="autopanel.metrics.goroutines">
         <source>Goroutines</source>
         <translation>고루틴</translation>
@@ -276,8 +288,8 @@
         <translation>라우트</translation>
     </message>
     <message id="autopanel.metrics.serviceMemory">
-        <source>Service memory</source>
-        <translation>서비스 메모리</translation>
+        <source>Core memory</source>
+        <translation>코어 메모리</translation>
     </message>
     <message id="autopanel.metrics.serviceMemoryValue">
         <source>%1 in use · %2 held</source>

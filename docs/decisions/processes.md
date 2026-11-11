@@ -39,7 +39,7 @@ never dials the gate. The socket offers five verbs and no others:
 | `link.routes` | the routing table; the call stays open until the table changes |
 | `link.cert` | the certificate and key for a name a route holds |
 | `link.challenge` | the answer to an ACME HTTP-01 request it received |
-| `link.report` | nothing: it sends its request counts |
+| `link.report` | nothing: it sends its request counts, its process number and its memory, every few seconds |
 
 **Why the gate dials:** a core that connected out to the gate would need the gate to listen for
 it, and a second listener on the exposed process is a second way in. With the gate dialling, the

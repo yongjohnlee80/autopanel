@@ -121,13 +121,12 @@ func (g *recordedGate) counts() (int, int, int) {
 // is made: the test only crosses the plain listener.
 func TestTheCoreAndTheGateEndToEnd(t *testing.T) {
 	// The host reads are the test's own: no real socket table, no journal.
-	defer func(l func() ([]sysinfo.Listener, error), s func(context.Context, int) ([]sysinfo.SSHLogin, error)) {
-		readListeners, readSSHLogins = l, s
-	}(readListeners, readSSHLogins)
-	readListeners = func() ([]sysinfo.Listener, error) {
-		return []sysinfo.Listener{{Proto: "tcp", Address: "0.0.0.0", Port: 22}, {Proto: "udp", Address: "0.0.0.0", Port: 3478},
-			{Proto: "tcp", Address: "127.0.0.1", Port: 7777}}, nil
-	}
+	defer func(l func(context.Context) ([]sysinfo.Listener, error), s func(context.Context, int) ([]sysinfo.SSHLogin, error), u func(int) string) {
+		readListeners, readSSHLogins, userName = l, s, u
+	}(readListeners, readSSHLogins, userName)
+	var listening []sysinfo.Listener // set once the configuration names the gate's ports
+	readListeners = func(context.Context) ([]sysinfo.Listener, error) { return listening, nil }
+	userName = func(uid int) string { return map[int]string{0: "root", 33: "www-data"}[uid] }
 	readSSHLogins = func(context.Context, int) ([]sysinfo.SSHLogin, error) {
 		return []sysinfo.SSHLogin{{At: 4102444800, User: "root", From: "192.0.2.66", Result: "failed", Detail: "password"}}, nil
 	}
@@ -138,6 +137,16 @@ func TestTheCoreAndTheGateEndToEnd(t *testing.T) {
 	cfg := testConfig(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	// The gate of this test runs in this process. Another program holds the
+	// plain port's number on another address.
+	listening = []sysinfo.Listener{
+		{Proto: "tcp", Address: "0.0.0.0", Port: 22, UID: 0, Process: "sshd", PID: 612},
+		{Proto: "udp", Address: "0.0.0.0", Port: 3478, UID: sysinfo.NoUID},
+		{Proto: "tcp", Address: "127.0.0.1", Port: 7777, UID: sysinfo.NoUID},
+		{Proto: "tcp", Address: "127.0.0.1", Port: portOf(cfg.HTTPSAddr), UID: 0, Process: "autopanel", PID: os.Getpid()},
+		{Proto: "tcp", Address: "192.0.2.1", Port: portOf(cfg.HTTPAddr), UID: 33, Process: "nginx", PID: 4242},
+		{Proto: "tcp", Address: "127.0.0.1", Port: portOf(cfg.HTTPAddr), UID: sysinfo.NoUID},
+	}
 
 	if err := Init(ctx, cfg, "root", strings.NewReader("short\n")); err == nil {
 		t.Fatal("Init accepted a short passphrase")
@@ -273,6 +282,10 @@ func TestTheCoreAndTheGateEndToEnd(t *testing.T) {
 	if ms.Goroutines == 0 || ms.RuntimeBytes == 0 || ms.Routes != 1 {
 		t.Fatalf("sys.metrics = %+v", ms)
 	}
+	// The gate reports its process and its memory with its counts.
+	if g := ms.Gate; !g.Running || g.PID != os.Getpid() || g.MemoryBytes == 0 {
+		t.Fatalf("sys.metrics' gate = %+v; want this process, running, with its memory", g)
+	}
 	var entries []store.AuditEntry
 	if err := c.Call(ctx, "sys.audit.list", Limit{Limit: 3}, &entries); err != nil || len(entries) != 3 || entries[0].ID <= entries[1].ID {
 		t.Fatalf("sys.audit.list = %+v, %v", entries, err)
@@ -316,11 +329,31 @@ func TestTheCoreAndTheGateEndToEnd(t *testing.T) {
 		t.Fatalf("the panel's login = %+v", a)
 	}
 	var ports []Port
-	if err := c.Call(ctx, "sys.ports", nil, &ports); err != nil || len(ports) != 3 {
+	if err := c.Call(ctx, "sys.ports", nil, &ports); err != nil || len(ports) != 6 {
 		t.Fatalf("sys.ports = %+v, %v", ports, err)
 	}
-	if ports[0].Use != "SSH (usual for this port)" || ports[1].Proto != "udp" || ports[1].Use != "TURN/STUN (usual for this port)" || ports[2].Use != "" {
-		t.Fatalf("sys.ports named them %+v", ports)
+	// A socket carries its process and its user when the host names them, and
+	// then no guess from its port. Only a socket whose process is unknown is
+	// given its port's usual service.
+	if p := ports[0]; p.Process != "sshd" || p.PID != 612 || p.User != "root" || p.Use != "" {
+		t.Fatalf("the SSH port = %+v; want its process and user, and no guess", p)
+	}
+	if p := ports[1]; p.Proto != "udp" || p.Process != "" || p.User != "" || p.Use != "TURN/STUN (usual for this port)" {
+		t.Fatalf("a socket with no process = %+v; want its port's usual service", p)
+	}
+	if ports[2].Use != "" {
+		t.Fatalf("an unknown port = %+v", ports[2])
+	}
+	// AutoPanel's own are the gate's ports held by the gate's process, or by
+	// one the host does not name: another program on the same port is itself.
+	if p := ports[3]; p.Use != "AutoPanel: HTTPS (the proxy)" || p.Process != "autopanel" {
+		t.Fatalf("the gate's HTTPS socket = %+v", p)
+	}
+	if p := ports[4]; p.Use != "" || p.Process != "nginx" || p.User != "www-data" {
+		t.Fatalf("another program on the gate's plain port = %+v; want it named as itself", p)
+	}
+	if p := ports[5]; !strings.HasPrefix(p.Use, "AutoPanel: HTTP (") {
+		t.Fatalf("the gate's plain socket, its process unknown = %+v", p)
 	}
 	var prefs Prefs
 	if err := c.Call(ctx, "sys.prefs.get", nil, &prefs); err != nil || prefs != (Prefs{}) {

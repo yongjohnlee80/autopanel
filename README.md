@@ -122,10 +122,10 @@ it again.
 
 | Panel | What it shows |
 | --- | --- |
-| Metrics | the core's uptime and memory, and the gate's request counts since it started; the host's load, memory, and the disk the store is on |
+| Metrics | the core's uptime and memory; the gate's request counts since it started, its process and its memory, or that it is not reporting; the host's load, memory, and the disk the store is on |
 | Audit log | the newest 200 changes made through AutoPanel: who, what, and when |
 | Login attempts | logins to the panel, and logins to the server over SSH: accepted, failed, and closed before logging in |
-| Open ports | every listening TCP port and bound UDP port, the address it listens on, and what it is for when AutoPanel knows: its own listeners, a route's upstream, or the port's usual service |
+| Open ports | every listening TCP port and bound UDP port, the address it listens on, the process that holds it (named by its executable, with its number) and the user it belongs to, and what it is for when AutoPanel knows: its own listeners, a route's upstream, or, for a socket whose process could not be read, the port's usual service |
 
 SSH logins come from the system journal, which the core reads. The gate has no access to it.
 

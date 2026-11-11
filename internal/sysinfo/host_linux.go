@@ -5,22 +5,28 @@ import (
 	"context"
 	"errors"
 	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/yongjohnlee80/autopanel/internal/hostcmd"
 )
 
-// Listeners reads the host's listening sockets from /proc/net. A table that
-// cannot be read (IPv6 off) is left out.
-func Listeners() ([]Listener, error) {
+// procRoot is where the kernel's process table is; a test gives its own.
+var procRoot = "/proc"
+
+// Listeners reads the host's listening sockets from /proc/net, with the user
+// each belongs to, and names the process that holds each from the process
+// table. A table that cannot be read (IPv6 off) is left out.
+func Listeners(context.Context) ([]Listener, error) {
 	var out []Listener
 	read := 0
 	for _, t := range []struct{ proto, file string }{
-		{"tcp", "/proc/net/tcp"}, {"tcp", "/proc/net/tcp6"}, {"udp", "/proc/net/udp"}, {"udp", "/proc/net/udp6"},
+		{"tcp", "net/tcp"}, {"tcp", "net/tcp6"}, {"udp", "net/udp"}, {"udp", "net/udp6"},
 	} {
-		f, err := os.Open(t.file)
+		f, err := os.Open(filepath.Join(procRoot, t.file))
 		if err != nil {
 			continue
 		}
@@ -31,7 +37,72 @@ func Listeners() ([]Listener, error) {
 	if read == 0 {
 		return nil, ErrUnsupported
 	}
-	return SortListeners(out), nil
+	want := map[uint64]bool{}
+	for _, l := range out {
+		if l.inode != 0 {
+			want[l.inode] = true
+		}
+	}
+	return SortListeners(Owned(out, socketHolders(want))), nil
+}
+
+// socketHolders finds the processes that hold the sockets in want, by reading
+// each process's open files: the kernel names a socket there by its inode.
+// It reads no name a process chose: a process is named by its executable.
+// A process whose files may not be read (the core is root, so only inside a
+// container that withholds it) is skipped, and its sockets stay unnamed.
+func socketHolders(want map[uint64]bool) map[uint64][]Holder {
+	out := map[uint64][]Holder{}
+	if len(want) == 0 {
+		return out
+	}
+	procs, err := os.ReadDir(procRoot)
+	if err != nil {
+		return out
+	}
+	for _, p := range procs {
+		pid, err := strconv.Atoi(p.Name())
+		if err != nil || pid <= 0 {
+			continue
+		}
+		dir := filepath.Join(procRoot, p.Name())
+		fds, err := os.ReadDir(filepath.Join(dir, "fd"))
+		if err != nil {
+			continue
+		}
+		name := ""
+		held := map[uint64]bool{}
+		for _, fd := range fds {
+			target, err := os.Readlink(filepath.Join(dir, "fd", fd.Name()))
+			if err != nil {
+				continue
+			}
+			v, ok := strings.CutPrefix(target, "socket:[")
+			if !ok {
+				continue
+			}
+			inode, err := strconv.ParseUint(strings.TrimSuffix(v, "]"), 10, 64)
+			if err != nil || !want[inode] || held[inode] {
+				continue
+			}
+			held[inode] = true
+			if name == "" {
+				name = executable(dir)
+			}
+			out[inode] = append(out[inode], Holder{PID: pid, Name: name})
+		}
+	}
+	return out
+}
+
+// executable is the file name of the program a process runs. A program
+// replaced on disk since it started still names the file it was started from.
+func executable(dir string) string {
+	exe, err := os.Readlink(filepath.Join(dir, "exe"))
+	if err != nil {
+		return "?"
+	}
+	return filepath.Base(strings.TrimSuffix(exe, " (deleted)"))
 }
 
 // SSHLogins reads the newest SSH login attempts from the journal, newest

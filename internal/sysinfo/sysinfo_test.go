@@ -27,7 +27,8 @@ const procUDP = `   sl  local_address rem_address   st tx_queue rx_queue tr tm->
 
 // TestListenersAreTheListeningSockets: only TCP sockets in LISTEN and bound
 // UDP sockets are kept, the kernel's hex addresses are read in their byte
-// order, a line that does not parse is skipped, and a repeat is listed once.
+// order, each carries its user and its socket, a line that does not parse is
+// skipped, and a repeat is listed once.
 func TestListenersAreTheListeningSockets(t *testing.T) {
 	var ls []Listener
 	ls = append(ls, ParseListeners("tcp", strings.NewReader(procTCP))...)
@@ -35,13 +36,13 @@ func TestListenersAreTheListeningSockets(t *testing.T) {
 	ls = append(ls, ParseListeners("udp", strings.NewReader(procUDP))...)
 	got := SortListeners(ls)
 	want := []Listener{
-		{"tcp", "0.0.0.0", 22},
-		{"tcp", "::", 22},
-		{"udp", "127.0.0.53", 53},
-		{"tcp", "0.0.0.0", 443},
-		{"tcp", "::1", 3306},
-		{"udp", "0.0.0.0", 3478},
-		{"tcp", "127.0.0.1", 8080},
+		{Proto: "tcp", Address: "0.0.0.0", Port: 22, UID: 0, inode: 1234},
+		{Proto: "tcp", Address: "::", Port: 22, UID: 0, inode: 2234},
+		{Proto: "udp", Address: "127.0.0.53", Port: 53, UID: 101, inode: 3235},
+		{Proto: "tcp", Address: "0.0.0.0", Port: 443, UID: 999, inode: 1237},
+		{Proto: "tcp", Address: "::1", Port: 3306, UID: 0, inode: 2235},
+		{Proto: "udp", Address: "0.0.0.0", Port: 3478, UID: 110, inode: 3234},
+		{Proto: "tcp", Address: "127.0.0.1", Port: 8080, UID: 999, inode: 1235},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("listeners =\n%+v\nwant\n%+v", got, want)

@@ -29,7 +29,7 @@ type sysModule struct {
 	log    *slog.Logger
 	counts *counters
 	// The host reads, as fields so a test gives its own.
-	listeners func() ([]sysinfo.Listener, error)
+	listeners func(ctx context.Context) ([]sysinfo.Listener, error)
 	sshLogins func(ctx context.Context, limit int) ([]sysinfo.SSHLogin, error)
 	// gate runs the gate process's unit; nil when this core does not (a
 	// development run).

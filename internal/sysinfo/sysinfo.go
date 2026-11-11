@@ -20,12 +20,20 @@ import (
 var ErrUnsupported = errors.New("sysinfo: not available on this host")
 
 // Listener is one listening socket: a TCP socket in LISTEN, or a bound UDP
-// socket.
+// socket, and who holds it as far as the source says.
 type Listener struct {
 	Proto   string `json:"proto"`   // "tcp" or "udp"
 	Address string `json:"address"` // the local address: "0.0.0.0", "127.0.0.1", "::"
 	Port    int    `json:"port"`
+	UID     int    `json:"uid"`     // the user the socket belongs to; NoUID when the table does not say
+	Process string `json:"process"` // the program that holds it, by its executable; "" when it is not known
+	PID     int    `json:"pid"`     // the process that holds it; 0 when it is not known
+
+	inode uint64 // the socket, as /proc/<pid>/fd names it; 0 when the table does not say
 }
+
+// NoUID is a Listener's UID when its source names no owner.
+const NoUID = -1
 
 // procAddr reads /proc/net's address form: the address in hex, each 32-bit
 // word in host byte order (little-endian on every platform AutoPanel is built
@@ -76,15 +84,71 @@ func ParseListeners(proto string, r io.Reader) []Listener {
 		if !ok || port == 0 {
 			continue
 		}
-		out = append(out, Listener{Proto: proto, Address: a.String(), Port: port})
+		uid := NoUID
+		if len(f) > 7 {
+			if n, err := strconv.Atoi(f[7]); err == nil && n >= 0 {
+				uid = n
+			}
+		}
+		var inode uint64
+		if len(f) > 9 {
+			inode, _ = strconv.ParseUint(f[9], 10, 64)
+		}
+		out = append(out, Listener{Proto: proto, Address: a.String(), Port: port, UID: uid, inode: inode})
 	}
 	return out
 }
 
+// processName keeps what of a program's name is safe to show: its printable
+// ASCII, 32 characters at most. The name is the program's own.
+func processName(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		if r >= 0x20 && r < 0x7f && b.Len() < 32 {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+// Holder is a process that holds a socket.
+type Holder struct {
+	PID  int
+	Name string
+}
+
+// Owned names who holds each listener, from the processes holding each
+// socket: the first is the lowest PID, and the names follow in that order,
+// once each, three at most. A listener no process was found for is left as
+// it is.
+func Owned(ls []Listener, holders map[uint64][]Holder) []Listener {
+	for i := range ls {
+		hs := holders[ls[i].inode]
+		sort.Slice(hs, func(a, b int) bool { return hs[a].PID < hs[b].PID })
+		var names []string
+		for _, h := range hs {
+			if ls[i].PID == 0 {
+				ls[i].PID = h.PID
+			}
+			name := processName(h.Name)
+			seen := name == ""
+			for _, n := range names {
+				seen = seen || n == name
+			}
+			if !seen && len(names) < 3 {
+				names = append(names, name)
+			}
+		}
+		ls[i].Process = strings.Join(names, ", ")
+	}
+	return ls
+}
+
 // SortListeners orders ls by port, then protocol, then address, and drops
-// repeats (a socket shared by several processes is listed once each).
+// repeats: sockets on one address that one user's one program holds (a
+// server's workers) are listed once, under the first.
 func SortListeners(ls []Listener) []Listener {
-	sort.Slice(ls, func(i, j int) bool {
+	sort.SliceStable(ls, func(i, j int) bool {
 		a, b := ls[i], ls[j]
 		if a.Port != b.Port {
 			return a.Port < b.Port
@@ -95,10 +159,15 @@ func SortListeners(ls []Listener) []Listener {
 		return a.Address < b.Address
 	})
 	out := ls[:0]
-	for i, l := range ls {
-		if i == 0 || l != ls[i-1] {
-			out = append(out, l)
+	for _, l := range ls {
+		if n := len(out); n > 0 {
+			same := out[n-1]
+			same.PID, same.inode = l.PID, l.inode
+			if same == l {
+				continue
+			}
 		}
+		out = append(out, l)
 	}
 	return out
 }

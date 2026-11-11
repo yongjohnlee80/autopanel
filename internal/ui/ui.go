@@ -46,7 +46,12 @@ type Metrics struct {
 	HTTPSRequests int64  `json:"https_requests"`
 	HTTPRequests  int64  `json:"http_requests"`
 	Routes        int    `json:"routes"`
-	Host          struct {
+	Gate          struct {
+		Running     bool   `json:"running"`
+		PID         int    `json:"pid"`
+		MemoryBytes uint64 `json:"memory_bytes"`
+	} `json:"gate"`
+	Host struct {
 		Load struct {
 			One     float64 `json:"one"`
 			Five    float64 `json:"five"`
@@ -90,6 +95,9 @@ type Port struct {
 	Proto   string `json:"proto"`
 	Address string `json:"address"`
 	Port    int    `json:"port"`
+	Process string `json:"process"`
+	PID     int    `json:"pid"`
+	User    string `json:"user"`
 	Use     string `json:"use"`
 }
 
