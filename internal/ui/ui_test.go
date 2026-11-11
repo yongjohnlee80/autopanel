@@ -368,8 +368,9 @@ func TestShowsRoutesRefreshesAndQuits(t *testing.T) {
 	s := start(t, f)
 	// The menu bar, the overview and the status bar; the routes are not on
 	// the main screen.
-	for _, part := range []string{"Routes", "Certs", "Services", "Users", "System", "Help",
-		"Overview", "Let's Encrypt staging", "CA LE staging", "2 routes", "r refresh"} {
+	// the menus, in their order
+	s.WaitForText(t, "System    Routes    Certs    Services    Users    Help")
+	for _, part := range []string{"Overview", "Let's Encrypt staging", "CA LE staging", "2 routes", "r refresh"} {
 		s.WaitForText(t, part)
 	}
 	if strings.Contains(s.String(), "api.example.com") {

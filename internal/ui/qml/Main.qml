@@ -51,31 +51,6 @@ Window {
         palette.accent: Theme.menu.accent
 
         Menu {
-            title: qsTrId("autopanel.menu.routes")
-            MenuItem { text: qsTrId("autopanel.menu.routes.proxy"); onTriggered: App.openRoutes() }
-            MenuItem { text: qsTrId("autopanel.menu.routes.forwarding"); enabled: false }
-        }
-        Menu {
-            title: qsTrId("autopanel.menu.certs")
-            // Which Let's Encrypt service issues the certificates. A shared
-            // group makes the two a radio set; the host checks the one in use.
-            Menu {
-                title: qsTrId("autopanel.menu.certs.type")
-                MenuItem { text: qsTrId("autopanel.menu.certs.production"); group: "ca"; checked: App.caProduction; onTriggered: App.setCA("production") }
-                MenuItem { text: qsTrId("autopanel.menu.certs.staging");    group: "ca"; checked: App.caStaging;    onTriggered: App.setCA("staging") }
-            }
-            MenuItem { text: qsTrId("autopanel.menu.certs.cloudflare"); enabled: false }
-        }
-        Menu {
-            title: qsTrId("autopanel.menu.services")
-            MenuItem { text: qsTrId("autopanel.menu.services.turn"); enabled: false }
-            MenuItem { text: qsTrId("autopanel.menu.services.mail"); enabled: false }
-        }
-        Menu {
-            title: qsTrId("autopanel.menu.users")
-            MenuItem { text: qsTrId("autopanel.menu.users.manage"); enabled: false }
-        }
-        Menu {
             title: qsTrId("autopanel.menu.system")
             MenuItem { text: qsTrId("autopanel.menu.system.metrics"); onTriggered: App.openMonitor("metrics") }
             MenuItem { text: qsTrId("autopanel.menu.system.audit"); onTriggered: App.openMonitor("audit") }
@@ -103,6 +78,31 @@ Window {
             MenuSeparator {}
             MenuItem { text: qsTrId("autopanel.menu.system.refresh"); onTriggered: App.refresh() }
             MenuItem { text: qsTrId("autopanel.menu.system.quit"); onTriggered: App.quit() }
+        }
+        Menu {
+            title: qsTrId("autopanel.menu.routes")
+            MenuItem { text: qsTrId("autopanel.menu.routes.proxy"); onTriggered: App.openRoutes() }
+            MenuItem { text: qsTrId("autopanel.menu.routes.forwarding"); enabled: false }
+        }
+        Menu {
+            title: qsTrId("autopanel.menu.certs")
+            // Which Let's Encrypt service issues the certificates. A shared
+            // group makes the two a radio set; the host checks the one in use.
+            Menu {
+                title: qsTrId("autopanel.menu.certs.type")
+                MenuItem { text: qsTrId("autopanel.menu.certs.production"); group: "ca"; checked: App.caProduction; onTriggered: App.setCA("production") }
+                MenuItem { text: qsTrId("autopanel.menu.certs.staging");    group: "ca"; checked: App.caStaging;    onTriggered: App.setCA("staging") }
+            }
+            MenuItem { text: qsTrId("autopanel.menu.certs.cloudflare"); enabled: false }
+        }
+        Menu {
+            title: qsTrId("autopanel.menu.services")
+            MenuItem { text: qsTrId("autopanel.menu.services.turn"); enabled: false }
+            MenuItem { text: qsTrId("autopanel.menu.services.mail"); enabled: false }
+        }
+        Menu {
+            title: qsTrId("autopanel.menu.users")
+            MenuItem { text: qsTrId("autopanel.menu.users.manage"); enabled: false }
         }
         Menu {
             title: qsTrId("autopanel.menu.help")

@@ -77,9 +77,9 @@ move with the arrow keys. `r` refreshes and `q` quits.
 
 | Menu | What it holds |
 | --- | --- |
+| System | **Metrics**, **Audit log**, **Login attempts**, **Open ports**; **Theme** and **Language** |
 | Routes | **Proxy routes**: the host names AutoPanel serves and where each one goes |
 | Certs | **Type**: which Let's Encrypt service issues the certificates, staging or production |
-| System | **Metrics**, **Audit log**, **Login attempts**, **Open ports**; **Theme** and **Language** |
 | Services, Users | not built yet; their rows are greyed out |
 | Help | **About**: the panel's version and the running service's |
 
