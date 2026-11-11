@@ -23,7 +23,7 @@ type Config struct {
 	StateDir   string // the SQLite store; systemd's StateDirectory
 	Socket     string // the control socket, for the panel and the CLI; in the core's own runtime directory
 	LinkSocket string // the link socket, for the gate process; in a directory the gate's group can enter
-	GateUser   string // the user the gate process runs as: the only peer the link socket admits
+	GateUser   string // the user the gate process runs as, the only peer the link socket admits; "" for this process's own user
 	Engine     string // "sqlite" (default) or "postgres"
 	DSN        string // PostgreSQL, from AUTOPANEL_POSTGRES_DSN
 	HTTPAddr   string // the gate's plain listener: ACME HTTP-01 and the redirect to HTTPS
@@ -108,13 +108,16 @@ func LoadConfig() (Config, error) {
 		StateDir:   state,
 		Socket:     env("AUTOPANEL_SOCKET", filepath.Join(runtime, "control.sock")),
 		LinkSocket: linkSocket(runtime),
-		GateUser:   env("AUTOPANEL_GATE_USER", "autopanel"),
+		GateUser:   os.Getenv("AUTOPANEL_GATE_USER"),
 		Engine:     env("AUTOPANEL_STORE_ENGINE", dao.DialectSQLite),
 		DSN:        os.Getenv("AUTOPANEL_POSTGRES_DSN"),
 		HTTPAddr:   env("AUTOPANEL_HTTP_ADDR", "127.0.0.1:8080"),
 		HTTPSAddr:  env("AUTOPANEL_HTTPS_ADDR", "127.0.0.1:8443"),
 		Email:      os.Getenv("AUTOPANEL_ACME_EMAIL"),
 		Keyfile:    os.Getenv("AUTOPANEL_KEYFILE"),
+	}
+	if c.GateUser == "" && os.Getuid() == 0 {
+		c.GateUser = "autopanel" // the units: a root core, and the gate as the user install.sh made
 	}
 	if c.Keyfile == "" {
 		if isDir(filepath.Dir(systemKeyfile)) {

@@ -13,8 +13,6 @@ import (
 	"time"
 
 	"golang.org/x/sys/unix"
-
-	hostcontrol "github.com/yongjohnlee80/autopanel/host/control"
 )
 
 // networkListeners are this process's listening sockets that are not unix
@@ -62,7 +60,7 @@ func TestTheCoreListensOnNoNetwork(t *testing.T) {
 	before := networkListeners(t)
 	done := make(chan error, 1)
 	go func() { done <- CoreContext(ctx, cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), nil) }()
-	until(t, "the core's sockets never came up", func() bool { return hostcontrol.InUse(cfg.Socket) && hostcontrol.InUse(cfg.LinkSocket) })
+	coreUp(t, cfg, done)
 	time.Sleep(200 * time.Millisecond) // anything the core starts after its sockets
 	for addr := range networkListeners(t) {
 		if !before[addr] {

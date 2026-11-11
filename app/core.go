@@ -92,11 +92,12 @@ func Core(cfg Config, log *slog.Logger) error {
 	return CoreContext(ctx, cfg, log, gc)
 }
 
-// linkAccess is who may open the link socket. As root, the gate's user alone,
-// through a socket its group can open in a directory its group can enter. As
-// any other user, this user: the gate then runs as the same one.
+// linkAccess is who may open the link socket. With a gate user configured
+// (the units: the core is root, the gate is not), that user alone, through a
+// socket its group can open in a directory its group can enter. With none,
+// this process's own user: the gate then runs as the same one.
 func linkAccess(cfg Config) (acc hostcontrol.Access, gid int, err error) {
-	if os.Getuid() != 0 {
+	if cfg.GateUser == "" {
 		return hostcontrol.Access{Concurrent: 64}, -1, nil
 	}
 	u, err := user.Lookup(cfg.GateUser)

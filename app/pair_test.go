@@ -66,6 +66,20 @@ func until(t *testing.T, what string, ok func() bool) {
 	}
 }
 
+// coreUp waits for the core's two sockets, and says why when the core stopped
+// instead.
+func coreUp(t *testing.T, cfg Config, done chan error) {
+	t.Helper()
+	until(t, "the core's sockets never came up", func() bool {
+		select {
+		case err := <-done:
+			t.Fatalf("the core stopped before its sockets came up: %v", err)
+		default:
+		}
+		return hostcontrol.InUse(cfg.Socket) && hostcontrol.InUse(cfg.LinkSocket)
+	})
+}
+
 // wireCode is the code of the wire error err is, or 0.
 func wireCode(err error) int64 {
 	var re *rpc.Error
@@ -139,7 +153,7 @@ func TestTheCoreAndTheGateEndToEnd(t *testing.T) {
 	gc := &recordedGate{}
 	done := make(chan error, 1)
 	go func() { done <- CoreContext(ctx, cfg, log, gc) }()
-	until(t, "the core's sockets never came up", func() bool { return hostcontrol.InUse(cfg.Socket) && hostcontrol.InUse(cfg.LinkSocket) })
+	coreUp(t, cfg, done)
 	until(t, "the core never started the gate", func() bool { s, _, _ := gc.counts(); return s == 1 })
 
 	if err := CoreContext(ctx, cfg, log, nil); err == nil || !strings.Contains(err.Error(), "already running") {

@@ -15,7 +15,7 @@ StartLimitIntervalSec=0
 
 [Service]
 Type=simple
-User=root
+# No User= line: a system service is root's already.
 EnvironmentFile=/etc/autopanel/autopanel.env
 ExecStart=/usr/local/bin/autopanel --core
 # Comes back on its own after any exit or crash, and at boot (enabled by
