@@ -5,7 +5,7 @@
 // default, since the other cannot be undone.
 
 Dialog {
-    title: "Remove route"
+    title: qsTrId("autopanel.confirm.title")
     standardButtons: Dialog.Yes | Dialog.No
     defaultButton: Dialog.No
     onAccepted: App.removeConfirmed()

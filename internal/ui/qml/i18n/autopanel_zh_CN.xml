@@ -1,0 +1,411 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE TS>
+<TS version="2.1" language="zh_CN">
+<context>
+    <name>autopanel</name>
+    <message id="autopanel.about.daemon">
+        <source>Daemon</source>
+        <translation>守护进程</translation>
+    </message>
+    <message id="autopanel.about.daemonLine">
+        <source>%1 · up %2</source>
+        <translation>%1 · 已运行 %2</translation>
+    </message>
+    <message id="autopanel.about.licence">
+        <source>Licence</source>
+        <translation>许可证</translation>
+    </message>
+    <message id="autopanel.about.panel">
+        <source>Panel</source>
+        <translation>面板</translation>
+    </message>
+    <message id="autopanel.about.source">
+        <source>Source</source>
+        <translation>源代码</translation>
+    </message>
+    <message id="autopanel.about.title">
+        <source>About AutoPanel</source>
+        <translation>关于 AutoPanel</translation>
+    </message>
+    <message id="autopanel.about.what">
+        <source>A lightweight control plane for self-hosted web services.</source>
+        <translation>面向自托管 Web 服务的轻量级控制平面。</translation>
+    </message>
+    <message id="autopanel.audit.title">
+        <source>Audit log</source>
+        <translation>审计日志</translation>
+    </message>
+    <message id="autopanel.ca.name.production">
+        <source>Let's Encrypt production</source>
+        <translation>Let's Encrypt 生产环境</translation>
+    </message>
+    <message id="autopanel.ca.name.staging">
+        <source>Let's Encrypt staging</source>
+        <translation>Let's Encrypt 预发布环境</translation>
+    </message>
+    <message id="autopanel.ca.note.production">
+        <source>Let's Encrypt production: real certificates, trusted by browsers.</source>
+        <translation>Let's Encrypt 生产环境: 浏览器信任的正式证书。</translation>
+    </message>
+    <message id="autopanel.ca.note.staging">
+        <source>Let's Encrypt staging: test certificates, which browsers do not trust. Switch in Certs → Type.</source>
+        <translation>Let's Encrypt 预发布环境: 测试证书，浏览器不信任。在 证书 → 类型 中切换。</translation>
+    </message>
+    <message id="autopanel.ca.short.production">
+        <source>LE production</source>
+        <translation>LE 生产</translation>
+    </message>
+    <message id="autopanel.ca.short.staging">
+        <source>LE staging</source>
+        <translation>LE 预发布</translation>
+    </message>
+    <message id="autopanel.confirm.remove">
+        <source>Remove route %1?</source>
+        <translation>删除路由 %1 吗?</translation>
+    </message>
+    <message id="autopanel.confirm.title">
+        <source>Remove route</source>
+        <translation>删除路由</translation>
+    </message>
+    <message id="autopanel.form.add">
+        <source>Add route</source>
+        <translation>添加路由</translation>
+    </message>
+    <message id="autopanel.form.cancel">
+        <source>&amp;Cancel</source>
+        <translation>取消(&amp;c)</translation>
+    </message>
+    <message id="autopanel.form.edit">
+        <source>Edit route #%1</source>
+        <translation>编辑路由 #%1</translation>
+    </message>
+    <message id="autopanel.form.hint">
+        <source>Tab: next field · Enter: OK · Esc: cancel</source>
+        <translation>Tab: 下一项 · Enter: 确定 · Esc: 取消</translation>
+    </message>
+    <message id="autopanel.form.host">
+        <source>Host</source>
+        <translation>主机</translation>
+    </message>
+    <message id="autopanel.form.ok">
+        <source>&amp;OK</source>
+        <translation>确定(&amp;o)</translation>
+    </message>
+    <message id="autopanel.form.path">
+        <source>Path prefix</source>
+        <translation>路径前缀</translation>
+    </message>
+    <message id="autopanel.form.upstream">
+        <source>Upstream URL</source>
+        <translation>上游 URL</translation>
+    </message>
+    <message id="autopanel.hints">
+        <source>Menus: Alt and a menu's letter, or F10 · r refresh · q quit</source>
+        <translation>菜单: Alt 加菜单字母，或 F10 · r 刷新 · q 退出</translation>
+    </message>
+    <message id="autopanel.logins.result.closed">
+        <source>closed</source>
+        <translation>已断开</translation>
+    </message>
+    <message id="autopanel.logins.result.failed">
+        <source>failed</source>
+        <translation>失败</translation>
+    </message>
+    <message id="autopanel.logins.result.ok">
+        <source>ok</source>
+        <translation>成功</translation>
+    </message>
+    <message id="autopanel.logins.title">
+        <source>Login attempts</source>
+        <translation>登录尝试</translation>
+    </message>
+    <message id="autopanel.menu.certs">
+        <source>&amp;Certs</source>
+        <translation>证书(&amp;c)</translation>
+    </message>
+    <message id="autopanel.menu.certs.cloudflare">
+        <source>&amp;Cloudflare token…</source>
+        <translation>Cloudflare 令牌(&amp;c)…</translation>
+    </message>
+    <message id="autopanel.menu.certs.production">
+        <source>&amp;Production (trusted certificates)</source>
+        <translation>生产 (受信任的证书)(&amp;p)</translation>
+    </message>
+    <message id="autopanel.menu.certs.staging">
+        <source>&amp;Staging (test certificates)</source>
+        <translation>预发布 (测试证书)(&amp;s)</translation>
+    </message>
+    <message id="autopanel.menu.certs.type">
+        <source>&amp;Type</source>
+        <translation>类型(&amp;t)</translation>
+    </message>
+    <message id="autopanel.menu.help">
+        <source>&amp;Help</source>
+        <translation>帮助(&amp;h)</translation>
+    </message>
+    <message id="autopanel.menu.help.about">
+        <source>&amp;About AutoPanel</source>
+        <translation>关于 AutoPanel(&amp;a)</translation>
+    </message>
+    <message id="autopanel.menu.routes">
+        <source>&amp;Routes</source>
+        <translation>路由(&amp;r)</translation>
+    </message>
+    <message id="autopanel.menu.routes.forwarding">
+        <source>Port &amp;forwarding…</source>
+        <translation>端口转发(&amp;f)…</translation>
+    </message>
+    <message id="autopanel.menu.routes.proxy">
+        <source>&amp;Proxy routes…</source>
+        <translation>代理路由(&amp;p)…</translation>
+    </message>
+    <message id="autopanel.menu.services">
+        <source>&amp;Services</source>
+        <translation>服务(&amp;s)</translation>
+    </message>
+    <message id="autopanel.menu.services.mail">
+        <source>&amp;Mail server…</source>
+        <translation>邮件服务器(&amp;m)…</translation>
+    </message>
+    <message id="autopanel.menu.services.turn">
+        <source>&amp;TURN server…</source>
+        <translation>TURN 服务器(&amp;t)…</translation>
+    </message>
+    <message id="autopanel.menu.system">
+        <source>S&amp;ystem</source>
+        <translation>系统(&amp;y)</translation>
+    </message>
+    <message id="autopanel.menu.system.audit">
+        <source>&amp;Audit log…</source>
+        <translation>审计日志(&amp;a)…</translation>
+    </message>
+    <message id="autopanel.menu.system.language">
+        <source>Lan&amp;guage</source>
+        <translation>语言(&amp;g)</translation>
+    </message>
+    <message id="autopanel.menu.system.logins">
+        <source>&amp;Login attempts…</source>
+        <translation>登录尝试(&amp;l)…</translation>
+    </message>
+    <message id="autopanel.menu.system.metrics">
+        <source>&amp;Metrics…</source>
+        <translation>指标(&amp;m)…</translation>
+    </message>
+    <message id="autopanel.menu.system.ports">
+        <source>Open &amp;ports…</source>
+        <translation>开放端口(&amp;p)…</translation>
+    </message>
+    <message id="autopanel.menu.system.quit">
+        <source>&amp;Quit (q)</source>
+        <translation>退出 (&amp;q)</translation>
+    </message>
+    <message id="autopanel.menu.system.refresh">
+        <source>&amp;Refresh (r)</source>
+        <translation>刷新 (&amp;r)</translation>
+    </message>
+    <message id="autopanel.menu.system.theme">
+        <source>&amp;Theme</source>
+        <translation>主题(&amp;t)</translation>
+    </message>
+    <message id="autopanel.menu.users">
+        <source>&amp;Users</source>
+        <translation>用户(&amp;u)</translation>
+    </message>
+    <message id="autopanel.menu.users.manage">
+        <source>&amp;Manage users…</source>
+        <translation>管理用户(&amp;m)…</translation>
+    </message>
+    <message id="autopanel.metrics.availableOf">
+        <source>%1 available of %2</source>
+        <translation>共 %2，可用 %1</translation>
+    </message>
+    <message id="autopanel.metrics.disk">
+        <source>Disk (the store's)</source>
+        <translation>磁盘 (存储所在)</translation>
+    </message>
+    <message id="autopanel.metrics.freeOf">
+        <source>%1 free of %2</source>
+        <translation>共 %2，剩余 %1</translation>
+    </message>
+    <message id="autopanel.metrics.goroutines">
+        <source>Goroutines</source>
+        <translation>协程</translation>
+    </message>
+    <message id="autopanel.metrics.hostMemory">
+        <source>Host memory</source>
+        <translation>主机内存</translation>
+    </message>
+    <message id="autopanel.metrics.httpRequests">
+        <source>HTTP requests</source>
+        <translation>HTTP 请求</translation>
+    </message>
+    <message id="autopanel.metrics.httpsRequests">
+        <source>HTTPS requests</source>
+        <translation>HTTPS 请求</translation>
+    </message>
+    <message id="autopanel.metrics.load">
+        <source>Host load</source>
+        <translation>主机负载</translation>
+    </message>
+    <message id="autopanel.metrics.loadValue">
+        <source>%1 · %2 · %3 (1, 5 and 15 minutes)</source>
+        <translation>%1 · %2 · %3 (1、5、15 分钟)</translation>
+    </message>
+    <message id="autopanel.metrics.routes">
+        <source>Routes</source>
+        <translation>路由</translation>
+    </message>
+    <message id="autopanel.metrics.serviceMemory">
+        <source>Service memory</source>
+        <translation>服务内存</translation>
+    </message>
+    <message id="autopanel.metrics.serviceMemoryValue">
+        <source>%1 in use · %2 held</source>
+        <translation>%1 使用中 · %2 已占用</translation>
+    </message>
+    <message id="autopanel.metrics.title">
+        <source>Metrics</source>
+        <translation>指标</translation>
+    </message>
+    <message id="autopanel.metrics.uptime">
+        <source>Service uptime</source>
+        <translation>服务运行时间</translation>
+    </message>
+    <message id="autopanel.monitor.help">
+        <source>r read again · q close · Alt+drag moves, Alt+right-drag resizes</source>
+        <translation>r 重新读取 · q 关闭 · Alt+拖动移动，Alt+右键拖动调整大小</translation>
+    </message>
+    <message id="autopanel.monitor.readAt">
+        <source>%1 rows, read at %2</source>
+        <translation>%1 行，读取于 %2</translation>
+    </message>
+    <message id="autopanel.monitor.readAtOnly">
+        <source>read at %1</source>
+        <translation>读取于 %1</translation>
+    </message>
+    <message id="autopanel.notice.added">
+        <source>added %1</source>
+        <translation>已添加 %1</translation>
+    </message>
+    <message id="autopanel.notice.busy">
+        <source>busy: a change is in flight</source>
+        <translation>忙碌: 正在应用更改</translation>
+    </message>
+    <message id="autopanel.notice.caNow">
+        <source>certificates now come from %1</source>
+        <translation>证书现在由 %1 签发</translation>
+    </message>
+    <message id="autopanel.notice.error">
+        <source>error: %1</source>
+        <translation>错误: %1</translation>
+    </message>
+    <message id="autopanel.notice.noLanguage">
+        <source>no language %1</source>
+        <translation>没有语言 %1</translation>
+    </message>
+    <message id="autopanel.notice.noRoute">
+        <source>no route selected</source>
+        <translation>未选择路由</translation>
+    </message>
+    <message id="autopanel.notice.noTheme">
+        <source>no theme named %1</source>
+        <translation>没有名为 %1 的主题</translation>
+    </message>
+    <message id="autopanel.notice.notKept">
+        <source>the choice is shown but was not kept: %1</source>
+        <translation>选择已显示，但未保存: %1</translation>
+    </message>
+    <message id="autopanel.notice.removed">
+        <source>removed #%1</source>
+        <translation>已删除 #%1</translation>
+    </message>
+    <message id="autopanel.notice.routesError">
+        <source>routes: %1</source>
+        <translation>路由: %1</translation>
+    </message>
+    <message id="autopanel.notice.theme">
+        <source>theme: %1</source>
+        <translation>主题: %1</translation>
+    </message>
+    <message id="autopanel.notice.updated">
+        <source>updated %1</source>
+        <translation>已更新 %1</translation>
+    </message>
+    <message id="autopanel.overview.certificates">
+        <source>Certificates</source>
+        <translation>证书</translation>
+    </message>
+    <message id="autopanel.overview.challenge">
+        <source>Challenge</source>
+        <translation>验证方式</translation>
+    </message>
+    <message id="autopanel.overview.http">
+        <source>HTTP</source>
+        <translation>HTTP</translation>
+    </message>
+    <message id="autopanel.overview.httpNote">
+        <source>%1 (certificate checks, and the redirect to HTTPS)</source>
+        <translation>%1 (证书验证，以及重定向到 HTTPS)</translation>
+    </message>
+    <message id="autopanel.overview.https">
+        <source>HTTPS</source>
+        <translation>HTTPS</translation>
+    </message>
+    <message id="autopanel.overview.routes">
+        <source>Routes</source>
+        <translation>路由</translation>
+    </message>
+    <message id="autopanel.overview.store">
+        <source>Store</source>
+        <translation>存储</translation>
+    </message>
+    <message id="autopanel.overview.title">
+        <source>Overview</source>
+        <translation>概览</translation>
+    </message>
+    <message id="autopanel.overview.uptime">
+        <source>Uptime</source>
+        <translation>运行时间</translation>
+    </message>
+    <message id="autopanel.overview.version">
+        <source>Version</source>
+        <translation>版本</translation>
+    </message>
+    <message id="autopanel.ports.title">
+        <source>Open ports</source>
+        <translation>开放端口</translation>
+    </message>
+    <message id="autopanel.routes.add">
+        <source>Add</source>
+        <translation>添加</translation>
+    </message>
+    <message id="autopanel.routes.delete">
+        <source>Delete</source>
+        <translation>删除</translation>
+    </message>
+    <message id="autopanel.routes.edit">
+        <source>Edit</source>
+        <translation>编辑</translation>
+    </message>
+    <message id="autopanel.routes.help">
+        <source>a add · e/Enter edit · d delete · q close</source>
+        <translation>a 添加 · e/Enter 编辑 · d 删除 · q 关闭</translation>
+    </message>
+    <message id="autopanel.routes.title">
+        <source>Proxy routes</source>
+        <translation>代理路由</translation>
+    </message>
+    <message id="autopanel.status.error">
+        <source>status: %1</source>
+        <translation>状态: %1</translation>
+    </message>
+    <message id="autopanel.status.line">
+        <source>%1 · CA %2 · %3 routes · up %4</source>
+        <translation>%1 · CA %2 · %3 条路由 · 已运行 %4</translation>
+    </message>
+    <message id="autopanel.status.loading">
+        <source>loading…</source>
+        <translation>正在加载…</translation>
+    </message>
+</context>
+</TS>

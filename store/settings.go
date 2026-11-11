@@ -39,3 +39,36 @@ ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.up
 		return err
 	})
 }
+
+// AuditEntry is one row of the audit log, as it is read back.
+type AuditEntry struct {
+	ID      int64  `json:"id"`
+	At      int64  `json:"at"` // Unix seconds
+	Actor   string `json:"actor"`
+	Action  string `json:"action"`
+	Subject string `json:"subject"`
+	Detail  string `json:"detail"`
+}
+
+// AuditLog reads the newest audit entries, newest first, at most limit. With
+// an action, only that action's entries.
+func (s *Store) AuditLog(ctx context.Context, action string, limit int) ([]AuditEntry, error) {
+	stmt, args := "SELECT id, at, actor, action, subject, detail FROM audit ORDER BY id DESC LIMIT ?", []any{limit}
+	if action != "" {
+		stmt, args = "SELECT id, at, actor, action, subject, detail FROM audit WHERE action = ? ORDER BY id DESC LIMIT ?", []any{action, limit}
+	}
+	rows, err := s.conn.QueryContext(ctx, s.q(stmt), args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []AuditEntry{}
+	for rows.Next() {
+		var e AuditEntry
+		if err := rows.Scan(&e.ID, &e.At, &e.Actor, &e.Action, &e.Subject, &e.Detail); err != nil {
+			return nil, err
+		}
+		out = append(out, e)
+	}
+	return out, rows.Err()
+}

@@ -17,6 +17,9 @@ StartLimitIntervalSec=0
 Type=simple
 User=autopanel
 Group=autopanel
+# Reads the journal, for the panel's list of SSH login attempts (System, then
+# Login attempts). The group is systemd's own, so it exists on every host.
+SupplementaryGroups=systemd-journal
 EnvironmentFile=/etc/autopanel/autopanel.env
 ExecStart=/usr/local/bin/autopanel --serve
 # Comes back on its own after any exit or crash, and at boot (enabled by

@@ -1,0 +1,411 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE TS>
+<TS version="2.1" language="es">
+<context>
+    <name>autopanel</name>
+    <message id="autopanel.about.daemon">
+        <source>Daemon</source>
+        <translation>Servicio</translation>
+    </message>
+    <message id="autopanel.about.daemonLine">
+        <source>%1 · up %2</source>
+        <translation>%1 · activo %2</translation>
+    </message>
+    <message id="autopanel.about.licence">
+        <source>Licence</source>
+        <translation>Licencia</translation>
+    </message>
+    <message id="autopanel.about.panel">
+        <source>Panel</source>
+        <translation>Panel</translation>
+    </message>
+    <message id="autopanel.about.source">
+        <source>Source</source>
+        <translation>Código</translation>
+    </message>
+    <message id="autopanel.about.title">
+        <source>About AutoPanel</source>
+        <translation>Acerca de AutoPanel</translation>
+    </message>
+    <message id="autopanel.about.what">
+        <source>A lightweight control plane for self-hosted web services.</source>
+        <translation>Un plano de control ligero para servicios web autoalojados.</translation>
+    </message>
+    <message id="autopanel.audit.title">
+        <source>Audit log</source>
+        <translation>Registro de auditoría</translation>
+    </message>
+    <message id="autopanel.ca.name.production">
+        <source>Let's Encrypt production</source>
+        <translation>Let's Encrypt de producción</translation>
+    </message>
+    <message id="autopanel.ca.name.staging">
+        <source>Let's Encrypt staging</source>
+        <translation>Let's Encrypt de pruebas</translation>
+    </message>
+    <message id="autopanel.ca.note.production">
+        <source>Let's Encrypt production: real certificates, trusted by browsers.</source>
+        <translation>Let's Encrypt de producción: certificados reales, en los que los navegadores confían.</translation>
+    </message>
+    <message id="autopanel.ca.note.staging">
+        <source>Let's Encrypt staging: test certificates, which browsers do not trust. Switch in Certs → Type.</source>
+        <translation>Let's Encrypt de pruebas: certificados de prueba, en los que los navegadores no confían. Cámbielo en Certificados → Tipo.</translation>
+    </message>
+    <message id="autopanel.ca.short.production">
+        <source>LE production</source>
+        <translation>LE producción</translation>
+    </message>
+    <message id="autopanel.ca.short.staging">
+        <source>LE staging</source>
+        <translation>LE pruebas</translation>
+    </message>
+    <message id="autopanel.confirm.remove">
+        <source>Remove route %1?</source>
+        <translation>¿Eliminar la ruta %1?</translation>
+    </message>
+    <message id="autopanel.confirm.title">
+        <source>Remove route</source>
+        <translation>Eliminar ruta</translation>
+    </message>
+    <message id="autopanel.form.add">
+        <source>Add route</source>
+        <translation>Añadir ruta</translation>
+    </message>
+    <message id="autopanel.form.cancel">
+        <source>&amp;Cancel</source>
+        <translation>Cancelar(&amp;c)</translation>
+    </message>
+    <message id="autopanel.form.edit">
+        <source>Edit route #%1</source>
+        <translation>Editar ruta #%1</translation>
+    </message>
+    <message id="autopanel.form.hint">
+        <source>Tab: next field · Enter: OK · Esc: cancel</source>
+        <translation>Tab: campo siguiente · Enter: aceptar · Esc: cancelar</translation>
+    </message>
+    <message id="autopanel.form.host">
+        <source>Host</source>
+        <translation>Host</translation>
+    </message>
+    <message id="autopanel.form.ok">
+        <source>&amp;OK</source>
+        <translation>Aceptar(&amp;o)</translation>
+    </message>
+    <message id="autopanel.form.path">
+        <source>Path prefix</source>
+        <translation>Prefijo de ruta</translation>
+    </message>
+    <message id="autopanel.form.upstream">
+        <source>Upstream URL</source>
+        <translation>URL de destino</translation>
+    </message>
+    <message id="autopanel.hints">
+        <source>Menus: Alt and a menu's letter, or F10 · r refresh · q quit</source>
+        <translation>Menús: Alt y la letra del menú, o F10 · r actualizar · q salir</translation>
+    </message>
+    <message id="autopanel.logins.result.closed">
+        <source>closed</source>
+        <translation>cerrado</translation>
+    </message>
+    <message id="autopanel.logins.result.failed">
+        <source>failed</source>
+        <translation>fallido</translation>
+    </message>
+    <message id="autopanel.logins.result.ok">
+        <source>ok</source>
+        <translation>correcto</translation>
+    </message>
+    <message id="autopanel.logins.title">
+        <source>Login attempts</source>
+        <translation>Intentos de inicio de sesión</translation>
+    </message>
+    <message id="autopanel.menu.certs">
+        <source>&amp;Certs</source>
+        <translation>Certificados(&amp;c)</translation>
+    </message>
+    <message id="autopanel.menu.certs.cloudflare">
+        <source>&amp;Cloudflare token…</source>
+        <translation>Token de Cloudflare(&amp;c)…</translation>
+    </message>
+    <message id="autopanel.menu.certs.production">
+        <source>&amp;Production (trusted certificates)</source>
+        <translation>Producción (certificados de confianza)(&amp;p)</translation>
+    </message>
+    <message id="autopanel.menu.certs.staging">
+        <source>&amp;Staging (test certificates)</source>
+        <translation>Pruebas (certificados de prueba)(&amp;s)</translation>
+    </message>
+    <message id="autopanel.menu.certs.type">
+        <source>&amp;Type</source>
+        <translation>Tipo(&amp;t)</translation>
+    </message>
+    <message id="autopanel.menu.help">
+        <source>&amp;Help</source>
+        <translation>Ayuda(&amp;h)</translation>
+    </message>
+    <message id="autopanel.menu.help.about">
+        <source>&amp;About AutoPanel</source>
+        <translation>Acerca de AutoPanel(&amp;a)</translation>
+    </message>
+    <message id="autopanel.menu.routes">
+        <source>&amp;Routes</source>
+        <translation>Rutas(&amp;r)</translation>
+    </message>
+    <message id="autopanel.menu.routes.forwarding">
+        <source>Port &amp;forwarding…</source>
+        <translation>Reenvío de puertos(&amp;f)…</translation>
+    </message>
+    <message id="autopanel.menu.routes.proxy">
+        <source>&amp;Proxy routes…</source>
+        <translation>Rutas de proxy(&amp;p)…</translation>
+    </message>
+    <message id="autopanel.menu.services">
+        <source>&amp;Services</source>
+        <translation>Servicios(&amp;s)</translation>
+    </message>
+    <message id="autopanel.menu.services.mail">
+        <source>&amp;Mail server…</source>
+        <translation>Servidor de correo(&amp;m)…</translation>
+    </message>
+    <message id="autopanel.menu.services.turn">
+        <source>&amp;TURN server…</source>
+        <translation>Servidor TURN(&amp;t)…</translation>
+    </message>
+    <message id="autopanel.menu.system">
+        <source>S&amp;ystem</source>
+        <translation>Sistema(&amp;y)</translation>
+    </message>
+    <message id="autopanel.menu.system.audit">
+        <source>&amp;Audit log…</source>
+        <translation>Registro de auditoría(&amp;a)…</translation>
+    </message>
+    <message id="autopanel.menu.system.language">
+        <source>Lan&amp;guage</source>
+        <translation>Idioma(&amp;g)</translation>
+    </message>
+    <message id="autopanel.menu.system.logins">
+        <source>&amp;Login attempts…</source>
+        <translation>Intentos de inicio de sesión(&amp;l)…</translation>
+    </message>
+    <message id="autopanel.menu.system.metrics">
+        <source>&amp;Metrics…</source>
+        <translation>Métricas(&amp;m)…</translation>
+    </message>
+    <message id="autopanel.menu.system.ports">
+        <source>Open &amp;ports…</source>
+        <translation>Puertos abiertos(&amp;p)…</translation>
+    </message>
+    <message id="autopanel.menu.system.quit">
+        <source>&amp;Quit (q)</source>
+        <translation>Salir (&amp;q)</translation>
+    </message>
+    <message id="autopanel.menu.system.refresh">
+        <source>&amp;Refresh (r)</source>
+        <translation>Actualizar (&amp;r)</translation>
+    </message>
+    <message id="autopanel.menu.system.theme">
+        <source>&amp;Theme</source>
+        <translation>Tema(&amp;t)</translation>
+    </message>
+    <message id="autopanel.menu.users">
+        <source>&amp;Users</source>
+        <translation>Usuarios(&amp;u)</translation>
+    </message>
+    <message id="autopanel.menu.users.manage">
+        <source>&amp;Manage users…</source>
+        <translation>Administrar usuarios(&amp;m)…</translation>
+    </message>
+    <message id="autopanel.metrics.availableOf">
+        <source>%1 available of %2</source>
+        <translation>%1 disponibles de %2</translation>
+    </message>
+    <message id="autopanel.metrics.disk">
+        <source>Disk (the store's)</source>
+        <translation>Disco (del almacén)</translation>
+    </message>
+    <message id="autopanel.metrics.freeOf">
+        <source>%1 free of %2</source>
+        <translation>%1 libres de %2</translation>
+    </message>
+    <message id="autopanel.metrics.goroutines">
+        <source>Goroutines</source>
+        <translation>Gorrutinas</translation>
+    </message>
+    <message id="autopanel.metrics.hostMemory">
+        <source>Host memory</source>
+        <translation>Memoria del host</translation>
+    </message>
+    <message id="autopanel.metrics.httpRequests">
+        <source>HTTP requests</source>
+        <translation>Peticiones HTTP</translation>
+    </message>
+    <message id="autopanel.metrics.httpsRequests">
+        <source>HTTPS requests</source>
+        <translation>Peticiones HTTPS</translation>
+    </message>
+    <message id="autopanel.metrics.load">
+        <source>Host load</source>
+        <translation>Carga del host</translation>
+    </message>
+    <message id="autopanel.metrics.loadValue">
+        <source>%1 · %2 · %3 (1, 5 and 15 minutes)</source>
+        <translation>%1 · %2 · %3 (1, 5 y 15 minutos)</translation>
+    </message>
+    <message id="autopanel.metrics.routes">
+        <source>Routes</source>
+        <translation>Rutas</translation>
+    </message>
+    <message id="autopanel.metrics.serviceMemory">
+        <source>Service memory</source>
+        <translation>Memoria del servicio</translation>
+    </message>
+    <message id="autopanel.metrics.serviceMemoryValue">
+        <source>%1 in use · %2 held</source>
+        <translation>%1 en uso · %2 reservados</translation>
+    </message>
+    <message id="autopanel.metrics.title">
+        <source>Metrics</source>
+        <translation>Métricas</translation>
+    </message>
+    <message id="autopanel.metrics.uptime">
+        <source>Service uptime</source>
+        <translation>Tiempo activo del servicio</translation>
+    </message>
+    <message id="autopanel.monitor.help">
+        <source>r read again · q close · Alt+drag moves, Alt+right-drag resizes</source>
+        <translation>r leer de nuevo · q cerrar · Alt+arrastrar mueve, Alt+arrastrar con el botón derecho redimensiona</translation>
+    </message>
+    <message id="autopanel.monitor.readAt">
+        <source>%1 rows, read at %2</source>
+        <translation>%1 filas, leído a las %2</translation>
+    </message>
+    <message id="autopanel.monitor.readAtOnly">
+        <source>read at %1</source>
+        <translation>leído a las %1</translation>
+    </message>
+    <message id="autopanel.notice.added">
+        <source>added %1</source>
+        <translation>se añadió %1</translation>
+    </message>
+    <message id="autopanel.notice.busy">
+        <source>busy: a change is in flight</source>
+        <translation>ocupado: hay un cambio en curso</translation>
+    </message>
+    <message id="autopanel.notice.caNow">
+        <source>certificates now come from %1</source>
+        <translation>los certificados ahora vienen de %1</translation>
+    </message>
+    <message id="autopanel.notice.error">
+        <source>error: %1</source>
+        <translation>error: %1</translation>
+    </message>
+    <message id="autopanel.notice.noLanguage">
+        <source>no language %1</source>
+        <translation>no existe el idioma %1</translation>
+    </message>
+    <message id="autopanel.notice.noRoute">
+        <source>no route selected</source>
+        <translation>no hay ninguna ruta seleccionada</translation>
+    </message>
+    <message id="autopanel.notice.noTheme">
+        <source>no theme named %1</source>
+        <translation>no hay ningún tema llamado %1</translation>
+    </message>
+    <message id="autopanel.notice.notKept">
+        <source>the choice is shown but was not kept: %1</source>
+        <translation>la elección se muestra, pero no se guardó: %1</translation>
+    </message>
+    <message id="autopanel.notice.removed">
+        <source>removed #%1</source>
+        <translation>se eliminó #%1</translation>
+    </message>
+    <message id="autopanel.notice.routesError">
+        <source>routes: %1</source>
+        <translation>rutas: %1</translation>
+    </message>
+    <message id="autopanel.notice.theme">
+        <source>theme: %1</source>
+        <translation>tema: %1</translation>
+    </message>
+    <message id="autopanel.notice.updated">
+        <source>updated %1</source>
+        <translation>se actualizó %1</translation>
+    </message>
+    <message id="autopanel.overview.certificates">
+        <source>Certificates</source>
+        <translation>Certificados</translation>
+    </message>
+    <message id="autopanel.overview.challenge">
+        <source>Challenge</source>
+        <translation>Desafío</translation>
+    </message>
+    <message id="autopanel.overview.http">
+        <source>HTTP</source>
+        <translation>HTTP</translation>
+    </message>
+    <message id="autopanel.overview.httpNote">
+        <source>%1 (certificate checks, and the redirect to HTTPS)</source>
+        <translation>%1 (comprobaciones de certificados y redirección a HTTPS)</translation>
+    </message>
+    <message id="autopanel.overview.https">
+        <source>HTTPS</source>
+        <translation>HTTPS</translation>
+    </message>
+    <message id="autopanel.overview.routes">
+        <source>Routes</source>
+        <translation>Rutas</translation>
+    </message>
+    <message id="autopanel.overview.store">
+        <source>Store</source>
+        <translation>Almacén</translation>
+    </message>
+    <message id="autopanel.overview.title">
+        <source>Overview</source>
+        <translation>Resumen</translation>
+    </message>
+    <message id="autopanel.overview.uptime">
+        <source>Uptime</source>
+        <translation>Tiempo activo</translation>
+    </message>
+    <message id="autopanel.overview.version">
+        <source>Version</source>
+        <translation>Versión</translation>
+    </message>
+    <message id="autopanel.ports.title">
+        <source>Open ports</source>
+        <translation>Puertos abiertos</translation>
+    </message>
+    <message id="autopanel.routes.add">
+        <source>Add</source>
+        <translation>Añadir</translation>
+    </message>
+    <message id="autopanel.routes.delete">
+        <source>Delete</source>
+        <translation>Eliminar</translation>
+    </message>
+    <message id="autopanel.routes.edit">
+        <source>Edit</source>
+        <translation>Editar</translation>
+    </message>
+    <message id="autopanel.routes.help">
+        <source>a add · e/Enter edit · d delete · q close</source>
+        <translation>a añadir · e/Enter editar · d eliminar · q cerrar</translation>
+    </message>
+    <message id="autopanel.routes.title">
+        <source>Proxy routes</source>
+        <translation>Rutas de proxy</translation>
+    </message>
+    <message id="autopanel.status.error">
+        <source>status: %1</source>
+        <translation>estado: %1</translation>
+    </message>
+    <message id="autopanel.status.line">
+        <source>%1 · CA %2 · %3 routes · up %4</source>
+        <translation>%1 · CA %2 · %3 rutas · activo %4</translation>
+    </message>
+    <message id="autopanel.status.loading">
+        <source>loading…</source>
+        <translation>cargando…</translation>
+    </message>
+</context>
+</TS>

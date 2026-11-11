@@ -13,21 +13,21 @@ Dialog {
 
     Flex {
         direction: Tui.Vertical
-        Text { text: "Host" }
+        Text { text: qsTrId("autopanel.form.host") }
         TextField {
             id: hostField
             text: App.formHost
             placeholderText: "example.com"
             onAccepted: App.submit(hostField.text, pathField.text, upstreamField.text)
         }
-        Text { text: "Path prefix" }
+        Text { text: qsTrId("autopanel.form.path") }
         TextField {
             id: pathField
             text: App.formPath
             placeholderText: "/"
             onAccepted: App.submit(hostField.text, pathField.text, upstreamField.text)
         }
-        Text { text: "Upstream URL" }
+        Text { text: qsTrId("autopanel.form.upstream") }
         TextField {
             id: upstreamField
             text: App.formUpstream
@@ -38,12 +38,12 @@ Dialog {
 
     DialogButtonBox {
         Button {
-            text: "&OK"
+            text: qsTrId("autopanel.form.ok")
             DialogButtonBox.buttonRole: DialogButtonBox.ActionRole
             onClicked: App.submit(hostField.text, pathField.text, upstreamField.text)
         }
         Button {
-            text: "&Cancel"
+            text: qsTrId("autopanel.form.cancel")
             DialogButtonBox.buttonRole: DialogButtonBox.RejectRole
         }
     }
