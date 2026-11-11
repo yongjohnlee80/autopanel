@@ -70,9 +70,16 @@ type host struct {
 	signingIn bool // a login attempt is in flight
 	signedIn  bool // a panel user has logged in; nothing is read before
 
-	editID   int64 // the route the form edits; 0 adds one
-	removeID int64 // the route the confirmation names
-	busy     bool  // a change is in flight
+	// The terminal (terminal.go): the shell + starts and, when it is another,
+	// root's; and whether the panel is open.
+	ownShell      shell
+	rootShell     *shell
+	terminalShown bool
+
+	editID    int64        // the route the form edits; 0 adds one
+	removeID  int64        // the route the confirmation names
+	confirmed func() error // what Yes in the confirmation runs
+	busy      bool         // a change is in flight
 }
 
 func newHost(ctx context.Context, c Client, version string) *host {
@@ -87,6 +94,7 @@ func newHost(ctx context.Context, c Client, version string) *host {
 		themes:    tuidecl.NewListModel("key", "label", "checked"),
 		mon:       newMonitors()}
 	h.themes.Reset(themeRows(h.theme))
+	h.ownShell, h.rootShell = hostShells()
 	return h
 }
 
@@ -145,7 +153,9 @@ func (h *host) state() map[string]any {
 		"App.formPath":        "/",
 		"App.formUpstream":    "",
 		"App.formHelp":        tui.Msg("autopanel.form.hint"),
+		"App.confirmTitle":    tui.Msg("autopanel.confirm.title"),
 		"App.confirmQuestion": "",
+		"App.terminalShown":   false,
 	}
 	for name, v := range languageChecks(h.language) {
 		s[name] = v
@@ -260,6 +270,26 @@ func (h *host) fill(vals map[string]any) error {
 		return err
 	}
 	return h.p.SetMany(vals)
+}
+
+// ask opens the confirmation under title (a message's id) with question; Yes
+// runs then. No, Enter and Escape leave it.
+func (h *host) ask(title, question string, then func() error) error {
+	h.confirmed = then
+	if err := h.p.SetMany(map[string]any{"App.confirmTitle": h.tr(title), "App.confirmQuestion": question}); err != nil {
+		return err
+	}
+	return h.p.Call("confirmDialog", "open")
+}
+
+// confirm is Yes in the confirmation: what it was opened for, once.
+func (h *host) confirm() error {
+	then := h.confirmed
+	h.confirmed = nil
+	if then == nil {
+		return nil
+	}
+	return then()
 }
 
 // panelLeft gives the keyboard back to the overview, the Window's focus
