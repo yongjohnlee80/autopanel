@@ -113,11 +113,12 @@ func (h *host) openTerminal() error {
 			_ = tabs.ForceRemove(t.ID)
 		}
 	}
-	if len(tabs.Tabs()) == 0 {
+	next := liveShell(tabs)
+	if next == "" {
 		h.startShell(h.ownShell)
 		return nil
 	}
-	return tabs.Select(tabs.Active())
+	return tabs.Select(next)
 }
 
 // terminalOpened and terminalClosed follow the panel: Go › Terminal is
@@ -180,11 +181,30 @@ func (h *host) newShell() error {
 	return nil
 }
 
-// afterShell follows a tab that has gone: the keyboard to the shell now in
-// front, or the panel closed when none is left.
+// liveShell is a shell to give the keyboard: the active one while it is not
+// closing, else the first that is not. "" when none is left. A removed tab
+// stays on the strip, closing, until its program has gone.
+func liveShell(tabs *terminal.TerminalTabs) terminal.TerminalTabID {
+	var first terminal.TerminalTabID
+	for _, t := range tabs.Tabs() {
+		if t.Closing {
+			continue
+		}
+		if t.ID == tabs.Active() {
+			return t.ID
+		}
+		if first == "" {
+			first = t.ID
+		}
+	}
+	return first
+}
+
+// afterShell follows a tab's removal: the keyboard to a shell that is left,
+// or the panel closed when none is.
 func (h *host) afterShell(tabs *terminal.TerminalTabs) {
-	if len(tabs.Tabs()) > 0 {
-		_ = tabs.Select(tabs.Active())
+	if next := liveShell(tabs); next != "" {
+		_ = tabs.Select(next)
 		return
 	}
 	if h.terminalShown {
@@ -262,7 +282,12 @@ func (h *host) cycleShell(step int) error {
 	if err != nil {
 		return err
 	}
-	all := tabs.Tabs()
+	var all []terminal.TerminalTab
+	for _, t := range tabs.Tabs() {
+		if !t.Closing {
+			all = append(all, t)
+		}
+	}
 	for i, t := range all {
 		if t.ID == tabs.Active() {
 			return tabs.Select(all[(i+step+len(all))%len(all)].ID)
