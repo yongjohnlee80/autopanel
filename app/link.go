@@ -25,8 +25,11 @@ type revision struct {
 	ch chan struct{} // closed at the next bump
 }
 
-// newRevision starts at start: the core's start time, so a gate that held a
-// table from an earlier core never mistakes this one's revisions for its own.
+// newRevision starts at start: the core's start time in seconds, so a gate
+// that held a table from an earlier core rarely mistakes this one's revisions
+// for its own (and it asks from 0 after a reconnect in any case). Seconds, not
+// nanoseconds: a revision crosses the wire as a number, and one above 2^53
+// would not come back the same.
 func newRevision(start int64) *revision {
 	return &revision{n: start, ch: make(chan struct{})}
 }

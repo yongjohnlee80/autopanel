@@ -149,7 +149,7 @@ func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateContr
 	// The core keeps a table too: it decides which names may have a
 	// certificate, and it is what the gate is sent.
 	table := gate.NewTable[http.Handler]()
-	rev := newRevision(time.Now().UnixNano())
+	rev := newRevision(time.Now().Unix())
 	reload := func(ctx context.Context) error {
 		rs, err := st.Routes().All(ctx)
 		if err != nil {
