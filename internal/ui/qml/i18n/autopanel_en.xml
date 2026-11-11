@@ -247,6 +247,18 @@
         <source>%1 free of %2</source>
         <translation>%1 free of %2</translation>
     </message>
+    <message id="autopanel.metrics.gateMemory">
+        <source>Gate memory</source>
+        <translation>Gate memory</translation>
+    </message>
+    <message id="autopanel.metrics.gateMemoryValue">
+        <source>%1 · process %2</source>
+        <translation>%1 · process %2</translation>
+    </message>
+    <message id="autopanel.metrics.gateSilent">
+        <source>not reporting</source>
+        <translation>not reporting</translation>
+    </message>
     <message id="autopanel.metrics.goroutines">
         <source>Goroutines</source>
         <translation>Goroutines</translation>
@@ -276,8 +288,8 @@
         <translation>Routes</translation>
     </message>
     <message id="autopanel.metrics.serviceMemory">
-        <source>Service memory</source>
-        <translation>Service memory</translation>
+        <source>Core memory</source>
+        <translation>Core memory</translation>
     </message>
     <message id="autopanel.metrics.serviceMemoryValue">
         <source>%1 in use · %2 held</source>

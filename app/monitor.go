@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/netip"
 	"net/url"
+	"os/user"
 	"regexp"
 	"runtime"
 	"strconv"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"github.com/yongjohnlee80/autopanel/core/audit"
+	hostgate "github.com/yongjohnlee80/autopanel/host/gate"
 	"github.com/yongjohnlee80/autopanel/internal/module"
 	"github.com/yongjohnlee80/autopanel/internal/sysinfo"
 	"github.com/yongjohnlee80/autopanel/store"
@@ -31,20 +33,56 @@ var (
 	readSSHLogins = sysinfo.SSHLogins
 )
 
-// counters are the gate's request counts, one per listener, as the gate last
-// reported them over the link (link.report).
-type counters struct{ https, http atomic.Int64 }
+// counters are what the gate last reported over the link (link.report): its
+// request counts, one per listener, its process, its memory, and when the
+// report came (Unix nanoseconds; 0 for a gate that has not reported).
+type counters struct {
+	https, http atomic.Int64
+	pid, seen   atomic.Int64
+	memory      atomic.Uint64
+}
+
+// gateQuiet is how long after its last report the gate still counts as
+// running: a report may be late, or lost to a redial.
+func gateQuiet() time.Duration { return 4*hostgate.ReportEvery + 5*time.Second }
+
+// gatePID is the gate's process, 0 when it has not reported lately.
+func (c *counters) gatePID() int {
+	seen := c.seen.Load()
+	if seen == 0 || time.Since(time.Unix(0, seen)) > gateQuiet() {
+		return 0
+	}
+	return int(c.pid.Load())
+}
+
+// userName is a user's name by its number, and the number when the host has
+// no name for it. A variable so a test gives its own.
+var userName = func(uid int) string {
+	if u, err := user.LookupId(strconv.Itoa(uid)); err == nil {
+		return u.Username
+	}
+	return strconv.Itoa(uid)
+}
 
 // Metrics is sys.metrics's answer.
 type Metrics struct {
 	Uptime        string       `json:"uptime"`
 	Goroutines    int          `json:"goroutines"`
-	HeapBytes     uint64       `json:"heap_bytes"`    // the service's live heap
-	RuntimeBytes  uint64       `json:"runtime_bytes"` // all memory the service's runtime holds
+	HeapBytes     uint64       `json:"heap_bytes"`    // the core's live heap
+	RuntimeBytes  uint64       `json:"runtime_bytes"` // all memory the core's runtime holds
 	HTTPSRequests int64        `json:"https_requests"`
 	HTTPRequests  int64        `json:"http_requests"`
 	Routes        int          `json:"routes"`
+	Gate          GateMetrics  `json:"gate"`
 	Host          sysinfo.Host `json:"host"`
+}
+
+// GateMetrics is what the gate last reported of itself. Running is false for
+// a gate that has not reported lately: stopped, or cut off from the core.
+type GateMetrics struct {
+	Running     bool   `json:"running"`
+	PID         int    `json:"pid"`
+	MemoryBytes uint64 `json:"memory_bytes"`
 }
 
 // Limit is the param of the verbs that list rows: how many, newest first.
@@ -87,6 +125,9 @@ type Port struct {
 	Proto   string `json:"proto"`
 	Address string `json:"address"`
 	Port    int    `json:"port"`
+	Process string `json:"process"` // the program that holds it; "" when the host does not say
+	PID     int    `json:"pid"`     // 0 when the host does not say
+	User    string `json:"user"`    // the user it belongs to; "" when the host does not say
 	Use     string `json:"use"`
 }
 
@@ -114,11 +155,15 @@ var (
 func (m *sysModule) metrics(context.Context, struct{}) (Metrics, error) {
 	var ms runtime.MemStats
 	runtime.ReadMemStats(&ms)
+	var g GateMetrics
+	if pid := m.counts.gatePID(); pid != 0 {
+		g = GateMetrics{Running: true, PID: pid, MemoryBytes: m.counts.memory.Load()}
+	}
 	return Metrics{
 		Uptime:     time.Since(m.started).Round(time.Second).String(),
 		Goroutines: runtime.NumGoroutine(), HeapBytes: ms.HeapAlloc, RuntimeBytes: ms.Sys,
 		HTTPSRequests: m.counts.https.Load(), HTTPRequests: m.counts.http.Load(),
-		Routes: len(m.table.Routes()), Host: sysinfo.ReadHost(m.cfg.StateDir),
+		Routes: len(m.table.Routes()), Gate: g, Host: sysinfo.ReadHost(m.cfg.StateDir),
 	}, nil
 }
 
@@ -170,8 +215,8 @@ func sortAttempts(as []LoginAttempt) {
 	}
 }
 
-// wellKnown names the usual service of a port, for a socket AutoPanel does not
-// own. It is a hint, said as one: the process is not known.
+// wellKnown names the usual service of a port, for a socket whose process the
+// host did not name. It is a hint, said as one.
 var wellKnown = map[string]string{
 	"tcp/22": "SSH", "tcp/25": "SMTP", "tcp/53": "DNS", "udp/53": "DNS", "udp/67": "DHCP", "udp/68": "DHCP",
 	"tcp/80": "HTTP", "tcp/110": "POP3", "udp/123": "NTP", "tcp/143": "IMAP", "tcp/443": "HTTPS", "udp/443": "HTTP/3",
@@ -216,37 +261,49 @@ func upstreamPort(upstream string) int {
 	return 0
 }
 
-func (m *sysModule) ports(context.Context, struct{}) ([]Port, error) {
-	ls, err := m.listeners()
+// ports lists the listening sockets with who holds each. A socket is called
+// AutoPanel's own when it is on one of the gate's two ports and its process is
+// the gate, or is not known: another program on port 443 is named as itself.
+func (m *sysModule) ports(ctx context.Context, _ struct{}) ([]Port, error) {
+	ls, err := m.listeners(ctx)
 	if err != nil {
 		return nil, err
 	}
-	own := map[int]string{}
+	upstream := map[int]string{}
 	for _, r := range m.table.Routes() { // an upstream on this host: the port a route forwards to
 		if p := upstreamPort(r.Upstream); p != 0 {
-			if _, seen := own[p]; !seen {
-				own[p] = "upstream of " + r.Host
+			if _, seen := upstream[p]; !seen {
+				upstream[p] = "upstream of " + r.Host
 			}
 		}
 	}
+	own := map[int]string{}
 	if p := portOf(m.cfg.HTTPAddr); p != 0 {
 		own[p] = "AutoPanel: HTTP (certificate checks, redirect to HTTPS)"
 	}
 	if p := portOf(m.cfg.HTTPSAddr); p != 0 {
 		own[p] = "AutoPanel: HTTPS (the proxy)"
 	}
+	gate := m.counts.gatePID()
 	out := make([]Port, 0, len(ls))
 	for _, l := range ls {
-		use := ""
-		if l.Proto == "tcp" {
-			use = own[l.Port]
+		p := Port{Proto: l.Proto, Address: l.Address, Port: l.Port, Process: l.Process, PID: l.PID}
+		if l.UID != sysinfo.NoUID {
+			p.User = userName(l.UID)
 		}
-		if use == "" {
-			if name, ok := wellKnown[l.Proto+"/"+strconv.Itoa(l.Port)]; ok {
-				use = name + " (usual for this port)"
+		if l.Proto == "tcp" {
+			if name, ok := own[l.Port]; ok && (l.PID == 0 || l.PID == gate) {
+				p.Use = name
+			} else if !ok {
+				p.Use = upstream[l.Port]
 			}
 		}
-		out = append(out, Port{Proto: l.Proto, Address: l.Address, Port: l.Port, Use: use})
+		if p.Use == "" && l.Process == "" {
+			if name, ok := wellKnown[l.Proto+"/"+strconv.Itoa(l.Port)]; ok {
+				p.Use = name + " (usual for this port)"
+			}
+		}
+		out = append(out, p)
 	}
 	return out, nil
 }
@@ -317,14 +374,14 @@ func (m *sysModule) gateStop(ctx context.Context, _ struct{}) (struct{}, error) 
 func (m *sysModule) monitorVerbs() []module.Verb {
 	return []module.Verb{
 		module.Handle(module.Contract{Verb: "sys.metrics", Since: 1,
-			Result: "{uptime, goroutines, heap_bytes, runtime_bytes, https_requests, http_requests, routes, host: {load, mem_total, mem_available, disk_total, disk_free}}",
-			Doc:    "The service's memory, goroutines and request counts since it started, and the host's load, memory and the disk the store is on."}, m.metrics),
+			Result: "{uptime, goroutines, heap_bytes, runtime_bytes, https_requests, http_requests, routes, gate: {running, pid, memory_bytes}, host: {load, mem_total, mem_available, disk_total, disk_free}}",
+			Doc:    "The core's memory and goroutines; the gate's request counts since it started, its process and its memory, as it last reported them (running is false when it has stopped reporting); and the host's load, memory and the disk the store is on."}, m.metrics),
 		module.Handle(module.Contract{Verb: "sys.audit.list", Since: 1, Param: "{limit?}", Result: "[{id, at, actor, action, subject, detail}]",
 			Doc: "The newest audit entries, newest first: 200 unless limit says, 1000 at most."}, m.auditLog),
 		module.Handle(module.Contract{Verb: "sys.logins", Since: 1, Param: "{limit?}", Result: "{attempts: [{at, source, user, from, result, detail}], ssh_note}",
 			Doc: "Login attempts, newest first: to the panel, from the audit log, and to the host over SSH, from the journal. ssh_note says why when the journal could not be read."}, m.logins),
-		module.Handle(module.Contract{Verb: "sys.ports", Since: 1, Result: "[{proto, address, port, use}]",
-			Doc: "The host's listening TCP sockets and bound UDP sockets. use names AutoPanel's own, a route's upstream, or the port's usual service."}, m.ports),
+		module.Handle(module.Contract{Verb: "sys.ports", Since: 1, Result: "[{proto, address, port, process, pid, user, use}]",
+			Doc: "The host's listening TCP sockets and bound UDP sockets, each with the process and the user that hold it when the host says. use names AutoPanel's own, a route's upstream, or, for a socket whose process is not known, the port's usual service."}, m.ports),
 		module.Handle(module.Contract{Verb: "sys.prefs.get", Since: 1, Result: "{theme, language}",
 			Doc: "The panel's preferences; an empty one was never chosen."}, m.prefs),
 		module.Handle(module.Contract{Verb: "sys.prefs.set", Since: 1, Param: "{theme?, language?}", Result: "{theme, language}", Mutates: true,

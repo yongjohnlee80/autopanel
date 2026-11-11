@@ -259,7 +259,7 @@ Window {
         id: portsPanel
         key: "ports"; label: "Open ports"
         heading: qsTrId("autopanel.ports.title")
-        size: 65; length: 80
+        size: 65; length: 90
         onOpened: portsTable.forceActiveFocus()
         Shortcut { sequence: "r"; onActivated: App.reloadMonitor("ports") }
         Flex {
@@ -272,7 +272,9 @@ Window {
                 model: App.ports
                 TableViewColumn { role: "proto"; title: "PROTOCOL"; width: 9 }
                 TableViewColumn { role: "port"; title: "PORT"; width: 7 }
-                TableViewColumn { role: "address"; title: "LISTENS ON"; width: 26 }
+                TableViewColumn { role: "address"; title: "LISTENS ON"; width: 18 }
+                TableViewColumn { role: "process"; title: "PROCESS"; width: 20 }
+                TableViewColumn { role: "user"; title: "USER"; width: 11 }
                 TableViewColumn { role: "use"; title: "FOR" }
             }
             Text { text: App.portsNote }

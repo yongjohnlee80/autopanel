@@ -65,8 +65,11 @@ type ChallengeAnswer struct {
 	Body    []byte `json:"body"`
 }
 
-// Report is link.report's param: the gate's request counts since it started.
+// Report is link.report's param: the gate's request counts since it started,
+// its process and the memory it holds now.
 type Report struct {
-	HTTPSRequests int64 `json:"https_requests"`
-	HTTPRequests  int64 `json:"http_requests"`
+	HTTPSRequests int64  `json:"https_requests"`
+	HTTPRequests  int64  `json:"http_requests"`
+	PID           int    `json:"pid"`
+	MemoryBytes   uint64 `json:"memory_bytes"` // resident memory; what the runtime holds where that cannot be read
 }

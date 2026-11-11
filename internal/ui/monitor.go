@@ -31,7 +31,7 @@ func newMonitors() monitors {
 		metrics: tuidecl.NewListModel("key", "name", "value"),
 		audit:   tuidecl.NewListModel("key", "time", "actor", "action", "subject", "detail"),
 		logins:  tuidecl.NewListModel("key", "time", "source", "user", "from", "result", "detail"),
-		ports:   tuidecl.NewListModel("key", "proto", "port", "address", "use"),
+		ports:   tuidecl.NewListModel("key", "proto", "port", "address", "process", "user", "use"),
 		readAt:  map[string]time.Time{},
 	}
 }
@@ -74,6 +74,10 @@ func bytesText(n uint64) string {
 
 // metricRows are the metrics panel's rows: a name and its value.
 func metricRows(w wording, m Metrics) [][2]string {
+	gate := w.tr("autopanel.metrics.gateSilent")
+	if m.Gate.Running {
+		gate = w.trf("autopanel.metrics.gateMemoryValue", bytesText(m.Gate.MemoryBytes), strconv.Itoa(m.Gate.PID))
+	}
 	return [][2]string{
 		{w.tr("autopanel.metrics.uptime"), orDash(m.Uptime)},
 		{w.tr("autopanel.metrics.httpsRequests"), strconv.FormatInt(m.HTTPSRequests, 10)},
@@ -81,11 +85,23 @@ func metricRows(w wording, m Metrics) [][2]string {
 		{w.tr("autopanel.metrics.routes"), strconv.Itoa(m.Routes)},
 		{w.tr("autopanel.metrics.serviceMemory"), w.trf("autopanel.metrics.serviceMemoryValue", bytesText(m.HeapBytes), bytesText(m.RuntimeBytes))},
 		{w.tr("autopanel.metrics.goroutines"), strconv.Itoa(m.Goroutines)},
+		{w.tr("autopanel.metrics.gateMemory"), gate},
 		{w.tr("autopanel.metrics.load"), w.trf("autopanel.metrics.loadValue",
 			fmt.Sprintf("%.2f", m.Host.Load.One), fmt.Sprintf("%.2f", m.Host.Load.Five), fmt.Sprintf("%.2f", m.Host.Load.Fifteen))},
 		{w.tr("autopanel.metrics.hostMemory"), w.trf("autopanel.metrics.availableOf", bytesText(m.Host.MemAvailable), bytesText(m.Host.MemTotal))},
 		{w.tr("autopanel.metrics.disk"), w.trf("autopanel.metrics.freeOf", bytesText(m.Host.DiskFree), bytesText(m.Host.DiskTotal))},
 	}
+}
+
+// holder is the process that holds a port, with its number: "sshd (612)".
+func holder(p Port) string {
+	switch {
+	case p.Process == "":
+		return "-"
+	case p.PID == 0:
+		return p.Process
+	}
+	return p.Process + " (" + strconv.Itoa(p.PID) + ")"
 }
 
 // resultText is a login's result in the UI's language.
@@ -142,8 +158,8 @@ func (m *monitors) render(h *host) {
 	if m.lastPorts != nil {
 		rows := make([]tuidecl.Row, 0, len(m.lastPorts))
 		for _, p := range m.lastPorts {
-			rows = append(rows, tuidecl.Row{"key": p.Proto + "/" + p.Address + "/" + strconv.Itoa(p.Port),
-				"proto": p.Proto, "port": p.Port, "address": p.Address, "use": p.Use})
+			rows = append(rows, tuidecl.Row{"key": p.Proto + "/" + p.Address + "/" + strconv.Itoa(p.Port) + "/" + strconv.Itoa(p.PID),
+				"proto": p.Proto, "port": p.Port, "address": p.Address, "process": holder(p), "user": orDash(p.User), "use": p.Use})
 		}
 		m.ports.Reset(rows)
 		notes["App.portsNote"] = note("ports", len(rows))

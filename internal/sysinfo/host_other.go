@@ -5,7 +5,7 @@ package sysinfo
 import "context"
 
 // Listeners has no source on this platform.
-func Listeners() ([]Listener, error) { return nil, ErrUnsupported }
+func Listeners(context.Context) ([]Listener, error) { return nil, ErrUnsupported }
 
 // SSHLogins has no source on this platform.
 func SSHLogins(context.Context, int) ([]SSHLogin, error) { return nil, ErrUnsupported }

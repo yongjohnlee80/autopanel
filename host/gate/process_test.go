@@ -14,6 +14,7 @@ import (
 	"math/big"
 	"net"
 	"net/http"
+	"os"
 	"os/exec"
 	"strings"
 	"sync"
@@ -304,6 +305,19 @@ func TestTheGateServesWhatTheCoreHandsIt(t *testing.T) {
 	until(t, "the gate never reported its counts", func() bool {
 		r := f.lastReport()
 		return r.HTTPSRequests >= 4 && r.HTTPRequests == 3
+	})
+	// A report carries the gate's process and its memory, and comes whether or
+	// not a request did: it is how the core knows the gate is there.
+	if r := f.lastReport(); r.PID != os.Getpid() || r.MemoryBytes == 0 {
+		t.Errorf("the gate's report = %+v; want this process and its memory", r)
+	}
+	f.mu.Lock()
+	n := len(f.reports)
+	f.mu.Unlock()
+	until(t, "the gate stopped reporting once its counts stopped changing", func() bool {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		return len(f.reports) >= n+3
 	})
 
 	cancel()

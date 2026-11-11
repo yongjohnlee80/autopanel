@@ -118,6 +118,7 @@ func (f *fakeClient) Metrics(context.Context) (Metrics, error) {
 	var m Metrics
 	m.Uptime, m.Goroutines, m.HeapBytes, m.RuntimeBytes = "1m0s", 12, 3<<20, 9<<20
 	m.HTTPSRequests, m.HTTPRequests, m.Routes = 41, 7, 2
+	m.Gate.Running, m.Gate.PID, m.Gate.MemoryBytes = true, 177, 18<<20
 	m.Host.Load.One, m.Host.Load.Five, m.Host.Load.Fifteen = 0.5, 0.25, 0.1
 	m.Host.MemTotal, m.Host.MemAvailable = 2<<30, 1<<30
 	m.Host.DiskTotal, m.Host.DiskFree = 40<<30, 30<<30
@@ -142,8 +143,8 @@ func (f *fakeClient) Logins(context.Context) (Logins, error) {
 
 func (f *fakeClient) Ports(context.Context) ([]Port, error) {
 	return []Port{
-		{Proto: "tcp", Address: "0.0.0.0", Port: 22, Use: "SSH (usual for this port)"},
-		{Proto: "tcp", Address: "0.0.0.0", Port: 443, Use: "AutoPanel: HTTPS (the proxy)"},
+		{Proto: "tcp", Address: "0.0.0.0", Port: 22, Process: "sshd", PID: 612, User: "root"},
+		{Proto: "tcp", Address: "*", Port: 443, Process: "autopanel", PID: 177, User: "autopanel", Use: "AutoPanel: HTTPS (the proxy)"},
 		{Proto: "udp", Address: "0.0.0.0", Port: 3478, Use: "TURN/STUN (usual for this port)"},
 	}, nil
 }
@@ -560,12 +561,12 @@ func TestSystemMonitors(t *testing.T) {
 	s.WaitForText(t, "CA LE staging")
 
 	openSystem(t, s, 'm')
-	for _, part := range []string{"Metrics", "HTTPS requests", "41", "Service memory", "3.0 MiB in use · 9.0 MiB held",
+	for _, part := range []string{"Metrics", "HTTPS requests", "41", "Core memory", "3.0 MiB in use · 9.0 MiB held", "Gate memory", "18.0 MiB · process 177",
 		"0.50 · 0.25 · 0.10 (1, 5 and 15 minutes)", "1.0 GiB available of 2.0 GiB", "30.0 GiB free of 40.0 GiB", "read at "} {
 		s.WaitForText(t, part)
 	}
 	s.Keys(t, decltest.Rune('q'))
-	s.WaitFor(t, "the metrics panel to close", func(sc string) bool { return !strings.Contains(sc, "Service memory") })
+	s.WaitFor(t, "the metrics panel to close", func(sc string) bool { return !strings.Contains(sc, "Core memory") })
 
 	openSystem(t, s, 'a')
 	for _, part := range []string{"Audit log", "route.add", "root (local:999)", "route 2 api", "http://127.0.0.1:9090", "2 rows, read at "} {
@@ -583,7 +584,8 @@ func TestSystemMonitors(t *testing.T) {
 	s.WaitFor(t, "the logins panel to close", func(sc string) bool { return !strings.Contains(sc, "192.0.2.66") })
 
 	openSystem(t, s, 'p')
-	for _, part := range []string{"Open ports", "3478", "udp", "TURN/STUN (usual for this port)", "AutoPanel: HTTPS (the proxy)", "3 rows, read at "} {
+	for _, part := range []string{"Open ports", "3478", "udp", "TURN/STUN (usual for this port)", "AutoPanel: HTTPS (the proxy)",
+		"PROCESS", "sshd (612)", "autopanel (177)", "USER", "root", "3 rows, read at "} {
 		s.WaitForText(t, part)
 	}
 	f.mu.Lock()

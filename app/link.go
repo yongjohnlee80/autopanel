@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/yongjohnlee80/autopanel/core/gate"
 	hostgate "github.com/yongjohnlee80/autopanel/host/gate"
@@ -86,8 +87,8 @@ func (m *linkModule) Verbs() []module.Verb {
 			Doc: "The certificate and private key for a name a route holds, obtained first when there is none; with alpn, the TLS-ALPN-01 challenge certificate of an order in flight. Link socket only."}, m.cert),
 		module.Handle(module.Contract{Verb: hostgate.VerbChallenge, Since: 2, Open: true, Param: "{host, path}", Result: "{handled, status, body}",
 			Doc: "The answer to an ACME HTTP-01 request the gate received; handled is false when it is no challenge of this AutoPanel's. Link socket only."}, m.challenge),
-		module.Handle(module.Contract{Verb: hostgate.VerbReport, Since: 2, Open: true, Param: "{https_requests, http_requests}",
-			Doc: "The gate's request counts since it started, for sys.metrics. Link socket only."}, m.report),
+		module.Handle(module.Contract{Verb: hostgate.VerbReport, Since: 2, Open: true, Param: "{https_requests, http_requests, pid, memory_bytes}",
+			Doc: "The gate's request counts since it started, its process and its memory, for sys.metrics and sys.ports. Link socket only."}, m.report),
 	}
 }
 
@@ -136,5 +137,8 @@ func (m *linkModule) challenge(ctx context.Context, p hostgate.ChallengeAsk) (ho
 func (m *linkModule) report(_ context.Context, p hostgate.Report) (struct{}, error) {
 	m.counts.https.Store(p.HTTPSRequests)
 	m.counts.http.Store(p.HTTPRequests)
+	m.counts.pid.Store(int64(p.PID))
+	m.counts.memory.Store(p.MemoryBytes)
+	m.counts.seen.Store(time.Now().UnixNano())
 	return struct{}{}, nil
 }

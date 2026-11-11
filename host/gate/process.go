@@ -9,6 +9,9 @@ import (
 	"log/slog"
 	"net/http"
 	"net/netip"
+	"os"
+	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -228,28 +231,39 @@ func (g *process) follow(ctx context.Context) error {
 	return nil
 }
 
-// report sends the request counts to the core, when they changed.
+// report sends the request counts, the gate's process and its memory to the
+// core, every ReportEvery: a report that stops coming is how the core knows
+// the gate is gone.
 func (g *process) report(ctx context.Context) error {
 	t := time.NewTicker(ReportEvery)
 	defer t.Stop()
-	var sent Report
-	first := true
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
 		case <-t.C:
-			now := Report{HTTPSRequests: g.https.Load(), HTTPRequests: g.http.Load()}
-			if now == sent && !first {
-				continue
-			}
+			now := Report{HTTPSRequests: g.https.Load(), HTTPRequests: g.http.Load(), PID: os.Getpid(), MemoryBytes: residentBytes()}
 			cctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-			if err := g.link.call(cctx, VerbReport, now, nil); err == nil {
-				sent, first = now, false
-			}
+			_ = g.link.call(cctx, VerbReport, now, nil)
 			cancel()
 		}
 	}
+}
+
+// residentBytes is the memory the process holds in RAM, from its own
+// /proc/self/statm: what its unit's MemoryMax is counted against, but for the
+// page cache. Where that cannot be read, it is what the Go runtime holds.
+func residentBytes() uint64 {
+	if b, err := os.ReadFile("/proc/self/statm"); err == nil {
+		if f := strings.Fields(string(b)); len(f) > 1 {
+			if pages, err := strconv.ParseUint(f[1], 10, 64); err == nil && pages > 0 {
+				return pages * uint64(os.Getpagesize())
+			}
+		}
+	}
+	var ms runtime.MemStats
+	runtime.ReadMemStats(&ms)
+	return ms.Sys
 }
 
 // challengeOr answers an ACME HTTP-01 request with what the core says, and
