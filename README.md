@@ -63,11 +63,14 @@ sudo sh install.sh --email admin@example.com --ca production --passphrase-file /
 
 ### Serve your first site
 
-Open the admin TUI on the server, and log in as `root` with the master passphrase:
+Open the admin TUI on the server:
 
 ```sh
 sudo -u autopanel autopanel --ui
 ```
+
+It opens on a sign-in dialog. The user is `root`; type the master passphrase and press Enter.
+Cancel or Esc quits.
 
 The panel has a menu bar: open a menu with Alt and its letter (Alt+R for Routes), or press F10 and
 move with the arrow keys. `r` refreshes and `q` quits.

@@ -103,6 +103,26 @@
         <source>Menus: Alt and a menu's letter, or F10 · r refresh · q quit</source>
         <translation>メニュー: Alt とメニューの文字、または F10 · r 更新 · q 終了</translation>
     </message>
+    <message id="autopanel.login.passphrase">
+        <source>Passphrase</source>
+        <translation>パスフレーズ</translation>
+    </message>
+    <message id="autopanel.login.running">
+        <source>another sign-in is still running; try again in a moment</source>
+        <translation>別のサインインがまだ実行中です。しばらくしてからもう一度お試しください</translation>
+    </message>
+    <message id="autopanel.login.signedIn">
+        <source>signed in as %1</source>
+        <translation>%1 としてサインインしました</translation>
+    </message>
+    <message id="autopanel.login.title">
+        <source>Sign in to AutoPanel</source>
+        <translation>AutoPanel にサインイン</translation>
+    </message>
+    <message id="autopanel.login.user">
+        <source>User</source>
+        <translation>ユーザー</translation>
+    </message>
     <message id="autopanel.logins.result.closed">
         <source>closed</source>
         <translation>切断</translation>
@@ -406,6 +426,10 @@
     <message id="autopanel.status.loading">
         <source>loading…</source>
         <translation>読み込み中…</translation>
+    </message>
+    <message id="autopanel.status.signedOut">
+        <source>not signed in</source>
+        <translation>サインインしていません</translation>
     </message>
 </context>
 </TS>

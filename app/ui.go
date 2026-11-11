@@ -7,12 +7,18 @@ import (
 
 	"github.com/yongjohnlee80/autopanel/core/gate"
 	hostcontrol "github.com/yongjohnlee80/autopanel/host/control"
+	"github.com/yongjohnlee80/autopanel/internal/auth"
 	"github.com/yongjohnlee80/autopanel/internal/ui"
 )
 
-// uiClient is the TUI's Client over the control socket: every call is a verb,
-// on a connection already logged in.
+// uiClient is the TUI's Client over the control socket: every call is a verb.
+// The panel's login dialog logs the connection in (Login); until then the
+// service refuses every other verb.
 type uiClient struct{ c *hostcontrol.Client }
+
+func (u uiClient) Login(ctx context.Context, user, passphrase string) error {
+	return u.c.Call(ctx, "auth.login", auth.Login{User: user, Passphrase: passphrase}, nil)
+}
 
 func (u uiClient) Routes(ctx context.Context) ([]gate.RouteView, error) {
 	var rs []gate.RouteView
@@ -78,10 +84,6 @@ func init() {
 			return 1
 		}
 		defer c.Close()
-		if _, err := login(ctx, c); err != nil {
-			fmt.Fprintln(stderr, "login:", err)
-			return 1
-		}
 		if err := ui.Run(ctx, uiClient{c}, Version); err != nil {
 			fmt.Fprintln(stderr, err)
 			return 1

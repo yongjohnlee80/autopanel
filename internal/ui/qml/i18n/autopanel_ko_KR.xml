@@ -103,6 +103,26 @@
         <source>Menus: Alt and a menu's letter, or F10 · r refresh · q quit</source>
         <translation>메뉴: Alt와 메뉴의 글자, 또는 F10 · r 새로 고침 · q 종료</translation>
     </message>
+    <message id="autopanel.login.passphrase">
+        <source>Passphrase</source>
+        <translation>암호 문구</translation>
+    </message>
+    <message id="autopanel.login.running">
+        <source>another sign-in is still running; try again in a moment</source>
+        <translation>다른 로그인이 아직 진행 중입니다. 잠시 후 다시 시도하세요</translation>
+    </message>
+    <message id="autopanel.login.signedIn">
+        <source>signed in as %1</source>
+        <translation>%1(으)로 로그인했습니다</translation>
+    </message>
+    <message id="autopanel.login.title">
+        <source>Sign in to AutoPanel</source>
+        <translation>AutoPanel 로그인</translation>
+    </message>
+    <message id="autopanel.login.user">
+        <source>User</source>
+        <translation>사용자</translation>
+    </message>
     <message id="autopanel.logins.result.closed">
         <source>closed</source>
         <translation>끊김</translation>
@@ -406,6 +426,10 @@
     <message id="autopanel.status.loading">
         <source>loading…</source>
         <translation>불러오는 중…</translation>
+    </message>
+    <message id="autopanel.status.signedOut">
+        <source>not signed in</source>
+        <translation>로그인하지 않음</translation>
     </message>
 </context>
 </TS>
