@@ -4,11 +4,13 @@
 // Add, Edit and Delete are the dialog's buttons: each runs and the manager
 // stays open, with the route form or the confirmation over it. Each passes the
 // row under the cursor; the host checks it is a route. Enter on a row edits
-// it. Close, q and Escape close the manager.
+// it. Close, q and Escape close the manager. The screen behind stays
+// undimmed, so the status bar's message for each change can be read.
 
 Dialog {
     title: "Proxy routes"
     closeOnQ: true
+    dim: false
     width: 100
     maxWidthPercent: 90
     maxHeightPercent: 85

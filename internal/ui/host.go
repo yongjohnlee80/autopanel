@@ -46,6 +46,7 @@ type host struct {
 	p       *tuidecl.Program
 
 	model  *tuidecl.ListModel // App.routes: the table's rows
+	facts  *tuidecl.ListModel // App.overview: the running AutoPanel, a fact per row
 	routes []gate.RouteView   // the same rows, as the daemon gave them
 
 	editID   int64 // the route the form edits; 0 adds one
@@ -54,7 +55,7 @@ type host struct {
 }
 
 func newHost(ctx context.Context, c Client, version string) *host {
-	return &host{ctx: ctx, client: c, version: version, model: tuidecl.NewListModel("key", "id", "host", "path", "upstream")}
+	return &host{ctx: ctx, client: c, version: version, facts: tuidecl.NewListModel("key", "name", "value"), model: tuidecl.NewListModel("key", "id", "host", "path", "upstream")}
 }
 
 // options are everything the program is: the modules, the state, the
@@ -92,7 +93,7 @@ func (h *host) state() map[string]any {
 		"App.routes":          h.model,
 		"App.status":          "loading…",
 		"App.message":         "",
-		"App.overview":        "loading…",
+		"App.overview":        h.facts,
 		"App.caStaging":       false,
 		"App.caProduction":    false,
 		"App.aboutHeadline":   "AutoPanel " + orDash(h.version),
@@ -142,8 +143,8 @@ func (h *host) refresh() {
 }
 
 // setStatus shows the running AutoPanel as st describes it: the status bar's
-// line, the overview, About's daemon line, and which certificate service the
-// Certs menu checks.
+// line, the overview's rows, About's daemon line, and which certificate
+// service the Certs menu checks.
 //
 // The two checks go through false first. Choosing a row checks it in the menu
 // at once, before the daemon has answered; when the daemon then refuses, the
@@ -152,10 +153,14 @@ func (h *host) refresh() {
 // daemon reports.
 func (h *host) setStatus(st Status) {
 	ca := strings.TrimSpace(st.CA)
+	rows := make([]tuidecl.Row, 0, 8)
+	for _, f := range overview(st) {
+		rows = append(rows, tuidecl.Row{"key": f[0], "name": f[0], "value": f[1]})
+	}
+	h.facts.Reset(rows)
 	_ = h.p.SetMany(map[string]any{"App.caStaging": false, "App.caProduction": false})
 	_ = h.p.SetMany(map[string]any{
 		"App.status":       statusLine(st),
-		"App.overview":     overview(st),
 		"App.aboutDaemon":  orDash(st.Version) + " · up " + orDash(st.Uptime),
 		"App.caStaging":    ca == certmagic.LetsEncryptStagingCA,
 		"App.caProduction": ca == certmagic.LetsEncryptProductionCA,

@@ -168,15 +168,22 @@ func TestStatusLine(t *testing.T) {
 // staging that browsers do not trust it and where to switch.
 func TestOverview(t *testing.T) {
 	s, _ := newFakeClient().Status(context.Background())
-	got := overview(s)
-	for _, part := range []string{"Version       v0.1.0", "HTTPS         :443", "HTTP          :80", "Store         sqlite",
-		"Let's Encrypt staging", "browsers do not trust", "Certs → Type", "Challenge     http-01", "Routes        2", "Uptime        1m0s"} {
+	line := func(s Status) string {
+		var b strings.Builder
+		for _, f := range overview(s) {
+			b.WriteString(f[0] + "=" + f[1] + "\n")
+		}
+		return b.String()
+	}
+	got := line(s)
+	for _, part := range []string{"Version=v0.1.0\n", "HTTPS=:443\n", "HTTP=:80 ", "Store=sqlite\n",
+		"Certificates=Let's Encrypt staging", "browsers do not trust", "Certs → Type", "Challenge=http-01\n", "Routes=2\n", "Uptime=1m0s\n"} {
 		if !strings.Contains(got, part) {
 			t.Errorf("overview = %q, missing %q", got, part)
 		}
 	}
 	s.CA = certmagic.LetsEncryptProductionCA
-	if got := overview(s); !strings.Contains(got, "Let's Encrypt production") || strings.Contains(got, "do not trust") {
+	if got := line(s); !strings.Contains(got, "Let's Encrypt production") || strings.Contains(got, "do not trust") {
 		t.Errorf("overview on production = %q", got)
 	}
 }
@@ -242,7 +249,7 @@ func TestShowsRoutesRefreshesAndQuits(t *testing.T) {
 	// The menu bar, the overview and the status bar; the routes are not on
 	// the main screen.
 	for _, part := range []string{"Routes", "Certs", "Services", "Users", "System", "Help",
-		"Overview", "Let's Encrypt staging", "CA LE staging", "2 routes"} {
+		"Overview", "Let's Encrypt staging", "CA LE staging", "2 routes", "r refresh"} {
 		s.WaitForText(t, part)
 	}
 	if strings.Contains(s.String(), "api.example.com") {

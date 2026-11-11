@@ -114,9 +114,10 @@ func caNote(ca string) string {
 	return ca
 }
 
-// overview is the main screen's text: the running AutoPanel, a line per fact.
-func overview(s Status) string {
-	rows := [][2]string{
+// overview is the main screen's rows: the running AutoPanel, a fact per row,
+// each a name and its value.
+func overview(s Status) [][2]string {
+	return [][2]string{
 		{"Version", orDash(s.Version)},
 		{"HTTPS", orDash(s.HTTPS)},
 		{"HTTP", orDash(s.HTTP) + " (certificate checks, and the redirect to HTTPS)"},
@@ -126,12 +127,6 @@ func overview(s Status) string {
 		{"Routes", strconv.Itoa(s.Routes)},
 		{"Uptime", orDash(s.Uptime)},
 	}
-	var b strings.Builder
-	for _, r := range rows {
-		fmt.Fprintf(&b, "%-14s%s\n", r[0], r[1])
-	}
-	b.WriteString("\nMenus: Alt and the menu's letter, or F10. r refreshes, q quits.")
-	return b.String()
 }
 
 // formSpec is the route the form's fields describe: trimmed, with "/" for an

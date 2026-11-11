@@ -1,6 +1,6 @@
 // Main.qml — AutoPanel's admin screen.
 //
-// Structure only: the menu bar, the overview, the status bar, and what each
+// Structure only: the menu bar, the overview, the two bars, and what each
 // menu row or key triggers. The Go host (package ui) owns the behaviour: it
 // keeps the routes model and the status values (App.*), and runs the commands
 // (App.openRoutes() and the rest) through the daemon's client, reading the
@@ -71,19 +71,32 @@ Window {
 
     // ---- the overview -----------------------------------------------------
     //
-    // No Dock.edge, so it fills what the bars leave.
+    // The running AutoPanel, a fact per row. No Dock.edge, so it fills what
+    // the bars leave. It is the Window's focus target: the keyboard comes
+    // back to it after a menu action or a dialog, so the Window's keys work.
     Frame {
         title: "Overview"
-        Text { text: App.overview; wrapMode: Tui.WordWrap }
+        TableView {
+            id: overview
+            focus: true
+            model: App.overview
+            TableViewColumn { role: "name"; title: "Item"; width: 16 }
+            TableViewColumn { role: "value"; title: "Value" }
+        }
     }
 
-    // ---- the status bar ---------------------------------------------------
+    // ---- the bars, bottom up: the status, then the key hints --------------
     //
-    // Left: the running AutoPanel in one line. Right: what the last command did.
+    // The status bar's left is the running AutoPanel in one line; its right
+    // is what the last command did.
     StatusBar {
         Dock.edge: Tui.Bottom
         left: App.status
         right: App.message
+    }
+    StatusBar {
+        Dock.edge: Tui.Bottom
+        left: "Menus: Alt and a menu's letter, or F10 · r refresh · q quit"
     }
 
     // ---- dialogs ----------------------------------------------------------
