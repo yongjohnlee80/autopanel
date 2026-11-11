@@ -1,0 +1,18 @@
+# build output
+/bin/
+/autopanel
+
+# coverage profiles (make cover, CI)
+/coverage.out
+
+# local producer worktree linkage; never a released dependency
+go.work
+go.work.sum
+
+# local runtime state and secrets never belong in the repository
+*.db
+*.db-wal
+*.db-shm
+.env
+*.pem
+*.key
