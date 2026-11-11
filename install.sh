@@ -480,6 +480,29 @@ wait_started() {
   return 1
 }
 
+# The new core may change the store's schema as it starts, and an older binary
+# refuses a store newer than itself. keep_store copies the SQLite store as the
+# stopped service left it; restore_store puts that copy back; drop_store
+# forgets it once the new services have started.
+PREV_STORE=$STATE_DIR/previous
+keep_store() {
+  rm -rf "$PREV_STORE"
+  for f in "$STATE_DIR"/autopanel.db*; do
+    if [ -f "$f" ]; then
+      install -d -m 0700 "$PREV_STORE"
+      cp -p "$f" "$PREV_STORE/"
+    fi
+  done
+}
+restore_store() {
+  if [ -d "$PREV_STORE" ]; then
+    rm -f "$STATE_DIR"/autopanel.db*
+    cp -p "$PREV_STORE"/autopanel.db* "$STATE_DIR/"
+    rm -rf "$PREV_STORE"
+  fi
+}
+drop_store() { rm -rf "$PREV_STORE"; }
+
 # put_back undoes a move from the one service that failed: the new services
 # stop, the files are the service user's again, the old binary returns, and
 # the one service starts as it was.
@@ -490,6 +513,7 @@ put_back() {
   systemctl stop autopanel-gate >/dev/null 2>&1 || true
   rm -f "$CORE_UNIT" "$GATE_UNIT"
   rm -rf "$UNIT_DIR/autopanel-core.service.d"
+  restore_store
   own_by_service
   [ ! -f "$PREV_BIN" ] || mv -f "$PREV_BIN" "$PREFIX_BIN/autopanel"
   systemctl daemon-reload
@@ -504,10 +528,12 @@ if [ "$MIGRATE" -eq 1 ]; then
   say "Moving the one service to the gate and the core"
   # The gate is down from here until the core has started it.
   systemctl disable --now autopanel >/dev/null 2>&1 || true
+  keep_store
   own_by_core
   systemctl enable autopanel-core >/dev/null 2>&1
   systemctl restart autopanel-core || true
   wait_started || put_back
+  drop_store
   rm -f "$OLD_UNIT" "$PREV_BIN"
   rm -rf "$UNIT_DIR/autopanel.service.d"
   systemctl daemon-reload
@@ -518,11 +544,17 @@ else
   if [ "$START" -eq 1 ]; then
     # The gate stops first, so the core starts it again on the new binary.
     systemctl stop autopanel-gate >/dev/null 2>&1 || true
+    # The core stops before its store is copied: a copy of a store in use
+    # may be half a write.
+    systemctl stop autopanel-core >/dev/null 2>&1 || true
+    keep_store
     systemctl restart autopanel-core
     if wait_started; then
+      drop_store
       info "autopanel-core and autopanel-gate are running"
     else
       systemctl --no-pager status autopanel-core autopanel-gate || true
+      [ ! -d "$PREV_STORE" ] || warn "the store as it was before this install is in $PREV_STORE: an older AutoPanel needs it, not the store this one changed"
       die "AutoPanel did not start; see journalctl -u autopanel-core -u autopanel-gate"
     fi
   fi

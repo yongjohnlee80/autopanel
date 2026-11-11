@@ -34,6 +34,9 @@ type sysModule struct {
 	// gate runs the gate process's unit; nil when this core does not (a
 	// development run).
 	gate GateControl
+	// serviceUsers are the deployed services' host users, each with its
+	// service's name; nil when this core deploys none.
+	serviceUsers func(ctx context.Context) (map[string]string, error)
 }
 
 // Status is sys.status's answer.

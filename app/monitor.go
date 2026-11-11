@@ -14,7 +14,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/yongjohnlee80/autopanel/core/audit"
 	hostgate "github.com/yongjohnlee80/autopanel/host/gate"
 	"github.com/yongjohnlee80/autopanel/internal/module"
 	"github.com/yongjohnlee80/autopanel/internal/sysinfo"
@@ -285,6 +284,12 @@ func (m *sysModule) ports(ctx context.Context, _ struct{}) ([]Port, error) {
 		own[p] = "AutoPanel: HTTPS (the proxy)"
 	}
 	gate := m.counts.gatePID()
+	var svc map[string]string // a service's user → its name
+	if m.serviceUsers != nil {
+		if svc, err = m.serviceUsers(ctx); err != nil {
+			return nil, err
+		}
+	}
 	out := make([]Port, 0, len(ls))
 	for _, l := range ls {
 		p := Port{Proto: l.Proto, Address: l.Address, Port: l.Port, Process: l.Process, PID: l.PID}
@@ -297,6 +302,10 @@ func (m *sysModule) ports(ctx context.Context, _ struct{}) ([]Port, error) {
 			} else if !ok {
 				p.Use = upstream[l.Port]
 			}
+		}
+		// A socket held by a service's user is that service's, whatever its port.
+		if name, ok := svc[p.User]; ok && p.User != "" {
+			p.Use = "service " + name
 		}
 		if p.Use == "" && l.Process == "" {
 			if name, ok := wellKnown[l.Proto+"/"+strconv.Itoa(l.Port)]; ok {
@@ -336,27 +345,15 @@ func (m *sysModule) setPrefs(ctx context.Context, p Prefs) (Prefs, error) {
 	return m.prefs(ctx, struct{}{})
 }
 
-// gateDo runs one of the gate's lifecycle actions. The audit entry is written
-// first, and the action is refused if it cannot be: nothing the core does to
-// the host goes unrecorded. The outcome is a second entry.
+// gateDo runs one of the gate's lifecycle actions. Both verbs are privileged:
+// the control socket writes the audit entry first, refuses the verb if it
+// cannot, and sets the outcome on the entry afterwards.
 func (m *sysModule) gateDo(ctx context.Context, action string, do func(GateControl) func(context.Context) error) (struct{}, error) {
 	if m.gate == nil {
 		return struct{}{}, errNoGateControl
 	}
-	actor := audit.Actor(ctx)
-	if err := m.st.Audit(ctx, actor, action, "the gate", "attempt"); err != nil {
-		return struct{}{}, err
-	}
-	err := do(m.gate)(ctx)
-	outcome := "ok"
-	if err != nil {
-		outcome = "failed"
+	if err := do(m.gate)(ctx); err != nil {
 		m.log.Error(action, "err", err)
-	}
-	if aerr := m.st.Audit(ctx, actor, action, "the gate", outcome); aerr != nil {
-		m.log.Error("recording the outcome", "action", action, "err", aerr)
-	}
-	if err != nil {
 		return struct{}{}, errGateControl
 	}
 	return struct{}{}, nil
@@ -376,8 +373,8 @@ func (m *sysModule) monitorVerbs() []module.Verb {
 		module.Handle(module.Contract{Verb: "sys.metrics", Since: 1,
 			Result: "{uptime, goroutines, heap_bytes, runtime_bytes, https_requests, http_requests, routes, gate: {running, pid, memory_bytes}, host: {load, mem_total, mem_available, disk_total, disk_free}}",
 			Doc:    "The core's memory and goroutines; the gate's request counts since it started, its process and its memory, as it last reported them (running is false when it has stopped reporting); and the host's load, memory and the disk the store is on."}, m.metrics),
-		module.Handle(module.Contract{Verb: "sys.audit.list", Since: 1, Param: "{limit?}", Result: "[{id, at, actor, action, subject, detail}]",
-			Doc: "The newest audit entries, newest first: 200 unless limit says, 1000 at most."}, m.auditLog),
+		module.Handle(module.Contract{Verb: "sys.audit.list", Since: 1, Param: "{limit?}", Result: "[{id, at, actor, action, subject, detail, outcome}]",
+			Doc: "The newest audit entries, newest first: 200 unless limit says, 1000 at most. outcome is set on a privileged action's entry: attempt until it ends, then ok or the error's name."}, m.auditLog),
 		module.Handle(module.Contract{Verb: "sys.logins", Since: 1, Param: "{limit?}", Result: "{attempts: [{at, source, user, from, result, detail}], ssh_note}",
 			Doc: "Login attempts, newest first: to the panel, from the audit log, and to the host over SSH, from the journal. ssh_note says why when the journal could not be read."}, m.logins),
 		module.Handle(module.Contract{Verb: "sys.ports", Since: 1, Result: "[{proto, address, port, process, pid, user, use}]",
@@ -386,9 +383,9 @@ func (m *sysModule) monitorVerbs() []module.Verb {
 			Doc: "The panel's preferences; an empty one was never chosen."}, m.prefs),
 		module.Handle(module.Contract{Verb: "sys.prefs.set", Since: 1, Param: "{theme?, language?}", Result: "{theme, language}", Mutates: true,
 			Doc: "Keeps the panel's theme or language; a field left out is unchanged."}, m.setPrefs),
-		module.Handle(module.Contract{Verb: "sys.gate.restart", Since: 2, Mutates: true,
+		module.Handle(module.Contract{Verb: "sys.gate.restart", Since: 2, Mutates: true, Privileged: true,
 			Doc: "Restarts the gate process: the two listeners close and open again. Audited before it takes effect."}, m.gateRestart),
-		module.Handle(module.Contract{Verb: "sys.gate.stop", Since: 2, Mutates: true,
+		module.Handle(module.Contract{Verb: "sys.gate.stop", Since: 2, Mutates: true, Privileged: true,
 			Doc: "Stops the gate process: nothing is served until sys.gate.restart, or the core's next start. Audited before it takes effect."}, m.gateStop),
 	}
 }

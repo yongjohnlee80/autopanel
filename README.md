@@ -159,6 +159,73 @@ detach it yourself (`nohup`, `tmux`).
 What is typed in a shell is not in AutoPanel's audit log. The shells are ordinary processes of
 the panel, and the daemon neither starts nor sees them.
 
+### Deploy a service
+
+AutoPanel can run a service for you from a template. The first template is a TURN relay
+([coturn](https://github.com/coturn/coturn)). The panel has no form for it yet; a service is
+deployed from the command line:
+
+```sh
+sudo autopanel --call services.templates                 # what can be deployed, and each one's options
+sudo autopanel --call services.deploy '{"template":"turn","options":{"realm":"turn.example.com"}}'
+sudo autopanel --call services.list                      # each service, and whether it is running
+sudo autopanel --call services.logs '{"name":"turn"}'
+```
+
+Deploying needs **Podman 4.4 or newer** on the server (`apt install podman`; Debian 12's is too
+old). AutoPanel does not install it. Without it the panel and the gate work as before, and
+`services.deploy` says what is missing.
+
+A new service is `activating` in `services.list` while its image is pulled, then `active`.
+
+What a deploy does, in order:
+
+1. Creates a system user for the service, `ap-<name>`, with no login shell, and a directory only
+   that user can open: `/var/lib/autopanel-services/<name>`.
+2. Generates the service's secret and seals it in AutoPanel's store.
+3. Writes the service's configuration and a Podman unit file into that directory.
+4. Starts the service as a systemd unit of that user, under rootless Podman.
+
+Every service runs with a read-only root filesystem, no capability, no way to gain one, and a
+memory limit. Its image is pinned by digest in AutoPanel's code: no command takes an image, a
+command line or a path.
+
+| Command | What it does |
+| --- | --- |
+| `services.update '{"name":"turn","options":{…}}'` | changes the options and restarts the service; the secret is kept |
+| `services.stop`, `services.start`, `services.restart` `'{"name":"turn"}'` | the unit |
+| `services.secret '{"name":"turn","key":"auth-secret"}'` | prints a generated secret |
+| `services.remove '{"name":"turn"}'` | stops the service and deletes its user and its secret; the directory is kept, as root's |
+| `services.remove '{"name":"turn","purge":true}'` | also deletes the directory |
+
+Each of these is written to the audit log **before** it runs, with how it ended once it has. If
+the entry cannot be written, the command is refused and nothing is done. **System → Audit log**
+shows them.
+
+#### The TURN relay
+
+| Option | Default | What it is |
+| --- | --- | --- |
+| `realm` | none: required | the relay's name, such as `turn.example.com` |
+| `port` | `3478` | where it listens, on UDP and TCP |
+| `relay_ports` | `49152-49999` | the UDP ports it relays on |
+
+Open the port and the relay range in your firewall. A service's user cannot bind a port below
+1024, so no option takes one.
+
+The relay authenticates with a shared secret (coturn's `use-auth-secret`): your application
+makes short-lived TURN credentials from it, and the relay keeps no list of users. Read the secret
+with `services.secret` and give it to the application.
+
+The relay refuses to relay to this server itself and to private and link-local addresses, so it
+cannot be used to reach what the server can and the internet cannot.
+
+The relay uses the host's network, not a network of its own. A relay hands out hundreds of UDP
+ports, and passing each through a rootless container's port forwarder costs more than the
+separation is worth for a relay. Its other limits are those of every service.
+
+TURN over TLS is not offered yet.
+
 ### Themes and languages
 
 **System → Theme** offers ten themes, and **System → Language** six languages: English, Korean,
@@ -217,6 +284,9 @@ sudo autopanel-uninstall --check     # lists what a removal would take; changes 
 sudo autopanel-uninstall --apply     # removes the services and the binary; keeps data, config and keys
 sudo autopanel-uninstall --purge     # removes everything, after backing the store up
 ```
+
+A deployed service is stopped by `--apply`, and its user and directory are deleted by `--purge`.
+`--keep-services` leaves the deployed services running, with their users and directories.
 
 ## Planned first features
 

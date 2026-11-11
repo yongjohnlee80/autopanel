@@ -35,6 +35,14 @@ type Contract struct {
 	// Login marks the verb whose success authenticates the connection as the
 	// user its result names ({"user": …}).
 	Login bool `json:"login,omitempty"`
+	// Privileged marks a verb that changes the host, not only the store: it
+	// starts, stops or installs something. Its host writes the audit entry
+	// before the verb runs, refuses the verb when the entry can't be written,
+	// and records the outcome on the entry afterwards.
+	Privileged bool `json:"privileged,omitempty"`
+	// Right names what a caller must be allowed to do: "services.deploy". It is
+	// data for now: root is the only user, and holds every right.
+	Right string `json:"right,omitempty"`
 }
 
 // Verb is a Contract and its handler. A verb takes zero or one param, an object.
@@ -57,6 +65,14 @@ type PublicError struct {
 	Code    int64  `json:"code"`
 	Name    string `json:"name"`
 	Message string `json:"message"`
+}
+
+// Detailed is a declared error that says more than its fixed message: which
+// option was refused, and why. What it adds must be safe to show a client: a
+// name the module chose, or the caller's own input, bounded.
+type Detailed interface {
+	error
+	PublicDetail() string
 }
 
 // ErrInvalidParams is a call whose params don't fit the verb's contract.

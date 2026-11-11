@@ -31,6 +31,7 @@ type Config struct {
 	CA         string // the ACME directory URL
 	Email      string // the ACME account contact
 	Keyfile    string // the service keyslot's keyfile, outside the state directory
+	Services   string // the directory that holds each deployed service's own directory
 	Trusted    []netip.Prefix
 }
 
@@ -41,6 +42,9 @@ const (
 	systemRuntime = "/run/autopanel-core" // the control socket: root's alone
 	systemLink    = "/run/autopanel-link" // the link socket: root's, and the gate's group may enter
 	systemKeyfile = "/etc/autopanel/keyslot/service.key"
+	// Each deployed service's directory, the home of that service's user. It
+	// is beside the core's state, not inside it: the state is root's alone.
+	systemServices = "/var/lib/autopanel-services"
 )
 
 // linkSocket is where the link socket is: what AUTOPANEL_LINK_SOCKET says,
@@ -115,6 +119,7 @@ func LoadConfig() (Config, error) {
 		HTTPSAddr:  env("AUTOPANEL_HTTPS_ADDR", "127.0.0.1:8443"),
 		Email:      os.Getenv("AUTOPANEL_ACME_EMAIL"),
 		Keyfile:    os.Getenv("AUTOPANEL_KEYFILE"),
+		Services:   env("AUTOPANEL_SERVICES_DIR", systemServices),
 	}
 	if c.GateUser == "" && os.Getuid() == 0 {
 		c.GateUser = "autopanel" // the units: a root core, and the gate as the user install.sh made

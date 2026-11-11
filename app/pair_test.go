@@ -19,6 +19,7 @@ import (
 	"github.com/yongjohnlee80/golib/server/rpc"
 
 	"github.com/yongjohnlee80/autopanel/core/gate"
+	"github.com/yongjohnlee80/autopanel/core/services"
 	hostcontrol "github.com/yongjohnlee80/autopanel/host/control"
 	hostgate "github.com/yongjohnlee80/autopanel/host/gate"
 	"github.com/yongjohnlee80/autopanel/internal/auth"
@@ -301,9 +302,9 @@ func TestTheCoreAndTheGateEndToEnd(t *testing.T) {
 	if _, restarts, stops := gc.counts(); restarts != 1 || stops != 0 {
 		t.Fatalf("after sys.gate.restart the gate saw %d restarts, %d stops", restarts, stops)
 	}
-	if err := c.Call(ctx, "sys.audit.list", Limit{Limit: 2}, &entries); err != nil || len(entries) != 2 ||
-		entries[0].Action != "gate.restart" || entries[0].Detail != "ok" || entries[1].Action != "gate.restart" || entries[1].Detail != "attempt" {
-		t.Fatalf("the restart's audit entries = %+v, %v; want the attempt, then ok", entries, err)
+	if err := c.Call(ctx, "sys.audit.list", Limit{Limit: 1}, &entries); err != nil || len(entries) != 1 ||
+		entries[0].Action != "sys.gate.restart" || entries[0].Outcome != "ok" || !strings.HasPrefix(entries[0].Actor, "root") {
+		t.Fatalf("the restart's audit entry = %+v, %v; want one entry, by root, with the outcome ok", entries, err)
 	}
 	gc.mu.Lock()
 	gc.fail = errors.New("the unit is masked")
@@ -311,7 +312,7 @@ func TestTheCoreAndTheGateEndToEnd(t *testing.T) {
 	if err := c.Call(ctx, "sys.gate.stop", nil, nil); wireCode(err) != -32183 || strings.Contains(err.Error(), "masked") {
 		t.Fatalf("a failed sys.gate.stop = %v; want sys.gate_control_failed, without the host's detail", err)
 	}
-	if err := c.Call(ctx, "sys.audit.list", Limit{Limit: 1}, &entries); err != nil || entries[0].Action != "gate.stop" || entries[0].Detail != "failed" {
+	if err := c.Call(ctx, "sys.audit.list", Limit{Limit: 1}, &entries); err != nil || entries[0].Action != "sys.gate.stop" || entries[0].Outcome != "sys.gate_control_failed" {
 		t.Fatalf("the failed stop's audit entry = %+v, %v", entries, err)
 	}
 	if _, err := (&sysModule{}).gateStop(ctx, struct{}{}); !errors.Is(err, errNoGateControl) {
@@ -400,5 +401,215 @@ func TestTheCoreAndTheGateEndToEnd(t *testing.T) {
 		case <-time.After(15 * time.Second):
 			t.Fatalf("%s did not stop", name)
 		}
+	}
+}
+
+// machine is a services.Host that makes no user and starts no unit.
+type machine struct {
+	mu      sync.Mutex
+	podman  [2]int
+	units   map[string]services.Unit
+	running map[string]bool
+}
+
+func (h *machine) Podman(context.Context) (int, int, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.podman == [2]int{} {
+		return 0, 0, services.ErrNoPodman
+	}
+	return h.podman[0], h.podman[1], nil
+}
+
+func (h *machine) Install(_ context.Context, u services.Unit) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.units[u.Name] = u
+	return nil
+}
+
+func (h *machine) set(name string, on bool) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.running[name] = on
+	return nil
+}
+
+func (h *machine) Start(_ context.Context, n string) error   { return h.set(n, true) }
+func (h *machine) Restart(_ context.Context, n string) error { return h.set(n, true) }
+func (h *machine) Stop(_ context.Context, n string) error    { return h.set(n, false) }
+
+func (h *machine) Uninstall(_ context.Context, n string, _ bool) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	delete(h.units, n)
+	delete(h.running, n)
+	return nil
+}
+
+func (h *machine) Running(_ context.Context, n string) (services.Running, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.running[n] {
+		return services.Running{Active: "active", Sub: "running", MemoryBytes: 1 << 20}, nil
+	}
+	return services.Running{Active: "absent"}, nil
+}
+
+func (h *machine) Logs(context.Context, string, int) ([]string, error) {
+	return []string{"turn: listening"}, nil
+}
+
+// TestServicesThroughTheControlSocket deploys a TURN relay as the panel
+// would: every changing verb leaves its audit entry first, a refusal names
+// its cause, the generated secret is sealed in the store, and Open ports
+// names the service's sockets by its name.
+func TestServicesThroughTheControlSocket(t *testing.T) {
+	defer func(l func(context.Context) ([]sysinfo.Listener, error), u func(int) string, h func(Config) services.Host) {
+		readListeners, userName, serviceHost = l, u, h
+	}(readListeners, userName, serviceHost)
+	readListeners = func(context.Context) ([]sysinfo.Listener, error) {
+		return []sysinfo.Listener{
+			{Proto: "udp", Address: "0.0.0.0", Port: 3478, UID: 990, Process: "turnserver", PID: 77},
+			{Proto: "udp", Address: "0.0.0.0", Port: 3479, UID: 991, Process: "turnserver", PID: 78},
+		}, nil
+	}
+	userName = func(uid int) string { return map[int]string{990: "ap-turn", 991: "ap-other"}[uid] }
+	host := &machine{units: map[string]services.Unit{}, running: map[string]bool{}}
+	serviceHost = func(Config) services.Host { return host }
+
+	cfg := testConfig(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if err := Init(ctx, cfg, "root", strings.NewReader("a long master passphrase\n")); err != nil {
+		t.Fatal(err)
+	}
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	done := make(chan error, 1)
+	go func() { done <- CoreContext(ctx, cfg, log, nil) }()
+	coreUp(t, cfg, done)
+	c, err := hostcontrol.Dial(ctx, cfg.Socket)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	opts := map[string]string{"realm": "turn.example.com"}
+	if err := c.Call(ctx, "services.deploy", services.Deploy{Template: "turn", Options: opts}, nil); wireCode(err) != rpc.CodeAccessDenied {
+		t.Fatalf("a deploy before login = %v", err)
+	}
+	if err := c.Call(ctx, "auth.login", auth.Login{User: "root", Passphrase: "a long master passphrase"}, nil); err != nil {
+		t.Fatal(err)
+	}
+	var entries []store.AuditEntry
+	newest := func() store.AuditEntry {
+		t.Helper()
+		// A verb's own writes (a sealed secret) leave entries after its
+		// attempt's: the newest entry with an outcome is the verb's.
+		if err := c.Call(ctx, "sys.audit.list", Limit{Limit: 6}, &entries); err != nil {
+			t.Fatalf("sys.audit.list = %+v, %v", entries, err)
+		}
+		for _, e := range entries {
+			if e.Outcome != "" {
+				return e
+			}
+		}
+		t.Fatalf("no privileged entry among %+v", entries)
+		return store.AuditEntry{}
+	}
+
+	// No Podman: the deploy is refused, saying so, and the reads still answer.
+	if err := c.Call(ctx, "services.deploy", services.Deploy{Template: "turn", Options: opts}, nil); wireCode(err) != -32196 {
+		t.Fatalf("a deploy with no Podman = %v; want services.no_podman", err)
+	}
+	if e := newest(); e.Action != "services.deploy" || e.Subject != `template "turn"` || e.Outcome != "services.no_podman" || !strings.HasPrefix(e.Actor, "root") {
+		t.Fatalf("the refused deploy's entry = %+v", e)
+	}
+	var ts []services.TemplateView
+	if err := c.Call(ctx, "services.templates", nil, &ts); err != nil || len(ts) != 1 || ts[0].Name != "turn" {
+		t.Fatalf("services.templates = %+v, %v", ts, err)
+	}
+	var list []services.View
+	if err := c.Call(ctx, "services.list", nil, &list); err != nil || len(list) != 0 {
+		t.Fatalf("services.list = %+v, %v", list, err)
+	}
+
+	host.mu.Lock()
+	host.podman = [2]int{4, 4}
+	host.mu.Unlock()
+	if err := c.Call(ctx, "services.deploy", services.Deploy{Template: "turn", Options: map[string]string{"realm": "turn.example.com", "port": "80"}}, nil); wireCode(err) != -32194 ||
+		!strings.Contains(err.Error(), "port: a port is a number from 1024 to 65535") {
+		t.Fatalf("a deploy with a refused option = %v; want services.bad_option naming the port", err)
+	}
+	var v services.View
+	if err := c.Call(ctx, "services.deploy", services.Deploy{Template: "turn", Options: opts}, &v); err != nil {
+		t.Fatal(err)
+	}
+	if v.Name != "turn" || v.User != "ap-turn" || v.State != services.Deployed || v.Active != "active" {
+		t.Fatalf("the deployed service = %+v", v)
+	}
+	if e := newest(); e.Action != "services.deploy" || e.Outcome != "ok" {
+		t.Fatalf("the deploy's entry = %+v", e)
+	}
+	var secret services.SecretValue
+	if err := c.Call(ctx, "services.secret", services.SecretAsk{Name: "turn", Key: "auth-secret"}, &secret); err != nil || len(secret.Value) != 64 {
+		t.Fatalf("services.secret = %q, %v", secret.Value, err)
+	}
+	if e := newest(); e.Action != "services.secret" || e.Subject != `name "turn"` || e.Outcome != "ok" || strings.Contains(e.Detail+e.Subject, secret.Value) {
+		t.Fatalf("revealing the secret left the entry %+v", e)
+	}
+	host.mu.Lock()
+	conf := ""
+	for _, f := range host.units["turn"].Files {
+		if f.Path == "config/turnserver.conf" {
+			conf = string(f.Body)
+		}
+	}
+	host.mu.Unlock()
+	if !strings.Contains(conf, "static-auth-secret="+secret.Value+"\n") {
+		t.Fatal("the relay's configuration does not carry the secret the store holds")
+	}
+	// The secret is sealed: the store's file does not hold it in the clear.
+	for _, name := range []string{"autopanel.db", "autopanel.db-wal"} {
+		if b, err := os.ReadFile(filepath.Join(cfg.StateDir, name)); err == nil && strings.Contains(string(b), secret.Value) {
+			t.Fatalf("%s holds the secret in the clear", name)
+		}
+	}
+
+	// A service's sockets are named by its service; another user's are not.
+	var ports []Port
+	if err := c.Call(ctx, "sys.ports", nil, &ports); err != nil || len(ports) != 2 {
+		t.Fatalf("sys.ports = %+v, %v", ports, err)
+	}
+	if ports[0].Use != "service turn" || ports[0].User != "ap-turn" || ports[1].Use != "" {
+		t.Fatalf("the ports = %+v; want the first named as the service turn", ports)
+	}
+	var logs services.Logs
+	if err := c.Call(ctx, "services.logs", services.LogsAsk{Name: "turn"}, &logs); err != nil || len(logs.Lines) != 1 {
+		t.Fatalf("services.logs = %+v, %v", logs, err)
+	}
+	if err := c.Call(ctx, "services.logs", services.LogsAsk{Name: "../turn"}, &logs); wireCode(err) != -32193 {
+		t.Fatalf("logs of a name that is none = %v; want services.bad_name", err)
+	}
+	if err := c.Call(ctx, "services.remove", services.Remove{Name: "turn", Purge: true}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if e := newest(); e.Action != "services.remove" || e.Outcome != "ok" {
+		t.Fatalf("the removal's entry = %+v", e)
+	}
+	if err := c.Call(ctx, "services.list", nil, &list); err != nil || len(list) != 0 {
+		t.Fatalf("services.list after the removal = %+v, %v", list, err)
+	}
+	if err := c.Call(ctx, "services.secret", services.SecretAsk{Name: "turn", Key: "auth-secret"}, &secret); wireCode(err) != -32191 {
+		t.Fatalf("a removed service's secret = %v; want services.not_found", err)
+	}
+
+	cancel()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("the core stopped with %v", err)
+		}
+	case <-time.After(15 * time.Second):
+		t.Fatal("the core did not stop")
 	}
 }

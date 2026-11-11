@@ -72,6 +72,9 @@ type AuditEntry struct {
 	Action  string `json:"action"`
 	Subject string `json:"subject"`
 	Detail  string `json:"detail"`
+	// Outcome is set on a privileged action's entry: "attempt" until it
+	// ends, then "ok" or the error's name.
+	Outcome string `json:"outcome"`
 }
 
 // LoginAttempt is one row of sys.logins.

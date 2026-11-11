@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"errors"
 
 	"github.com/yongjohnlee80/golib/dao"
 
@@ -48,14 +49,17 @@ type AuditEntry struct {
 	Action  string `json:"action"`
 	Subject string `json:"subject"`
 	Detail  string `json:"detail"`
+	// Outcome is set on a privileged action's entry: "attempt" until the
+	// action ends, then "ok" or the error's name. Empty on every other entry.
+	Outcome string `json:"outcome"`
 }
 
 // AuditLog reads the newest audit entries, newest first, at most limit. With
 // an action, only that action's entries.
 func (s *Store) AuditLog(ctx context.Context, action string, limit int) ([]AuditEntry, error) {
-	stmt, args := "SELECT id, at, actor, action, subject, detail FROM audit ORDER BY id DESC LIMIT ?", []any{limit}
+	stmt, args := "SELECT id, at, actor, action, subject, detail, outcome FROM audit ORDER BY id DESC LIMIT ?", []any{limit}
 	if action != "" {
-		stmt, args = "SELECT id, at, actor, action, subject, detail FROM audit WHERE action = ? ORDER BY id DESC LIMIT ?", []any{action, limit}
+		stmt, args = "SELECT id, at, actor, action, subject, detail, outcome FROM audit WHERE action = ? ORDER BY id DESC LIMIT ?", []any{action, limit}
 	}
 	rows, err := s.conn.QueryContext(ctx, s.q(stmt), args...)
 	if err != nil {
@@ -65,10 +69,38 @@ func (s *Store) AuditLog(ctx context.Context, action string, limit int) ([]Audit
 	out := []AuditEntry{}
 	for rows.Next() {
 		var e AuditEntry
-		if err := rows.Scan(&e.ID, &e.At, &e.Actor, &e.Action, &e.Subject, &e.Detail); err != nil {
+		if err := rows.Scan(&e.ID, &e.At, &e.Actor, &e.Action, &e.Subject, &e.Detail, &e.Outcome); err != nil {
 			return nil, err
 		}
 		out = append(out, e)
 	}
 	return out, rows.Err()
+}
+
+// AuditAttempt writes the entry of a privileged action before the action
+// runs, with the outcome "attempt", and answers the entry's id.
+func (s *Store) AuditAttempt(ctx context.Context, actor, action, subject string) (int64, error) {
+	rows, err := s.conn.QueryContext(ctx, s.q("INSERT INTO audit(at, actor, action, subject, outcome) VALUES (?, ?, ?, ?, 'attempt') RETURNING id"),
+		s.now().Unix(), actor, action, subject)
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return 0, err
+		}
+		return 0, errors.New("store: the audit entry was not written")
+	}
+	var id int64
+	if err := rows.Scan(&id); err != nil {
+		return 0, err
+	}
+	return id, rows.Close()
+}
+
+// AuditResult sets the outcome of the privileged action whose entry is id.
+func (s *Store) AuditResult(ctx context.Context, id int64, outcome string) error {
+	_, err := s.conn.ExecContext(ctx, s.q("UPDATE audit SET outcome = ? WHERE id = ?"), outcome, id)
+	return err
 }
