@@ -175,7 +175,7 @@ ask_ca() {
     printf "                 so a mistake costs nothing.\n"
     printf "  2) production  Real certificates, trusted by browsers. Its limits are strict:\n"
     printf "                 a name that keeps failing is refused for an hour or more.\n\n"
-    printf "You can change it later in %s.\n" "$ENV_FILE"
+    printf "You can change it later in the panel: Certs, then Type.\n"
   } >/dev/tty
   tries=0
   while [ "$tries" -lt 3 ]; do
@@ -431,15 +431,18 @@ fi
 say ""
 say "Done. Next:"
 info "point a name's DNS at this host, then:  sudo -u $SVC_USER autopanel --ui"
-info "log in as $ROOT_USER with the master passphrase; add a route with 'a'"
+info "log in as $ROOT_USER with the master passphrase; add a route in Routes, then Proxy routes"
+# The env file holds the service a new install starts with. A choice made in
+# the panel (Certs -> Type) is kept in the store and replaces it, so the lines
+# say "starts with", which stays true on an upgrade.
 case "$(sed -n 's/^AUTOPANEL_ACME_CA=//p' "$ENV_FILE" 2>/dev/null)" in
   staging)
-    info "certificates come from Let's Encrypt STAGING: browsers will not trust them (test with curl -k)"
-    info "when the site answers, switch to real certificates:"
-    info "  sudo sed -i 's/^AUTOPANEL_ACME_CA=.*/AUTOPANEL_ACME_CA=production/' $ENV_FILE && sudo systemctl restart autopanel"
+    info "certificates start with Let's Encrypt STAGING: browsers will not trust them (test with curl -k)"
+    info "when the site answers, switch to real certificates in the panel: Certs, then Type, then Production"
     ;;
-  production) info "certificates come from Let's Encrypt production: real, trusted certificates" ;;
-  *) info "certificates come from the directory AUTOPANEL_ACME_CA names in $ENV_FILE" ;;
+  production) info "certificates start with Let's Encrypt production: real, trusted certificates" ;;
+  *) info "certificates start with the directory AUTOPANEL_ACME_CA names in $ENV_FILE" ;;
 esac
+info "the panel's Certs menu shows the service in use, and changes it"
 info "behind Cloudflare's proxy: sudo -u $SVC_USER autopanel --call certs.cloudflare.set '{\"token\":\"…\"}'"
 info "remove: sudo autopanel-uninstall --check"

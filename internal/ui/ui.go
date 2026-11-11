@@ -1,7 +1,10 @@
-// Package ui is AutoPanel's admin TUI: the proxy routes in a table, with a
-// form to add or edit one and a confirmation to remove one, over a Client
-// that talks to the daemon. The panel keeps no state of its own: every change
-// goes through the Client, and the routes and status are read again after it.
+// Package ui is AutoPanel's admin TUI: a menu bar over an overview of the
+// running AutoPanel, with a status bar beneath. The menus open the panel's
+// parts: the proxy routes in a manager, with a form to add or edit one and a
+// confirmation to remove one; the certificate service; About. All of it is
+// over a Client that talks to the daemon. The panel keeps no state of its
+// own: every change goes through the Client, and the routes and status are
+// read again after it.
 package ui
 
 import (
@@ -38,14 +41,18 @@ type Client interface {
 	Add(ctx context.Context, s gate.RouteSpec) error
 	Update(ctx context.Context, s gate.RouteSpec) error
 	Remove(ctx context.Context, id int64) error
+	// SetCA chooses the certificate service: "staging" or "production".
+	SetCA(ctx context.Context, ca string) error
 }
 
-// Run shows the TUI until the user quits or ctx ends.
+// Run shows the TUI until the user quits or ctx ends. version is the panel's
+// own, for About; the daemon reports its own in the status.
 //
-// The screen is QML (qml/Main.qml and qml/dialogs): this package builds no
-// widget. It publishes the routes and the status as the App singleton's
-// sources and runs the commands the document invokes (commands.go).
-func Run(ctx context.Context, c Client) error {
+// The screen is QML (qml/Main.qml, qml/dialogs and qml/views): this package
+// builds no widget. It publishes the routes and the status as the App
+// singleton's sources and runs the commands the document invokes
+// (commands.go).
+func Run(ctx context.Context, c Client, version string) error {
 	if c == nil {
 		return errors.New("ui: nil client")
 	}
@@ -55,7 +62,7 @@ func Run(ctx context.Context, c Client) error {
 	}
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	h := newHost(ctx, c)
+	h := newHost(ctx, c, version)
 	// Handler errors go to the status bar as they happen, rather than being
 	// kept until the panel closes.
 	p, err := tuidecl.NewProgram(h.options(func(err error) { h.say("error: " + err.Error()) }, tui.WithBackend(backend))...)
@@ -80,16 +87,51 @@ func shortCA(ca string) string {
 	return ca
 }
 
+// orDash is v, or "-" for nothing to show.
+func orDash(v string) string {
+	if strings.TrimSpace(v) == "" {
+		return "-"
+	}
+	return v
+}
+
 // statusLine is the status bar's summary of s.
 func statusLine(s Status) string {
-	or := func(v string) string {
-		if v == "" {
-			return "-"
-		}
-		return v
+	return fmt.Sprintf("%s · CA %s · %d routes · up %s", orDash(s.Version), shortCA(s.CA), s.Routes, orDash(s.Uptime))
+}
+
+// caNote says what a certificate service's certificates are good for, for the
+// overview.
+func caNote(ca string) string {
+	switch strings.TrimSpace(ca) {
+	case certmagic.LetsEncryptStagingCA:
+		return "Let's Encrypt staging: test certificates, which browsers do not trust. Switch in Certs → Type."
+	case certmagic.LetsEncryptProductionCA:
+		return "Let's Encrypt production: real certificates, trusted by browsers."
+	case "":
+		return "-"
 	}
-	return fmt.Sprintf("%s · https %s · http %s · store %s · CA %s · %s · %d routes · up %s",
-		or(s.Version), or(s.HTTPS), or(s.HTTP), or(s.Store), shortCA(s.CA), or(s.Challenge), s.Routes, or(s.Uptime))
+	return ca
+}
+
+// overview is the main screen's text: the running AutoPanel, a line per fact.
+func overview(s Status) string {
+	rows := [][2]string{
+		{"Version", orDash(s.Version)},
+		{"HTTPS", orDash(s.HTTPS)},
+		{"HTTP", orDash(s.HTTP) + " (certificate checks, and the redirect to HTTPS)"},
+		{"Store", orDash(s.Store)},
+		{"Certificates", caNote(s.CA)},
+		{"Challenge", orDash(s.Challenge)},
+		{"Routes", strconv.Itoa(s.Routes)},
+		{"Uptime", orDash(s.Uptime)},
+	}
+	var b strings.Builder
+	for _, r := range rows {
+		fmt.Fprintf(&b, "%-14s%s\n", r[0], r[1])
+	}
+	b.WriteString("\nMenus: Alt and the menu's letter, or F10. r refreshes, q quits.")
+	return b.String()
 }
 
 // formSpec is the route the form's fields describe: trimmed, with "/" for an
