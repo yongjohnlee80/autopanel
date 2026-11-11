@@ -149,7 +149,7 @@ func engines(t *testing.T) map[string]*Store {
 			t.Fatal(err)
 		}
 		clear := func() {
-			for _, table := range []string{"route", "audit", "cert_blob", "store_lease", "secret", "keyslot", "app_user"} {
+			for _, table := range []string{"route", "audit", "cert_blob", "store_lease", "secret", "keyslot", "app_user", "setting"} {
 				_, _ = p.conn.ExecContext(ctx, "DELETE FROM "+table)
 			}
 		}
@@ -295,6 +295,35 @@ func TestBlobsKeepCertMagicsFileSemantics(t *testing.T) {
 			}
 			if err := b.Delete(ctx, "certs/ca/missing"); err != nil {
 				t.Errorf("Delete of a missing key = %v; want nil", err)
+			}
+		})
+	}
+}
+
+// TestSettingsAreKeptWithTheirAuditEntry: a setting never made reads as
+// absent, one made reads back, and a second write replaces it. Each write has
+// its audit entry.
+func TestSettingsAreKeptWithTheirAuditEntry(t *testing.T) {
+	for engine, s := range engines(t) {
+		t.Run(engine, func(t *testing.T) {
+			ctx := audit.WithActor(context.Background(), "root")
+			if v, ok, err := s.Setting(ctx, "acme.ca"); err != nil || ok || v != "" {
+				t.Fatalf("a setting never made = %q, %v, %v; want absent", v, ok, err)
+			}
+			before := count(t, s, "audit")
+			for _, want := range []string{"production", "staging"} {
+				if err := s.PutSetting(ctx, "acme.ca", want); err != nil {
+					t.Fatal(err)
+				}
+				if v, ok, err := s.Setting(ctx, "acme.ca"); err != nil || !ok || v != want {
+					t.Fatalf("Setting = %q, %v, %v; want %q", v, ok, err, want)
+				}
+			}
+			if n := count(t, s, "setting"); n != 1 {
+				t.Fatalf("setting has %d rows after two writes of one key; want 1", n)
+			}
+			if n := count(t, s, "audit") - before; n != 2 {
+				t.Fatalf("two writes made %d audit entries; want 2", n)
 			}
 		})
 	}

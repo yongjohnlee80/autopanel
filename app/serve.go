@@ -121,7 +121,7 @@ func ServeContext(ctx context.Context, cfg Config, log *slog.Logger) error {
 		httpserver.MaxHeaderBytes(16<<10), httpserver.NotFound(sw.httpChallenge(http.HandlerFunc(toHTTPS)).ServeHTTP))
 
 	gm := gate.NewModule(st.Routes(), reload)
-	sys := &sysModule{cfg: cfg, table: table, engine: st.Engine(), started: time.Now(), challenge: sw.Challenge}
+	sys := &sysModule{cfg: cfg, table: table, engine: st.Engine(), started: time.Now(), challenge: sw.Challenge, ca: sw.CA}
 	am, err := auth.New(st, st, vault, func(ctx context.Context) {
 		if err := sw.rebuild(ctx); err != nil {
 			log.Error("certificates after unlock", "err", err)
@@ -155,7 +155,7 @@ func ServeContext(ctx context.Context, cfg Config, log *slog.Logger) error {
 	run("control", ctl.Run)
 	run("lease", func(ctx context.Context) error { return renewLease(ctx, st, holder) })
 	log.Info("autopanel serving", "https", cfg.HTTPSAddr, "http", cfg.HTTPAddr, "socket", cfg.Socket,
-		"store", st.Engine(), "ca", cfg.CA, "challenge", sw.Challenge(), "routes", len(table.Routes()))
+		"store", st.Engine(), "ca", sw.CA(), "challenge", sw.Challenge(), "routes", len(table.Routes()))
 	<-ctx.Done()
 	wg.Wait()
 	close(errs)

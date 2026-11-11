@@ -16,6 +16,8 @@ import (
 // of this package is reachable from it.
 func (h *host) commands() map[string]decl.HandlerFunc {
 	return map[string]decl.HandlerFunc{
+		"App.openRoutes":      none(func() error { return h.p.Call("routesManager", "open") }),
+		"App.setCA":           oneString("App.setCA", h.setCA),
 		"App.add":             none(h.add),
 		"App.edit":            oneRow("App.edit", h.edit),
 		"App.remove":          oneRow("App.remove", h.remove),
@@ -24,6 +26,36 @@ func (h *host) commands() map[string]decl.HandlerFunc {
 		"App.refresh":         none(func() error { h.refresh(); return nil }),
 		"App.quit":            none(func() error { h.p.Quit(); return nil }),
 	}
+}
+
+// caNames are the certificate services the Certs menu offers, as messages
+// name them.
+var caNames = map[string]string{"staging": "Let's Encrypt staging", "production": "Let's Encrypt production"}
+
+// setCA chooses the certificate service, off the loop, then reads the status
+// again: the Certs menu checks what the daemon reports, so a refused change
+// leaves the old service checked.
+func (h *host) setCA(ca string) error {
+	name, ok := caNames[ca]
+	if !ok {
+		return fmt.Errorf("App.setCA takes staging or production, not %q", ca)
+	}
+	if h.busy {
+		h.say("busy: a change is in flight")
+		h.refresh()
+		return nil
+	}
+	h.busy = true
+	h.background(func(ctx context.Context) error { return h.client.SetCA(ctx, ca) }, func(err error) {
+		h.busy = false
+		if err != nil {
+			h.say("error: " + err.Error())
+		} else {
+			h.say("certificates now come from " + name)
+		}
+		h.refresh()
+	})
+	return nil
 }
 
 // add opens the route form, empty.
@@ -141,6 +173,16 @@ func oneRow(name string, fn func(int) error) decl.HandlerFunc {
 			return fmt.Errorf("%s takes a row number, not %q", name, args[0].Raw)
 		}
 		return fn(int(f))
+	}
+}
+
+// oneString is a command that takes one string.
+func oneString(name string, fn func(string) error) decl.HandlerFunc {
+	return func(args []qml.SpecValue) error {
+		if len(args) != 1 || args[0].Kind != qml.SpecValueString {
+			return fmt.Errorf("%s takes one string", name)
+		}
+		return fn(args[0].Raw)
 	}
 }
 

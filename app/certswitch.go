@@ -9,6 +9,8 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/caddyserver/certmagic"
+
 	"github.com/yongjohnlee80/autopanel/core/gate"
 	"github.com/yongjohnlee80/autopanel/internal/certs"
 	"github.com/yongjohnlee80/autopanel/internal/keyslot"
@@ -18,6 +20,17 @@ import (
 
 // cloudflareSecret names the sealed Cloudflare API token in the store.
 const cloudflareSecret = "cloudflare_api_token"
+
+// caSetting names the panel setting that holds the certificate service chosen
+// in the panel: "staging" or "production". Once set it replaces
+// AUTOPANEL_ACME_CA, which is then only the value a new install starts with.
+const caSetting = "acme.ca"
+
+// caURLs are the certificate services the panel offers, by name.
+var caURLs = map[string]string{
+	"staging":    certmagic.LetsEncryptStagingCA,
+	"production": certmagic.LetsEncryptProductionCA,
+}
 
 // certSwitch holds the live certificate manager. The challenge is a deployment
 // setting (ADR Q9) that changes when the Cloudflare token is set or cleared, or
@@ -33,13 +46,31 @@ type certSwitch struct {
 	mu        sync.Mutex // orders rebuilds
 	cur       atomic.Pointer[certs.Manager]
 	challenge atomic.Value // string, for status
+	ca        atomic.Value // string: the ACME directory in use, for status
+}
+
+// directory is the ACME directory to use: the panel's setting when one was
+// made, the configuration's otherwise.
+func (s *certSwitch) directory(ctx context.Context) (string, error) {
+	name, ok, err := s.st.Setting(ctx, caSetting)
+	if err != nil {
+		return "", err
+	}
+	if url, known := caURLs[name]; ok && known {
+		return url, nil
+	}
+	return s.cfg.CA, nil
 }
 
 // rebuild makes a manager from the store's current state and swaps it in.
 func (s *certSwitch) rebuild(ctx context.Context) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	opts := certs.Options{Blobs: s.st.Blobs(s.vault), Allowed: s.table.Holds, CA: s.cfg.CA, Email: s.cfg.Email}
+	ca, err := s.directory(ctx)
+	if err != nil {
+		return err
+	}
+	opts := certs.Options{Blobs: s.st.Blobs(s.vault), Allowed: s.table.Holds, CA: ca, Email: s.cfg.Email}
 	challenge := "http-01, tls-alpn-01"
 	if !s.vault.Unlocked() {
 		challenge = "locked: log in to unlock"
@@ -60,12 +91,19 @@ func (s *certSwitch) rebuild(ctx context.Context) error {
 		old.Stop()
 	}
 	s.challenge.Store(challenge)
-	s.log.Info("certificates", "challenge", challenge, "ca", s.cfg.CA)
+	s.ca.Store(ca)
+	s.log.Info("certificates", "challenge", challenge, "ca", ca)
 	return nil
 }
 
 func (s *certSwitch) Challenge() string {
 	c, _ := s.challenge.Load().(string)
+	return c
+}
+
+// CA is the ACME directory the current manager uses.
+func (s *certSwitch) CA() string {
+	c, _ := s.ca.Load().(string)
 	return c
 }
 
@@ -86,7 +124,8 @@ func (s *certSwitch) httpChallenge(next http.Handler) http.Handler {
 	})
 }
 
-// certsModule is certs.*: the Cloudflare token, sealed in the store.
+// certsModule is certs.*: the certificate service, and the Cloudflare token
+// sealed in the store.
 type certsModule struct{ sw *certSwitch }
 
 // Token is certs.cloudflare.set's param.
@@ -94,29 +133,57 @@ type Token struct {
 	Token string `json:"token"`
 }
 
+// CA is certs.ca.set's param: "staging" or "production".
+type CA struct {
+	CA string `json:"ca"`
+}
+
 // CertState is what the certs verbs answer.
 type CertState struct {
 	Challenge string `json:"challenge"`
+	CA        string `json:"ca"` // the ACME directory in use
 }
 
-var errEmptyToken = errors.New("certs: the token is empty")
+var (
+	errEmptyToken = errors.New("certs: the token is empty")
+	errUnknownCA  = errors.New("certs: the certificate service is staging or production")
+)
 
 func (m *certsModule) Name() string { return "certs" }
 
 func (m *certsModule) Errors() []module.PublicError {
 	return []module.PublicError{
 		{Err: errEmptyToken, Code: -32170, Name: "certs.empty_token", Message: "the token is empty"},
+		{Err: errUnknownCA, Code: -32172, Name: "certs.unknown_ca", Message: "the certificate service is staging or production"},
 		{Err: keyslot.ErrLocked, Code: -32171, Name: "certs.locked", Message: "the vault is locked; log in as root to unlock it"},
 	}
 }
 
 func (m *certsModule) Verbs() []module.Verb {
 	return []module.Verb{
-		module.Handle(module.Contract{Verb: "certs.cloudflare.set", Since: 1, Param: "{token}", Result: "{challenge}", Mutates: true,
+		module.Handle(module.Contract{Verb: "certs.ca.set", Since: 1, Param: "{ca}", Result: "{challenge, ca}", Mutates: true,
+			Doc: "Chooses the Let's Encrypt service that issues certificates: staging (test certificates) or production (trusted ones). Kept in the store, where it replaces AUTOPANEL_ACME_CA. Takes effect at once."}, m.setCA),
+		module.Handle(module.Contract{Verb: "certs.cloudflare.set", Since: 1, Param: "{token}", Result: "{challenge, ca}", Mutates: true,
 			Doc: "Seals a Cloudflare API token (Zone.DNS:Edit) in the store; every certificate then uses DNS-01. Takes effect at once."}, m.set),
-		module.Handle(module.Contract{Verb: "certs.cloudflare.clear", Since: 1, Result: "{challenge}", Mutates: true,
+		module.Handle(module.Contract{Verb: "certs.cloudflare.clear", Since: 1, Result: "{challenge, ca}", Mutates: true,
 			Doc: "Forgets the Cloudflare token; certificates go back to HTTP-01 and TLS-ALPN-01."}, m.clear),
 	}
+}
+
+// state is what the verbs answer: the manager now serving.
+func (m *certsModule) state() CertState {
+	return CertState{Challenge: m.sw.Challenge(), CA: m.sw.CA()}
+}
+
+func (m *certsModule) setCA(ctx context.Context, p CA) (CertState, error) {
+	if _, ok := caURLs[p.CA]; !ok {
+		return CertState{}, errUnknownCA
+	}
+	if err := m.sw.st.PutSetting(ctx, caSetting, p.CA); err != nil {
+		return CertState{}, err
+	}
+	err := m.sw.rebuild(ctx)
+	return m.state(), err
 }
 
 func (m *certsModule) set(ctx context.Context, p Token) (CertState, error) {
@@ -127,7 +194,7 @@ func (m *certsModule) set(ctx context.Context, p Token) (CertState, error) {
 		return CertState{}, err
 	}
 	err := m.sw.rebuild(ctx)
-	return CertState{Challenge: m.sw.Challenge()}, err
+	return m.state(), err
 }
 
 func (m *certsModule) clear(ctx context.Context, _ struct{}) (CertState, error) {
@@ -135,5 +202,5 @@ func (m *certsModule) clear(ctx context.Context, _ struct{}) (CertState, error) 
 		return CertState{}, err
 	}
 	err := m.sw.rebuild(ctx)
-	return CertState{Challenge: m.sw.Challenge()}, err
+	return m.state(), err
 }

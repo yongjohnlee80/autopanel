@@ -120,6 +120,27 @@ func TestTheDaemonEndToEnd(t *testing.T) {
 		t.Fatalf("certs.cloudflare.clear = %+v, %v", cs, err)
 	}
 
+	// The certificate service is the configuration's until the panel chooses
+	// one; the choice is kept in the store and reported by sys.status.
+	if cs.CA != certmagic.LetsEncryptStagingCA {
+		t.Fatalf("the certificate service starts as %q; want the configuration's staging", cs.CA)
+	}
+	if err := c.Call(ctx, "certs.ca.set", CA{CA: "production"}, &cs); err != nil || cs.CA != certmagic.LetsEncryptProductionCA {
+		t.Fatalf("certs.ca.set production = %+v, %v", cs, err)
+	}
+	if err := c.Call(ctx, "sys.status", nil, &st); err != nil || st.CA != certmagic.LetsEncryptProductionCA {
+		t.Fatalf("status after the switch = %+v, %v", st, err)
+	}
+	if err := c.Call(ctx, "certs.ca.set", CA{CA: "https://ca.example.com/directory"}, &cs); err == nil || !strings.Contains(err.Error(), "staging or production") {
+		t.Fatalf("certs.ca.set took a service that is neither: %+v, %v", cs, err)
+	}
+	if err := c.Call(ctx, "sys.status", nil, &st); err != nil || st.CA != certmagic.LetsEncryptProductionCA {
+		t.Fatalf("a refused switch changed the service: %+v, %v", st, err)
+	}
+	if err := c.Call(ctx, "certs.ca.set", CA{CA: "staging"}, &cs); err != nil || cs.CA != certmagic.LetsEncryptStagingCA {
+		t.Fatalf("certs.ca.set staging = %+v, %v", cs, err)
+	}
+
 	cancel()
 	select {
 	case err := <-done:

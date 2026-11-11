@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/caddyserver/certmagic"
 	"github.com/yongjohnlee80/golib/tui"
 	tuidecl "github.com/yongjohnlee80/golib/tui/decl"
 	"github.com/yongjohnlee80/golib/tui/decl/decltest"
@@ -25,10 +26,13 @@ type fakeClient struct {
 	removed []int64
 	reads   int
 	addErr  error
+	ca      string   // the ACME directory the status reports
+	setCAs  []string // what SetCA was asked for
+	caErr   error
 }
 
 func newFakeClient() *fakeClient {
-	return &fakeClient{nextID: 3, routes: []gate.RouteView{
+	return &fakeClient{nextID: 3, ca: certmagic.LetsEncryptStagingCA, routes: []gate.RouteView{
 		{ID: 1, Host: "app.example.com", PathPrefix: "/", Upstream: "http://127.0.0.1:8080"},
 		{ID: 2, Host: "api.example.com", PathPrefix: "/v1", Upstream: "http://127.0.0.1:9090"},
 	}}
@@ -45,7 +49,7 @@ func (f *fakeClient) Status(context.Context) (Status, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return Status{Version: "v0.1.0", HTTPS: ":443", HTTP: ":80", Store: "sqlite",
-		CA: "https://acme-staging-v02.api.letsencrypt.org/directory", Challenge: "http-01",
+		CA: f.ca, Challenge: "http-01",
 		Routes: len(f.routes), Uptime: "1m0s"}, nil
 }
 
@@ -81,6 +85,17 @@ func (f *fakeClient) Remove(_ context.Context, id int64) error {
 	return nil
 }
 
+func (f *fakeClient) SetCA(_ context.Context, ca string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.setCAs = append(f.setCAs, ca)
+	if f.caErr != nil {
+		return f.caErr
+	}
+	f.ca = map[string]string{"staging": certmagic.LetsEncryptStagingCA, "production": certmagic.LetsEncryptProductionCA}[ca]
+	return nil
+}
+
 func (f *fakeClient) snapshot() (added, updated []gate.RouteSpec, removed []int64, reads int) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -92,7 +107,7 @@ func (f *fakeClient) snapshot() (added, updated []gate.RouteSpec, removed []int6
 // by id so the cursor keeps its route across a refresh.
 func TestRoutesModel(t *testing.T) {
 	routes, _ := newFakeClient().Routes(context.Background())
-	h := newHost(context.Background(), newFakeClient())
+	h := newHost(context.Background(), newFakeClient(), "v0.1.0")
 	h.setRoutes(routes)
 
 	if n := h.model.RowCount(nil); n != 2 {
@@ -142,10 +157,34 @@ func TestShortCA(t *testing.T) {
 func TestStatusLine(t *testing.T) {
 	s, _ := newFakeClient().Status(context.Background())
 	got := statusLine(s)
-	for _, part := range []string{"v0.1.0", "https :443", "http :80", "store sqlite", "CA LE staging", "http-01", "2 routes", "up 1m0s"} {
+	for _, part := range []string{"v0.1.0", "CA LE staging", "2 routes", "up 1m0s"} {
 		if !strings.Contains(got, part) {
 			t.Errorf("statusLine = %q, missing %q", got, part)
 		}
+	}
+}
+
+// TestOverview: the main screen names every fact of the status, and says of
+// staging that browsers do not trust it and where to switch.
+func TestOverview(t *testing.T) {
+	s, _ := newFakeClient().Status(context.Background())
+	line := func(s Status) string {
+		var b strings.Builder
+		for _, f := range overview(s) {
+			b.WriteString(f[0] + "=" + f[1] + "\n")
+		}
+		return b.String()
+	}
+	got := line(s)
+	for _, part := range []string{"Version=v0.1.0\n", "HTTPS=:443\n", "HTTP=:80 ", "Store=sqlite\n",
+		"Certificates=Let's Encrypt staging", "browsers do not trust", "Certs → Type", "Challenge=http-01\n", "Routes=2\n", "Uptime=1m0s\n"} {
+		if !strings.Contains(got, part) {
+			t.Errorf("overview = %q, missing %q", got, part)
+		}
+	}
+	s.CA = certmagic.LetsEncryptProductionCA
+	if got := line(s); !strings.Contains(got, "Let's Encrypt production") || strings.Contains(got, "do not trust") {
+		t.Errorf("overview on production = %q", got)
 	}
 }
 
@@ -174,7 +213,7 @@ func TestFormSpec(t *testing.T) {
 // dialogs, parsed and type-checked against the vocabulary, the App
 // singleton's sources and its commands (decl's Check, as qmllint).
 func TestEveryQMLFileIsSound(t *testing.T) {
-	h := newHost(context.Background(), newFakeClient())
+	h := newHost(context.Background(), newFakeClient(), "v0.1.0")
 	decltest.Check(t, h.options(nil)...)
 }
 
@@ -183,8 +222,19 @@ func start(t *testing.T, c Client) *decltest.Screen {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
-	h := newHost(ctx, c)
+	h := newHost(ctx, c, "v0.1.0")
 	return decltest.RunWith(t, 120, 30, func(p *tuidecl.Program) error { h.attach(p); return nil }, h.options(nil)...)
+}
+
+// openRoutes opens the proxy routes manager through the menu bar, as a user
+// does: Alt+R opens Routes, p is "Proxy routes…".
+func openRoutes(t *testing.T, s *decltest.Screen) {
+	t.Helper()
+	s.WaitForText(t, "CA LE staging") // the first read is in
+	s.Keys(t, decltest.Alt('r'))
+	s.WaitForText(t, "Proxy routes…")
+	s.Keys(t, decltest.Rune('p'))
+	s.WaitForText(t, "api.example.com")
 }
 
 var (
@@ -196,9 +246,23 @@ var (
 func TestShowsRoutesRefreshesAndQuits(t *testing.T) {
 	f := newFakeClient()
 	s := start(t, f)
-	s.WaitForText(t, "api.example.com")
-	s.WaitForText(t, "CA LE staging")
-	s.WaitForText(t, "r refresh")
+	// The menu bar, the overview and the status bar; the routes are not on
+	// the main screen.
+	for _, part := range []string{"Routes", "Certs", "Services", "Users", "System", "Help",
+		"Overview", "Let's Encrypt staging", "CA LE staging", "2 routes", "r refresh"} {
+		s.WaitForText(t, part)
+	}
+	if strings.Contains(s.String(), "api.example.com") {
+		t.Fatalf("the routes are on the main screen:\n%s", s)
+	}
+	openRoutes(t, s)
+	s.Keys(t, decltest.Rune('q')) // closes the manager, not the panel
+	s.WaitFor(t, "the manager to close", func(sc string) bool { return !strings.Contains(sc, "api.example.com") })
+	select {
+	case <-s.Quit():
+		t.Fatalf("q in the manager quit the panel:\n%s", s)
+	default:
+	}
 
 	s.Keys(t, decltest.Rune('r'))
 	s.WaitFor(t, "a second read", func(string) bool { _, _, _, reads := f.snapshot(); return reads >= 2 })
@@ -213,7 +277,7 @@ func TestShowsRoutesRefreshesAndQuits(t *testing.T) {
 
 func TestCtrlCQuits(t *testing.T) {
 	s := start(t, newFakeClient())
-	s.WaitForText(t, "api.example.com")
+	s.WaitForText(t, "CA LE staging")
 	s.Keys(t, decltest.Ctrl('c'))
 	select {
 	case <-s.Quit():
@@ -226,7 +290,7 @@ func TestAddThroughTheForm(t *testing.T) {
 	f := newFakeClient()
 	f.addErr = errors.New("gate: a route for this host and path prefix exists")
 	s := start(t, f)
-	s.WaitForText(t, "api.example.com")
+	openRoutes(t, s)
 
 	s.Keys(t, decltest.Rune('a'))
 	s.WaitForText(t, "Add route")
@@ -267,7 +331,7 @@ func TestAddThroughTheForm(t *testing.T) {
 func TestEditTheSelectedRoute(t *testing.T) {
 	f := newFakeClient()
 	s := start(t, f)
-	s.WaitForText(t, "api.example.com")
+	openRoutes(t, s)
 
 	s.Keys(t, decltest.Rune('j'), enter) // the second row, Enter edits it
 	s.WaitForText(t, "Edit route #2")
@@ -285,7 +349,7 @@ func TestEditTheSelectedRoute(t *testing.T) {
 func TestRemoveAsksFirst(t *testing.T) {
 	f := newFakeClient()
 	s := start(t, f)
-	s.WaitForText(t, "api.example.com")
+	openRoutes(t, s)
 
 	s.Keys(t, decltest.Rune('d'))
 	s.WaitForText(t, "Remove route #1")
@@ -303,4 +367,56 @@ func TestRemoveAsksFirst(t *testing.T) {
 	if _, _, removed, _ := f.snapshot(); len(removed) != 1 || removed[0] != 1 {
 		t.Fatalf("removed = %v, want [1]", removed)
 	}
+}
+
+// TestCertsTypeSwitchesTheService: Certs → Type → Production asks the daemon
+// for production, and the overview and status bar then show what the daemon
+// reports. A switch the daemon refuses says why and leaves the service as it
+// was.
+func TestCertsTypeSwitchesTheService(t *testing.T) {
+	f := newFakeClient()
+	s := start(t, f)
+	s.WaitForText(t, "CA LE staging")
+
+	choose := func(letter rune) {
+		t.Helper()
+		s.Keys(t, decltest.Alt('c'))
+		s.WaitForText(t, "Cloudflare token…")
+		s.Keys(t, decltest.Rune('t'))
+		s.WaitForText(t, "Production (trusted certificates)")
+		s.Keys(t, decltest.Rune(letter))
+	}
+
+	choose('p')
+	s.WaitForText(t, "certificates now come from Let's Encrypt production")
+	s.WaitForText(t, "CA LE production")
+	s.WaitForText(t, "real certificates, trusted by browsers")
+	f.mu.Lock()
+	asked := append([]string(nil), f.setCAs...)
+	f.caErr = errors.New("certs: the vault is locked")
+	f.mu.Unlock()
+	if len(asked) != 1 || asked[0] != "production" {
+		t.Fatalf("SetCA was asked for %v, want [production]", asked)
+	}
+
+	choose('s')
+	s.WaitForText(t, "error: certs: the vault is locked")
+	if !strings.Contains(s.String(), "CA LE production") {
+		t.Fatalf("a refused switch changed what the panel shows:\n%s", s)
+	}
+}
+
+// TestHelpAboutShowsTheVersions: Help → About names the panel's version and
+// the running daemon's.
+func TestHelpAboutShowsTheVersions(t *testing.T) {
+	s := start(t, newFakeClient())
+	s.WaitForText(t, "CA LE staging")
+	s.Keys(t, decltest.Alt('h'))
+	s.WaitForText(t, "About AutoPanel")
+	s.Keys(t, decltest.Rune('a'))
+	for _, part := range []string{"AutoPanel v0.1.0", "Daemon", "v0.1.0 · up 1m0s", "Apache-2.0", "github.com/yongjohnlee80/autopanel"} {
+		s.WaitForText(t, part)
+	}
+	s.Keys(t, escape)
+	s.WaitFor(t, "About to close", func(sc string) bool { return !strings.Contains(sc, "Apache-2.0") })
 }

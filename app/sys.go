@@ -19,6 +19,7 @@ type sysModule struct {
 	engine    string
 	started   time.Time
 	challenge func() string
+	ca        func() string // the ACME directory in use: the panel's choice, or the configuration's
 }
 
 // Status is sys.status's answer.
@@ -43,6 +44,6 @@ func (m *sysModule) Verbs() []module.Verb {
 }
 
 func (m *sysModule) status(context.Context, struct{}) (Status, error) {
-	return Status{Version: Version, HTTPS: m.cfg.HTTPSAddr, HTTP: m.cfg.HTTPAddr, Store: m.engine, CA: m.cfg.CA,
+	return Status{Version: Version, HTTPS: m.cfg.HTTPSAddr, HTTP: m.cfg.HTTPAddr, Store: m.engine, CA: m.ca(),
 		Challenge: m.challenge(), Routes: len(m.table.Routes()), Uptime: time.Since(m.started).Round(time.Second).String()}, nil
 }

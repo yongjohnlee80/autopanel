@@ -36,6 +36,10 @@ func (u uiClient) Remove(ctx context.Context, id int64) error {
 	return u.c.Call(ctx, "gate.route.remove", gate.RouteRef{ID: id}, nil)
 }
 
+func (u uiClient) SetCA(ctx context.Context, ca string) error {
+	return u.c.Call(ctx, "certs.ca.set", CA{CA: ca}, nil)
+}
+
 func init() {
 	runUI = func(stderr io.Writer) int {
 		ctx := context.Background()
@@ -49,7 +53,7 @@ func init() {
 			fmt.Fprintln(stderr, "login:", err)
 			return 1
 		}
-		if err := ui.Run(ctx, uiClient{c}); err != nil {
+		if err := ui.Run(ctx, uiClient{c}, Version); err != nil {
 			fmt.Fprintln(stderr, err)
 			return 1
 		}

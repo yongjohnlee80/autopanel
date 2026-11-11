@@ -4,7 +4,9 @@ import (
 	"context"
 	"embed"
 	"strconv"
+	"strings"
 
+	"github.com/caddyserver/certmagic"
 	"github.com/yongjohnlee80/golib/tui"
 	tuidecl "github.com/yongjohnlee80/golib/tui/decl"
 	"github.com/yongjohnlee80/golib/tui/decl/controls"
@@ -15,9 +17,11 @@ import (
 // THE QML THIS PACKAGE SHIPS, and the modules a document imports it through.
 //
 //	import autopanel 1.0           the App singleton: state and commands   (declared)
-//	import autopanel.dialogs 1.0   RouteDialog, ConfirmDialog              (offered)
+//	import autopanel.dialogs 1.0   RoutesManager, RouteDialog, ConfirmDialog   (offered)
+//	import autopanel.views 1.0     About                                       (offered)
 
-// qmlFiles are the screen (qml/Main.qml) and its dialogs (qml/dialogs/*.qml).
+// qmlFiles are the screen (qml/Main.qml), its dialogs (qml/dialogs/*.qml) and
+// its views (qml/views/*.qml).
 //
 //go:embed qml
 var qmlFiles embed.FS
@@ -33,13 +37,16 @@ const (
 //
 // It holds no state of the daemon's beyond what it last read: the routes the
 // table shows, by row, so a row index from the document names its route.
-// Every change goes through the Client, and the routes are read again after.
+// Every change goes through the Client, and the routes and the status are
+// read again after.
 type host struct {
-	ctx    context.Context // the client calls'; Run's
-	client Client
-	p      *tuidecl.Program
+	ctx     context.Context // the client calls'; Run's
+	client  Client
+	version string // the panel's own version, for About
+	p       *tuidecl.Program
 
 	model  *tuidecl.ListModel // App.routes: the table's rows
+	facts  *tuidecl.ListModel // App.overview: the running AutoPanel, a fact per row
 	routes []gate.RouteView   // the same rows, as the daemon gave them
 
 	editID   int64 // the route the form edits; 0 adds one
@@ -47,8 +54,8 @@ type host struct {
 	busy     bool  // a change is in flight
 }
 
-func newHost(ctx context.Context, c Client) *host {
-	return &host{ctx: ctx, client: c, model: tuidecl.NewListModel("key", "id", "host", "path", "upstream")}
+func newHost(ctx context.Context, c Client, version string) *host {
+	return &host{ctx: ctx, client: c, version: version, facts: tuidecl.NewListModel("key", "name", "value"), model: tuidecl.NewListModel("key", "id", "host", "path", "upstream")}
 }
 
 // options are everything the program is: the modules, the state, the
@@ -59,6 +66,7 @@ func (h *host) options(sink func(error), app ...tui.AppOption) []tuidecl.Program
 	opts := []tuidecl.ProgramOption{
 		tuidecl.Singleton("autopanel", moduleVersion, "App"),
 		tuidecl.Components(qmlFiles, "qml/dialogs", "autopanel.dialogs", moduleVersion),
+		tuidecl.Components(qmlFiles, "qml/views", "autopanel.views", moduleVersion),
 		tuidecl.Types(controls.Types()...), // TextField
 		tuidecl.Layout(qmlFiles, layoutFile),
 		tuidecl.Sources(h.state()),
@@ -85,6 +93,12 @@ func (h *host) state() map[string]any {
 		"App.routes":          h.model,
 		"App.status":          "loading…",
 		"App.message":         "",
+		"App.overview":        h.facts,
+		"App.caStaging":       false,
+		"App.caProduction":    false,
+		"App.aboutHeadline":   "AutoPanel " + orDash(h.version),
+		"App.aboutPanel":      orDash(h.version),
+		"App.aboutDaemon":     "-",
 		"App.formTitle":       "Add route",
 		"App.formHost":        "",
 		"App.formPath":        "/",
@@ -120,11 +134,36 @@ func (h *host) refresh() {
 		} else {
 			h.setRoutes(routes)
 		}
-		line := statusLine(st)
 		if statusErr != nil {
-			line = "status: " + statusErr.Error()
+			_ = h.p.Set("App.status", "status: "+statusErr.Error())
+			return
 		}
-		_ = h.p.Set("App.status", line)
+		h.setStatus(st)
+	})
+}
+
+// setStatus shows the running AutoPanel as st describes it: the status bar's
+// line, the overview's rows, About's daemon line, and which certificate
+// service the Certs menu checks.
+//
+// The two checks go through false first. Choosing a row checks it in the menu
+// at once, before the daemon has answered; when the daemon then refuses, the
+// sources still hold the old values, and setting a source to the value it
+// has repaints nothing. Through false, the menu always ends on what the
+// daemon reports.
+func (h *host) setStatus(st Status) {
+	ca := strings.TrimSpace(st.CA)
+	rows := make([]tuidecl.Row, 0, 8)
+	for _, f := range overview(st) {
+		rows = append(rows, tuidecl.Row{"key": f[0], "name": f[0], "value": f[1]})
+	}
+	h.facts.Reset(rows)
+	_ = h.p.SetMany(map[string]any{"App.caStaging": false, "App.caProduction": false})
+	_ = h.p.SetMany(map[string]any{
+		"App.status":       statusLine(st),
+		"App.aboutDaemon":  orDash(st.Version) + " · up " + orDash(st.Uptime),
+		"App.caStaging":    ca == certmagic.LetsEncryptStagingCA,
+		"App.caProduction": ca == certmagic.LetsEncryptProductionCA,
 	})
 }
 

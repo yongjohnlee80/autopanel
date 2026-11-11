@@ -69,10 +69,20 @@ Open the admin TUI on the server, and log in as `root` with the master passphras
 sudo -u autopanel autopanel --ui
 ```
 
-Press `a` to add a route: the host name (`example.com`), a path prefix (`/`), and the upstream it
-forwards to (`http://127.0.0.1:8080`). `e` edits the selected route, `d` removes it, `r` refreshes
-and `q` quits. AutoPanel gets the certificate for a routed name on its first HTTPS request, and
-redirects plain HTTP to HTTPS.
+The panel has a menu bar: open a menu with Alt and its letter (Alt+R for Routes), or press F10 and
+move with the arrow keys. `r` refreshes and `q` quits.
+
+| Menu | What it holds |
+| --- | --- |
+| Routes | **Proxy routes**: the host names AutoPanel serves and where each one goes |
+| Certs | **Type**: which Let's Encrypt service issues the certificates, staging or production |
+| Services, Users, System | not built yet; their rows are greyed out |
+| Help | **About**: the panel's version and the running service's |
+
+To serve a site, open **Routes → Proxy routes** and press `a` to add a route: the host name
+(`example.com`), a path prefix (`/`), and the upstream it forwards to (`http://127.0.0.1:8080`).
+`e` or Enter edits the selected route, `d` removes it and `q` closes the list. AutoPanel gets the
+certificate for a routed name on its first HTTPS request, and redirects plain HTTP to HTTPS.
 
 ### Staging and production certificates
 
@@ -99,19 +109,20 @@ curl -kI https://example.com
 The certificate's issuer then starts with `(STAGING)`. A browser will refuse the page, and for a
 name under a domain that browsers force to HTTPS (`.app`, `.dev`), it offers no way past the error.
 
-**Switch to production** when the site answers:
+**Switch to production** when the site answers: in the panel, open **Certs → Type** and choose
+**Production**. It takes effect at once, with no restart, and AutoPanel gets the real certificate
+on the next HTTPS request for each routed name. The same menu switches back to staging.
+
+The menu marks the service in use, and the panel's overview names it. From a script:
 
 ```sh
-sudo sed -i 's/^AUTOPANEL_ACME_CA=.*/AUTOPANEL_ACME_CA=production/' /etc/autopanel/autopanel.env
-sudo systemctl restart autopanel
+sudo -u autopanel autopanel --call certs.ca.set '{"ca":"production"}'
+sudo -u autopanel autopanel --call sys.status
 ```
 
-AutoPanel gets the real certificate on the next HTTPS request for each routed name. To see which
-service a server uses:
-
-```sh
-grep AUTOPANEL_ACME_CA /etc/autopanel/autopanel.env
-```
+The installer's choice (`AUTOPANEL_ACME_CA` in `/etc/autopanel/autopanel.env`) is what a new
+install starts with. A choice made in the panel or with `certs.ca.set` is kept in AutoPanel's store
+and replaces it from then on.
 
 If you know the server is set up correctly, install with production from the start: answer `2` at
 the prompt, or pass `--ca production`.
