@@ -533,7 +533,7 @@ func TestSystemMonitors(t *testing.T) {
 	s.WaitFor(t, "the metrics panel to close", func(sc string) bool { return !strings.Contains(sc, "Service memory") })
 
 	openSystem(t, s, 'a')
-	for _, part := range []string{"Audit log", "route.add", "root (local:999)", "route 2 api.example.com/v1", "2 rows, read at "} {
+	for _, part := range []string{"Audit log", "route.add", "root (local:999)", "route 2 api", "http://127.0.0.1:9090", "2 rows, read at "} {
 		s.WaitForText(t, part)
 	}
 	s.Keys(t, decltest.Rune('q'))

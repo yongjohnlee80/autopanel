@@ -76,13 +76,43 @@ move with the arrow keys. `r` refreshes and `q` quits.
 | --- | --- |
 | Routes | **Proxy routes**: the host names AutoPanel serves and where each one goes |
 | Certs | **Type**: which Let's Encrypt service issues the certificates, staging or production |
-| Services, Users, System | not built yet; their rows are greyed out |
+| System | **Metrics**, **Audit log**, **Login attempts**, **Open ports**; **Theme** and **Language** |
+| Services, Users | not built yet; their rows are greyed out |
 | Help | **About**: the panel's version and the running service's |
 
 To serve a site, open **Routes → Proxy routes** and press `a` to add a route: the host name
 (`example.com`), a path prefix (`/`), and the upstream it forwards to (`http://127.0.0.1:8080`).
 `e` or Enter edits the selected route, `d` removes it and `q` closes the list. AutoPanel gets the
 certificate for a routed name on its first HTTPS request, and redirects plain HTTP to HTTPS.
+
+**Panels float.** Proxy routes and the System panels open as windows over the screen, each with
+three controls in its top row: minimize, maximize and close. Drag a panel with Alt (Option) and
+the left mouse button, and resize it with Alt and the right button. A minimized panel is listed
+at the bottom of the screen; its menu row brings it back. `q` or Esc closes the panel that has
+the keyboard.
+
+### Watch the server
+
+The **System** menu shows the server as it is now. Each panel reads when it opens, and `r` reads
+it again.
+
+| Panel | What it shows |
+| --- | --- |
+| Metrics | the service's uptime, memory and request counts since it started; the host's load, memory, and the disk the store is on |
+| Audit log | the newest 200 changes made through AutoPanel: who, what, and when |
+| Login attempts | logins to the panel, and logins to the server over SSH: accepted, failed, and closed before logging in |
+| Open ports | every listening TCP port and bound UDP port, the address it listens on, and what it is for when AutoPanel knows: its own listeners, a route's upstream, or the port's usual service |
+
+SSH logins come from the system journal, so the service runs with the `systemd-journal` group.
+That group can read every unit's log on the server. To run without it, remove the
+`SupplementaryGroups=` line from `/etc/systemd/system/autopanel.service` and restart the service:
+the panel then lists only its own logins, and says why.
+
+### Themes and languages
+
+**System → Theme** offers ten themes, and **System → Language** six languages: English, Korean,
+Japanese, Simplified Chinese, Spanish and Brazilian Portuguese. Both take effect at once and are
+kept in AutoPanel's store, so the panel opens the same way next time.
 
 ### Staging and production certificates
 

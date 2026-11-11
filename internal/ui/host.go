@@ -253,6 +253,24 @@ func (h *host) fill(vals map[string]any) error {
 	return h.p.SetMany(vals)
 }
 
+// panelLeft gives the keyboard back to the overview, the Window's focus
+// target, once a panel has closed. Posted: the handler runs while the panel
+// is still closing.
+func (h *host) panelLeft() error {
+	h.p.Post(func() { _ = h.p.Call("overview", "forceActiveFocus") })
+	return nil
+}
+
+// panelChanged is a panel's completed window operation. A minimized panel
+// has left the screen, as a closed one has; a move, a resize, a maximize or a
+// restore keeps the keyboard where it is.
+func (h *host) panelChanged(operation string) error {
+	if operation == "minimize" {
+		return h.panelLeft()
+	}
+	return nil
+}
+
 // openPanel shows a floating panel and gives its view the keyboard: restored
 // when it was minimized, opened otherwise. key is the panel's window key, id
 // its id in the document, view the id of the view inside it.

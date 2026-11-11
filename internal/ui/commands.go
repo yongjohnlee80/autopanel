@@ -18,6 +18,8 @@ func (h *host) commands() map[string]decl.HandlerFunc {
 	return map[string]decl.HandlerFunc{
 		"App.openRoutes":      none(func() error { return h.openPanel("routes", "routesPanel", "routesTable") }),
 		"App.setCA":           oneString("App.setCA", h.setCA),
+		"App.panelLeft":       none(h.panelLeft),
+		"App.panelChanged":    oneString("App.panelChanged", h.panelChanged),
 		"App.openMonitor":     oneString("App.openMonitor", h.openMonitor),
 		"App.reloadMonitor":   oneString("App.reloadMonitor", h.reloadMonitor),
 		"App.useTheme":        oneString("App.useTheme", h.useTheme),

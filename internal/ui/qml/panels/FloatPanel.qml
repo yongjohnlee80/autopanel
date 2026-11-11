@@ -8,6 +8,10 @@
 // one view, with the Shortcuts that are live while the keyboard is in the
 // panel. Both go into the FocusScope, so the panel's keys win there over the
 // Window's.
+//
+// A panel that closes or minimizes hands the keyboard back to the main
+// screen (App.panelLeft): it is non-modal, so nothing else would, and the
+// keyboard would stay on the menu bar its row was chosen from.
 Drawer {
     property var heading: ""                      // a string, or a qsTrId message
     default property alias content: scope.data
@@ -21,6 +25,8 @@ Drawer {
     maximizable: true
     minimizable: true
     closable: true
+    onClosed: App.panelLeft()
+    onChanged: App.panelChanged(operation)
     Frame {
         title: heading
         palette.window: Theme.document.base
