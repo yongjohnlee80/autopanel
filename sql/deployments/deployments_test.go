@@ -144,6 +144,12 @@ func TestTheScriptsApplyOnPostgres(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = db.Close() })
+	clear := func() {
+		for _, table := range []string{"route", "audit", "cert_blob", "store_lease"} {
+			_, _ = db.ExecContext(context.Background(), "DELETE FROM "+table) // before Apply, the tables may not exist yet
+		}
+	}
+	clear() // the schema is shared with other packages' tests: start and end empty
+	t.Cleanup(func() { clear(); _ = db.Close() })
 	applyAndCheck(t, db)
 }
