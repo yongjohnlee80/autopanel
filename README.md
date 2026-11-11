@@ -37,9 +37,14 @@ A first install asks three things on the terminal:
 
 The installer downloads the latest release for the machine and checks its SHA-256. When there is
 no release to download, it builds from source on the server, which needs git and Go 1.26 or later.
-It then creates the `autopanel` system user, installs the binary and the systemd unit, and starts
-the service. Running it again upgrades the binary and keeps the configuration, the store and the
-keys.
+It then creates the `autopanel` system user, installs the binary and two systemd units, and starts
+them. Running it again upgrades the binary and keeps the configuration, the store and the keys.
+
+**Upgrading from v0.1.4 or earlier** moves the one `autopanel` service to the two described in
+[How it runs](#how-it-runs). The sites are down for the few seconds between the old service
+stopping and the new ones starting. If the new services do not start, the installer puts the old
+one back and says so. The admin command changes from `sudo -u autopanel autopanel --ui` to
+`sudo autopanel --ui`.
 
 **With no terminal** (a provisioning script), give the answers as options. The passphrase file
 must be mode 0600, and you can delete it afterwards. Without `--ca`, a no-terminal install uses
@@ -58,15 +63,31 @@ sudo sh install.sh --email admin@example.com --ca production --passphrase-file /
 | `--binary <path>` | install a binary you built yourself |
 | `--ca staging\|production` | which Let's Encrypt service issues the certificates, instead of being asked |
 | `--http <addr>`, `--https <addr>` | the listeners; `:80` and `:443` by default |
-| `--restart always\|on-failure\|no` | the service's restart policy |
-| `--no-start` | install without starting the service |
+| `--restart always\|on-failure\|no` | the core's restart policy |
+| `--no-start` | install without starting the services |
+
+### How it runs
+
+AutoPanel is one binary that runs as two services:
+
+| Service | Runs as | What it does |
+| --- | --- | --- |
+| `autopanel-gate` | the `autopanel` user, sandboxed | faces the internet on ports 80 and 443; holds only the routes and the certificates it is serving |
+| `autopanel-core` | root | holds the store, the keys and the settings; gets the certificates; listens on no network |
+
+The gate asks the core for its routes and certificates over a socket only it can open. If the
+gate is ever broken into, the store, the master key and the Cloudflare token are out of its
+reach. The core starts the gate, so `systemctl start autopanel-core` starts both. If the core
+stops, the gate keeps serving what it has.
+
+The admin TUI and the `--call` command talk to the core, so they run as root.
 
 ### Serve your first site
 
 Open the admin TUI on the server:
 
 ```sh
-sudo -u autopanel autopanel --ui
+sudo autopanel --ui
 ```
 
 It opens on a sign-in dialog. The user is `root`; type the master passphrase and press Enter.
@@ -101,15 +122,12 @@ it again.
 
 | Panel | What it shows |
 | --- | --- |
-| Metrics | the service's uptime, memory and request counts since it started; the host's load, memory, and the disk the store is on |
+| Metrics | the core's uptime and memory, and the gate's request counts since it started; the host's load, memory, and the disk the store is on |
 | Audit log | the newest 200 changes made through AutoPanel: who, what, and when |
 | Login attempts | logins to the panel, and logins to the server over SSH: accepted, failed, and closed before logging in |
 | Open ports | every listening TCP port and bound UDP port, the address it listens on, and what it is for when AutoPanel knows: its own listeners, a route's upstream, or the port's usual service |
 
-SSH logins come from the system journal, so the service runs with the `systemd-journal` group.
-That group can read every unit's log on the server. To run without it, remove the
-`SupplementaryGroups=` line from `/etc/systemd/system/autopanel.service` and restart the service:
-the panel then lists only its own logins, and says why.
+SSH logins come from the system journal, which the core reads. The gate has no access to it.
 
 ### Themes and languages
 
@@ -149,8 +167,8 @@ on the next HTTPS request for each routed name. The same menu switches back to s
 The menu marks the service in use, and the panel's overview names it. From a script:
 
 ```sh
-sudo -u autopanel autopanel --call certs.ca.set '{"ca":"production"}'
-sudo -u autopanel autopanel --call sys.status
+sudo autopanel --call certs.ca.set '{"ca":"production"}'
+sudo autopanel --call sys.status
 ```
 
 The installer's choice (`AUTOPANEL_ACME_CA` in `/etc/autopanel/autopanel.env`) is what a new
@@ -163,10 +181,10 @@ the prompt, or pass `--ca production`.
 ### Check and remove
 
 ```sh
-systemctl status autopanel
-journalctl -u autopanel -e
+systemctl status autopanel-core autopanel-gate
+journalctl -u autopanel-core -u autopanel-gate -e
 sudo autopanel-uninstall --check     # lists what a removal would take; changes nothing
-sudo autopanel-uninstall --apply     # removes the service and the binary; keeps data, config and keys
+sudo autopanel-uninstall --apply     # removes the services and the binary; keeps data, config and keys
 sudo autopanel-uninstall --purge     # removes everything, after backing the store up
 ```
 

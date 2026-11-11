@@ -28,7 +28,9 @@ type Contract struct {
 	Public bool `json:"public,omitempty"`
 	// Mutates marks a verb that changes state; its success is audited.
 	Mutates bool `json:"mutates,omitempty"`
-	// Open marks a verb callable before logging in. Only the login is.
+	// Open marks a verb callable before logging in: the login, and the link
+	// socket's verbs, whose only caller is the gate process (it has no
+	// passphrase; the kernel's record of its user is its identity).
 	Open bool `json:"open,omitempty"`
 	// Login marks the verb whose success authenticates the connection as the
 	// user its result names ({"user": …}).

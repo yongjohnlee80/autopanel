@@ -5,11 +5,11 @@
 #   sudo ./install.sh                                        # first install: asks for the contact email, staging or
 #                                                            # production certificates, and the master passphrase
 #   sudo ./install.sh --email admin@example.com              # the same, with the email given
-#   sudo ./install.sh                                        # upgrade: replaces the binary, keeps everything else
+#   sudo ./install.sh                                        # upgrade: replaces the binary and the units, keeps everything else
 #
 # Where the binary comes from, in this order:
 #   a. --binary <path>, or an unpacked release (make dist) with autopanel,
-#      uninstall.sh and autopanel.service beside this script;
+#      uninstall.sh and the two unit files beside this script;
 #   b. the release tarball for this machine from GitHub: the latest release, or
 #      the one --version names. Its published SHA-256 is checked, and a
 #      mismatch stops the install;
@@ -19,16 +19,26 @@
 # All of that happens in a temporary directory, before anything on the host is
 # changed.
 #
+# AutoPanel runs as two services. The gate (autopanel-gate.service, user
+# "autopanel") faces the internet and holds nothing but the routes and the
+# certificates it is serving. The core (autopanel-core.service, root) holds
+# the store, the keys and the settings, listens on no network, and starts the
+# gate.
+#
 # What it does, in order:
-#   1. creates the system user "autopanel" (no login shell, no home);
-#   2. installs /usr/local/bin/autopanel and the systemd unit;
-#   3. creates /etc/autopanel (root:autopanel 0750) with autopanel.env, and
-#      /etc/autopanel/keyslot (autopanel 0700) for the service keyfile;
+#   1. creates the system user "autopanel" (no login shell, no home), for the gate;
+#   2. installs /usr/local/bin/autopanel and the two systemd units;
+#   3. creates /etc/autopanel (root's, 0700) with autopanel.env, and
+#      /etc/autopanel/keyslot for the service keyfile;
 #   4. on first install, asks twice for the master passphrase and runs
 #      `autopanel --init`, which makes the root user, the master key and the
-#      keyfile that lets the service unlock it after a reboot;
+#      keyfile that lets the core unlock it after a reboot;
 #   5. installs this release's uninstaller as /usr/local/sbin/autopanel-uninstall;
-#   6. enables and (re)starts the service.
+#   6. enables and (re)starts the core, which starts the gate.
+#
+# An install from before the two services (one autopanel.service) is moved
+# over in step 6: the old service keeps serving until the new ones are
+# installed, and is put back if they do not start.
 #
 # The master passphrase is root's login for the admin TUI and the only way to
 # open the store's secrets without the keyfile. It is read from the terminal
@@ -39,7 +49,11 @@ set -eu
 
 PREFIX_BIN=/usr/local/bin
 UNINSTALLER=/usr/local/sbin/autopanel-uninstall
-UNIT=/etc/systemd/system/autopanel.service
+UNIT_DIR=/etc/systemd/system
+CORE_UNIT=$UNIT_DIR/autopanel-core.service
+GATE_UNIT=$UNIT_DIR/autopanel-gate.service
+OLD_UNIT=$UNIT_DIR/autopanel.service   # the one service of v0.1.4 and earlier
+CONTROL_SOCK=/run/autopanel-core/control.sock
 CONF_DIR=/etc/autopanel
 ENV_FILE=$CONF_DIR/autopanel.env
 KEY_DIR=$CONF_DIR/keyslot
@@ -81,7 +95,7 @@ USAGE:
   sudo ./install.sh [OPTIONS]
 
 OPTIONS:
-  --binary <path>          Use this autopanel binary (uninstall.sh and autopanel.service beside this script)
+  --binary <path>          Use this autopanel binary (uninstall.sh and the two unit files beside this script)
   --version <tag>          The release to download or build (e.g. v0.1.0). Default: latest
   --source                 Build from source on this host instead of downloading a release
   --email <address>        ACME account contact. A first install asks for it when it is not given
@@ -95,7 +109,7 @@ OPTIONS:
   --passphrase-file <path> Read the master passphrase from a 0600 file instead of the terminal
   --restart <policy>       always (default): restart after any exit, and start at boot
                            on-failure: only after a crash;  no: never restart on its own
-  --no-start               Install and initialize, but don't start the service
+  --no-start               Install and initialize, but don't start the services
   -h, --help               This text
 USAGE
 }
@@ -215,6 +229,10 @@ cleanup() { [ -z "$TMP" ] || rm -rf "$TMP"; }
 trap cleanup EXIT
 trap 'exit 130' INT TERM
 
+# A release from before AutoPanel ran as two services has other files than
+# this installer installs. It is refused before anything on the host changes.
+OLD_RELEASE="that release is from before AutoPanel ran as two services, and this installer cannot install it; nothing was installed. Choose a later release with --version, or use the install.sh inside that release's tarball"
+
 detect_arch() {
   case "$(uname -m)" in
     x86_64|amd64) ARCH=amd64 ;;
@@ -257,6 +275,7 @@ download() {
   verify_sha256 "$TMP/$asset" "$TMP/$asset.sha256"
   tar -xzf "$TMP/$asset" -C "$TMP" || die "$asset could not be unpacked"
   FILES=$TMP/autopanel-$1-linux-$ARCH
+  [ -f "$FILES/autopanel-core.service" ] || die "$OLD_RELEASE"
   BINARY=$FILES/autopanel
   WANT_VERSION=$1
 }
@@ -281,13 +300,15 @@ build_source() {
   info "cloning $REPO at $1"
   git clone --quiet --depth 1 --branch "$1" "https://github.com/$REPO.git" "$TMP/src" >/dev/null 2>&1 \
     || die "could not clone $REPO at $1"
+  [ -f "$TMP/src/deploy/autopanel-core.service" ] || die "$OLD_RELEASE"
   WANT_VERSION=$(git -C "$TMP/src" describe --tags --always) || die "could not read the source's version"
   info "building $WANT_VERSION (go $(go env GOVERSION), CGO disabled)"
   mkdir "$TMP/build"
   ( cd "$TMP/src" && CGO_ENABLED=0 go build -trimpath \
       -ldflags "-s -w -X github.com/$REPO/app.Version=$WANT_VERSION" \
       -o "$TMP/build/autopanel" ./cmd/autopanel ) || die "the build failed; nothing was installed"
-  cp "$TMP/src/uninstall.sh" "$TMP/src/deploy/autopanel.service" "$TMP/build/" || die "the source has no uninstall.sh or unit"
+  cp "$TMP/src/uninstall.sh" "$TMP/src/deploy/autopanel-core.service" "$TMP/src/deploy/autopanel-gate.service" "$TMP/build/" \
+    || die "the source has no uninstall.sh or units"
   FILES=$TMP/build
   BINARY=$FILES/autopanel
 }
@@ -312,13 +333,14 @@ fetch() {
 if [ -n "$BINARY" ]; then
   [ -f "$BINARY" ] || die "no binary at $BINARY"
   FILES=$HERE
-elif [ "$FROM$RELEASE" = autolatest ] && [ -f "$HERE/autopanel" ] && [ -f "$HERE/autopanel.service" ] && [ -f "$HERE/uninstall.sh" ]; then
+elif [ "$FROM$RELEASE" = autolatest ] && [ -f "$HERE/autopanel" ] && [ -f "$HERE/autopanel-core.service" ] && [ -f "$HERE/uninstall.sh" ]; then
   BINARY=$HERE/autopanel
   FILES=$HERE
 else
   fetch
 fi
-[ -f "$FILES/autopanel.service" ] || die "autopanel.service is missing from $FILES"
+[ -f "$FILES/autopanel-core.service" ] || die "autopanel-core.service is missing from $FILES"
+[ -f "$FILES/autopanel-gate.service" ] || die "autopanel-gate.service is missing from $FILES"
 [ -f "$FILES/uninstall.sh" ] || die "uninstall.sh is missing from $FILES"
 VERSION=$("$BINARY" --version 2>/dev/null) || die "$BINARY does not run on this host"
 # The binary must be the one asked for: compare the version token exactly.
@@ -326,20 +348,35 @@ VERSION=$("$BINARY" --version 2>/dev/null) || die "$BINARY does not run on this 
   || die "the binary reports \"${VERSION#autopanel }\", not $WANT_VERSION; nothing was installed"
 say "Installing $VERSION"
 
-# --- 1. the service user -----------------------------------------------------
+# An install from before the two services has one unit, autopanel.service,
+# running as the service user. It keeps serving until step 6 moves it over.
+MIGRATE=0
+if [ -f "$OLD_UNIT" ]; then
+  MIGRATE=1
+  [ "$START" -eq 1 ] || die "this host runs the one-service AutoPanel; moving it to the two services needs them started, to check them (run without --no-start)"
+fi
+
+# --- 1. the gate's user ------------------------------------------------------
 
 if id "$SVC_USER" >/dev/null 2>&1; then
   info "user $SVC_USER exists"
 else
-  useradd --system --home-dir "$STATE_DIR" --no-create-home --shell /usr/sbin/nologin "$SVC_USER"
+  useradd --system --home-dir /nonexistent --no-create-home --shell /usr/sbin/nologin "$SVC_USER"
   info "created system user $SVC_USER"
 fi
 
-# --- 2. the binary and the unit ----------------------------------------------
+# --- 2. the binary and the units ---------------------------------------------
 
+# The binary being replaced is kept until the new services have started: a
+# move from the one service that fails puts it back.
+PREV_BIN=$PREFIX_BIN/autopanel.previous
+if [ "$MIGRATE" -eq 1 ] && [ -f "$PREFIX_BIN/autopanel" ]; then
+  cp -p "$PREFIX_BIN/autopanel" "$PREV_BIN"
+fi
 install -m 0755 "$BINARY" "$PREFIX_BIN/autopanel"
-install -m 0644 "$FILES/autopanel.service" "$UNIT"
-DROPIN=/etc/systemd/system/autopanel.service.d/restart.conf
+install -m 0644 "$FILES/autopanel-core.service" "$CORE_UNIT"
+install -m 0644 "$FILES/autopanel-gate.service" "$GATE_UNIT"
+DROPIN=$UNIT_DIR/autopanel-core.service.d/restart.conf
 if [ "$RESTART" = always ]; then
   rm -f "$DROPIN"
 else
@@ -348,21 +385,34 @@ else
   info "restart policy: $RESTART ($DROPIN)"
 fi
 systemctl daemon-reload
-info "installed $PREFIX_BIN/autopanel and $UNIT"
+info "installed $PREFIX_BIN/autopanel, $CORE_UNIT and $GATE_UNIT"
 
 # --- 3. configuration and key directories ------------------------------------
 
-install -d -m 0750 -o root -g "$SVC_USER" "$CONF_DIR"
-install -d -m 0700 -o "$SVC_USER" -g "$SVC_USER" "$KEY_DIR"
-install -d -m 0700 -o "$SVC_USER" -g "$SVC_USER" "$STATE_DIR"
+# Everything here is the core's, so root's: the gate's user reads none of it.
+# own_by_core is also what step 6 runs once the one service has stopped.
+own_by_core() {
+  install -d -m 0700 -o root -g root "$CONF_DIR" "$KEY_DIR" "$STATE_DIR"
+  chown -R root:root "$CONF_DIR" "$STATE_DIR"
+  [ ! -f "$ENV_FILE" ] || chmod 0600 "$ENV_FILE"
+}
+# own_by_service puts the one service's ownership back, for a move that failed.
+own_by_service() {
+  chown root:"$SVC_USER" "$CONF_DIR"; chmod 0750 "$CONF_DIR"
+  [ ! -f "$ENV_FILE" ] || { chown root:"$SVC_USER" "$ENV_FILE"; chmod 0640 "$ENV_FILE"; }
+  chown -R "$SVC_USER":"$SVC_USER" "$KEY_DIR" "$STATE_DIR"
+}
+if [ "$MIGRATE" -eq 0 ]; then
+  own_by_core
+fi
 if [ -f "$ENV_FILE" ]; then
   info "kept $ENV_FILE"
   [ -z "$EMAIL$CA" ] || info "(--email and --ca apply only to a first install; edit $ENV_FILE to change them)"
 else
-  umask 027 # --email was checked in the preflight
+  umask 077 # --email was checked in the preflight
   {
-    printf '# Written by install.sh. root:%s 0640. Holds no secrets: the Cloudflare\n' "$SVC_USER"
-    printf '# token is set with certs.cloudflare.set and kept sealed in the store.\n'
+    printf '# Written by install.sh. root, 0600: only the core reads it. Holds no secrets:\n'
+    printf '# the Cloudflare token is set with certs.cloudflare.set and kept sealed in the store.\n'
     printf 'AUTOPANEL_HTTP_ADDR=%s\n' "$HTTP_ADDR"
     printf 'AUTOPANEL_HTTPS_ADDR=%s\n' "$HTTPS_ADDR"
     printf 'AUTOPANEL_ACME_CA=%s\n' "$CA"
@@ -370,16 +420,17 @@ else
     printf 'AUTOPANEL_KEYFILE=%s\n' "$KEYFILE"
     printf '#AUTOPANEL_TRUSTED_PROXIES=\n'
   } > "$ENV_FILE"
-  chown root:"$SVC_USER" "$ENV_FILE"
-  chmod 0640 "$ENV_FILE"
+  chown root:root "$ENV_FILE"
+  chmod 0600 "$ENV_FILE"
   info "wrote $ENV_FILE"
 fi
 
 # --- 4. the root user and the master key -------------------------------------
 
-as_service() {
-  # The service's own environment, as the service user: the same paths --serve uses.
-  runuser -u "$SVC_USER" -- sh -c "set -a; . '$ENV_FILE'; set +a; exec \"\$@\"" autopanel "$@"
+as_core() {
+  # The core's own environment, as root: the same paths --core uses.
+  # shellcheck disable=SC1090  # the file install.sh wrote, or the operator edited
+  ( set -a; . "$ENV_FILE"; set +a; exec "$@" )
 }
 
 read_passphrase() {
@@ -403,7 +454,7 @@ if [ -f "$KEYFILE" ]; then
   info "already initialized (keyfile $KEYFILE exists)"
 else
   say "Creating the panel's $ROOT_USER user and master key"
-  read_passphrase | as_service "$PREFIX_BIN/autopanel" --init --user "$ROOT_USER" \
+  read_passphrase | as_core "$PREFIX_BIN/autopanel" --init --user "$ROOT_USER" \
     || die "initialization failed; nothing was started"
 fi
 
@@ -413,24 +464,73 @@ install -d -m 0755 "$(dirname "$UNINSTALLER")"
 install -m 0755 "$FILES/uninstall.sh" "$UNINSTALLER"
 info "installed $UNINSTALLER"
 
-# --- 6. the service ----------------------------------------------------------
+# --- 6. the services ---------------------------------------------------------
 
-systemctl enable autopanel >/dev/null 2>&1
-if [ "$START" -eq 1 ]; then
-  systemctl restart autopanel
+# wait_started waits for the core's control socket and for the gate the core
+# starts, and says whether both came up.
+wait_started() {
   i=0
-  while [ $i -lt 20 ] && [ ! -S /run/autopanel/control.sock ]; do sleep 0.5; i=$((i + 1)); done
-  if systemctl is-active --quiet autopanel && [ -S /run/autopanel/control.sock ]; then
-    info "autopanel is running"
-  else
-    systemctl --no-pager status autopanel || true
-    die "autopanel did not start; see journalctl -u autopanel"
+  while [ $i -lt 40 ]; do
+    if [ -S "$CONTROL_SOCK" ] && systemctl is-active --quiet autopanel-gate; then
+      systemctl is-active --quiet autopanel-core && return 0
+    fi
+    sleep 0.5
+    i=$((i + 1))
+  done
+  return 1
+}
+
+# put_back undoes a move from the one service that failed: the new services
+# stop, the files are the service user's again, the old binary returns, and
+# the one service starts as it was.
+put_back() {
+  warn "the new services did not start; putting the one service back"
+  systemctl --no-pager status autopanel-core autopanel-gate >&2 || true
+  systemctl disable --now autopanel-core >/dev/null 2>&1 || true
+  systemctl stop autopanel-gate >/dev/null 2>&1 || true
+  rm -f "$CORE_UNIT" "$GATE_UNIT"
+  rm -rf "$UNIT_DIR/autopanel-core.service.d"
+  own_by_service
+  [ ! -f "$PREV_BIN" ] || mv -f "$PREV_BIN" "$PREFIX_BIN/autopanel"
+  systemctl daemon-reload
+  systemctl enable --now autopanel >/dev/null 2>&1 || true
+  if systemctl is-active --quiet autopanel; then
+    die "the move to the two services failed, and the one service is serving again; see journalctl -u autopanel-core"
+  fi
+  die "the move to the two services failed, and the one service did not start again; see journalctl -u autopanel"
+}
+
+if [ "$MIGRATE" -eq 1 ]; then
+  say "Moving the one service to the gate and the core"
+  # The gate is down from here until the core has started it.
+  systemctl disable --now autopanel >/dev/null 2>&1 || true
+  own_by_core
+  systemctl enable autopanel-core >/dev/null 2>&1
+  systemctl restart autopanel-core || true
+  wait_started || put_back
+  rm -f "$OLD_UNIT" "$PREV_BIN"
+  rm -rf "$UNIT_DIR/autopanel.service.d"
+  systemctl daemon-reload
+  info "the store, the settings and the keyfile are now root's; autopanel.service is removed"
+  info "autopanel-core and autopanel-gate are running"
+else
+  systemctl enable autopanel-core >/dev/null 2>&1
+  if [ "$START" -eq 1 ]; then
+    # The gate stops first, so the core starts it again on the new binary.
+    systemctl stop autopanel-gate >/dev/null 2>&1 || true
+    systemctl restart autopanel-core
+    if wait_started; then
+      info "autopanel-core and autopanel-gate are running"
+    else
+      systemctl --no-pager status autopanel-core autopanel-gate || true
+      die "AutoPanel did not start; see journalctl -u autopanel-core -u autopanel-gate"
+    fi
   fi
 fi
 
 say ""
 say "Done. Next:"
-info "point a name's DNS at this host, then:  sudo -u $SVC_USER autopanel --ui"
+info "point a name's DNS at this host, then:  sudo autopanel --ui"
 info "log in as $ROOT_USER with the master passphrase; add a route in Routes, then Proxy routes"
 # The env file holds the service a new install starts with. A choice made in
 # the panel (Certs -> Type) is kept in the store and replaces it, so the lines
@@ -444,5 +544,5 @@ case "$(sed -n 's/^AUTOPANEL_ACME_CA=//p' "$ENV_FILE" 2>/dev/null)" in
   *) info "certificates start with the directory AUTOPANEL_ACME_CA names in $ENV_FILE" ;;
 esac
 info "the panel's Certs menu shows the service in use, and changes it"
-info "behind Cloudflare's proxy: sudo -u $SVC_USER autopanel --call certs.cloudflare.set '{\"token\":\"…\"}'"
+info "behind Cloudflare's proxy: sudo autopanel --call certs.cloudflare.set '{\"token\":\"…\"}'"
 info "remove: sudo autopanel-uninstall --check"

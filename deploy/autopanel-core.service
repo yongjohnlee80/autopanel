@@ -1,0 +1,55 @@
+# AutoPanel's core: the process that holds the store, the vault, the ACME
+# account and the administrative rights. It runs as root and listens on no
+# network: only on two unix sockets, the control socket (root's, for the panel
+# and the CLI) and the link socket (for the gate process). It starts the gate.
+#
+# Admin: sudo autopanel --ui   (the control socket never leaves the host)
+
+[Unit]
+Description=AutoPanel core (store, certificates, control socket; runs the gate)
+Wants=network-online.target
+After=network-online.target
+# Never give up restarting: the gate serves what it holds while the core is
+# away, but gets no new certificate until it is back.
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+# No User= line: a system service is root's already.
+EnvironmentFile=/etc/autopanel/autopanel.env
+ExecStart=/usr/local/bin/autopanel --core
+# Comes back on its own after any exit or crash, and at boot (enabled by
+# install.sh). An operator's `systemctl stop` stays stopped, and leaves the
+# gate serving. To change the policy: install.sh --restart on-failure|no
+# writes a drop-in.
+Restart=always
+RestartSec=5s
+
+# The store and CertMagic's keys; the two sockets' directories. All root's;
+# the core opens the link's directory to the gate's group when it starts.
+StateDirectory=autopanel
+StateDirectoryMode=0700
+RuntimeDirectory=autopanel-core autopanel-link
+RuntimeDirectoryMode=0700
+UMask=0077
+
+# The core's share of the staging memory budget fails loudly: an overspend is
+# killed, not swapped.
+MemoryMax=60M
+MemorySwapMax=0
+Environment=GOMEMLIMIT=50MiB
+
+# Root, so no capability or user restriction: its protection is that it
+# listens on no network and offers a fixed set of verbs. What it can still
+# give up, it does.
+NoNewPrivileges=yes
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+ProtectClock=yes
+RestrictRealtime=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

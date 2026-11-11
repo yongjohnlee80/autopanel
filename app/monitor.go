@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net"
-	"net/http"
 	"net/netip"
 	"net/url"
 	"regexp"
@@ -14,6 +13,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/yongjohnlee80/autopanel/core/audit"
 	"github.com/yongjohnlee80/autopanel/internal/module"
 	"github.com/yongjohnlee80/autopanel/internal/sysinfo"
 	"github.com/yongjohnlee80/autopanel/store"
@@ -31,16 +31,9 @@ var (
 	readSSHLogins = sysinfo.SSHLogins
 )
 
-// counters are the gate's request counts, one per listener.
+// counters are the gate's request counts, one per listener, as the gate last
+// reported them over the link (link.report).
 type counters struct{ https, http atomic.Int64 }
-
-// counted counts each request to next in n.
-func counted(n *atomic.Int64, next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		n.Add(1)
-		next.ServeHTTP(w, r)
-	})
-}
 
 // Metrics is sys.metrics's answer.
 type Metrics struct {
@@ -112,7 +105,11 @@ const (
 // prefValue is what a preference may hold: a theme's or a language's name.
 var prefValue = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_]{0,39}$`)
 
-var errBadPref = errors.New("sys: a preference is a name of letters, digits and underscores")
+var (
+	errBadPref       = errors.New("sys: a preference is a name of letters, digits and underscores")
+	errNoGateControl = errors.New("sys: this core does not run the gate's unit")
+	errGateControl   = errors.New("sys: the gate's unit did not do it")
+)
 
 func (m *sysModule) metrics(context.Context, struct{}) (Metrics, error) {
 	var ms runtime.MemStats
@@ -152,7 +149,7 @@ func (m *sysModule) logins(ctx context.Context, p Limit) (Logins, error) {
 		out.SSHNote = "SSH logins are not shown: this host has no journal to read them from."
 	case err != nil:
 		m.log.Warn("reading SSH logins", "err", err)
-		out.SSHNote = "SSH logins are not shown: the journal could not be read. The service needs the systemd-journal group."
+		out.SSHNote = "SSH logins are not shown: the journal could not be read."
 	}
 	for _, l := range ssh {
 		out.Attempts = append(out.Attempts, LoginAttempt{At: l.At, Source: "ssh", User: l.User, From: l.From, Result: l.Result, Detail: l.Detail})
@@ -282,6 +279,40 @@ func (m *sysModule) setPrefs(ctx context.Context, p Prefs) (Prefs, error) {
 	return m.prefs(ctx, struct{}{})
 }
 
+// gateDo runs one of the gate's lifecycle actions. The audit entry is written
+// first, and the action is refused if it cannot be: nothing the core does to
+// the host goes unrecorded. The outcome is a second entry.
+func (m *sysModule) gateDo(ctx context.Context, action string, do func(GateControl) func(context.Context) error) (struct{}, error) {
+	if m.gate == nil {
+		return struct{}{}, errNoGateControl
+	}
+	actor := audit.Actor(ctx)
+	if err := m.st.Audit(ctx, actor, action, "the gate", "attempt"); err != nil {
+		return struct{}{}, err
+	}
+	err := do(m.gate)(ctx)
+	outcome := "ok"
+	if err != nil {
+		outcome = "failed"
+		m.log.Error(action, "err", err)
+	}
+	if aerr := m.st.Audit(ctx, actor, action, "the gate", outcome); aerr != nil {
+		m.log.Error("recording the outcome", "action", action, "err", aerr)
+	}
+	if err != nil {
+		return struct{}{}, errGateControl
+	}
+	return struct{}{}, nil
+}
+
+func (m *sysModule) gateRestart(ctx context.Context, _ struct{}) (struct{}, error) {
+	return m.gateDo(ctx, "gate.restart", func(g GateControl) func(context.Context) error { return g.Restart })
+}
+
+func (m *sysModule) gateStop(ctx context.Context, _ struct{}) (struct{}, error) {
+	return m.gateDo(ctx, "gate.stop", func(g GateControl) func(context.Context) error { return g.Stop })
+}
+
 // monitorVerbs are the sys.* verbs beyond sys.status.
 func (m *sysModule) monitorVerbs() []module.Verb {
 	return []module.Verb{
@@ -298,5 +329,9 @@ func (m *sysModule) monitorVerbs() []module.Verb {
 			Doc: "The panel's preferences; an empty one was never chosen."}, m.prefs),
 		module.Handle(module.Contract{Verb: "sys.prefs.set", Since: 1, Param: "{theme?, language?}", Result: "{theme, language}", Mutates: true,
 			Doc: "Keeps the panel's theme or language; a field left out is unchanged."}, m.setPrefs),
+		module.Handle(module.Contract{Verb: "sys.gate.restart", Since: 2, Mutates: true,
+			Doc: "Restarts the gate process: the two listeners close and open again. Audited before it takes effect."}, m.gateRestart),
+		module.Handle(module.Contract{Verb: "sys.gate.stop", Since: 2, Mutates: true,
+			Doc: "Stops the gate process: nothing is served until sys.gate.restart, or the core's next start. Audited before it takes effect."}, m.gateStop),
 	}
 }

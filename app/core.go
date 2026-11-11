@@ -8,20 +8,26 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"os/user"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
-
-	httpserver "github.com/yongjohnlee80/golib/server/http"
 
 	"github.com/yongjohnlee80/autopanel/core/gate"
 	hostcontrol "github.com/yongjohnlee80/autopanel/host/control"
 	hostgate "github.com/yongjohnlee80/autopanel/host/gate"
 	"github.com/yongjohnlee80/autopanel/internal/auth"
+	"github.com/yongjohnlee80/autopanel/internal/hostcmd"
 	"github.com/yongjohnlee80/autopanel/internal/keyslot"
 	"github.com/yongjohnlee80/autopanel/store"
 )
+
+// THE CORE — the process that holds the store, the vault, the ACME account
+// and every administrative right. It listens on two unix sockets and on no
+// network (a test holds that): the control socket, for the panel and the CLI,
+// and the link socket, for the gate process. The gate is the core's to run.
 
 // unlockWithKeyfile opens the master key with the service keyfile. A store
 // with no keyslots is refused: run --init first.
@@ -41,16 +47,73 @@ func unlockWithKeyfile(ctx context.Context, cfg Config, st *store.Store, vault *
 	return vault.Unlock(mk)
 }
 
-// Serve runs AutoPanel until SIGINT or SIGTERM: the store, the gate's two
-// listeners, certificates, and the control socket.
-func Serve(cfg Config, log *slog.Logger) error {
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
-	return ServeContext(ctx, cfg, log)
+// GateControl is how the core runs the gate process: it starts it once its
+// own sockets answer, and restarts or stops it on request.
+type GateControl interface {
+	Start(ctx context.Context) error
+	Restart(ctx context.Context) error
+	Stop(ctx context.Context) error
 }
 
-// ServeContext is Serve until ctx ends.
-func ServeContext(ctx context.Context, cfg Config, log *slog.Logger) error {
+// unitGate runs the gate as a systemd unit. The unit has no [Install] section,
+// so nothing but the core starts it.
+type unitGate struct{ unit string }
+
+func (g unitGate) Start(ctx context.Context) error {
+	_, err := hostcmd.Run(ctx, hostcmd.Systemctl, "start", g.unit)
+	return err
+}
+
+func (g unitGate) Restart(ctx context.Context) error {
+	_, err := hostcmd.Run(ctx, hostcmd.Systemctl, "restart", g.unit)
+	return err
+}
+
+func (g unitGate) Stop(ctx context.Context) error {
+	_, err := hostcmd.Run(ctx, hostcmd.Systemctl, "stop", g.unit)
+	return err
+}
+
+// gateUnit is the gate's unit, as install.sh installs it.
+const gateUnit = "autopanel-gate.service"
+
+// Core runs the core until SIGINT or SIGTERM. As root it runs the gate's
+// unit; as any other user (a development run) the gate is started by hand,
+// with autopanel --gate.
+func Core(cfg Config, log *slog.Logger) error {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	var gc GateControl
+	if os.Getuid() == 0 {
+		gc = unitGate{unit: gateUnit}
+	} else {
+		log.Warn("not root: the gate is not started; run autopanel --gate as this user")
+	}
+	return CoreContext(ctx, cfg, log, gc)
+}
+
+// linkAccess is who may open the link socket. With a gate user configured
+// (the units: the core is root, the gate is not), that user alone, through a
+// socket its group can open in a directory its group can enter. With none,
+// this process's own user: the gate then runs as the same one.
+func linkAccess(cfg Config) (acc hostcontrol.Access, gid int, err error) {
+	if cfg.GateUser == "" {
+		return hostcontrol.Access{Concurrent: 64}, -1, nil
+	}
+	u, err := user.Lookup(cfg.GateUser)
+	if err != nil {
+		return acc, -1, fmt.Errorf("the gate's user %q: %w", cfg.GateUser, err)
+	}
+	uid, err1 := strconv.Atoi(u.Uid)
+	gid, err2 := strconv.Atoi(u.Gid)
+	if err1 != nil || err2 != nil {
+		return acc, -1, fmt.Errorf("the gate's user %q has no numeric ids", cfg.GateUser)
+	}
+	return hostcontrol.Access{Peers: []int{uid}, Mode: 0o660, Concurrent: 64}, gid, nil
+}
+
+// CoreContext is Core until ctx ends, running the gate through gc (nil: not at all).
+func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateControl) error {
 	if cfg.Email == "" {
 		return errors.New("AUTOPANEL_ACME_EMAIL is required: the ACME account's contact")
 	}
@@ -83,7 +146,10 @@ func ServeContext(ctx context.Context, cfg Config, log *slog.Logger) error {
 		}
 	}()
 
+	// The core keeps a table too: it decides which names may have a
+	// certificate, and it is what the gate is sent.
 	table := gate.NewTable[http.Handler]()
+	rev := newRevision(time.Now().Unix())
 	reload := func(ctx context.Context) error {
 		rs, err := st.Routes().All(ctx)
 		if err != nil {
@@ -94,6 +160,7 @@ func ServeContext(ctx context.Context, cfg Config, log *slog.Logger) error {
 			return err
 		}
 		table.Swap(snap)
+		rev.bump()
 		return nil
 	}
 	if err := reload(ctx); err != nil {
@@ -113,17 +180,9 @@ func ServeContext(ctx context.Context, cfg Config, log *slog.Logger) error {
 	}
 
 	counts := &counters{}
-	gateHandler := counted(&counts.https, hostgate.Handler(table))
-	https := httpserver.New(httpserver.Addr(cfg.HTTPSAddr), httpserver.WithTLSConfig(sw.tlsConfig()),
-		httpserver.ReadHeaderTimeout(10*time.Second), httpserver.IdleTimeout(120*time.Second),
-		httpserver.MaxHeaderBytes(64<<10), httpserver.NotFound(gateHandler.ServeHTTP)) // no routes: every request is the gate's
-	plain := httpserver.New(httpserver.Addr(cfg.HTTPAddr),
-		httpserver.ReadHeaderTimeout(10*time.Second), httpserver.IdleTimeout(60*time.Second),
-		httpserver.MaxHeaderBytes(16<<10), httpserver.NotFound(counted(&counts.http, sw.httpChallenge(http.HandlerFunc(toHTTPS))).ServeHTTP))
-
 	gm := gate.NewModule(st.Routes(), reload)
 	sys := &sysModule{cfg: cfg, table: table, engine: st.Engine(), started: time.Now(), challenge: sw.Challenge, ca: sw.CA,
-		st: st, log: log, counts: counts, listeners: readListeners, sshLogins: readSSHLogins}
+		st: st, log: log, counts: counts, listeners: readListeners, sshLogins: readSSHLogins, gate: gc}
 	am, err := auth.New(st, st, vault, func(ctx context.Context) {
 		if err := sw.rebuild(ctx); err != nil {
 			log.Error("certificates after unlock", "err", err)
@@ -132,9 +191,32 @@ func ServeContext(ctx context.Context, cfg Config, log *slog.Logger) error {
 	if err != nil {
 		return err
 	}
-	ctl, err := hostcontrol.Listen(cfg.Socket, log, am, gm, &certsModule{sw: sw}, sys)
+	// The control socket: this user's processes only, so root's under the unit.
+	ctl, err := hostcontrol.Listen(cfg.Socket, log, hostcontrol.Access{}, am, gm, &certsModule{sw: sw}, sys)
 	if err != nil {
 		return err
+	}
+	acc, gid, err := linkAccess(cfg)
+	if err != nil {
+		return err
+	}
+	if gid >= 0 { // the gate's group may enter the link's directory, and nothing more
+		dir := filepath.Dir(cfg.LinkSocket)
+		if err := os.Chown(dir, 0, gid); err != nil {
+			return err
+		}
+		if err := os.Chmod(dir, 0o750); err != nil {
+			return err
+		}
+	}
+	lnk, err := hostcontrol.Listen(cfg.LinkSocket, log, acc, &linkModule{cfg: cfg, table: table, rev: rev, sw: sw, counts: counts})
+	if err != nil {
+		return err
+	}
+	if gid >= 0 {
+		if err := os.Chown(cfg.LinkSocket, 0, gid); err != nil {
+			return err
+		}
 	}
 	started = true
 
@@ -152,12 +234,21 @@ func ServeContext(ctx context.Context, cfg Config, log *slog.Logger) error {
 			}
 		}()
 	}
-	run("gate https", https.Run)
-	run("gate http", plain.Run)
 	run("control", ctl.Run)
+	run("link", lnk.Run)
 	run("lease", func(ctx context.Context) error { return renewLease(ctx, st, holder) })
-	log.Info("autopanel serving", "https", cfg.HTTPSAddr, "http", cfg.HTTPAddr, "socket", cfg.Socket,
+	log.Info("autopanel core serving", "socket", cfg.Socket, "link", cfg.LinkSocket,
 		"store", st.Engine(), "ca", sw.CA(), "challenge", sw.Challenge(), "routes", len(table.Routes()))
+	if gc != nil {
+		// The sockets answer: the gate may start. A gate already running (the
+		// core restarted under it) is left as it is, and reconnects.
+		run("gate start", func(ctx context.Context) error {
+			if err := gc.Start(ctx); err != nil && ctx.Err() == nil {
+				log.Error("the gate did not start; the panel still answers", "err", err)
+			}
+			return nil
+		})
+	}
 	<-ctx.Done()
 	wg.Wait()
 	close(errs)
@@ -179,15 +270,4 @@ func renewLease(ctx context.Context, st *store.Store, holder string) error {
 			}
 		}
 	}
-}
-
-// toHTTPS redirects plain HTTP to the same host and path over HTTPS. The host
-// is canonicalised first; a request naming no valid host gets 404.
-func toHTTPS(w http.ResponseWriter, r *http.Request) {
-	host, err := gate.CanonicalHost(r.Host)
-	if err != nil {
-		http.NotFound(w, r)
-		return
-	}
-	http.Redirect(w, r, "https://"+host+r.URL.RequestURI(), http.StatusPermanentRedirect)
 }

@@ -1,0 +1,60 @@
+# AutoPanel's gate: the process that faces the internet. It serves :80 and
+# :443 from the routes and certificates the core hands it over the link
+# socket, and holds nothing else: no store, no vault key, no configuration
+# file. install.sh installs it; the core starts it.
+#
+# There is no [Install] section on purpose: only the core starts the gate
+# (autopanel-core.service), so a host whose core is not running has no gate.
+
+[Unit]
+Description=AutoPanel gate (the reverse proxy on :80 and :443)
+Wants=network-online.target
+After=network-online.target autopanel-core.service
+# Never give up restarting: a gate that stays down is worse than a retry.
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=autopanel
+Group=autopanel
+ExecStart=/usr/local/bin/autopanel --gate
+# Comes back on its own after a crash. A stop asked through the core
+# (sys.gate.stop) or with systemctl stays stopped. While the core is away the
+# gate keeps serving the routes and certificates it holds.
+Restart=always
+RestartSec=2s
+
+# :80 and :443 without root.
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+
+# What the core holds is not even visible here.
+InaccessiblePaths=-/var/lib/autopanel -/etc/autopanel -/run/autopanel-core
+UMask=0077
+
+# The gate's share of the staging memory budget fails loudly: an overspend is
+# killed, not swapped.
+MemoryMax=40M
+MemorySwapMax=0
+Environment=GOMEMLIMIT=32MiB
+
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
