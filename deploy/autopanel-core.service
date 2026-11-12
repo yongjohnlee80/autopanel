@@ -33,9 +33,11 @@ RuntimeDirectory=autopanel-core autopanel-link
 RuntimeDirectoryMode=0700
 UMask=0077
 
-# The core's share of the staging memory budget fails loudly: an overspend is
-# killed, not swapped.
-MemoryMax=60M
+# The core's memory budget fails loudly: an overspend is killed, not swapped.
+# The limit covers the commands the core runs to deploy a service (podman,
+# useradd, journalctl), one at a time: on a real host they took the core to
+# 60M. The core's own heap keeps its lower limit.
+MemoryMax=128M
 MemorySwapMax=0
 Environment=GOMEMLIMIT=50MiB
 
