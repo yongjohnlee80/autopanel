@@ -29,6 +29,7 @@ var (
 	Useradd    = Tool{"/usr/sbin/useradd"}
 	Usermod    = Tool{"/usr/sbin/usermod"}
 	Userdel    = Tool{"/usr/sbin/userdel"}
+	Pkill      = Tool{"/usr/bin/pkill"}
 	Podman     = Tool{"/usr/bin/podman"}
 	Runuser    = Tool{"/usr/sbin/runuser"}
 )

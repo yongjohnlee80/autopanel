@@ -56,8 +56,18 @@ daemon with root's rights for it to talk to.
 is limited in memory by the same machinery as everything else on the host, and AutoPanel keeps no
 process of its own watching it.
 
-**What every unit gets, whatever its template:** a read-only root filesystem, every capability
-dropped, no new privileges, the template's memory limit, and its directories mounted read-only.
+**What every unit gets, whatever its template:** a read-only root filesystem, no new privileges,
+the template's memory limit, its directories mounted read-only, and every capability dropped but
+the ones the template names. The process inside is the service's own user, the same outside.
+
+**Why the process is the service's user, not the image's:** an image's own user is one of the
+service user's sub-ids on the host. It cannot read a file only the service's user may read, and
+Open ports and the journal would show a number, not the service.
+
+**A template may keep a capability** only when its image cannot start without it. The TURN
+template keeps `NET_BIND_SERVICE`: the image's `turnserver` carries it as a file capability, and
+the kernel refuses to run such a file once the capability is dropped. The container holds it in
+its own user namespace, where it opens no port of the host's below 1024.
 
 **What is kept:** the store holds what was asked for: the template, the options, and whether the
 deploy finished. Whether a service is running is read from systemd when asked, never kept.
@@ -99,7 +109,18 @@ on the host.
 
 **Why:** a relay hands out hundreds of UDP ports. A rootless container's ports are forwarded by a
 process in user space, one socket per port, and that cost is paid on every relayed packet. The
-relay's other limits are unchanged: its own user, no capability, a read-only root.
+relay's other limits are unchanged: its own user, a read-only root, and no capability over the
+host.
+
+**Decided:** every setting of the relay but its secret is on its command line; the configuration
+file holds the secret alone.
+
+**Why:** coturn starts on its defaults when it cannot read its configuration file, and says so
+only in its log. Its defaults are a relay that asks for no credentials and refuses no peer. This
+happened on the first real deploy: the file was readable by the service's user and the process
+was not that user. With the settings on the command line, a relay without its file has no secret,
+so it authenticates nobody, and it still refuses private peers. The secret stays in the file
+because a command line is readable by every user of the host.
 
 **What it costs:** the relay can open connections from the host's address. Its configuration
 refuses to relay to the host itself and to private and link-local addresses.

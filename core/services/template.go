@@ -1,7 +1,8 @@
 // Package services deploys services from templates: a TURN relay first. A
 // service runs under rootless Podman as its own unprivileged user, as a
 // systemd unit of that user, and gets what its template grants: its ports,
-// its own directory, a memory limit, and no capability.
+// its own directory, a memory limit, and no capability its template does not
+// name.
 //
 // A template is Go, compiled in. It is reviewed as code and cannot be
 // supplied at run time: no verb takes an image, a command or a path.
@@ -87,6 +88,11 @@ type Template struct {
 	Mounts map[string]string
 	Args   func(v Values) []string // the container's command line
 	Memory string                  // the unit's MemoryMax: "128M"
+	// Keeps are the capabilities left to the container; every other is
+	// dropped. A template names one only when its image cannot start without
+	// it, and says why. The container holds it inside its own user
+	// namespace: it gives no right over the host.
+	Keeps []string
 }
 
 // Values are a template's options, validated.

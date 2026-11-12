@@ -1,9 +1,6 @@
 package services
 
-import (
-	"fmt"
-	"strings"
-)
+import "fmt"
 
 // coturnImage is coturn 4.18.0 (Debian), every architecture, by digest.
 const coturnImage = "docker.io/coturn/coturn@sha256:bbefd3e1fdfdc0d58770fe01b581fd8b00d9f3a5580d00acb77cf719a6bc78e3"
@@ -29,12 +26,17 @@ var TURN = Template{
 		return []PortUse{{Proto: "udp", From: p, To: p}, {Proto: "tcp", From: p, To: p}, {Proto: "udp", From: from, To: to}}
 	},
 	Secrets: []string{"auth-secret"},
-	Files: func(v Values, secrets map[string]string) []File {
-		return []File{{Path: "config/turnserver.conf", Mode: 0o400, Body: []byte(turnConf(v, secrets["auth-secret"]))}}
+	Files: func(_ Values, secrets map[string]string) []File {
+		return []File{{Path: "config/turnserver.conf", Mode: 0o400, Body: []byte(turnConf(secrets["auth-secret"]))}}
 	},
 	Mounts: map[string]string{"config": "/etc/coturn"},
-	Args:   func(Values) []string { return []string{"-c", "/etc/coturn/turnserver.conf"} },
+	Args:   turnArgs,
 	Memory: "128M",
+	// The image's turnserver carries NET_BIND_SERVICE as a file capability,
+	// and the kernel refuses to run such a file when the capability is
+	// dropped. Kept, it is held in the container's own user namespace, where
+	// it opens no port of the host's below 1024.
+	Keeps: []string{"NET_BIND_SERVICE"},
 }
 
 // turnDenied are the peers the relay refuses: this host and every private or
@@ -46,21 +48,38 @@ var turnDenied = []string{
 	"::1", "fc00::-fdff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", "fe80::-febf:ffff:ffff:ffff:ffff:ffff:ffff:ffff",
 }
 
-// turnConf is coturn's configuration. Every value in it is a validated option
-// or the generated secret (hex): none can carry a line break.
-func turnConf(v Values, secret string) string {
+// turnArgs is coturn's command line: every setting but the secret. They are
+// here and not in the configuration file because coturn starts on its
+// defaults when it cannot read that file, and its defaults are a relay that
+// asks for no credentials. With these on the command line, a relay that
+// lost its file has no secret and authenticates nobody.
+//
+// Every value is a validated option or a constant: none has a space or a
+// character the image's entrypoint, a shell, would expand.
+func turnArgs(v Values) []string {
 	from, to := v.Range("relay_ports")
-	var b strings.Builder
-	fmt.Fprintf(&b, "# Written by AutoPanel. Changed through the panel, not here: a deploy writes it again.\n")
-	fmt.Fprintf(&b, "listening-port=%d\n", v.Port("port"))
-	fmt.Fprintf(&b, "min-port=%d\nmax-port=%d\n", from, to)
-	fmt.Fprintf(&b, "realm=%s\n", v.Get("realm"))
-	fmt.Fprintf(&b, "use-auth-secret\nstatic-auth-secret=%s\n", secret)
-	b.WriteString("fingerprint\nno-cli\nno-tls\nno-dtls\nno-multicast-peers\n")
+	args := []string{
+		"-c", "/etc/coturn/turnserver.conf",
+		fmt.Sprintf("--listening-port=%d", v.Port("port")),
+		fmt.Sprintf("--min-port=%d", from), fmt.Sprintf("--max-port=%d", to),
+		"--realm=" + v.Get("realm"),
+		// No certificate is given, so coturn opens no TLS or DTLS listener.
+		// --no-tls says so; coturn 4.18 takes no --no-dtls on its command
+		// line, and refuses to start when given one.
+		"--use-auth-secret", "--fingerprint", "--no-tls", "--no-multicast-peers",
+	}
 	for _, d := range turnDenied {
-		fmt.Fprintf(&b, "denied-peer-ip=%s\n", d)
+		args = append(args, "--denied-peer-ip="+d)
 	}
 	// The container's root is read-only: what coturn writes goes to its /tmp.
-	b.WriteString("log-file=stdout\npidfile=/tmp/turnserver.pid\nuserdb=/tmp/turndb\n")
-	return b.String()
+	return append(args, "--log-file=stdout", "--pidfile=/tmp/turnserver.pid", "--userdb=/tmp/turndb")
+}
+
+// turnConf is coturn's configuration file: the secret, which must not be on
+// a command line, where every user of the host could read it. The secret is
+// hex: it cannot carry a line break.
+func turnConf(secret string) string {
+	return "# Written by AutoPanel. Changed through the panel, not here: a deploy writes it again.\n" +
+		"# The relay's other settings are on its command line, in its unit.\n" +
+		"static-auth-secret=" + secret + "\n"
 }

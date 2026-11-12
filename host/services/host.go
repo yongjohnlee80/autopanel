@@ -344,6 +344,11 @@ func (h *Host) Uninstall(ctx context.Context, name string, purge bool) error {
 			_, err := hostcmd.Run(ctx, hostcmd.Systemctl, "is-active", "--quiet", "user@"+strconv.Itoa(uid)+".service")
 			return err != nil
 		})
+		// A process of the user's started outside its systemd (by an
+		// administrator, with runuser) is not ended with it. None may outlive
+		// the user: it would hold its ports under a number that is nobody's.
+		// pkill exits 1 when there is none.
+		_, _ = hostcmd.Run(ctx, hostcmd.Pkill, "-KILL", "-U", strconv.Itoa(uid))
 		if _, err := hostcmd.Run(ctx, hostcmd.Userdel, usr); err != nil {
 			// A process of the user's that outlived its systemd: userdel's
 			// --force deletes the user regardless.
@@ -367,6 +372,14 @@ func (h *Host) Uninstall(ctx context.Context, name string, purge bool) error {
 	}
 	if err := os.Chmod(home, 0o700); err != nil {
 		return err
+	}
+	// What is kept is the service's own: its configuration and its data.
+	// Podman's store is the image, pulled again by the next deploy, and is
+	// hundreds of megabytes.
+	for _, podmans := range []string{".local/share/containers", ".cache"} {
+		if err := os.RemoveAll(filepath.Join(home, podmans)); err != nil {
+			return err
+		}
 	}
 	return os.Rename(home, home+".removed-"+strconv.FormatInt(time.Now().Unix(), 10))
 }

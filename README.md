@@ -202,8 +202,11 @@ What a deploy does, in order:
 3. Writes the service's configuration and a Podman unit file into that directory.
 4. Starts the service as a systemd unit of that user, under rootless Podman.
 
-Every service runs with a read-only root filesystem, no capability, no way to gain one, and a
-memory limit. Its image is pinned by digest in AutoPanel's code: no command takes an image, a
+Every service runs as its own user, with a read-only root filesystem, no way to gain a
+privilege, a memory limit, and every capability dropped but the ones its template names. The
+TURN relay keeps one, `NET_BIND_SERVICE`: coturn's program in the image is marked with it, and
+Linux refuses to start such a program without it. The relay holds it inside its own user
+namespace, where it opens no port of the server's below 1024. Its image is pinned by digest in AutoPanel's code: no command takes an image, a
 command line or a path.
 
 | Command | What it does |
@@ -211,7 +214,7 @@ command line or a path.
 | `services.update '{"name":"turn","options":{…}}'` | changes the options and restarts the service; the secret is kept |
 | `services.stop`, `services.start`, `services.restart` `'{"name":"turn"}'` | the unit |
 | `services.secret '{"name":"turn","key":"auth-secret"}'` | prints a generated secret |
-| `services.remove '{"name":"turn"}'` | stops the service and deletes its user and its secret; the directory is kept, as root's |
+| `services.remove '{"name":"turn"}'` | stops the service and deletes its user and its secret; its directory is kept, as root's, without the pulled image |
 | `services.remove '{"name":"turn","purge":true}'` | also deletes the directory |
 
 Each of these is written to the audit log **before** it runs, with how it ended once it has. If
@@ -236,6 +239,11 @@ audit log.
 
 The relay refuses to relay to this server itself and to private and link-local addresses, so it
 cannot be used to reach what the server can and the internet cannot.
+
+The relay's settings are on its command line, in its unit; its configuration file holds only the
+secret. coturn starts on its defaults when it cannot read its file, and its defaults are a relay
+that asks for no credentials. Set up this way, a relay that lost its file has no secret and
+serves nobody.
 
 The relay uses the host's network, not a network of its own. A relay hands out hundreds of UDP
 ports, and passing each through a rootless container's port forwarder costs more than the

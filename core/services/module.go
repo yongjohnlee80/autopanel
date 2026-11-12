@@ -579,8 +579,17 @@ func quadlet(t Template, name string, v Values) string {
 		fmt.Fprintf(&b, "Volume=%%h/%s:%s:ro,Z\n", d, t.Mounts[d])
 	}
 	// What every service gets, whatever its template: a read-only root, no
-	// capability, no way to gain one, and its own user inside as outside.
-	b.WriteString("ReadOnly=true\nDropCapability=ALL\nNoNewPrivileges=true\nUserNS=keep-id\n\n")
+	// capability but the ones its template keeps, and no way to gain one.
+	b.WriteString("ReadOnly=true\nDropCapability=ALL\n")
+	for _, c := range t.Keeps {
+		fmt.Fprintf(&b, "AddCapability=%s\n", c)
+	}
+	// Its own user inside as outside (%U and %G are the unit's user and
+	// group): the process is the service's user on the host, so it reads the
+	// files only that user may, and Open ports and the journal name it. An
+	// image's own user would be one of the user's sub-ids, which can read
+	// none of them.
+	b.WriteString("NoNewPrivileges=true\nUserNS=keep-id\nUser=%U\nGroup=%G\n\n")
 	// The first start pulls the image: give it time.
 	fmt.Fprintf(&b, "[Service]\nMemoryMax=%s\nMemorySwapMax=0\nRestart=always\nTimeoutStartSec=600\n\n", t.Memory)
 	b.WriteString("[Install]\nWantedBy=default.target\n")

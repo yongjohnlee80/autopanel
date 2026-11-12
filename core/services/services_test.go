@@ -66,31 +66,40 @@ func TestTheTURNUnitIsConfined(t *testing.T) {
 	}
 	q := quadlet(TURN, "turn", v)
 	for _, want := range []string{
-		"Image=docker.io/coturn/coturn@sha256:", "Exec=-c /etc/coturn/turnserver.conf\n", "Network=host\n",
-		"Volume=%h/config:/etc/coturn:ro,Z\n", "ReadOnly=true\n", "DropCapability=ALL\n", "NoNewPrivileges=true\n", "UserNS=keep-id\n",
-		"MemoryMax=128M\n", "Restart=always\n", "WantedBy=default.target\n",
+		"Image=docker.io/coturn/coturn@sha256:", "Exec=-c /etc/coturn/turnserver.conf --listening-port=3479 --min-port=50000 --max-port=50099 --realm=turn.example.com --use-auth-secret ",
+		" --denied-peer-ip=127.0.0.0-127.255.255.255 ", " --denied-peer-ip=169.254.0.0-169.254.255.255 ", " --denied-peer-ip=10.0.0.0-10.255.255.255 ",
+		" --no-tls ", "Network=host\n",
+		"Volume=%h/config:/etc/coturn:ro,Z\n", "ReadOnly=true\n", "DropCapability=ALL\nAddCapability=NET_BIND_SERVICE\nNoNewPrivileges=true\n",
+		"UserNS=keep-id\nUser=%U\nGroup=%G\n", "MemoryMax=128M\n", "Restart=always\n", "WantedBy=default.target\n",
 	} {
 		if !strings.Contains(q, want) {
 			t.Errorf("the unit lacks %q:\n%s", want, q)
 		}
 	}
-	for _, never := range []string{"AddCapability", "PublishPort", "Privileged", "SecurityLabelDisable", "PodmanArgs"} {
+	if n := strings.Count(q, "AddCapability"); n != 1 {
+		t.Errorf("the unit keeps %d capabilities, want the one the image needs:\n%s", n, q)
+	}
+	for _, never := range []string{"PublishPort", "Privileged", "SecurityLabelDisable", "PodmanArgs", "allow-loopback-peers", "0123abcd", "static-auth-secret", "--no-dtls"} {
 		if strings.Contains(q, never) {
 			t.Errorf("the unit has %q:\n%s", never, q)
 		}
 	}
-	conf := turnConf(v, "0123abcd")
-	for _, want := range []string{
-		"listening-port=3479\n", "min-port=50000\n", "max-port=50099\n", "realm=turn.example.com\n",
-		"use-auth-secret\n", "static-auth-secret=0123abcd\n", "no-cli\n", "denied-peer-ip=127.0.0.0-127.255.255.255\n",
-		"denied-peer-ip=169.254.0.0-169.254.255.255\n", "denied-peer-ip=10.0.0.0-10.255.255.255\n",
-	} {
-		if !strings.Contains(conf, want) {
-			t.Errorf("turnserver.conf lacks %q:\n%s", want, conf)
+	// The file holds the secret and no setting: a relay that cannot read it
+	// has no secret, and its command line still asks for one.
+	conf := turnConf("0123abcd")
+	if !strings.Contains(conf, "static-auth-secret=0123abcd\n") {
+		t.Errorf("turnserver.conf lacks the secret:\n%s", conf)
+	}
+	for _, line := range strings.Split(strings.TrimSpace(conf), "\n") {
+		if !strings.HasPrefix(line, "#") && !strings.HasPrefix(line, "static-auth-secret=") {
+			t.Errorf("turnserver.conf holds a setting, %q: settings belong on the command line", line)
 		}
 	}
-	if strings.Contains(conf, "allow-loopback-peers") {
-		t.Error("the relay may reach this host's own services")
+	// A template that keeps nothing drops everything.
+	bare := TURN
+	bare.Keeps = nil
+	if strings.Contains(quadlet(bare, "turn", v), "AddCapability") {
+		t.Error("a template that keeps no capability has one")
 	}
 	// A template with a network of its own publishes its ports and nothing else.
 	private := TURN
