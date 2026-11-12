@@ -13,7 +13,7 @@
 import tui 1.0                 // the widget vocabulary, and the Tui singleton's enums
 import autopanel 1.0           // the App singleton: the panel's state and commands
 import autopanel.theme.dark 1.0  // the Theme singleton; System › Theme switches it
-import autopanel.dialogs 1.0   // Login, RouteDialog, ConfirmDialog
+import autopanel.dialogs 1.0   // Login, RouteDialog, TurnDialog, ConfirmDialog
 import autopanel.views 1.0     // About
 import autopanel.panels 1.0    // FloatPanel
 
@@ -97,7 +97,8 @@ Window {
         }
         Menu {
             title: qsTrId("autopanel.menu.services")
-            MenuItem { text: qsTrId("autopanel.menu.services.turn"); enabled: false }
+            MenuItem { text: qsTrId("autopanel.menu.services.deployed"); onTriggered: App.openServices() }
+            MenuItem { text: qsTrId("autopanel.menu.services.turn"); onTriggered: App.deployTurn() }
             MenuItem { text: qsTrId("autopanel.menu.services.mail"); enabled: false }
         }
         Menu {
@@ -287,6 +288,119 @@ Window {
         }
     }
 
+    // ---- the services -----------------------------------------------------
+    //
+    // Services › Deployed services: a row per service, and its keys
+    // (services.go). The daemon records each change before it makes it.
+    FloatPanel {
+        id: servicesPanel
+        key: "services"; label: "Services"
+        heading: qsTrId("autopanel.services.title")
+        size: 70; length: 90
+        onOpened: servicesTable.forceActiveFocus()
+        Shortcut { sequence: "r"; onActivated: App.reloadServices() }
+        Shortcut { sequence: "a"; onActivated: App.deployTurn() }
+        Shortcut { sequence: "e"; onActivated: App.editService(servicesTable.currentIndex) }
+        Shortcut { sequence: "s"; onActivated: App.startService(servicesTable.currentIndex) }
+        Shortcut { sequence: "x"; onActivated: App.stopService(servicesTable.currentIndex) }
+        Shortcut { sequence: "t"; onActivated: App.restartService(servicesTable.currentIndex) }
+        Shortcut { sequence: "l"; onActivated: App.serviceLogsOf(servicesTable.currentIndex) }
+        Shortcut { sequence: "k"; onActivated: App.secretsOf(servicesTable.currentIndex) }
+        Shortcut { sequence: "d"; onActivated: App.removeService(servicesTable.currentIndex) }
+        Shortcut { sequence: "Shift+D"; onActivated: App.purgeService(servicesTable.currentIndex) }
+        Flex {
+            direction: Tui.Vertical
+            TableView {
+                id: servicesTable
+                Layout.fillHeight: true
+                palette.highlight: Theme.document.highlight
+                palette.highlightedText: Theme.document.highlightedText
+                model: App.services
+                onActivated: App.editService(index)
+                TableViewColumn { role: "name"; title: "NAME"; width: 16 }
+                TableViewColumn { role: "kind"; title: "KIND"; width: 14 }
+                TableViewColumn { role: "state"; title: "STATE"; width: 22 }
+                TableViewColumn { role: "memory"; title: "MEMORY"; width: 10 }
+                TableViewColumn { role: "user"; title: "USER"; width: 14 }
+                TableViewColumn { role: "ports"; title: "PORTS" }
+            }
+            Flex {
+                direction: Tui.Horizontal
+                Button { text: qsTrId("autopanel.services.deploy"); onClicked: App.deployTurn() }
+                Button { text: qsTrId("autopanel.services.change"); onClicked: App.editService(servicesTable.currentIndex) }
+                Button { text: qsTrId("autopanel.services.start"); onClicked: App.startService(servicesTable.currentIndex) }
+                Button { text: qsTrId("autopanel.services.stop"); onClicked: App.stopService(servicesTable.currentIndex) }
+                Button { text: qsTrId("autopanel.services.restart"); onClicked: App.restartService(servicesTable.currentIndex) }
+                Button { text: qsTrId("autopanel.services.logs"); onClicked: App.serviceLogsOf(servicesTable.currentIndex) }
+                Button { text: qsTrId("autopanel.services.remove"); onClicked: App.removeService(servicesTable.currentIndex) }
+            }
+            Text { text: App.servicesNote }
+            Text { text: qsTrId("autopanel.services.help"); wrapMode: Tui.WordWrap }
+        }
+    }
+    FloatPanel {
+        id: serviceLogsPanel
+        key: "serviceLogs"; label: "Service log"
+        heading: qsTrId("autopanel.services.logs.title")
+        size: 75; length: 95
+        onOpened: serviceLogsTable.forceActiveFocus()
+        Shortcut { sequence: "r"; onActivated: App.reloadLogs() }
+        Flex {
+            direction: Tui.Vertical
+            TableView {
+                id: serviceLogsTable
+                Layout.fillHeight: true
+                palette.highlight: Theme.document.highlight
+                palette.highlightedText: Theme.document.highlightedText
+                model: App.serviceLogs
+                TableViewColumn { role: "line"; title: "JOURNAL" }
+            }
+            Text { text: App.serviceLogsNote }
+            Text { text: qsTrId("autopanel.monitor.help") }
+        }
+    }
+    // A service's secrets. Its own Drawer, not a FloatPanel: closing it has
+    // the host forget what it showed (App.secretsClosed).
+    Drawer {
+        id: serviceSecretsPanel
+        key: "serviceSecrets"; label: "Secrets"
+        modal: false
+        closeOnQ: true
+        edge: Tui.Center
+        size: 30
+        length: 90
+        movable: true
+        windowResize: true
+        closable: true
+        onOpened: serviceSecretsTable.forceActiveFocus()
+        onClosed: App.secretsClosed()
+        Frame {
+            title: App.secretsTitle
+            palette.window: Theme.document.base
+            Flex {
+                direction: Tui.Vertical
+                WindowButtons {}
+                FocusScope {
+                    Layout.fillHeight: true
+                    Shortcut { sequence: "r"; onActivated: App.nothing() }
+                    Flex {
+                        direction: Tui.Vertical
+                        TableView {
+                            id: serviceSecretsTable
+                            Layout.fillHeight: true
+                            palette.highlight: Theme.document.highlight
+                            palette.highlightedText: Theme.document.highlightedText
+                            model: App.serviceSecrets
+                            TableViewColumn { role: "name"; title: "SECRET"; width: 16 }
+                            TableViewColumn { role: "value"; title: "VALUE" }
+                        }
+                        Text { text: qsTrId("autopanel.services.secret.note"); wrapMode: Tui.WordWrap }
+                    }
+                }
+            }
+        }
+    }
+
     // ---- the terminal -----------------------------------------------------
     //
     // Go › Terminal: shells on this host, a tab each (terminal.go). The strip
@@ -355,6 +469,7 @@ Window {
     // failed change, showing why; the host closes it once the change is made.
     Login { id: loginDialog }
     RouteDialog { id: routeDialog }
+    TurnDialog { id: turnDialog }
     ConfirmDialog { id: confirmDialog }
     About { id: aboutDialog }
 }

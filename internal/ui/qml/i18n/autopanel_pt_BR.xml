@@ -191,13 +191,17 @@
         <source>&amp;Services</source>
         <translation>Serviços(&amp;s)</translation>
     </message>
+    <message id="autopanel.menu.services.deployed">
+        <source>&amp;Deployed services…</source>
+        <translation>Serviços implantados(&amp;d)…</translation>
+    </message>
     <message id="autopanel.menu.services.mail">
         <source>&amp;Mail server…</source>
         <translation>Servidor de e-mail(&amp;m)…</translation>
     </message>
     <message id="autopanel.menu.services.turn">
-        <source>&amp;TURN server…</source>
-        <translation>Servidor TURN(&amp;t)…</translation>
+        <source>Deploy a &amp;TURN relay…</source>
+        <translation>Implantar um relay TURN(&amp;t)…</translation>
     </message>
     <message id="autopanel.menu.system">
         <source>S&amp;ystem</source>
@@ -442,6 +446,146 @@
     <message id="autopanel.routes.title">
         <source>Proxy routes</source>
         <translation>Rotas de proxy</translation>
+    </message>
+    <message id="autopanel.services.change">
+        <source>Change</source>
+        <translation>Alterar</translation>
+    </message>
+    <message id="autopanel.services.confirm.purge">
+        <source>Remove %1 and delete its directory? Its unit, its user %2, its secrets and its data are deleted.</source>
+        <translation>Remover %1 e excluir o diretório? A unidade, o usuário %2, os segredos e os dados são excluídos.</translation>
+    </message>
+    <message id="autopanel.services.confirm.remove">
+        <source>Remove %1? Its unit, its user %2 and its secrets are deleted. Its directory is kept, owned by root.</source>
+        <translation>Remover %1? A unidade, o usuário %2 e os segredos são excluídos. O diretório é mantido, pertencendo ao root.</translation>
+    </message>
+    <message id="autopanel.services.confirm.title">
+        <source>Remove service</source>
+        <translation>Remover serviço</translation>
+    </message>
+    <message id="autopanel.services.deploy">
+        <source>Deploy TURN</source>
+        <translation>Implantar TURN</translation>
+    </message>
+    <message id="autopanel.services.done.change">
+        <source>%1 is changed and restarted</source>
+        <translation>%1 foi alterado e reiniciado</translation>
+    </message>
+    <message id="autopanel.services.done.deploy">
+        <source>%1 is deployed; its image is pulled as it starts</source>
+        <translation>%1 foi implantado; a imagem é baixada ao iniciar</translation>
+    </message>
+    <message id="autopanel.services.done.purge">
+        <source>%1 removed, with its directory</source>
+        <translation>%1 removido, com o diretório</translation>
+    </message>
+    <message id="autopanel.services.done.remove">
+        <source>%1 removed; its directory is kept</source>
+        <translation>%1 removido; o diretório foi mantido</translation>
+    </message>
+    <message id="autopanel.services.done.restart">
+        <source>%1 restarted</source>
+        <translation>%1 reiniciado</translation>
+    </message>
+    <message id="autopanel.services.done.start">
+        <source>%1 started</source>
+        <translation>%1 iniciado</translation>
+    </message>
+    <message id="autopanel.services.done.stop">
+        <source>%1 stopped</source>
+        <translation>%1 parado</translation>
+    </message>
+    <message id="autopanel.services.form.change">
+        <source>Change %1</source>
+        <translation>Alterar %1</translation>
+    </message>
+    <message id="autopanel.services.form.deploy">
+        <source>Deploy a TURN relay</source>
+        <translation>Implantar um relay TURN</translation>
+    </message>
+    <message id="autopanel.services.help">
+        <source>a deploy TURN · e/Enter change · s start · x stop · t restart · l log · k secrets · d remove · Shift+D remove with its directory · r read again · q close</source>
+        <translation>a implantar TURN · e/Enter alterar · s iniciar · x parar · t reiniciar · l log · k segredos · d remover · Shift+D remover com o diretório · r ler de novo · q fechar</translation>
+    </message>
+    <message id="autopanel.services.logs">
+        <source>Log</source>
+        <translation>Log</translation>
+    </message>
+    <message id="autopanel.services.logs.note">
+        <source>%1: %2 lines, read at %3</source>
+        <translation>%1: %2 linhas, lido às %3</translation>
+    </message>
+    <message id="autopanel.services.logs.title">
+        <source>Service log</source>
+        <translation>Log do serviço</translation>
+    </message>
+    <message id="autopanel.services.none">
+        <source>No service at this row.</source>
+        <translation>Não há serviço nesta linha.</translation>
+    </message>
+    <message id="autopanel.services.remove">
+        <source>Remove</source>
+        <translation>Remover</translation>
+    </message>
+    <message id="autopanel.services.restart">
+        <source>Restart</source>
+        <translation>Reiniciar</translation>
+    </message>
+    <message id="autopanel.services.secret.none">
+        <source>%1 has no secret.</source>
+        <translation>%1 não tem segredo.</translation>
+    </message>
+    <message id="autopanel.services.secret.note">
+        <source>Each read is in the audit log. Give a secret only to the application that needs it. q closes.</source>
+        <translation>Cada leitura fica no log de auditoria. Dê um segredo apenas à aplicação que precisa dele. q fecha.</translation>
+    </message>
+    <message id="autopanel.services.secret.title">
+        <source>Secrets of %1</source>
+        <translation>Segredos de %1</translation>
+    </message>
+    <message id="autopanel.services.start">
+        <source>Start</source>
+        <translation>Iniciar</translation>
+    </message>
+    <message id="autopanel.services.state.deploying">
+        <source>deploy unfinished</source>
+        <translation>implantação inacabada</translation>
+    </message>
+    <message id="autopanel.services.state.removing">
+        <source>removal unfinished</source>
+        <translation>remoção inacabada</translation>
+    </message>
+    <message id="autopanel.services.stop">
+        <source>Stop</source>
+        <translation>Parar</translation>
+    </message>
+    <message id="autopanel.services.title">
+        <source>Services</source>
+        <translation>Serviços</translation>
+    </message>
+    <message id="autopanel.services.turn">
+        <source>TURN relay</source>
+        <translation>Relay TURN</translation>
+    </message>
+    <message id="autopanel.services.turn.name">
+        <source>Name (lower-case letters, digits and hyphens; empty for turn)</source>
+        <translation>Nome (minúsculas, dígitos e hifens; vazio para turn)</translation>
+    </message>
+    <message id="autopanel.services.turn.port">
+        <source>Port, UDP and TCP (1024 or above)</source>
+        <translation>Porta, UDP e TCP (1024 ou acima)</translation>
+    </message>
+    <message id="autopanel.services.turn.realm">
+        <source>Realm: the domain name the relay answers for</source>
+        <translation>Realm: o nome de domínio pelo qual o relay responde</translation>
+    </message>
+    <message id="autopanel.services.turn.relayPorts">
+        <source>Relay ports, UDP, as first-last</source>
+        <translation>Portas de retransmissão, UDP, como primeira-última</translation>
+    </message>
+    <message id="autopanel.services.unknownTemplate">
+        <source>This panel has no form for the template %1; use autopanel --call.</source>
+        <translation>Este painel não tem formulário para o modelo %1; use autopanel --call.</translation>
     </message>
     <message id="autopanel.status.error">
         <source>status: %1</source>

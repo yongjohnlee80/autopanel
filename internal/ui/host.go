@@ -20,7 +20,7 @@ import (
 //
 //	import autopanel 1.0              the App singleton: state and commands       (declared)
 //	import autopanel.theme.<name> 1.0 golib's themes: the Theme singleton         (offered)
-//	import autopanel.dialogs 1.0      Login, RouteDialog, ConfirmDialog           (offered)
+//	import autopanel.dialogs 1.0      Login, RouteDialog, TurnDialog, ConfirmDialog (offered)
 //	import autopanel.views 1.0        About                                       (offered)
 //	import autopanel.panels 1.0       FloatPanel: a floating window with controls (offered)
 //
@@ -66,6 +66,7 @@ type host struct {
 
 	themes *tuidecl.ListModel // App.themes: System › Theme's rows
 	mon    monitors           // the System panels' models and last answers (monitor.go)
+	svc    deployed           // the Services panels' models and last answers (services.go)
 
 	signingIn bool // a login attempt is in flight
 	signedIn  bool // a panel user has logged in; nothing is read before
@@ -92,7 +93,8 @@ func newHost(ctx context.Context, c Client, version string) *host {
 		model:     tuidecl.NewListModel("key", "id", "host", "path", "upstream"),
 		facts:     tuidecl.NewListModel("key", "name", "value"),
 		themes:    tuidecl.NewListModel("key", "label", "checked"),
-		mon:       newMonitors()}
+		mon:       newMonitors(),
+		svc:       newDeployed()}
 	h.themes.Reset(themeRows(h.theme))
 	h.ownShell, h.rootShell = hostShells()
 	return h
@@ -162,6 +164,9 @@ func (h *host) state() map[string]any {
 		s[name] = v
 	}
 	for name, v := range h.mon.state() {
+		s[name] = v
+	}
+	for name, v := range h.svc.state() {
 		s[name] = v
 	}
 	return s

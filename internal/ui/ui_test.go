@@ -33,6 +33,14 @@ type fakeClient struct {
 	prefs   Prefs    // what Prefs answers
 	kept    []Prefs  // what SetPrefs was asked to keep
 	sshNote string
+
+	services  []Service     // what Services answers
+	deployed  []ServiceSpec // what DeployService was asked for
+	changed   []ServiceSpec // what UpdateService was asked for
+	unitAsks  []string      // "stop turn": what ServiceUnit was asked for
+	removals  []string      // "turn" or "turn purge": what RemoveService was asked for
+	secretAsk []string      // "turn/auth-secret": what ServiceSecret was asked for
+	deployErr error
 }
 
 func newFakeClient() *fakeClient {

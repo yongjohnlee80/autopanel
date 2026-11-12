@@ -24,6 +24,7 @@ import (
 	hostgate "github.com/yongjohnlee80/autopanel/host/gate"
 	"github.com/yongjohnlee80/autopanel/internal/auth"
 	"github.com/yongjohnlee80/autopanel/internal/sysinfo"
+	"github.com/yongjohnlee80/autopanel/internal/ui"
 	"github.com/yongjohnlee80/autopanel/store"
 )
 
@@ -611,5 +612,83 @@ func TestServicesThroughTheControlSocket(t *testing.T) {
 		}
 	case <-time.After(15 * time.Second):
 		t.Fatal("the core did not stop")
+	}
+}
+
+// TestThePanelsClientOverServices drives services through the panel's own
+// client: what the Services menu calls decodes every answer the core gives,
+// and each change reaches the host.
+func TestThePanelsClientOverServices(t *testing.T) {
+	defer func(h func(Config) services.Host) { serviceHost = h }(serviceHost)
+	host := &machine{podman: [2]int{4, 9}, units: map[string]services.Unit{}, running: map[string]bool{}}
+	serviceHost = func(Config) services.Host { return host }
+
+	cfg := testConfig(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if err := Init(ctx, cfg, "root", strings.NewReader("a long master passphrase\n")); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() { done <- CoreContext(ctx, cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), nil) }()
+	coreUp(t, cfg, done)
+	c, err := hostcontrol.Dial(ctx, cfg.Socket)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	u := uiClient{c}
+	if err := u.Login(ctx, "root", "a long master passphrase"); err != nil {
+		t.Fatal(err)
+	}
+
+	ts, err := u.ServiceTemplates(ctx)
+	if err != nil || len(ts) != 1 || ts[0].Name != "turn" || len(ts[0].Options) != 3 || ts[0].Options[1].Default != "3478" ||
+		len(ts[0].Secrets) != 1 || ts[0].Secrets[0] != "auth-secret" {
+		t.Fatalf("ServiceTemplates = %+v, %v", ts, err)
+	}
+	if err := u.DeployService(ctx, ui.ServiceSpec{Template: "turn", Options: map[string]string{"realm": "turn.example.com"}}); err != nil {
+		t.Fatal(err)
+	}
+	list, err := u.Services(ctx)
+	if err != nil || len(list) != 1 {
+		t.Fatalf("Services = %+v, %v", list, err)
+	}
+	if s := list[0]; s.Name != "turn" || s.Template != "turn" || s.State != "deployed" || s.User != "ap-turn" ||
+		s.Active != "active" || s.Sub != "running" || s.Memory != 1<<20 || len(s.Ports) != 3 || s.Ports[2].To != 49999 ||
+		s.Options["port"] != "3478" {
+		t.Fatalf("the deployed relay = %+v", s)
+	}
+	secret, err := u.ServiceSecret(ctx, "turn", "auth-secret")
+	if err != nil || len(secret) != 64 {
+		t.Fatalf("ServiceSecret answered %d characters, %v", len(secret), err)
+	}
+	if lines, err := u.ServiceLogs(ctx, "turn"); err != nil || len(lines) != 1 {
+		t.Fatalf("ServiceLogs = %v, %v", lines, err)
+	}
+	if err := u.ServiceUnit(ctx, "stop", "turn"); err != nil {
+		t.Fatal(err)
+	}
+	if list, err = u.Services(ctx); err != nil || list[0].Active != "absent" {
+		t.Fatalf("after a stop, Services = %+v, %v", list, err)
+	}
+	if err := u.ServiceUnit(ctx, "erase", "turn"); err == nil {
+		t.Fatal("an unknown unit action was sent")
+	}
+	if err := u.UpdateService(ctx, ui.ServiceSpec{Name: "turn", Options: map[string]string{"realm": "turn.example.com", "port": "3479"}}); err != nil {
+		t.Fatal(err)
+	}
+	if list, err = u.Services(ctx); err != nil || list[0].Options["port"] != "3479" || list[0].Active != "active" {
+		t.Fatalf("after an update, Services = %+v, %v", list, err)
+	}
+	if err := u.RemoveService(ctx, "turn", true); err != nil {
+		t.Fatal(err)
+	}
+	if list, err = u.Services(ctx); err != nil || len(list) != 0 {
+		t.Fatalf("after a removal, Services = %+v, %v", list, err)
+	}
+	cancel()
+	if err := <-done; err != nil {
+		t.Fatalf("the core stopped with %v", err)
 	}
 }

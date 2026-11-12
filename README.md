@@ -162,8 +162,24 @@ the panel, and the daemon neither starts nor sees them.
 ### Deploy a service
 
 AutoPanel can run a service for you from a template. The first template is a TURN relay
-([coturn](https://github.com/coturn/coturn)). The panel has no form for it yet; a service is
-deployed from the command line:
+([coturn](https://github.com/coturn/coturn)).
+
+In the panel (`sudo autopanel --ui`), **Services → Deploy a TURN relay…** opens a form: a name,
+the realm, the port and the relay ports. **Services → Deployed services…** lists each service
+with its state, its memory, its user and its ports. The keys there:
+
+| Key | What it does |
+| --- | --- |
+| `a` | deploy a TURN relay |
+| `e` or Enter | change the selected service's options, and restart it |
+| `s`, `x`, `t` | start, stop, restart its unit |
+| `l` | its newest log lines |
+| `k` | its generated secrets; they leave the screen when the window closes |
+| `d` | remove it, after a question; its directory is kept, as root's |
+| `Shift+D` | remove it and delete its directory, after a question |
+| `r` | read the list again |
+
+The same from the command line:
 
 ```sh
 sudo autopanel --call services.templates                 # what can be deployed, and each one's options
@@ -215,7 +231,8 @@ Open the port and the relay range in your firewall. A service's user cannot bind
 
 The relay authenticates with a shared secret (coturn's `use-auth-secret`): your application
 makes short-lived TURN credentials from it, and the relay keeps no list of users. Read the secret
-with `services.secret` and give it to the application.
+with `k` in the panel or `services.secret`, and give it to the application. Each read is in the
+audit log.
 
 The relay refuses to relay to this server itself and to private and link-local addresses, so it
 cannot be used to reach what the server can and the internet cannot.

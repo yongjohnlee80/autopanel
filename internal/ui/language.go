@@ -61,12 +61,13 @@ func (h *host) setLanguage(tag string) error {
 
 // languageChanged composes again the text this package composes in Go and
 // keeps on screen: the status line, the overview and About, and the System
-// panels' rows.
+// panels' rows, and the services'.
 func (h *host) languageChanged() {
 	if h.status != nil {
 		h.setStatus(*h.status)
 	}
 	h.mon.render(h)
+	h.renderServices()
 	_ = h.p.Set("App.terminalEmpty", h.tr("autopanel.terminal.empty"))
 }
 

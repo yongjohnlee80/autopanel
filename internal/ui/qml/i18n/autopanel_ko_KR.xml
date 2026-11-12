@@ -191,13 +191,17 @@
         <source>&amp;Services</source>
         <translation>서비스(&amp;s)</translation>
     </message>
+    <message id="autopanel.menu.services.deployed">
+        <source>&amp;Deployed services…</source>
+        <translation>배포된 서비스(&amp;d)…</translation>
+    </message>
     <message id="autopanel.menu.services.mail">
         <source>&amp;Mail server…</source>
         <translation>메일 서버(&amp;m)…</translation>
     </message>
     <message id="autopanel.menu.services.turn">
-        <source>&amp;TURN server…</source>
-        <translation>TURN 서버(&amp;t)…</translation>
+        <source>Deploy a &amp;TURN relay…</source>
+        <translation>TURN 릴레이 배포(&amp;t)…</translation>
     </message>
     <message id="autopanel.menu.system">
         <source>S&amp;ystem</source>
@@ -442,6 +446,146 @@
     <message id="autopanel.routes.title">
         <source>Proxy routes</source>
         <translation>프록시 라우트</translation>
+    </message>
+    <message id="autopanel.services.change">
+        <source>Change</source>
+        <translation>변경</translation>
+    </message>
+    <message id="autopanel.services.confirm.purge">
+        <source>Remove %1 and delete its directory? Its unit, its user %2, its secrets and its data are deleted.</source>
+        <translation>%1을(를) 제거하고 디렉터리도 삭제할까요? 유닛, 사용자 %2, 시크릿, 데이터가 삭제됩니다.</translation>
+    </message>
+    <message id="autopanel.services.confirm.remove">
+        <source>Remove %1? Its unit, its user %2 and its secrets are deleted. Its directory is kept, owned by root.</source>
+        <translation>%1을(를) 제거할까요? 유닛, 사용자 %2, 시크릿이 삭제됩니다. 디렉터리는 root 소유로 남습니다.</translation>
+    </message>
+    <message id="autopanel.services.confirm.title">
+        <source>Remove service</source>
+        <translation>서비스 제거</translation>
+    </message>
+    <message id="autopanel.services.deploy">
+        <source>Deploy TURN</source>
+        <translation>TURN 배포</translation>
+    </message>
+    <message id="autopanel.services.done.change">
+        <source>%1 is changed and restarted</source>
+        <translation>%1이(가) 변경되고 재시작되었습니다</translation>
+    </message>
+    <message id="autopanel.services.done.deploy">
+        <source>%1 is deployed; its image is pulled as it starts</source>
+        <translation>%1이(가) 배포되었습니다. 시작하면서 이미지를 받습니다</translation>
+    </message>
+    <message id="autopanel.services.done.purge">
+        <source>%1 removed, with its directory</source>
+        <translation>%1이(가) 디렉터리와 함께 제거됨</translation>
+    </message>
+    <message id="autopanel.services.done.remove">
+        <source>%1 removed; its directory is kept</source>
+        <translation>%1 제거됨. 디렉터리는 남아 있습니다</translation>
+    </message>
+    <message id="autopanel.services.done.restart">
+        <source>%1 restarted</source>
+        <translation>%1 재시작됨</translation>
+    </message>
+    <message id="autopanel.services.done.start">
+        <source>%1 started</source>
+        <translation>%1 시작됨</translation>
+    </message>
+    <message id="autopanel.services.done.stop">
+        <source>%1 stopped</source>
+        <translation>%1 중지됨</translation>
+    </message>
+    <message id="autopanel.services.form.change">
+        <source>Change %1</source>
+        <translation>%1 변경</translation>
+    </message>
+    <message id="autopanel.services.form.deploy">
+        <source>Deploy a TURN relay</source>
+        <translation>TURN 릴레이 배포</translation>
+    </message>
+    <message id="autopanel.services.help">
+        <source>a deploy TURN · e/Enter change · s start · x stop · t restart · l log · k secrets · d remove · Shift+D remove with its directory · r read again · q close</source>
+        <translation>a TURN 배포 · e/Enter 변경 · s 시작 · x 중지 · t 재시작 · l 로그 · k 시크릿 · d 제거 · Shift+D 디렉터리까지 제거 · r 다시 읽기 · q 닫기</translation>
+    </message>
+    <message id="autopanel.services.logs">
+        <source>Log</source>
+        <translation>로그</translation>
+    </message>
+    <message id="autopanel.services.logs.note">
+        <source>%1: %2 lines, read at %3</source>
+        <translation>%1: %2줄, %3에 읽음</translation>
+    </message>
+    <message id="autopanel.services.logs.title">
+        <source>Service log</source>
+        <translation>서비스 로그</translation>
+    </message>
+    <message id="autopanel.services.none">
+        <source>No service at this row.</source>
+        <translation>이 행에는 서비스가 없습니다.</translation>
+    </message>
+    <message id="autopanel.services.remove">
+        <source>Remove</source>
+        <translation>제거</translation>
+    </message>
+    <message id="autopanel.services.restart">
+        <source>Restart</source>
+        <translation>재시작</translation>
+    </message>
+    <message id="autopanel.services.secret.none">
+        <source>%1 has no secret.</source>
+        <translation>%1에는 시크릿이 없습니다.</translation>
+    </message>
+    <message id="autopanel.services.secret.note">
+        <source>Each read is in the audit log. Give a secret only to the application that needs it. q closes.</source>
+        <translation>읽을 때마다 감사 로그에 기록됩니다. 시크릿은 필요한 애플리케이션에만 주십시오. q 닫기.</translation>
+    </message>
+    <message id="autopanel.services.secret.title">
+        <source>Secrets of %1</source>
+        <translation>%1의 시크릿</translation>
+    </message>
+    <message id="autopanel.services.start">
+        <source>Start</source>
+        <translation>시작</translation>
+    </message>
+    <message id="autopanel.services.state.deploying">
+        <source>deploy unfinished</source>
+        <translation>배포 미완료</translation>
+    </message>
+    <message id="autopanel.services.state.removing">
+        <source>removal unfinished</source>
+        <translation>제거 미완료</translation>
+    </message>
+    <message id="autopanel.services.stop">
+        <source>Stop</source>
+        <translation>중지</translation>
+    </message>
+    <message id="autopanel.services.title">
+        <source>Services</source>
+        <translation>서비스</translation>
+    </message>
+    <message id="autopanel.services.turn">
+        <source>TURN relay</source>
+        <translation>TURN 릴레이</translation>
+    </message>
+    <message id="autopanel.services.turn.name">
+        <source>Name (lower-case letters, digits and hyphens; empty for turn)</source>
+        <translation>이름 (소문자, 숫자, 하이픈; 비우면 turn)</translation>
+    </message>
+    <message id="autopanel.services.turn.port">
+        <source>Port, UDP and TCP (1024 or above)</source>
+        <translation>포트, UDP 및 TCP (1024 이상)</translation>
+    </message>
+    <message id="autopanel.services.turn.realm">
+        <source>Realm: the domain name the relay answers for</source>
+        <translation>영역(realm): 릴레이가 응답하는 도메인 이름</translation>
+    </message>
+    <message id="autopanel.services.turn.relayPorts">
+        <source>Relay ports, UDP, as first-last</source>
+        <translation>릴레이 포트, UDP, 처음-끝 형식</translation>
+    </message>
+    <message id="autopanel.services.unknownTemplate">
+        <source>This panel has no form for the template %1; use autopanel --call.</source>
+        <translation>이 패널에는 %1 템플릿용 양식이 없습니다. autopanel --call을 사용하십시오.</translation>
     </message>
     <message id="autopanel.status.error">
         <source>status: %1</source>
