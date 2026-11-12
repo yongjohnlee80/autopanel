@@ -52,6 +52,16 @@ type Access struct {
 	// Concurrent bounds the calls one connection runs at once. Zero means
 	// golib's default (8); a socket with a long-poll verb needs more.
 	Concurrent int
+	// Audit records each privileged verb: its attempt before it runs, and its
+	// outcome after. A socket that offers a privileged verb must have one.
+	Audit Auditor
+}
+
+// Auditor is where a privileged verb's record goes. AuditAttempt writes the
+// entry and answers its id; AuditResult sets the outcome on it.
+type Auditor interface {
+	AuditAttempt(ctx context.Context, actor, action, subject string) (int64, error)
+	AuditResult(ctx context.Context, id int64, outcome string) error
 }
 
 func (a Access) peers() []int {
@@ -103,7 +113,11 @@ func Listen(path string, log *slog.Logger, acc Access, mods ...module.Module) (*
 				return nil, fmt.Errorf("control: verb %s is registered twice", v.Verb)
 			}
 			seen[v.Verb] = true
-			srv.Handle(v.Verb, handler(v, errs, log))
+			if v.Privileged && acc.Audit == nil {
+				_ = ln.Close()
+				return nil, fmt.Errorf("control: %s is privileged, and the socket has no audit log", v.Verb)
+			}
+			srv.Handle(v.Verb, handler(v, errs, log, acc.Audit))
 		}
 	}
 	return &Server{rpc: srv, path: path}, nil
@@ -117,7 +131,11 @@ const sessionUser = "autopanel.user"
 // kernel says is at the other end; a declared error crosses
 // with its code and message, and any other error crosses as a bare internal
 // error (R13), its detail kept in the log.
-func handler(v module.Verb, errs []module.PublicError, log *slog.Logger) rpc.Handler {
+//
+// A privileged verb leaves its record first: the entry is written before the
+// verb runs, a verb whose entry can't be written is refused with nothing done,
+// and the outcome is set on the entry afterwards, on failure too.
+func handler(v module.Verb, errs []module.PublicError, log *slog.Logger, aud Auditor) rpc.Handler {
 	return func(ctx context.Context, req *rpc.Request) (any, error) {
 		local, _ := req.Session.Attachment().(string)
 		actor := local
@@ -128,7 +146,22 @@ func handler(v module.Verb, errs []module.PublicError, log *slog.Logger) rpc.Han
 		case !v.Open:
 			return nil, &rpc.Error{Code: rpc.CodeAccessDenied, Message: "log in first (auth.login)"}
 		}
+		var attempt int64
+		if v.Privileged {
+			id, err := aud.AuditAttempt(ctx, actor, v.Verb, subject(req.Params))
+			if err != nil {
+				log.Error("control: a privileged verb's audit entry could not be written; nothing was done", "verb", v.Verb, "err", err)
+				return nil, &rpc.Error{Code: rpc.CodeInternal, Message: "the audit log could not be written, so nothing was done"}
+			}
+			attempt = id
+		}
 		res, err := v.Call(audit.WithActor(ctx, actor), req.Params)
+		if v.Privileged {
+			// The caller may be gone by now: the outcome is recorded regardless.
+			if aerr := aud.AuditResult(context.WithoutCancel(ctx), attempt, outcome(err, errs)); aerr != nil {
+				log.Error("control: recording a privileged verb's outcome", "verb", v.Verb, "err", aerr)
+			}
+		}
 		if err == nil {
 			if v.Login {
 				if m, ok := res.(map[string]any); ok {
@@ -143,11 +176,53 @@ func handler(v module.Verb, errs []module.PublicError, log *slog.Logger) rpc.Han
 			return nil, &rpc.Error{Code: rpc.CodeInvalidParams, Message: err.Error()}
 		}
 		if pe, ok := module.Public(err, errs); ok {
-			return nil, &rpc.Error{Code: pe.Code, Message: pe.Message}
+			msg := pe.Message
+			var d module.Detailed
+			if errors.As(err, &d) {
+				msg += ": " + d.PublicDetail()
+			}
+			return nil, &rpc.Error{Code: pe.Code, Message: msg}
 		}
 		log.Error("control: verb failed", "verb", v.Verb, "err", err)
 		return nil, err
 	}
+}
+
+// subject is what a privileged call names, for its audit entry: the "name" or
+// "template" of its one param, as the caller sent it. It is recorded before
+// the verb has validated it, so it is quoted and cut short.
+func subject(params []any) string {
+	if len(params) == 0 {
+		return ""
+	}
+	m, ok := params[0].(map[string]any)
+	if !ok {
+		return ""
+	}
+	for _, k := range []string{"name", "template"} {
+		if s, ok := m[k].(string); ok && s != "" {
+			if len(s) > 64 {
+				s = s[:64]
+			}
+			return k + " " + strconv.QuoteToASCII(s)
+		}
+	}
+	return ""
+}
+
+// outcome is a privileged verb's result as the audit log keeps it: "ok", the
+// declared error's name, or "failed" for an error no module declared.
+func outcome(err error, errs []module.PublicError) string {
+	switch {
+	case err == nil:
+		return "ok"
+	case errors.Is(err, module.ErrInvalidParams):
+		return "invalid params"
+	}
+	if pe, ok := module.Public(err, errs); ok {
+		return pe.Name
+	}
+	return "failed"
 }
 
 // Run serves until ctx ends, then drains and removes the socket.

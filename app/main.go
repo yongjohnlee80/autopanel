@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/yongjohnlee80/autopanel/core/gate"
+	"github.com/yongjohnlee80/autopanel/core/services"
 	hostcontrol "github.com/yongjohnlee80/autopanel/host/control"
 	hostgate "github.com/yongjohnlee80/autopanel/host/gate"
 	"github.com/yongjohnlee80/autopanel/internal/auth"
@@ -102,7 +103,7 @@ func Main(args []string, stdout, stderr io.Writer) int {
 // contractModules are the modules whose verbs --contracts lists. Built with no
 // store: a contract is data, and listing one runs nothing.
 func contractModules() []module.Module {
-	return []module.Module{&auth.Module{}, gate.NewModule(nil, nil), &certsModule{}, &sysModule{}, &linkModule{}}
+	return []module.Module{&auth.Module{}, gate.NewModule(nil, nil), &certsModule{}, &sysModule{}, services.NewModule(nil, nil, nil), &linkModule{}}
 }
 
 func printContracts(stdout io.Writer) int {

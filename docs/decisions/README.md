@@ -8,3 +8,4 @@ the code disagree, the code is right and the page is fixed.
 | Page | What it covers |
 | --- | --- |
 | [Processes](processes.md) | the gate and the core, the link between them, host commands, who may open the control socket |
+| [Services](services.md) | deployed services: templates, the user and the unit each runs as, the audit entry that comes first |

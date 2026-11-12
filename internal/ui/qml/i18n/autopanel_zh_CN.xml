@@ -191,13 +191,17 @@
         <source>&amp;Services</source>
         <translation>服务(&amp;s)</translation>
     </message>
+    <message id="autopanel.menu.services.deployed">
+        <source>&amp;Deployed services…</source>
+        <translation>已部署的服务(&amp;d)…</translation>
+    </message>
     <message id="autopanel.menu.services.mail">
         <source>&amp;Mail server…</source>
         <translation>邮件服务器(&amp;m)…</translation>
     </message>
     <message id="autopanel.menu.services.turn">
-        <source>&amp;TURN server…</source>
-        <translation>TURN 服务器(&amp;t)…</translation>
+        <source>Deploy a &amp;TURN relay…</source>
+        <translation>部署 TURN 中继(&amp;t)…</translation>
     </message>
     <message id="autopanel.menu.system">
         <source>S&amp;ystem</source>
@@ -442,6 +446,146 @@
     <message id="autopanel.routes.title">
         <source>Proxy routes</source>
         <translation>代理路由</translation>
+    </message>
+    <message id="autopanel.services.change">
+        <source>Change</source>
+        <translation>更改</translation>
+    </message>
+    <message id="autopanel.services.confirm.purge">
+        <source>Remove %1 and delete its directory? Its unit, its user %2, its secrets and its data are deleted.</source>
+        <translation>移除 %1 并删除其目录？其单元、用户 %2、密钥和数据将被删除。</translation>
+    </message>
+    <message id="autopanel.services.confirm.remove">
+        <source>Remove %1? Its unit, its user %2 and its secrets are deleted. Its directory is kept, owned by root.</source>
+        <translation>移除 %1？其单元、用户 %2 和密钥将被删除。其目录会保留，归 root 所有。</translation>
+    </message>
+    <message id="autopanel.services.confirm.title">
+        <source>Remove service</source>
+        <translation>移除服务</translation>
+    </message>
+    <message id="autopanel.services.deploy">
+        <source>Deploy TURN</source>
+        <translation>部署 TURN</translation>
+    </message>
+    <message id="autopanel.services.done.change">
+        <source>%1 is changed and restarted</source>
+        <translation>%1 已更改并重启</translation>
+    </message>
+    <message id="autopanel.services.done.deploy">
+        <source>%1 is deployed; its image is pulled as it starts</source>
+        <translation>%1 已部署；启动时拉取镜像</translation>
+    </message>
+    <message id="autopanel.services.done.purge">
+        <source>%1 removed, with its directory</source>
+        <translation>%1 已连同目录一起移除</translation>
+    </message>
+    <message id="autopanel.services.done.remove">
+        <source>%1 removed; its directory is kept</source>
+        <translation>%1 已移除；其目录已保留</translation>
+    </message>
+    <message id="autopanel.services.done.restart">
+        <source>%1 restarted</source>
+        <translation>%1 已重启</translation>
+    </message>
+    <message id="autopanel.services.done.start">
+        <source>%1 started</source>
+        <translation>%1 已启动</translation>
+    </message>
+    <message id="autopanel.services.done.stop">
+        <source>%1 stopped</source>
+        <translation>%1 已停止</translation>
+    </message>
+    <message id="autopanel.services.form.change">
+        <source>Change %1</source>
+        <translation>更改 %1</translation>
+    </message>
+    <message id="autopanel.services.form.deploy">
+        <source>Deploy a TURN relay</source>
+        <translation>部署 TURN 中继</translation>
+    </message>
+    <message id="autopanel.services.help">
+        <source>a deploy TURN · e/Enter change · s start · x stop · t restart · o log · c secrets · d remove · Shift+D remove with its directory · r read again · q close</source>
+        <translation>a 部署 TURN · e/Enter 更改 · s 启动 · x 停止 · t 重启 · o 日志 · c 密钥 · d 移除 · Shift+D 连同目录一起移除 · r 重新读取 · q 关闭</translation>
+    </message>
+    <message id="autopanel.services.logs">
+        <source>Log</source>
+        <translation>日志</translation>
+    </message>
+    <message id="autopanel.services.logs.note">
+        <source>%1: %2 lines, read at %3</source>
+        <translation>%1：%2 行，读取于 %3</translation>
+    </message>
+    <message id="autopanel.services.logs.title">
+        <source>Service log</source>
+        <translation>服务日志</translation>
+    </message>
+    <message id="autopanel.services.none">
+        <source>No service at this row.</source>
+        <translation>此行没有服务。</translation>
+    </message>
+    <message id="autopanel.services.remove">
+        <source>Remove</source>
+        <translation>移除</translation>
+    </message>
+    <message id="autopanel.services.restart">
+        <source>Restart</source>
+        <translation>重启</translation>
+    </message>
+    <message id="autopanel.services.secret.none">
+        <source>%1 has no secret.</source>
+        <translation>%1 没有密钥。</translation>
+    </message>
+    <message id="autopanel.services.secret.note">
+        <source>Each read is in the audit log. Give a secret only to the application that needs it. q closes.</source>
+        <translation>每次读取都会记入审计日志。密钥只应交给需要它的应用。q 关闭。</translation>
+    </message>
+    <message id="autopanel.services.secret.title">
+        <source>Secrets of %1</source>
+        <translation>%1 的密钥</translation>
+    </message>
+    <message id="autopanel.services.start">
+        <source>Start</source>
+        <translation>启动</translation>
+    </message>
+    <message id="autopanel.services.state.deploying">
+        <source>deploy unfinished</source>
+        <translation>部署未完成</translation>
+    </message>
+    <message id="autopanel.services.state.removing">
+        <source>removal unfinished</source>
+        <translation>移除未完成</translation>
+    </message>
+    <message id="autopanel.services.stop">
+        <source>Stop</source>
+        <translation>停止</translation>
+    </message>
+    <message id="autopanel.services.title">
+        <source>Services</source>
+        <translation>服务</translation>
+    </message>
+    <message id="autopanel.services.turn">
+        <source>TURN relay</source>
+        <translation>TURN 中继</translation>
+    </message>
+    <message id="autopanel.services.turn.name">
+        <source>Name (lower-case letters, digits and hyphens; empty for turn)</source>
+        <translation>名称（小写字母、数字和连字符；留空则为 turn）</translation>
+    </message>
+    <message id="autopanel.services.turn.port">
+        <source>Port, UDP and TCP (1024 or above)</source>
+        <translation>端口，UDP 和 TCP（1024 或以上）</translation>
+    </message>
+    <message id="autopanel.services.turn.realm">
+        <source>Realm: the domain name the relay answers for</source>
+        <translation>域（realm）：中继所服务的域名</translation>
+    </message>
+    <message id="autopanel.services.turn.relayPorts">
+        <source>Relay ports, UDP, as first-last</source>
+        <translation>中继端口，UDP，格式为 起始-结束</translation>
+    </message>
+    <message id="autopanel.services.unknownTemplate">
+        <source>This panel has no form for the template %1; use autopanel --call.</source>
+        <translation>此面板没有模板 %1 的表单；请使用 autopanel --call。</translation>
     </message>
     <message id="autopanel.status.error">
         <source>status: %1</source>

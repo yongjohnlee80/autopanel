@@ -37,6 +37,21 @@ func (h *host) commands() map[string]decl.HandlerFunc {
 		"App.stopShells":     none(h.stopShells),
 		"App.nextShell":      none(func() error { return h.cycleShell(1) }),
 		"App.previousShell":  none(func() error { return h.cycleShell(-1) }),
+		"App.openServices":   none(h.openServices),
+		"App.reloadServices": none(h.reloadServices),
+		"App.servicesClosed": none(h.servicesClosed),
+		"App.deployTurn":     none(h.deployTurn),
+		"App.editService":    oneRow("App.editService", h.editService),
+		"App.submitTurn":     fourStrings("App.submitTurn", h.submitTurn),
+		"App.startService":   oneRow("App.startService", func(row int) error { return h.serviceUnit("start", row) }),
+		"App.stopService":    oneRow("App.stopService", func(row int) error { return h.serviceUnit("stop", row) }),
+		"App.restartService": oneRow("App.restartService", func(row int) error { return h.serviceUnit("restart", row) }),
+		"App.removeService":  oneRow("App.removeService", func(row int) error { return h.removeService(row, false) }),
+		"App.purgeService":   oneRow("App.purgeService", func(row int) error { return h.removeService(row, true) }),
+		"App.serviceLogsOf":  oneRow("App.serviceLogsOf", h.openLogs),
+		"App.reloadLogs":     none(h.reloadLogs),
+		"App.secretsOf":      oneRow("App.secretsOf", h.openSecrets),
+		"App.secretsClosed":  none(h.secretsClosed),
 		"App.nothing":        none(func() error { return nil }),
 		"App.submit":         threeStrings("App.submit", h.submit),
 		"App.refresh":        none(func() error { h.refresh(); return nil }),
@@ -209,17 +224,29 @@ func twoStrings(name string, fn func(a, b string) error) decl.HandlerFunc {
 	}
 }
 
-// threeStrings is a command that takes three strings: the form's fields.
-func threeStrings(name string, fn func(a, b, c string) error) decl.HandlerFunc {
+// stringsOf is a command that takes n strings: a form's fields.
+func stringsOf(name string, n int, fn func(args []string) error) decl.HandlerFunc {
 	return func(args []qml.SpecValue) error {
-		if len(args) != 3 {
-			return fmt.Errorf("%s takes three strings, and was given %d arguments", name, len(args))
+		if len(args) != n {
+			return fmt.Errorf("%s takes %d strings, and was given %d arguments", name, n, len(args))
 		}
-		for _, a := range args {
+		raw := make([]string, n)
+		for i, a := range args {
 			if a.Kind != qml.SpecValueString {
-				return fmt.Errorf("%s takes three strings", name)
+				return fmt.Errorf("%s takes %d strings", name, n)
 			}
+			raw[i] = a.Raw
 		}
-		return fn(args[0].Raw, args[1].Raw, args[2].Raw)
+		return fn(raw)
 	}
+}
+
+// threeStrings is a command that takes three strings: the route form's fields.
+func threeStrings(name string, fn func(a, b, c string) error) decl.HandlerFunc {
+	return stringsOf(name, 3, func(a []string) error { return fn(a[0], a[1], a[2]) })
+}
+
+// fourStrings is a command that takes four strings: the TURN form's fields.
+func fourStrings(name string, fn func(a, b, c, d string) error) decl.HandlerFunc {
+	return stringsOf(name, 4, func(a []string) error { return fn(a[0], a[1], a[2], a[3]) })
 }

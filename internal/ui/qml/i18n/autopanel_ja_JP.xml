@@ -191,13 +191,17 @@
         <source>&amp;Services</source>
         <translation>サービス(&amp;s)</translation>
     </message>
+    <message id="autopanel.menu.services.deployed">
+        <source>&amp;Deployed services…</source>
+        <translation>デプロイ済みサービス(&amp;d)…</translation>
+    </message>
     <message id="autopanel.menu.services.mail">
         <source>&amp;Mail server…</source>
         <translation>メールサーバー(&amp;m)…</translation>
     </message>
     <message id="autopanel.menu.services.turn">
-        <source>&amp;TURN server…</source>
-        <translation>TURN サーバー(&amp;t)…</translation>
+        <source>Deploy a &amp;TURN relay…</source>
+        <translation>TURN リレーをデプロイ(&amp;t)…</translation>
     </message>
     <message id="autopanel.menu.system">
         <source>S&amp;ystem</source>
@@ -442,6 +446,146 @@
     <message id="autopanel.routes.title">
         <source>Proxy routes</source>
         <translation>プロキシルート</translation>
+    </message>
+    <message id="autopanel.services.change">
+        <source>Change</source>
+        <translation>変更</translation>
+    </message>
+    <message id="autopanel.services.confirm.purge">
+        <source>Remove %1 and delete its directory? Its unit, its user %2, its secrets and its data are deleted.</source>
+        <translation>%1 を削除し、ディレクトリも削除しますか？ユニット、ユーザー %2、シークレット、データが削除されます。</translation>
+    </message>
+    <message id="autopanel.services.confirm.remove">
+        <source>Remove %1? Its unit, its user %2 and its secrets are deleted. Its directory is kept, owned by root.</source>
+        <translation>%1 を削除しますか？ユニット、ユーザー %2、シークレットが削除されます。ディレクトリは root 所有で残ります。</translation>
+    </message>
+    <message id="autopanel.services.confirm.title">
+        <source>Remove service</source>
+        <translation>サービスを削除</translation>
+    </message>
+    <message id="autopanel.services.deploy">
+        <source>Deploy TURN</source>
+        <translation>TURN をデプロイ</translation>
+    </message>
+    <message id="autopanel.services.done.change">
+        <source>%1 is changed and restarted</source>
+        <translation>%1 を変更して再起動しました</translation>
+    </message>
+    <message id="autopanel.services.done.deploy">
+        <source>%1 is deployed; its image is pulled as it starts</source>
+        <translation>%1 をデプロイしました。起動時にイメージを取得します</translation>
+    </message>
+    <message id="autopanel.services.done.purge">
+        <source>%1 removed, with its directory</source>
+        <translation>%1 をディレクトリごと削除しました</translation>
+    </message>
+    <message id="autopanel.services.done.remove">
+        <source>%1 removed; its directory is kept</source>
+        <translation>%1 を削除しました。ディレクトリは残っています</translation>
+    </message>
+    <message id="autopanel.services.done.restart">
+        <source>%1 restarted</source>
+        <translation>%1 を再起動しました</translation>
+    </message>
+    <message id="autopanel.services.done.start">
+        <source>%1 started</source>
+        <translation>%1 を開始しました</translation>
+    </message>
+    <message id="autopanel.services.done.stop">
+        <source>%1 stopped</source>
+        <translation>%1 を停止しました</translation>
+    </message>
+    <message id="autopanel.services.form.change">
+        <source>Change %1</source>
+        <translation>%1 を変更</translation>
+    </message>
+    <message id="autopanel.services.form.deploy">
+        <source>Deploy a TURN relay</source>
+        <translation>TURN リレーをデプロイ</translation>
+    </message>
+    <message id="autopanel.services.help">
+        <source>a deploy TURN · e/Enter change · s start · x stop · t restart · o log · c secrets · d remove · Shift+D remove with its directory · r read again · q close</source>
+        <translation>a TURN をデプロイ · e/Enter 変更 · s 開始 · x 停止 · t 再起動 · o ログ · c シークレット · d 削除 · Shift+D ディレクトリごと削除 · r 再読み込み · q 閉じる</translation>
+    </message>
+    <message id="autopanel.services.logs">
+        <source>Log</source>
+        <translation>ログ</translation>
+    </message>
+    <message id="autopanel.services.logs.note">
+        <source>%1: %2 lines, read at %3</source>
+        <translation>%1: %2 行、%3 に読み込み</translation>
+    </message>
+    <message id="autopanel.services.logs.title">
+        <source>Service log</source>
+        <translation>サービスログ</translation>
+    </message>
+    <message id="autopanel.services.none">
+        <source>No service at this row.</source>
+        <translation>この行にサービスはありません。</translation>
+    </message>
+    <message id="autopanel.services.remove">
+        <source>Remove</source>
+        <translation>削除</translation>
+    </message>
+    <message id="autopanel.services.restart">
+        <source>Restart</source>
+        <translation>再起動</translation>
+    </message>
+    <message id="autopanel.services.secret.none">
+        <source>%1 has no secret.</source>
+        <translation>%1 にシークレットはありません。</translation>
+    </message>
+    <message id="autopanel.services.secret.note">
+        <source>Each read is in the audit log. Give a secret only to the application that needs it. q closes.</source>
+        <translation>読み取りはすべて監査ログに記録されます。シークレットは必要なアプリケーションにだけ渡してください。q で閉じます。</translation>
+    </message>
+    <message id="autopanel.services.secret.title">
+        <source>Secrets of %1</source>
+        <translation>%1 のシークレット</translation>
+    </message>
+    <message id="autopanel.services.start">
+        <source>Start</source>
+        <translation>開始</translation>
+    </message>
+    <message id="autopanel.services.state.deploying">
+        <source>deploy unfinished</source>
+        <translation>デプロイ未完了</translation>
+    </message>
+    <message id="autopanel.services.state.removing">
+        <source>removal unfinished</source>
+        <translation>削除未完了</translation>
+    </message>
+    <message id="autopanel.services.stop">
+        <source>Stop</source>
+        <translation>停止</translation>
+    </message>
+    <message id="autopanel.services.title">
+        <source>Services</source>
+        <translation>サービス</translation>
+    </message>
+    <message id="autopanel.services.turn">
+        <source>TURN relay</source>
+        <translation>TURN リレー</translation>
+    </message>
+    <message id="autopanel.services.turn.name">
+        <source>Name (lower-case letters, digits and hyphens; empty for turn)</source>
+        <translation>名前 (小文字・数字・ハイフン。空なら turn)</translation>
+    </message>
+    <message id="autopanel.services.turn.port">
+        <source>Port, UDP and TCP (1024 or above)</source>
+        <translation>ポート、UDP と TCP (1024 以上)</translation>
+    </message>
+    <message id="autopanel.services.turn.realm">
+        <source>Realm: the domain name the relay answers for</source>
+        <translation>レルム: リレーが応答するドメイン名</translation>
+    </message>
+    <message id="autopanel.services.turn.relayPorts">
+        <source>Relay ports, UDP, as first-last</source>
+        <translation>リレーポート、UDP、最初-最後 の形式</translation>
+    </message>
+    <message id="autopanel.services.unknownTemplate">
+        <source>This panel has no form for the template %1; use autopanel --call.</source>
+        <translation>このパネルには %1 テンプレートのフォームがありません。autopanel --call を使ってください。</translation>
     </message>
     <message id="autopanel.status.error">
         <source>status: %1</source>

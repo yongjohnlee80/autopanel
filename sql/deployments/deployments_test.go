@@ -23,10 +23,14 @@ import (
 // script NEVER changes: the ledger records the digest it was applied with, and
 // an edit under the same name is a schema no store agrees with. A script adds
 // its line here when it ships in a tagged release; an existing line never
-// changes. Empty until the first tag.
+// changes.
 var released = map[string]map[string]string{
-	dao.DialectSQLite:   {},
-	dao.DialectPostgres: {},
+	dao.DialectSQLite: {
+		"000001_update_initialize_tables.sql": "50801c47a5435790462bb43ef2d70475f72f080306b6ef728d81b3b54e21d333", // v0.1.0
+	},
+	dao.DialectPostgres: {
+		"000001_update_initialize_tables.sql": "c6ba5f47590ab15655f6c4be17ccce0d0b617678d83d58a241c9d015736f41e7", // v0.1.0
+	},
 }
 
 func names(t *testing.T, engine string) []string {
@@ -121,6 +125,29 @@ func applyAndCheck(t *testing.T, db dao.DataConn) {
 	if err := exec("INSERT INTO store_lease(id, holder, started_at, renewed_at) VALUES (1, 'a', 0, 0)"); err != nil {
 		t.Fatal(err)
 	}
+	// 000002: a service's name is lower case and unique, and its state is one of three.
+	if err := exec("INSERT INTO service(name, template, options, state, created_at, updated_at) VALUES ('turn', 'turn', '{}', 'deploying', 0, 0)"); err != nil {
+		t.Fatal(err)
+	}
+	refused["a second service of one name"] = "INSERT INTO service(name, template, options, state, created_at, updated_at) VALUES ('turn', 'turn', '{}', 'deployed', 0, 0)"
+	refused["a service name that is not lower case"] = "INSERT INTO service(name, template, options, state, created_at, updated_at) VALUES ('Mail', 'turn', '{}', 'deployed', 0, 0)"
+	refused["a state that is none"] = "INSERT INTO service(name, template, options, state, created_at, updated_at) VALUES ('mail', 'turn', '{}', 'running', 0, 0)"
+	if err := exec("INSERT INTO audit(at, actor, action, subject, outcome) VALUES (0, 'root', 'services.deploy', 'turn', 'attempt')"); err != nil {
+		t.Fatal(err)
+	}
+	// The newest script can be undone and applied again.
+	if name, err := deployments.Runner().Revert(ctx, db, 2); err != nil {
+		t.Fatalf("reverting 000002 = %q, %v", name, err)
+	}
+	if err := exec("SELECT name FROM service"); err == nil {
+		t.Fatal("the service table outlived its revert")
+	}
+	if _, err := deployments.Runner().Apply(ctx, db); err != nil {
+		t.Fatal(err)
+	}
+	if err := exec("INSERT INTO service(name, template, options, state, created_at, updated_at) VALUES ('turn', 'turn', '{}', 'deploying', 0, 0)"); err != nil {
+		t.Fatal(err)
+	}
 	for what, q := range refused {
 		if err := exec(q); err == nil {
 			t.Errorf("the store accepted %s", what)
@@ -145,7 +172,7 @@ func TestTheScriptsApplyOnPostgres(t *testing.T) {
 		t.Fatal(err)
 	}
 	clear := func() {
-		for _, table := range []string{"route", "audit", "cert_blob", "store_lease", "secret", "keyslot", "app_user"} {
+		for _, table := range []string{"route", "audit", "cert_blob", "store_lease", "secret", "keyslot", "app_user", "service"} {
 			_, _ = db.ExecContext(context.Background(), "DELETE FROM "+table) // before Apply, the tables may not exist yet
 		}
 	}

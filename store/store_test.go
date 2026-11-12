@@ -14,6 +14,7 @@ import (
 
 	"github.com/yongjohnlee80/autopanel/core/audit"
 	"github.com/yongjohnlee80/autopanel/core/gate"
+	"github.com/yongjohnlee80/autopanel/core/services"
 	"github.com/yongjohnlee80/autopanel/internal/keyslot"
 )
 
@@ -149,7 +150,7 @@ func engines(t *testing.T) map[string]*Store {
 			t.Fatal(err)
 		}
 		clear := func() {
-			for _, table := range []string{"route", "audit", "cert_blob", "store_lease", "secret", "keyslot", "app_user", "setting"} {
+			for _, table := range []string{"route", "audit", "cert_blob", "store_lease", "secret", "keyslot", "app_user", "setting", "service"} {
 				_, _ = p.conn.ExecContext(ctx, "DELETE FROM "+table)
 			}
 		}
@@ -350,6 +351,81 @@ func TestAuditLogReadsNewestFirst(t *testing.T) {
 			logins, err := s.AuditLog(ctx, "auth.login", 10)
 			if err != nil || len(logins) != 2 || logins[0].Detail != "failed" || logins[1].Detail != "ok" {
 				t.Fatalf("the logins = %+v, %v", logins, err)
+			}
+		})
+	}
+}
+
+func TestServicesAreKeptAsTheyWereAskedFor(t *testing.T) {
+	for engine, s := range engines(t) {
+		t.Run(engine, func(t *testing.T) {
+			ctx := context.Background()
+			sv := s.Services()
+			turn := services.Service{Name: "turn", Template: "turn", Options: map[string]string{"realm": "turn.example.com", "port": "3478"}, State: services.Deploying}
+			if err := sv.Add(ctx, turn); err != nil {
+				t.Fatal(err)
+			}
+			if err := sv.Add(ctx, turn); !errors.Is(err, services.ErrDuplicate) {
+				t.Fatalf("a second service of the name = %v; want ErrDuplicate", err)
+			}
+			if err := sv.Add(ctx, services.Service{Name: "mail", Template: "turn", Options: map[string]string{}, State: services.Deployed}); err != nil {
+				t.Fatal(err)
+			}
+			if err := sv.SetState(ctx, "turn", services.Deployed); err != nil {
+				t.Fatal(err)
+			}
+			if err := sv.SetOptions(ctx, "turn", map[string]string{"realm": "turn.example.com", "port": "3479"}); err != nil {
+				t.Fatal(err)
+			}
+			got, err := sv.Get(ctx, "turn")
+			if err != nil || got.State != services.Deployed || got.Options["port"] != "3479" || got.Template != "turn" {
+				t.Fatalf("Get = %+v, %v", got, err)
+			}
+			all, err := sv.All(ctx)
+			if err != nil || len(all) != 2 || all[0].Name != "mail" || all[1].Name != "turn" {
+				t.Fatalf("All = %+v, %v; want both, by name", all, err)
+			}
+			if err := sv.Remove(ctx, "turn"); err != nil {
+				t.Fatal(err)
+			}
+			for what, err := range map[string]error{
+				"Get":        func() error { _, err := sv.Get(ctx, "turn"); return err }(),
+				"SetState":   sv.SetState(ctx, "turn", services.Removing),
+				"SetOptions": sv.SetOptions(ctx, "turn", nil),
+				"Remove":     sv.Remove(ctx, "turn"),
+			} {
+				if !errors.Is(err, services.ErrNotFound) {
+					t.Errorf("%s of a removed service = %v; want ErrNotFound", what, err)
+				}
+			}
+			if err := sv.Remove(ctx, "mail"); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
+func TestAPrivilegedActionsEntryCarriesItsOutcome(t *testing.T) {
+	for engine, s := range engines(t) {
+		t.Run(engine, func(t *testing.T) {
+			ctx := context.Background()
+			id, err := s.AuditAttempt(ctx, "root (local:0)", "services.deploy", `name "turn"`)
+			if err != nil || id == 0 {
+				t.Fatalf("AuditAttempt = %d, %v", id, err)
+			}
+			log, err := s.AuditLog(ctx, "", 1)
+			if err != nil || len(log) != 1 || log[0].ID != id || log[0].Outcome != "attempt" || log[0].Action != "services.deploy" {
+				t.Fatalf("the entry before the action = %+v, %v", log, err)
+			}
+			if err := s.AuditResult(ctx, id, "services.old_podman"); err != nil {
+				t.Fatal(err)
+			}
+			if err := s.Audit(ctx, "root", "auth.login", "user root", "ok"); err != nil {
+				t.Fatal(err)
+			}
+			log, err = s.AuditLog(ctx, "", 2)
+			if err != nil || len(log) != 2 || log[1].Outcome != "services.old_podman" || log[0].Outcome != "" {
+				t.Fatalf("the entries after = %+v, %v", log, err)
 			}
 		})
 	}

@@ -25,6 +25,13 @@ type Tool struct{ path string }
 var (
 	Systemctl  = Tool{"/usr/bin/systemctl"}
 	Journalctl = Tool{"/usr/bin/journalctl"}
+	Loginctl   = Tool{"/usr/bin/loginctl"}
+	Useradd    = Tool{"/usr/sbin/useradd"}
+	Usermod    = Tool{"/usr/sbin/usermod"}
+	Userdel    = Tool{"/usr/sbin/userdel"}
+	Pkill      = Tool{"/usr/bin/pkill"}
+	Podman     = Tool{"/usr/bin/podman"}
+	Runuser    = Tool{"/usr/sbin/runuser"}
 )
 
 const (

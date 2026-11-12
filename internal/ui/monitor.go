@@ -136,6 +136,9 @@ func (m *monitors) render(h *host) {
 	if m.lastAudit != nil {
 		rows := make([]tuidecl.Row, 0, len(m.lastAudit))
 		for _, e := range m.lastAudit {
+			if e.Detail == "" { // a privileged action's entry says how it ended
+				e.Detail = e.Outcome
+			}
 			rows = append(rows, tuidecl.Row{"key": strconv.FormatInt(e.ID, 10), "time": stamp(e.At),
 				"actor": e.Actor, "action": e.Action, "subject": e.Subject, "detail": e.Detail})
 		}

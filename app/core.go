@@ -16,11 +16,14 @@ import (
 	"time"
 
 	"github.com/yongjohnlee80/autopanel/core/gate"
+	"github.com/yongjohnlee80/autopanel/core/services"
 	hostcontrol "github.com/yongjohnlee80/autopanel/host/control"
 	hostgate "github.com/yongjohnlee80/autopanel/host/gate"
+	hostservices "github.com/yongjohnlee80/autopanel/host/services"
 	"github.com/yongjohnlee80/autopanel/internal/auth"
 	"github.com/yongjohnlee80/autopanel/internal/hostcmd"
 	"github.com/yongjohnlee80/autopanel/internal/keyslot"
+	"github.com/yongjohnlee80/autopanel/internal/module"
 	"github.com/yongjohnlee80/autopanel/store"
 )
 
@@ -72,6 +75,67 @@ func (g unitGate) Restart(ctx context.Context) error {
 func (g unitGate) Stop(ctx context.Context) error {
 	_, err := hostcmd.Run(ctx, hostcmd.Systemctl, "stop", g.unit)
 	return err
+}
+
+// serviceHost is the machine the core deploys services on. A variable so a
+// test gives its own: a test makes no user and starts no unit.
+var serviceHost = func(cfg Config) services.Host {
+	if os.Getuid() != 0 {
+		return notRoot{}
+	}
+	return hostservices.New(cfg.Services)
+}
+
+// errNotRoot is a core that runs as another user than root: a development
+// run. It serves the panel, and can deploy nothing.
+var errNotRoot = errors.New("services: this core does not run as root")
+
+// notRoot is the services' host for such a core. It lists what the store
+// holds, with nothing running.
+type notRoot struct{}
+
+func (notRoot) Podman(context.Context) (int, int, error)            { return 0, 0, errNotRoot }
+func (notRoot) Install(context.Context, services.Unit) error        { return errNotRoot }
+func (notRoot) Start(context.Context, string) error                 { return errNotRoot }
+func (notRoot) Stop(context.Context, string) error                  { return errNotRoot }
+func (notRoot) Restart(context.Context, string) error               { return errNotRoot }
+func (notRoot) Uninstall(context.Context, string, bool) error       { return errNotRoot }
+func (notRoot) Logs(context.Context, string, int) ([]string, error) { return nil, errNotRoot }
+func (notRoot) Running(context.Context, string) (services.Running, error) {
+	return services.Running{Active: "absent"}, nil
+}
+
+// serviceSecrets keeps the services' generated secrets in the store's secret
+// table, sealed under the master key as the Cloudflare token is.
+type serviceSecrets struct {
+	st    *store.Store
+	vault *keyslot.Vault
+}
+
+func (s serviceSecrets) Get(ctx context.Context, name string) ([]byte, bool, error) {
+	b, err := s.st.Secret(ctx, s.vault, name)
+	if errors.Is(err, store.ErrNoSecret) {
+		return nil, false, nil
+	}
+	return b, err == nil, err
+}
+
+func (s serviceSecrets) Put(ctx context.Context, name string, value []byte) error {
+	return s.st.PutSecret(ctx, s.vault, name, value)
+}
+
+func (s serviceSecrets) Delete(ctx context.Context, name string) error {
+	return s.st.DeleteSecret(ctx, name)
+}
+
+// servicesModule is services.* with the two errors only this host can
+// answer: a locked vault, and a core that is not root.
+type servicesModule struct{ *services.Module }
+
+func (m servicesModule) Errors() []module.PublicError {
+	return append(m.Module.Errors(),
+		module.PublicError{Err: keyslot.ErrLocked, Code: -32188, Name: "services.locked", Message: "the vault is locked; log in as root to unlock it"},
+		module.PublicError{Err: errNotRoot, Code: -32189, Name: "services.not_root", Message: "this core does not run as root, so it can deploy nothing"})
 }
 
 // gateUnit is the gate's unit, as install.sh installs it.
@@ -181,8 +245,9 @@ func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateContr
 
 	counts := &counters{}
 	gm := gate.NewModule(st.Routes(), reload)
+	svcs := services.NewModule(st.Services(), serviceSecrets{st: st, vault: vault}, serviceHost(cfg))
 	sys := &sysModule{cfg: cfg, table: table, engine: st.Engine(), started: time.Now(), challenge: sw.Challenge, ca: sw.CA,
-		st: st, log: log, counts: counts, listeners: readListeners, sshLogins: readSSHLogins, gate: gc}
+		st: st, log: log, counts: counts, listeners: readListeners, sshLogins: readSSHLogins, gate: gc, serviceUsers: svcs.Users}
 	am, err := auth.New(st, st, vault, func(ctx context.Context) {
 		if err := sw.rebuild(ctx); err != nil {
 			log.Error("certificates after unlock", "err", err)
@@ -192,7 +257,8 @@ func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateContr
 		return err
 	}
 	// The control socket: this user's processes only, so root's under the unit.
-	ctl, err := hostcontrol.Listen(cfg.Socket, log, hostcontrol.Access{}, am, gm, &certsModule{sw: sw}, sys)
+	// A privileged verb's entry goes to the store's audit log before it runs.
+	ctl, err := hostcontrol.Listen(cfg.Socket, log, hostcontrol.Access{Audit: st}, am, gm, &certsModule{sw: sw}, sys, servicesModule{svcs})
 	if err != nil {
 		return err
 	}

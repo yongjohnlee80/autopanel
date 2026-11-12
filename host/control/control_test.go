@@ -17,6 +17,7 @@ import (
 	"github.com/yongjohnlee80/autopanel/core/gate"
 	"github.com/yongjohnlee80/autopanel/internal/auth"
 	"github.com/yongjohnlee80/autopanel/internal/keyslot"
+	"github.com/yongjohnlee80/autopanel/internal/module"
 	"github.com/yongjohnlee80/autopanel/internal/peercred"
 )
 
@@ -243,4 +244,198 @@ func containsAny(s string, subs ...string) bool {
 		}
 	}
 	return false
+}
+
+// attempts is an Auditor in memory: each entry as it stands, and the order in
+// which the entry and the verb's effect happened.
+type attempts struct {
+	mu      sync.Mutex
+	fail    error
+	entries []string // "actor|action|subject|outcome"
+	order   []string
+}
+
+func (a *attempts) AuditAttempt(_ context.Context, actor, action, subject string) (int64, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.fail != nil {
+		return 0, a.fail
+	}
+	a.entries = append(a.entries, action+"|"+subject+"|attempt")
+	a.order = append(a.order, "entry "+action)
+	return int64(len(a.entries)), nil
+}
+
+func (a *attempts) AuditResult(_ context.Context, id int64, outcome string) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	e := a.entries[id-1]
+	a.entries[id-1] = e[:len(e)-len("attempt")] + outcome
+	return nil
+}
+
+func (a *attempts) did(what string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.order = append(a.order, what)
+}
+
+var (
+	errHostSaysNo = errors.New("the host refused")
+	errOption     = errors.New("an option was refused")
+)
+
+type optionErr struct{}
+
+func (optionErr) Error() string        { return "option port: out of range, at /secret/path" }
+func (optionErr) Is(target error) bool { return target == errOption }
+func (optionErr) PublicDetail() string { return "port: a port is a number from 1024 to 65535" }
+
+// hostModule has one privileged verb, which acts unless told to fail, and one
+// that is not privileged.
+type hostModule struct{ log *attempts }
+
+func (hostModule) Name() string { return "host" }
+
+func (hostModule) Errors() []module.PublicError {
+	return []module.PublicError{
+		{Err: errHostSaysNo, Code: -32900, Name: "host.refused", Message: "the host refused"},
+		{Err: errOption, Code: -32901, Name: "host.bad_option", Message: "an option was refused"},
+	}
+}
+
+type hostAsk struct {
+	Name string `json:"name,omitempty"`
+	Fail string `json:"fail,omitempty"`
+}
+
+func (m hostModule) Verbs() []module.Verb {
+	act := func(_ context.Context, p hostAsk) (struct{}, error) {
+		m.log.did("effect")
+		switch p.Fail {
+		case "declared":
+			return struct{}{}, errHostSaysNo
+		case "option":
+			return struct{}{}, optionErr{}
+		case "undeclared":
+			return struct{}{}, errors.New("exit status 1: /secret/path")
+		}
+		return struct{}{}, nil
+	}
+	return []module.Verb{
+		module.Handle(module.Contract{Verb: "host.act", Privileged: true, Open: true}, act),
+		module.Handle(module.Contract{Verb: "host.read", Open: true}, func(context.Context, struct{}) (struct{}, error) { return struct{}{}, nil }),
+	}
+}
+
+// TestAPrivilegedVerbLeavesItsRecordFirst: the entry is written before the
+// verb runs and carries the outcome after it, on failure too; with the audit
+// log unwritable the verb is refused and nothing is done.
+func TestAPrivilegedVerbLeavesItsRecordFirst(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	sock := filepath.Join(t.TempDir(), "c.sock")
+	aud := &attempts{}
+	hm := hostModule{log: aud}
+	if _, err := Listen(sock, log, Access{}, hm); err == nil {
+		t.Fatal("a socket with a privileged verb and no audit log was served")
+	}
+	srv, err := Listen(sock, log, Access{Audit: aud}, hm)
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() { done <- srv.Run(ctx) }()
+	c, err := Dial(ctx, sock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	wire := func(err error) *rpc.Error {
+		var re *rpc.Error
+		if !errors.As(err, &re) {
+			t.Fatalf("not a wire error: %v", err)
+		}
+		return re
+	}
+
+	if err := c.Call(ctx, "host.act", hostAsk{Name: "turn"}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if re := wire(c.Call(ctx, "host.act", hostAsk{Name: "turn", Fail: "declared"}, nil)); re.Code != -32900 {
+		t.Fatalf("a declared failure = %+v", re)
+	}
+	if re := wire(c.Call(ctx, "host.act", hostAsk{Fail: "undeclared"}, nil)); re.Code != rpc.CodeInternal || containsAny(re.Message, "secret") {
+		t.Fatalf("an undeclared failure = %+v", re)
+	}
+	// A declared error that says more crosses with what it adds, and nothing else of it.
+	if re := wire(c.Call(ctx, "host.act", hostAsk{Fail: "option"}, nil)); re.Code != -32901 ||
+		re.Message != "an option was refused: port: a port is a number from 1024 to 65535" {
+		t.Fatalf("a detailed error = %+v", re)
+	}
+	if re := wire(c.Call(ctx, "host.act", map[string]any{"name": "x", "evil": 1}, nil)); re.Code != rpc.CodeInvalidParams {
+		t.Fatalf("bad params = %+v", re)
+	}
+	if err := c.Call(ctx, "host.read", nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{
+		`host.act|name "turn"|ok`, `host.act|name "turn"|host.refused`, "host.act||failed", "host.act||host.bad_option", `host.act|name "x"|invalid params`,
+	}
+	aud.mu.Lock()
+	entries, order := append([]string(nil), aud.entries...), append([]string(nil), aud.order...)
+	aud.mu.Unlock()
+	if len(entries) != len(want) {
+		t.Fatalf("the entries = %q; want %q", entries, want)
+	}
+	for i := range want {
+		if entries[i] != want[i] {
+			t.Errorf("entry %d = %q; want %q", i, entries[i], want[i])
+		}
+	}
+	// Each effect follows its own entry. The call with bad params left an
+	// entry and had no effect; the verb that is not privileged left no entry.
+	wantOrder := []string{"entry host.act", "effect", "entry host.act", "effect", "entry host.act", "effect", "entry host.act", "effect", "entry host.act"}
+	if len(order) != len(wantOrder) {
+		t.Fatalf("the order = %q", order)
+	}
+	for i := range wantOrder {
+		if order[i] != wantOrder[i] {
+			t.Fatalf("the order = %q; want every entry before its effect", order)
+		}
+	}
+
+	// A subject is the caller's, not yet validated: it is quoted and cut short.
+	_ = c.Call(ctx, "host.act", hostAsk{Name: "x\ny"}, nil)
+	_ = c.Call(ctx, "host.act", hostAsk{Name: "a\nb" + string(make([]byte, 200))}, nil)
+	aud.mu.Lock()
+	last := aud.entries[len(aud.entries)-2:]
+	aud.mu.Unlock()
+	if last[0] != `host.act|name "x\ny"|ok` || len(last[1]) > 320 || containsAny(last[1], "\x00", "\n") {
+		t.Fatalf("the subjects = %q", last)
+	}
+
+	// The audit log cannot be written: the verb is refused, and does nothing.
+	aud.mu.Lock()
+	aud.fail = errors.New("disk full")
+	effects := len(aud.order)
+	aud.mu.Unlock()
+	if re := wire(c.Call(ctx, "host.act", hostAsk{Name: "turn"}, nil)); re.Code != rpc.CodeInternal || containsAny(re.Message, "disk") {
+		t.Fatalf("a verb whose entry could not be written = %+v", re)
+	}
+	aud.mu.Lock()
+	if len(aud.order) != effects {
+		t.Fatalf("the verb ran without its entry: %q", aud.order[effects:])
+	}
+	aud.mu.Unlock()
+	if err := c.Call(ctx, "host.read", nil, nil); err != nil {
+		t.Fatalf("a verb that is not privileged needs no entry: %v", err)
+	}
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the server did not stop")
+	}
 }

@@ -3,7 +3,8 @@
 // parts as floating windows that move, resize, maximize, minimize and close:
 // the proxy routes, with a form to add or edit one and a confirmation to
 // remove one, and the System menu's monitors (metrics, the audit log, login
-// attempts, open ports). The certificate service, the theme and the language
+// attempts, open ports), and the deployed services, with a form to deploy a
+// TURN relay or change one. The certificate service, the theme and the language
 // are chosen in the menus. It opens on a login dialog, and reads nothing
 // until a panel user has signed in. All of it is over a Client that talks to
 // the daemon. The panel keeps no state of its own: every change goes through the
@@ -72,6 +73,9 @@ type AuditEntry struct {
 	Action  string `json:"action"`
 	Subject string `json:"subject"`
 	Detail  string `json:"detail"`
+	// Outcome is set on a privileged action's entry: "attempt" until it
+	// ends, then "ok" or the error's name.
+	Outcome string `json:"outcome"`
 }
 
 // LoginAttempt is one row of sys.logins.
@@ -101,6 +105,56 @@ type Port struct {
 	Use     string `json:"use"`
 }
 
+// Service is one row of services.list: a deployed service as it was asked
+// for, and what the host's systemd says of its unit now.
+type Service struct {
+	Name     string            `json:"name"`
+	Template string            `json:"template"`
+	Options  map[string]string `json:"options"`
+	State    string            `json:"state"` // "deploying", "deployed" or "removing"
+	User     string            `json:"user"`
+	Ports    []ServicePort     `json:"ports"`
+	Active   string            `json:"active"`
+	Sub      string            `json:"sub"`
+	Memory   uint64            `json:"memory_bytes"`
+}
+
+// ServicePort is the ports a service uses: one, or a range.
+type ServicePort struct {
+	Proto string `json:"proto"`
+	From  int    `json:"from"`
+	To    int    `json:"to"`
+}
+
+// ServiceTemplate is one row of services.templates: a kind of service the
+// daemon can deploy, with the options its form asks.
+type ServiceTemplate struct {
+	Name    string          `json:"name"`
+	Title   string          `json:"title"`
+	Image   string          `json:"image"`
+	Network string          `json:"network"`
+	Memory  string          `json:"memory"`
+	Options []ServiceOption `json:"options"`
+	Secrets []string        `json:"secrets"`
+}
+
+// ServiceOption is one option of a template.
+type ServiceOption struct {
+	Key     string   `json:"key"`
+	Label   string   `json:"label"`
+	Kind    string   `json:"kind"`
+	Default string   `json:"default"`
+	Choices []string `json:"choices"`
+}
+
+// ServiceSpec is a service to deploy, or the new options of one to update
+// (Template is not read then).
+type ServiceSpec struct {
+	Template string
+	Name     string
+	Options  map[string]string
+}
+
 // Prefs are the panel's kept preferences; an empty field is one not chosen
 // (read) or left as it is (written).
 type Prefs struct {
@@ -127,6 +181,21 @@ type Client interface {
 	AuditLog(ctx context.Context) ([]AuditEntry, error)
 	Logins(ctx context.Context) (Logins, error)
 	Ports(ctx context.Context) ([]Port, error)
+
+	// The Services menu. Unit starts, stops or restarts a service's unit:
+	// action is "start", "stop" or "restart".
+	Services(ctx context.Context) ([]Service, error)
+	ServiceTemplates(ctx context.Context) ([]ServiceTemplate, error)
+	DeployService(ctx context.Context, s ServiceSpec) error
+	UpdateService(ctx context.Context, s ServiceSpec) error
+	ServiceUnit(ctx context.Context, action, name string) error
+	// RemoveService deletes a service's unit, user and secrets; with purge,
+	// its directory too.
+	RemoveService(ctx context.Context, name string, purge bool) error
+	ServiceLogs(ctx context.Context, name string) ([]string, error)
+	// ServiceSecret is a secret the daemon generated for a service. The
+	// daemon records each read in its audit log.
+	ServiceSecret(ctx context.Context, name, key string) (string, error)
 
 	// The panel's preferences, kept by the daemon.
 	Prefs(ctx context.Context) (Prefs, error)
