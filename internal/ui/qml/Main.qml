@@ -298,6 +298,7 @@ Window {
         heading: qsTrId("autopanel.services.title")
         size: 70; length: 90
         onOpened: servicesTable.forceActiveFocus()
+        onClosed: App.servicesClosed()   // its log and secrets hand the keyboard back to it while it is open
         Shortcut { sequence: "r"; onActivated: App.reloadServices() }
         Shortcut { sequence: "a"; onActivated: App.deployTurn() }
         Shortcut { sequence: "e"; onActivated: App.editService(servicesTable.currentIndex) }

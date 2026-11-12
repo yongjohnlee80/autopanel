@@ -26,6 +26,7 @@ type deployed struct {
 	logs    *tuidecl.ListModel // App.serviceLogs: one service's journal lines
 	secrets *tuidecl.ListModel // App.serviceSecrets: one service's secrets
 
+	shown     bool      // the services panel is open, minimized or not
 	rows      []Service // the table's rows, as the daemon gave them
 	read      bool      // the services have been read once
 	readAt    time.Time
@@ -173,7 +174,15 @@ func (h *host) setTemplates(ts []ServiceTemplate) {
 // openServices opens the services panel and reads it.
 func (h *host) openServices() error {
 	h.loadServices()
+	h.svc.shown = true
 	return h.openPanel("services", "servicesPanel", "servicesTable")
+}
+
+// servicesClosed is the services panel closed: the keyboard goes back to
+// the main screen.
+func (h *host) servicesClosed() error {
+	h.svc.shown = false
+	return h.panelLeft()
 }
 
 // reloadServices is r in the services panel: read it again.

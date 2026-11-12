@@ -298,12 +298,28 @@ func (h *host) confirm() error {
 	return then()
 }
 
-// panelLeft gives the keyboard back to the overview, the Window's focus
-// target, once a panel has closed. Posted: the handler runs while the panel
-// is still closing.
+// panelLeft gives the keyboard back once a panel has closed: to the services
+// panel when it is on screen, since its log and its secrets open over it, and
+// otherwise to the overview, the Window's focus target. Posted: the handler
+// runs while the panel is still closing.
 func (h *host) panelLeft() error {
-	h.p.Post(func() { _ = h.p.Call("overview", "forceActiveFocus") })
+	h.p.Post(func() {
+		if h.svc.shown && !h.isMinimized("services") && h.p.Call("servicesTable", "forceActiveFocus") == nil {
+			return
+		}
+		_ = h.p.Call("overview", "forceActiveFocus")
+	})
 	return nil
+}
+
+// isMinimized says whether the panel of a window key is minimized.
+func (h *host) isMinimized(key string) bool {
+	for _, e := range h.minimized.Entries() {
+		if e.Key == key {
+			return true
+		}
+	}
+	return false
 }
 
 // panelChanged is a panel's completed window operation. A minimized panel

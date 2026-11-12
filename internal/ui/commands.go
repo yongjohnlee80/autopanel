@@ -39,6 +39,7 @@ func (h *host) commands() map[string]decl.HandlerFunc {
 		"App.previousShell":  none(func() error { return h.cycleShell(-1) }),
 		"App.openServices":   none(h.openServices),
 		"App.reloadServices": none(h.reloadServices),
+		"App.servicesClosed": none(h.servicesClosed),
 		"App.deployTurn":     none(h.deployTurn),
 		"App.editService":    oneRow("App.editService", h.editService),
 		"App.submitTurn":     fourStrings("App.submitTurn", h.submitTurn),

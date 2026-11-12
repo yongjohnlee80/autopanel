@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/yongjohnlee80/golib/tui/decl/decltest"
 )
@@ -200,6 +201,16 @@ func TestTheServicesPanel(t *testing.T) {
 	s.Keys(t, decltest.Rune('y'))
 	s.WaitForText(t, "turn removed, with its directory")
 	s.WaitFor(t, "the table without the relay", func(sc string) bool { return !strings.Contains(sc, "ap-turn") })
+
+	// Closed, the panel hands the keyboard back to the main screen: q quits.
+	s.Keys(t, decltest.Rune('q'))
+	s.WaitFor(t, "the services panel to close", func(sc string) bool { return !strings.Contains(sc, "Deploy TURN") })
+	s.Keys(t, decltest.Rune('q'))
+	select {
+	case <-s.Quit():
+	case <-time.After(decltest.WaitTimeout):
+		t.Fatalf("q on the main screen did not quit:\n%s", s)
+	}
 
 	_, _, units, removals, secrets := f.asked()
 	if !reflect.DeepEqual(units, []string{"stop turn"}) {
