@@ -316,8 +316,9 @@ func TestDeployingTURN(t *testing.T) {
 		t.Fatal(err)
 	}
 	conf := h.file(t, "turn", "config/turnserver.conf")
-	if !strings.Contains(conf, "listening-port=3479\n") || !strings.Contains(conf, "static-auth-secret="+secret+"\n") {
-		t.Fatalf("after the update:\n%s", conf)
+	unit := h.file(t, "turn", unitPath("turn"))
+	if !strings.Contains(unit, " --listening-port=3479 ") || !strings.Contains(conf, "static-auth-secret="+secret+"\n") {
+		t.Fatalf("after the update:\n%s\n%s", unit, conf)
 	}
 	if st.rows["turn"].Options["port"] != "3479" {
 		t.Fatalf("the stored options = %v", st.rows["turn"].Options)
