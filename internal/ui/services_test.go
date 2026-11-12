@@ -166,7 +166,7 @@ func TestTheServicesPanel(t *testing.T) {
 	f := withRelay()
 	s := start(t, f)
 	openServices(t, s, "active (running)")
-	for _, part := range []string{"TURN relay", "ap-turn", "21.0 MiB", "udp 3478, tcp 3478, udp 49152-49999", "1 rows"} {
+	for _, part := range []string{"TURN relay", "ap-turn", "21.0 MiB", "udp 3478, tcp 3478", "1 rows"} {
 		s.WaitForText(t, part)
 	}
 

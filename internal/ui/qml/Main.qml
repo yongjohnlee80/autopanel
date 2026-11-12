@@ -252,7 +252,7 @@ Window {
                 model: App.logins
                 TableViewColumn { role: "time"; title: "TIME"; width: 20 }
                 TableViewColumn { role: "source"; title: "TO"; width: 6 }
-                TableViewColumn { role: "user"; title: "USER"; width: 14 }
+                TableViewColumn { role: "user"; title: "USER"; width: 12 }
                 TableViewColumn { role: "from"; title: "FROM"; width: 24 }
                 TableViewColumn { role: "result"; title: "RESULT"; width: 10 }
                 TableViewColumn { role: "detail"; title: "DETAIL" }
@@ -317,11 +317,11 @@ Window {
                 palette.highlightedText: Theme.document.highlightedText
                 model: App.services
                 onActivated: App.editService(index)
-                TableViewColumn { role: "name"; title: "NAME"; width: 16 }
-                TableViewColumn { role: "kind"; title: "KIND"; width: 14 }
-                TableViewColumn { role: "state"; title: "STATE"; width: 22 }
+                TableViewColumn { role: "name"; title: "NAME"; width: 14 }
+                TableViewColumn { role: "kind"; title: "KIND"; width: 12 }
+                TableViewColumn { role: "state"; title: "STATE"; width: 20 }
                 TableViewColumn { role: "memory"; title: "MEMORY"; width: 10 }
-                TableViewColumn { role: "user"; title: "USER"; width: 14 }
+                TableViewColumn { role: "user"; title: "USER"; width: 12 }
                 TableViewColumn { role: "ports"; title: "PORTS" }
             }
             Flex {

@@ -214,7 +214,7 @@ func (h *host) deployTurn() error {
 			options[o.Key] = o.Default
 		}
 		h.svc.editName = ""
-		_ = h.openTurnForm(h.tr("autopanel.services.form.deploy"), turnTemplate, options)
+		_ = h.openTurnForm(h.tr("autopanel.services.form.deploy"), "", options) // an empty name is the template's
 	})
 	return nil
 }
