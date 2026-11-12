@@ -504,8 +504,8 @@
         <translation>部署 TURN 中继</translation>
     </message>
     <message id="autopanel.services.help">
-        <source>a deploy TURN · e/Enter change · s start · x stop · t restart · l log · k secrets · d remove · Shift+D remove with its directory · r read again · q close</source>
-        <translation>a 部署 TURN · e/Enter 更改 · s 启动 · x 停止 · t 重启 · l 日志 · k 密钥 · d 移除 · Shift+D 连同目录一起移除 · r 重新读取 · q 关闭</translation>
+        <source>a deploy TURN · e/Enter change · s start · x stop · t restart · o log · c secrets · d remove · Shift+D remove with its directory · r read again · q close</source>
+        <translation>a 部署 TURN · e/Enter 更改 · s 启动 · x 停止 · t 重启 · o 日志 · c 密钥 · d 移除 · Shift+D 连同目录一起移除 · r 重新读取 · q 关闭</translation>
     </message>
     <message id="autopanel.services.logs">
         <source>Log</source>

@@ -504,8 +504,8 @@
         <translation>Implantar um relay TURN</translation>
     </message>
     <message id="autopanel.services.help">
-        <source>a deploy TURN · e/Enter change · s start · x stop · t restart · l log · k secrets · d remove · Shift+D remove with its directory · r read again · q close</source>
-        <translation>a implantar TURN · e/Enter alterar · s iniciar · x parar · t reiniciar · l log · k segredos · d remover · Shift+D remover com o diretório · r ler de novo · q fechar</translation>
+        <source>a deploy TURN · e/Enter change · s start · x stop · t restart · o log · c secrets · d remove · Shift+D remove with its directory · r read again · q close</source>
+        <translation>a implantar TURN · e/Enter alterar · s iniciar · x parar · t reiniciar · o log · c segredos · d remover · Shift+D remover com o diretório · r ler de novo · q fechar</translation>
     </message>
     <message id="autopanel.services.logs">
         <source>Log</source>

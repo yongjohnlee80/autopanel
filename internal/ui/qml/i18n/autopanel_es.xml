@@ -504,8 +504,8 @@
         <translation>Desplegar un relé TURN</translation>
     </message>
     <message id="autopanel.services.help">
-        <source>a deploy TURN · e/Enter change · s start · x stop · t restart · l log · k secrets · d remove · Shift+D remove with its directory · r read again · q close</source>
-        <translation>a desplegar TURN · e/Enter cambiar · s iniciar · x detener · t reiniciar · l registro · k secretos · d eliminar · Shift+D eliminar con su directorio · r leer de nuevo · q cerrar</translation>
+        <source>a deploy TURN · e/Enter change · s start · x stop · t restart · o log · c secrets · d remove · Shift+D remove with its directory · r read again · q close</source>
+        <translation>a desplegar TURN · e/Enter cambiar · s iniciar · x detener · t reiniciar · o registro · c secretos · d eliminar · Shift+D eliminar con su directorio · r leer de nuevo · q cerrar</translation>
     </message>
     <message id="autopanel.services.logs">
         <source>Log</source>

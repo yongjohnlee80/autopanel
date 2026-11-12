@@ -174,14 +174,14 @@ func TestTheServicesPanel(t *testing.T) {
 	s.WaitForText(t, "turn stopped")
 	s.WaitForText(t, "inactive (dead)")
 
-	s.Keys(t, decltest.Rune('k'))
+	s.Keys(t, decltest.Rune('c'))
 	s.WaitForText(t, "Secrets of turn")
 	s.WaitForText(t, fakeSecret)
 	s.WaitForText(t, "audit log")
 	s.Keys(t, decltest.Rune('q'))
 	s.WaitFor(t, "the secrets to leave the screen", func(sc string) bool { return !strings.Contains(sc, fakeSecret) })
 
-	s.Keys(t, decltest.Rune('l'))
+	s.Keys(t, decltest.Rune('o'))
 	s.WaitForText(t, "relay ready")
 	s.WaitForText(t, "turn: 2 lines")
 	s.Keys(t, decltest.Rune('q'))

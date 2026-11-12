@@ -173,8 +173,8 @@ with its state, its memory, its user and its ports. The keys there:
 | `a` | deploy a TURN relay |
 | `e` or Enter | change the selected service's options, and restart it |
 | `s`, `x`, `t` | start, stop, restart its unit |
-| `l` | its newest log lines |
-| `k` | its generated secrets; they leave the screen when the window closes |
+| `o` | its newest log lines |
+| `c` | its generated secrets; they leave the screen when the window closes |
 | `d` | remove it, after a question; its directory is kept, as root's |
 | `Shift+D` | remove it and delete its directory, after a question |
 | `r` | read the list again |
@@ -231,7 +231,7 @@ Open the port and the relay range in your firewall. A service's user cannot bind
 
 The relay authenticates with a shared secret (coturn's `use-auth-secret`): your application
 makes short-lived TURN credentials from it, and the relay keeps no list of users. Read the secret
-with `k` in the panel or `services.secret`, and give it to the application. Each read is in the
+with `c` in the panel or `services.secret`, and give it to the application. Each read is in the
 audit log.
 
 The relay refuses to relay to this server itself and to private and link-local addresses, so it

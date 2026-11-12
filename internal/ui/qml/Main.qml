@@ -291,7 +291,7 @@ Window {
     // ---- the services -----------------------------------------------------
     //
     // Services › Deployed services: a row per service, and its keys
-    // (services.go). The daemon records each change before it makes it.
+    // (services.go). None is h, j, k or l: the table moves by them. The daemon records each change before it makes it.
     FloatPanel {
         id: servicesPanel
         key: "services"; label: "Services"
@@ -304,8 +304,8 @@ Window {
         Shortcut { sequence: "s"; onActivated: App.startService(servicesTable.currentIndex) }
         Shortcut { sequence: "x"; onActivated: App.stopService(servicesTable.currentIndex) }
         Shortcut { sequence: "t"; onActivated: App.restartService(servicesTable.currentIndex) }
-        Shortcut { sequence: "l"; onActivated: App.serviceLogsOf(servicesTable.currentIndex) }
-        Shortcut { sequence: "k"; onActivated: App.secretsOf(servicesTable.currentIndex) }
+        Shortcut { sequence: "o"; onActivated: App.serviceLogsOf(servicesTable.currentIndex) }
+        Shortcut { sequence: "c"; onActivated: App.secretsOf(servicesTable.currentIndex) }
         Shortcut { sequence: "d"; onActivated: App.removeService(servicesTable.currentIndex) }
         Shortcut { sequence: "Shift+D"; onActivated: App.purgeService(servicesTable.currentIndex) }
         Flex {

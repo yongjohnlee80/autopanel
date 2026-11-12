@@ -430,7 +430,10 @@ func (h *host) openSecrets(row int) error {
 		}
 		h.svc.secrets.Reset(rows)
 		_ = h.p.Set("App.secretsTitle", h.trf("autopanel.services.secret.title", s.Name))
-		_ = h.openPanel("serviceSecrets", "serviceSecretsPanel", "serviceSecretsTable")
+		if err := h.openPanel("serviceSecrets", "serviceSecretsPanel", "serviceSecretsTable"); err != nil {
+			h.svc.secrets.Reset(nil)
+			h.say(h.trf("autopanel.notice.error", err.Error()))
+		}
 	})
 	return nil
 }

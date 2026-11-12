@@ -504,8 +504,8 @@
         <translation>TURN 릴레이 배포</translation>
     </message>
     <message id="autopanel.services.help">
-        <source>a deploy TURN · e/Enter change · s start · x stop · t restart · l log · k secrets · d remove · Shift+D remove with its directory · r read again · q close</source>
-        <translation>a TURN 배포 · e/Enter 변경 · s 시작 · x 중지 · t 재시작 · l 로그 · k 시크릿 · d 제거 · Shift+D 디렉터리까지 제거 · r 다시 읽기 · q 닫기</translation>
+        <source>a deploy TURN · e/Enter change · s start · x stop · t restart · o log · c secrets · d remove · Shift+D remove with its directory · r read again · q close</source>
+        <translation>a TURN 배포 · e/Enter 변경 · s 시작 · x 중지 · t 재시작 · o 로그 · c 시크릿 · d 제거 · Shift+D 디렉터리까지 제거 · r 다시 읽기 · q 닫기</translation>
     </message>
     <message id="autopanel.services.logs">
         <source>Log</source>

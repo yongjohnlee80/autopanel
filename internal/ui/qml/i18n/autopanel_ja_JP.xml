@@ -504,8 +504,8 @@
         <translation>TURN リレーをデプロイ</translation>
     </message>
     <message id="autopanel.services.help">
-        <source>a deploy TURN · e/Enter change · s start · x stop · t restart · l log · k secrets · d remove · Shift+D remove with its directory · r read again · q close</source>
-        <translation>a TURN をデプロイ · e/Enter 変更 · s 開始 · x 停止 · t 再起動 · l ログ · k シークレット · d 削除 · Shift+D ディレクトリごと削除 · r 再読み込み · q 閉じる</translation>
+        <source>a deploy TURN · e/Enter change · s start · x stop · t restart · o log · c secrets · d remove · Shift+D remove with its directory · r read again · q close</source>
+        <translation>a TURN をデプロイ · e/Enter 変更 · s 開始 · x 停止 · t 再起動 · o ログ · c シークレット · d 削除 · Shift+D ディレクトリごと削除 · r 再読み込み · q 閉じる</translation>
     </message>
     <message id="autopanel.services.logs">
         <source>Log</source>
