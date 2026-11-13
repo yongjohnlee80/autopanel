@@ -27,9 +27,17 @@ import (
 var released = map[string]map[string]string{
 	dao.DialectSQLite: {
 		"000001_update_initialize_tables.sql": "50801c47a5435790462bb43ef2d70475f72f080306b6ef728d81b3b54e21d333", // v0.1.0
+		"000002_update_services.sql":          "65908f8fa102b99396452c8fb154fc958e4cbb68482bad45953cc97ddd53c7c7", // v0.2.2
+		"000002_revert_services.sql":          "e936ea57cfe85dd6d7b4cbb67adf7515ae6c17d2f6dbf0e5ebbd0bc3293d8cee", // v0.2.2
+		"000003_update_stacks.sql":            "bb28b720c35ad1ed4a9eda337ef37b5697911349e52d412c447461699c5f9590", // v0.2.3
+		"000003_revert_stacks.sql":            "103a64e2539b09af598443963b3d82ceff59b1e9d07dc37c8f9c92e5b18d0ee6", // v0.2.3
 	},
 	dao.DialectPostgres: {
 		"000001_update_initialize_tables.sql": "c6ba5f47590ab15655f6c4be17ccce0d0b617678d83d58a241c9d015736f41e7", // v0.1.0
+		"000002_update_services.sql":          "3cf75898ae3e63188de424366fecc3c16f5d17962c1df4079737f15c0ccde6ff", // v0.2.2
+		"000002_revert_services.sql":          "e936ea57cfe85dd6d7b4cbb67adf7515ae6c17d2f6dbf0e5ebbd0bc3293d8cee", // v0.2.2
+		"000003_update_stacks.sql":            "f8775991ce9e36392beb7c41e8b9d93225b813c1cc13503242c27b02e9ffe4d7", // v0.2.3
+		"000003_revert_stacks.sql":            "103a64e2539b09af598443963b3d82ceff59b1e9d07dc37c8f9c92e5b18d0ee6", // v0.2.3
 	},
 }
 
