@@ -22,9 +22,9 @@ import (
 	"github.com/yongjohnlee80/autopanel/core/services"
 	hostcontrol "github.com/yongjohnlee80/autopanel/host/control"
 	hostgate "github.com/yongjohnlee80/autopanel/host/gate"
+	hostservices "github.com/yongjohnlee80/autopanel/host/services"
 	"github.com/yongjohnlee80/autopanel/internal/auth"
 	"github.com/yongjohnlee80/autopanel/internal/sysinfo"
-	"github.com/yongjohnlee80/autopanel/internal/ui"
 	"github.com/yongjohnlee80/autopanel/store"
 )
 
@@ -405,12 +405,23 @@ func TestTheCoreAndTheGateEndToEnd(t *testing.T) {
 	}
 }
 
-// machine is a services.Host that makes no user and starts no unit.
+// machine is the services' host with its files real and its machine not: a
+// stack's definition is staged and read as on a host, from folders of the
+// test's own, and no user is made, no image pulled and no unit started.
 type machine struct {
+	*hostservices.Host
 	mu      sync.Mutex
 	podman  [2]int
-	units   map[string]services.Unit
-	running map[string]bool
+	users   map[string]bool
+	units   map[string]map[string]string // stack → unit file → text
+	running map[string]bool              // by systemd service
+	pulled  []string
+}
+
+func newMachine(t *testing.T, stacks string) *machine {
+	t.Helper()
+	return &machine{Host: hostservices.New(filepath.Join(t.TempDir(), "services"), stacks), podman: [2]int{4, 9},
+		users: map[string]bool{}, units: map[string]map[string]string{}, running: map[string]bool{}}
 }
 
 func (h *machine) Podman(context.Context) (int, int, error) {
@@ -422,61 +433,133 @@ func (h *machine) Podman(context.Context) (int, int, error) {
 	return h.podman[0], h.podman[1], nil
 }
 
+func (h *machine) EnsureUser(_ context.Context, name string) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.users[name] = true
+	return nil
+}
+
+func (h *machine) Commit(context.Context, string, services.Commit) error { return nil }
+
 func (h *machine) Install(_ context.Context, u services.Unit) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	h.units[u.Name] = u
-	return nil
-}
-
-func (h *machine) set(name string, on bool) error {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	h.running[name] = on
-	return nil
-}
-
-func (h *machine) Start(_ context.Context, n string) error   { return h.set(n, true) }
-func (h *machine) Restart(_ context.Context, n string) error { return h.set(n, true) }
-func (h *machine) Stop(_ context.Context, n string) error    { return h.set(n, false) }
-
-func (h *machine) Uninstall(_ context.Context, n string, _ bool) error {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	delete(h.units, n)
-	delete(h.running, n)
-	return nil
-}
-
-func (h *machine) Running(_ context.Context, n string) (services.Running, error) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	if h.running[n] {
-		return services.Running{Active: "active", Sub: "running", MemoryBytes: 1 << 20}, nil
+	if h.units[u.Name] == nil {
+		h.units[u.Name] = map[string]string{}
 	}
-	return services.Running{Active: "absent"}, nil
+	for _, f := range u.Files {
+		h.units[u.Name][f.Path] = string(f.Body)
+	}
+	return nil
 }
 
-func (h *machine) Logs(context.Context, string, int) ([]string, error) {
-	return []string{"turn: listening"}, nil
+func (h *machine) DeleteUnits(_ context.Context, name string, paths []string) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	for _, p := range paths {
+		delete(h.units[name], p)
+	}
+	return nil
 }
 
-// TestServicesThroughTheControlSocket deploys a TURN relay as the panel
-// would: every changing verb leaves its audit entry first, a refusal names
-// its cause, the generated secret is sealed in the store, and Open ports
-// names the service's sockets by its name.
-func TestServicesThroughTheControlSocket(t *testing.T) {
+func (h *machine) HasImage(context.Context, string, string) (bool, error) { return true, nil }
+
+func (h *machine) Pull(_ context.Context, _ string, ref string) (string, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.pulled = append(h.pulled, ref)
+	return "sha256:" + strings.Repeat("a", 64), nil
+}
+
+func (h *machine) set(units []string, on bool) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	for _, u := range units {
+		h.running[u] = on
+	}
+	return nil
+}
+
+func (h *machine) Start(_ context.Context, _ string, u []string) error   { return h.set(u, true) }
+func (h *machine) Restart(_ context.Context, _ string, u []string) error { return h.set(u, true) }
+func (h *machine) Stop(_ context.Context, _ string, u []string) error    { return h.set(u, false) }
+
+func (h *machine) Uninstall(_ context.Context, name string, _ bool) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	delete(h.units, name)
+	delete(h.users, name)
+	return nil
+}
+
+func (h *machine) Running(_ context.Context, _ string, units []string) (map[string]services.Running, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	out := map[string]services.Running{}
+	for _, u := range units {
+		out[u] = services.Running{Active: "inactive", Sub: "dead"}
+		if h.running[u] {
+			out[u] = services.Running{Active: "active", Sub: "running", MemoryBytes: 1 << 20, Since: 1700000000}
+		}
+	}
+	return out, nil
+}
+
+func (h *machine) Health(_ context.Context, name string) (map[string]string, error) {
+	return map[string]string{name + "-web": "healthy"}, nil
+}
+
+func (h *machine) Logs(_ context.Context, _, container string, _ int) ([]string, error) {
+	return []string{container + ": listening"}, nil
+}
+
+func (h *machine) Listening(context.Context, string) ([]services.PortUse, error) { return nil, nil }
+
+// definition writes a stack's folder as an administrator would.
+func definition(t *testing.T, stacks, name string, files map[string]string) {
+	t.Helper()
+	for file, text := range files {
+		p := filepath.Join(stacks, name, file)
+		if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(text), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+const blogCompose = `services:
+  web:
+    image: example.com/blog:1
+    user: "1000:1000"
+    read_only: true
+    mem_limit: 64m
+    environment: {TOKEN: "${TOKEN}"}
+    volumes: ["./site.conf:/etc/site.conf:ro", "./posts:/posts"]
+    ports: ["127.0.0.1:8081:8080", "3478:3478/udp"]
+`
+
+// TestStacksThroughTheControlSocket adds a stack as the panel would: the
+// review changes nothing, every changing verb leaves its audit entry first
+// with the review it accepts, a refusal names its cause, and Open ports names
+// the stack's sockets by its name.
+func TestStacksThroughTheControlSocket(t *testing.T) {
 	defer func(l func(context.Context) ([]sysinfo.Listener, error), u func(int) string, h func(Config) services.Host) {
 		readListeners, userName, serviceHost = l, u, h
 	}(readListeners, userName, serviceHost)
 	readListeners = func(context.Context) ([]sysinfo.Listener, error) {
 		return []sysinfo.Listener{
-			{Proto: "udp", Address: "0.0.0.0", Port: 3478, UID: 990, Process: "turnserver", PID: 77},
-			{Proto: "udp", Address: "0.0.0.0", Port: 3479, UID: 991, Process: "turnserver", PID: 78},
+			{Proto: "udp", Address: "0.0.0.0", Port: 3478, UID: 990, Process: "rootlessport", PID: 77},
+			{Proto: "udp", Address: "0.0.0.0", Port: 3479, UID: 991, Process: "other", PID: 78},
 		}, nil
 	}
-	userName = func(uid int) string { return map[int]string{990: "ap-turn", 991: "ap-other"}[uid] }
-	host := &machine{units: map[string]services.Unit{}, running: map[string]bool{}}
+	userName = func(uid int) string { return map[int]string{990: "ap-blog", 991: "ap-other"}[uid] }
+	stacks := filepath.Join(t.TempDir(), "stacks")
+	definition(t, stacks, "blog", map[string]string{"compose.yaml": blogCompose, ".env": "TOKEN=t0ken-value\n", "site.conf": "listen 8080\n"})
+	host := newMachine(t, stacks)
+	host.podman = [2]int{}
 	serviceHost = func(Config) services.Host { return host }
 
 	cfg := testConfig(t)
@@ -494,9 +577,8 @@ func TestServicesThroughTheControlSocket(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer c.Close()
-	opts := map[string]string{"realm": "turn.example.com"}
-	if err := c.Call(ctx, "services.deploy", services.Deploy{Template: "turn", Options: opts}, nil); wireCode(err) != rpc.CodeAccessDenied {
-		t.Fatalf("a deploy before login = %v", err)
+	if err := c.Call(ctx, "services.add", services.Accept{Name: "blog", Accept: "x"}, nil); wireCode(err) != rpc.CodeAccessDenied {
+		t.Fatalf("an add before login = %v", err)
 	}
 	if err := c.Call(ctx, "auth.login", auth.Login{User: "root", Passphrase: "a long master passphrase"}, nil); err != nil {
 		t.Fatal(err)
@@ -504,8 +586,6 @@ func TestServicesThroughTheControlSocket(t *testing.T) {
 	var entries []store.AuditEntry
 	newest := func() store.AuditEntry {
 		t.Helper()
-		// A verb's own writes (a sealed secret) leave entries after its
-		// attempt's: the newest entry with an outcome is the verb's.
 		if err := c.Call(ctx, "sys.audit.list", Limit{Limit: 6}, &entries); err != nil {
 			t.Fatalf("sys.audit.list = %+v, %v", entries, err)
 		}
@@ -518,80 +598,129 @@ func TestServicesThroughTheControlSocket(t *testing.T) {
 		return store.AuditEntry{}
 	}
 
-	// No Podman: the deploy is refused, saying so, and the reads still answer.
-	if err := c.Call(ctx, "services.deploy", services.Deploy{Template: "turn", Options: opts}, nil); wireCode(err) != -32196 {
-		t.Fatalf("a deploy with no Podman = %v; want services.no_podman", err)
+	// The review reads the definition, and makes nothing.
+	var folders []services.Folder
+	if err := c.Call(ctx, "services.available", nil, &folders); err != nil || len(folders) != 1 || folders[0].Name != "blog" {
+		t.Fatalf("services.available = %+v, %v", folders, err)
 	}
-	if e := newest(); e.Action != "services.deploy" || e.Subject != `template "turn"` || e.Outcome != "services.no_podman" || !strings.HasPrefix(e.Actor, "root") {
-		t.Fatalf("the refused deploy's entry = %+v", e)
-	}
-	var ts []services.TemplateView
-	if err := c.Call(ctx, "services.templates", nil, &ts); err != nil || len(ts) != 1 || ts[0].Name != "turn" {
-		t.Fatalf("services.templates = %+v, %v", ts, err)
-	}
-	var list []services.View
-	if err := c.Call(ctx, "services.list", nil, &list); err != nil || len(list) != 0 {
-		t.Fatalf("services.list = %+v, %v", list, err)
-	}
-
-	host.mu.Lock()
-	host.podman = [2]int{4, 4}
-	host.mu.Unlock()
-	if err := c.Call(ctx, "services.deploy", services.Deploy{Template: "turn", Options: map[string]string{"realm": "turn.example.com", "port": "80"}}, nil); wireCode(err) != -32194 ||
-		!strings.Contains(err.Error(), "port: a port is a number from 1024 to 65535") {
-		t.Fatalf("a deploy with a refused option = %v; want services.bad_option naming the port", err)
-	}
-	var v services.View
-	if err := c.Call(ctx, "services.deploy", services.Deploy{Template: "turn", Options: opts}, &v); err != nil {
+	var review services.Review
+	if err := c.Call(ctx, "services.check", services.Ref{Name: "blog"}, &review); err != nil {
 		t.Fatal(err)
 	}
-	if v.Name != "turn" || v.User != "ap-turn" || v.State != services.Deployed || v.Active != "active" {
-		t.Fatalf("the deployed service = %+v", v)
+	if len(review.SHA256) != 64 || len(review.Files) != 3 || len(review.Containers) != 1 || review.Containers[0].User != "1000:1000" ||
+		review.Containers[0].Image != "example.com/blog:1" || len(review.Containers[0].Ports) != 2 {
+		t.Fatalf("the review = %+v", review)
 	}
-	if e := newest(); e.Action != "services.deploy" || e.Outcome != "ok" {
-		t.Fatalf("the deploy's entry = %+v", e)
-	}
-	var secret services.SecretValue
-	if err := c.Call(ctx, "services.secret", services.SecretAsk{Name: "turn", Key: "auth-secret"}, &secret); err != nil || len(secret.Value) != 64 {
-		t.Fatalf("services.secret = %q, %v", secret.Value, err)
-	}
-	if e := newest(); e.Action != "services.secret" || e.Subject != `name "turn"` || e.Outcome != "ok" || strings.Contains(e.Detail+e.Subject, secret.Value) {
-		t.Fatalf("revealing the secret left the entry %+v", e)
-	}
-	host.mu.Lock()
-	conf := ""
-	for _, f := range host.units["turn"].Files {
-		if f.Path == "config/turnserver.conf" {
-			conf = string(f.Body)
+	warned := map[string]bool{}
+	for _, f := range review.Findings {
+		if f.Severity != services.Warning {
+			t.Fatalf("the review refuses: %+v", f)
+		}
+		warned[f.ID] = true
+		if strings.Contains(f.Detail, "t0ken-value") {
+			t.Fatalf("a finding shows a value of .env: %+v", f)
 		}
 	}
-	host.mu.Unlock()
-	if !strings.Contains(conf, "static-auth-secret="+secret.Value+"\n") {
-		t.Fatal("the relay's configuration does not carry the secret the store holds")
+	if !warned["image-by-tag"] || !warned["public-port"] || !warned["reach"] || warned["no-memory-limit"] || warned["image-user"] {
+		t.Fatalf("the warnings = %v", warned)
 	}
-	// The secret is sealed: the store's file does not hold it in the clear.
+	var list []services.View
+	if err := c.Call(ctx, "services.list", nil, &list); err != nil || len(list) != 0 || len(host.users) != 0 {
+		t.Fatalf("after a review, services.list = %+v, %v; users %v", list, err, host.users)
+	}
+
+	// No Podman: the add is refused, saying so, with its entry.
+	accept := services.Accept{Name: "blog", Accept: review.SHA256}
+	if err := c.Call(ctx, "services.add", accept, nil); wireCode(err) != -32196 {
+		t.Fatalf("an add with no Podman = %v; want services.no_podman", err)
+	}
+	if e := newest(); e.Action != "services.add" || e.Subject != `name "blog" accept "`+review.SHA256+`"` || e.Outcome != "services.no_podman" || !strings.HasPrefix(e.Actor, "root") {
+		t.Fatalf("the refused add's entry = %+v", e)
+	}
+	host.mu.Lock()
+	host.podman = [2]int{4, 8}
+	host.mu.Unlock()
+	if err := c.Call(ctx, "services.add", accept, nil); wireCode(err) != -32197 {
+		t.Fatalf("an add on Podman 4.8 = %v; want services.old_podman", err)
+	}
+	host.mu.Lock()
+	host.podman = [2]int{4, 9}
+	host.mu.Unlock()
+
+	// A review that is not this definition's: refused, with nothing made.
+	if err := c.Call(ctx, "services.add", services.Accept{Name: "blog", Accept: strings.Repeat("0", 64)}, nil); wireCode(err) != -32195 {
+		t.Fatalf("an add of another review = %v; want services.changed", err)
+	}
+	// A definition the policy refuses: the error names what.
+	definition(t, stacks, "bad", map[string]string{"compose.yaml": "services:\n  x: {image: example.com/x:1, volumes: [\"/etc:/host\"]}\n"})
+	var bad services.Review
+	if err := c.Call(ctx, "services.check", services.Ref{Name: "bad"}, &bad); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Call(ctx, "services.add", services.Accept{Name: "bad", Accept: bad.SHA256}, nil); wireCode(err) != -32194 || !strings.Contains(err.Error(), "absolute-path") {
+		t.Fatalf("an add of a refused stack = %v; want services.refused naming the finding", err)
+	}
+	if e := newest(); e.Action != "services.add" || e.Outcome != "services.refused" {
+		t.Fatalf("the refused stack's entry = %+v", e)
+	}
+	if len(host.users) != 0 {
+		t.Fatalf("a refused add made a user: %v", host.users)
+	}
+
+	var v services.View
+	if err := c.Call(ctx, "services.add", accept, &v); err != nil {
+		t.Fatal(err)
+	}
+	if v.Name != "blog" || v.User != "ap-blog" || v.State != "deployed" || v.SHA256 != review.SHA256 || len(v.Containers) != 1 ||
+		v.Containers[0].Active != "active" || v.Containers[0].Health != "healthy" || !strings.HasPrefix(v.Containers[0].Digest, "sha256:") {
+		t.Fatalf("the added stack = %+v", v)
+	}
+	if e := newest(); e.Action != "services.add" || e.Outcome != "ok" {
+		t.Fatalf("the add's entry = %+v", e)
+	}
+	host.mu.Lock()
+	unit := host.units["blog"][".config/containers/systemd/blog-web.container"]
+	host.mu.Unlock()
+	if !strings.Contains(unit, "Image=example.com/blog@sha256:") || strings.Contains(unit, "t0ken-value") || !strings.Contains(unit, "EnvironmentFile=%h/stack/.autopanel/web.env\n") {
+		t.Fatalf("the unit names its image by a tag, or holds a value of .env:\n%s", unit)
+	}
+	// The value of .env is nowhere in the store either.
 	for _, name := range []string{"autopanel.db", "autopanel.db-wal"} {
-		if b, err := os.ReadFile(filepath.Join(cfg.StateDir, name)); err == nil && strings.Contains(string(b), secret.Value) {
-			t.Fatalf("%s holds the secret in the clear", name)
+		if b, err := os.ReadFile(filepath.Join(cfg.StateDir, name)); err == nil && strings.Contains(string(b), "t0ken-value") {
+			t.Fatalf("%s holds a value of .env", name)
 		}
 	}
 
-	// A service's sockets are named by its service; another user's are not.
+	// A stop is one privileged verb, with the service it names in its entry.
+	if err := c.Call(ctx, "services.stop", services.Ref{Name: "blog", Service: "web"}, &v); err != nil || !v.Containers[0].Stopped || v.Containers[0].Active != "inactive" {
+		t.Fatalf("after a stop = %+v, %v", v, err)
+	}
+	if e := newest(); e.Action != "services.stop" || e.Subject != `name "blog" service "web"` || e.Outcome != "ok" {
+		t.Fatalf("the stop's entry = %+v", e)
+	}
+	if err := c.Call(ctx, "services.start", services.Ref{Name: "blog"}, &v); err != nil || v.Containers[0].Stopped || v.Containers[0].Active != "active" {
+		t.Fatalf("after a start = %+v, %v", v, err)
+	}
+	if err := c.Call(ctx, "services.stop", services.Ref{Name: "blog", Service: "nothing"}, nil); wireCode(err) != -32187 {
+		t.Fatalf("a stop of a service the stack has not = %v; want services.no_service", err)
+	}
+
+	// A stack's sockets are named by its stack; another user's are not.
 	var ports []Port
 	if err := c.Call(ctx, "sys.ports", nil, &ports); err != nil || len(ports) != 2 {
 		t.Fatalf("sys.ports = %+v, %v", ports, err)
 	}
-	if ports[0].Use != "service turn" || ports[0].User != "ap-turn" || ports[1].Use != "" {
-		t.Fatalf("the ports = %+v; want the first named as the service turn", ports)
+	if ports[0].Use != "service blog" || ports[0].User != "ap-blog" || ports[1].Use != "" {
+		t.Fatalf("the ports = %+v; want the first named as the stack blog", ports)
 	}
 	var logs services.Logs
-	if err := c.Call(ctx, "services.logs", services.LogsAsk{Name: "turn"}, &logs); err != nil || len(logs.Lines) != 1 {
+	if err := c.Call(ctx, "services.logs", services.LogsAsk{Name: "blog", Service: "web"}, &logs); err != nil || len(logs.Lines) != 1 || logs.Lines[0] != "blog-web: listening" {
 		t.Fatalf("services.logs = %+v, %v", logs, err)
 	}
-	if err := c.Call(ctx, "services.logs", services.LogsAsk{Name: "../turn"}, &logs); wireCode(err) != -32193 {
+	if err := c.Call(ctx, "services.logs", services.LogsAsk{Name: "../blog"}, &logs); wireCode(err) != -32193 {
 		t.Fatalf("logs of a name that is none = %v; want services.bad_name", err)
 	}
-	if err := c.Call(ctx, "services.remove", services.Remove{Name: "turn", Purge: true}, nil); err != nil {
+	if err := c.Call(ctx, "services.remove", services.Remove{Name: "blog", Purge: true}, nil); err != nil {
 		t.Fatal(err)
 	}
 	if e := newest(); e.Action != "services.remove" || e.Outcome != "ok" {
@@ -600,8 +729,8 @@ func TestServicesThroughTheControlSocket(t *testing.T) {
 	if err := c.Call(ctx, "services.list", nil, &list); err != nil || len(list) != 0 {
 		t.Fatalf("services.list after the removal = %+v, %v", list, err)
 	}
-	if err := c.Call(ctx, "services.secret", services.SecretAsk{Name: "turn", Key: "auth-secret"}, &secret); wireCode(err) != -32191 {
-		t.Fatalf("a removed service's secret = %v; want services.not_found", err)
+	if err := c.Call(ctx, "services.start", services.Ref{Name: "blog"}, nil); wireCode(err) != -32191 {
+		t.Fatalf("a start of a removed stack = %v; want services.not_found", err)
 	}
 
 	cancel()
@@ -612,83 +741,5 @@ func TestServicesThroughTheControlSocket(t *testing.T) {
 		}
 	case <-time.After(15 * time.Second):
 		t.Fatal("the core did not stop")
-	}
-}
-
-// TestThePanelsClientOverServices drives services through the panel's own
-// client: what the Services menu calls decodes every answer the core gives,
-// and each change reaches the host.
-func TestThePanelsClientOverServices(t *testing.T) {
-	defer func(h func(Config) services.Host) { serviceHost = h }(serviceHost)
-	host := &machine{podman: [2]int{4, 9}, units: map[string]services.Unit{}, running: map[string]bool{}}
-	serviceHost = func(Config) services.Host { return host }
-
-	cfg := testConfig(t)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	if err := Init(ctx, cfg, "root", strings.NewReader("a long master passphrase\n")); err != nil {
-		t.Fatal(err)
-	}
-	done := make(chan error, 1)
-	go func() { done <- CoreContext(ctx, cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), nil) }()
-	coreUp(t, cfg, done)
-	c, err := hostcontrol.Dial(ctx, cfg.Socket)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer c.Close()
-	u := uiClient{c}
-	if err := u.Login(ctx, "root", "a long master passphrase"); err != nil {
-		t.Fatal(err)
-	}
-
-	ts, err := u.ServiceTemplates(ctx)
-	if err != nil || len(ts) != 1 || ts[0].Name != "turn" || len(ts[0].Options) != 3 || ts[0].Options[1].Default != "3478" ||
-		len(ts[0].Secrets) != 1 || ts[0].Secrets[0] != "auth-secret" {
-		t.Fatalf("ServiceTemplates = %+v, %v", ts, err)
-	}
-	if err := u.DeployService(ctx, ui.ServiceSpec{Template: "turn", Options: map[string]string{"realm": "turn.example.com"}}); err != nil {
-		t.Fatal(err)
-	}
-	list, err := u.Services(ctx)
-	if err != nil || len(list) != 1 {
-		t.Fatalf("Services = %+v, %v", list, err)
-	}
-	if s := list[0]; s.Name != "turn" || s.Template != "turn" || s.State != "deployed" || s.User != "ap-turn" ||
-		s.Active != "active" || s.Sub != "running" || s.Memory != 1<<20 || len(s.Ports) != 3 || s.Ports[2].To != 49999 ||
-		s.Options["port"] != "3478" {
-		t.Fatalf("the deployed relay = %+v", s)
-	}
-	secret, err := u.ServiceSecret(ctx, "turn", "auth-secret")
-	if err != nil || len(secret) != 64 {
-		t.Fatalf("ServiceSecret answered %d characters, %v", len(secret), err)
-	}
-	if lines, err := u.ServiceLogs(ctx, "turn"); err != nil || len(lines) != 1 {
-		t.Fatalf("ServiceLogs = %v, %v", lines, err)
-	}
-	if err := u.ServiceUnit(ctx, "stop", "turn"); err != nil {
-		t.Fatal(err)
-	}
-	if list, err = u.Services(ctx); err != nil || list[0].Active != "absent" {
-		t.Fatalf("after a stop, Services = %+v, %v", list, err)
-	}
-	if err := u.ServiceUnit(ctx, "erase", "turn"); err == nil {
-		t.Fatal("an unknown unit action was sent")
-	}
-	if err := u.UpdateService(ctx, ui.ServiceSpec{Name: "turn", Options: map[string]string{"realm": "turn.example.com", "port": "3479"}}); err != nil {
-		t.Fatal(err)
-	}
-	if list, err = u.Services(ctx); err != nil || list[0].Options["port"] != "3479" || list[0].Active != "active" {
-		t.Fatalf("after an update, Services = %+v, %v", list, err)
-	}
-	if err := u.RemoveService(ctx, "turn", true); err != nil {
-		t.Fatal(err)
-	}
-	if list, err = u.Services(ctx); err != nil || len(list) != 0 {
-		t.Fatalf("after a removal, Services = %+v, %v", list, err)
-	}
-	cancel()
-	if err := <-done; err != nil {
-		t.Fatalf("the core stopped with %v", err)
 	}
 }

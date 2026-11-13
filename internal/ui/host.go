@@ -20,7 +20,8 @@ import (
 //
 //	import autopanel 1.0              the App singleton: state and commands       (declared)
 //	import autopanel.theme.<name> 1.0 golib's themes: the Theme singleton         (offered)
-//	import autopanel.dialogs 1.0      Login, RouteDialog, TurnDialog, ConfirmDialog (offered)
+//	import autopanel.dialogs 1.0      Login, RouteDialog, AddStackDialog,         (offered)
+//	                                  ReviewDialog, ConfirmDialog
 //	import autopanel.views 1.0        About                                       (offered)
 //	import autopanel.panels 1.0       FloatPanel: a floating window with controls (offered)
 //
@@ -66,7 +67,7 @@ type host struct {
 
 	themes *tuidecl.ListModel // App.themes: System › Theme's rows
 	mon    monitors           // the System panels' models and last answers (monitor.go)
-	svc    deployed           // the Services panels' models and last answers (services.go)
+	stk    stacks             // the Services panels' models and last answers (services.go)
 
 	signingIn bool // a login attempt is in flight
 	signedIn  bool // a panel user has logged in; nothing is read before
@@ -94,7 +95,7 @@ func newHost(ctx context.Context, c Client, version string) *host {
 		facts:     tuidecl.NewListModel("key", "name", "value"),
 		themes:    tuidecl.NewListModel("key", "label", "checked"),
 		mon:       newMonitors(),
-		svc:       newDeployed()}
+		stk:       newStacks()}
 	h.themes.Reset(themeRows(h.theme))
 	h.ownShell, h.rootShell = hostShells()
 	return h
@@ -166,7 +167,7 @@ func (h *host) state() map[string]any {
 	for name, v := range h.mon.state() {
 		s[name] = v
 	}
-	for name, v := range h.svc.state() {
+	for name, v := range h.stk.state() {
 		s[name] = v
 	}
 	return s
@@ -298,13 +299,12 @@ func (h *host) confirm() error {
 	return then()
 }
 
-// panelLeft gives the keyboard back once a panel has closed: to the services
-// panel when it is on screen, since its log and its secrets open over it, and
-// otherwise to the overview, the Window's focus target. Posted: the handler
+// panelLeft gives the keyboard back once a panel has closed: to the stacks
+// panel when it is on screen, since its log opens over it, and otherwise to the overview, the Window's focus target. Posted: the handler
 // runs while the panel is still closing.
 func (h *host) panelLeft() error {
 	h.p.Post(func() {
-		if h.svc.shown && !h.isMinimized("services") && h.p.Call("servicesTable", "forceActiveFocus") == nil {
+		if h.stk.shown && !h.isMinimized("stacks") && h.p.Call("stacksTable", "forceActiveFocus") == nil {
 			return
 		}
 		_ = h.p.Call("overview", "forceActiveFocus")

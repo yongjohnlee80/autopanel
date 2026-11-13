@@ -83,7 +83,7 @@ var serviceHost = func(cfg Config) services.Host {
 	if os.Getuid() != 0 {
 		return notRoot{}
 	}
-	return hostservices.New(cfg.Services)
+	return hostservices.New(cfg.Services, cfg.Stacks)
 }
 
 // errNotRoot is a core that runs as another user than root: a development
@@ -94,48 +94,44 @@ var errNotRoot = errors.New("services: this core does not run as root")
 // holds, with nothing running.
 type notRoot struct{}
 
-func (notRoot) Podman(context.Context) (int, int, error)            { return 0, 0, errNotRoot }
-func (notRoot) Install(context.Context, services.Unit) error        { return errNotRoot }
-func (notRoot) Start(context.Context, string) error                 { return errNotRoot }
-func (notRoot) Stop(context.Context, string) error                  { return errNotRoot }
-func (notRoot) Restart(context.Context, string) error               { return errNotRoot }
-func (notRoot) Uninstall(context.Context, string, bool) error       { return errNotRoot }
-func (notRoot) Logs(context.Context, string, int) ([]string, error) { return nil, errNotRoot }
-func (notRoot) Running(context.Context, string) (services.Running, error) {
-	return services.Running{Active: "absent"}, nil
+func (notRoot) Podman(context.Context) (int, int, error)              { return 0, 0, errNotRoot }
+func (notRoot) Available(context.Context) ([]string, error)           { return nil, nil }
+func (notRoot) Stage(context.Context, string) ([]byte, []byte, error) { return nil, nil, errNotRoot }
+func (notRoot) StagePaths(context.Context, string, []string) ([]services.Input, []string, []string, error) {
+	return nil, nil, nil, errNotRoot
 }
-
-// serviceSecrets keeps the services' generated secrets in the store's secret
-// table, sealed under the master key as the Cloudflare token is.
-type serviceSecrets struct {
-	st    *store.Store
-	vault *keyslot.Vault
+func (notRoot) Look(context.Context, string, []string) (map[string]bool, []string, error) {
+	return nil, nil, errNotRoot
 }
-
-func (s serviceSecrets) Get(ctx context.Context, name string) ([]byte, bool, error) {
-	b, err := s.st.Secret(ctx, s.vault, name)
-	if errors.Is(err, store.ErrNoSecret) {
-		return nil, false, nil
+func (notRoot) Changed(context.Context, string, services.Manifest, time.Time) bool { return false }
+func (notRoot) EnsureUser(context.Context, string) error                           { return errNotRoot }
+func (notRoot) Commit(context.Context, string, services.Commit) error              { return errNotRoot }
+func (notRoot) Install(context.Context, services.Unit) error                       { return errNotRoot }
+func (notRoot) DeleteUnits(context.Context, string, []string) error                { return errNotRoot }
+func (notRoot) HasImage(context.Context, string, string) (bool, error)             { return false, errNotRoot }
+func (notRoot) Pull(context.Context, string, string) (string, error)               { return "", errNotRoot }
+func (notRoot) Start(context.Context, string, []string) error                      { return errNotRoot }
+func (notRoot) Stop(context.Context, string, []string) error                       { return errNotRoot }
+func (notRoot) Restart(context.Context, string, []string) error                    { return errNotRoot }
+func (notRoot) Uninstall(context.Context, string, bool) error                      { return errNotRoot }
+func (notRoot) Logs(context.Context, string, string, int) ([]string, error)        { return nil, errNotRoot }
+func (notRoot) Health(context.Context, string) (map[string]string, error)          { return nil, nil }
+func (notRoot) Listening(context.Context, string) ([]services.PortUse, error)      { return nil, nil }
+func (notRoot) Running(_ context.Context, _ string, units []string) (map[string]services.Running, error) {
+	out := map[string]services.Running{}
+	for _, u := range units {
+		out[u] = services.Running{Active: "absent"}
 	}
-	return b, err == nil, err
+	return out, nil
 }
 
-func (s serviceSecrets) Put(ctx context.Context, name string, value []byte) error {
-	return s.st.PutSecret(ctx, s.vault, name, value)
-}
-
-func (s serviceSecrets) Delete(ctx context.Context, name string) error {
-	return s.st.DeleteSecret(ctx, name)
-}
-
-// servicesModule is services.* with the two errors only this host can
-// answer: a locked vault, and a core that is not root.
+// servicesModule is services.* with the error only this host can answer: a
+// core that is not root.
 type servicesModule struct{ *services.Module }
 
 func (m servicesModule) Errors() []module.PublicError {
 	return append(m.Module.Errors(),
-		module.PublicError{Err: keyslot.ErrLocked, Code: -32188, Name: "services.locked", Message: "the vault is locked; log in as root to unlock it"},
-		module.PublicError{Err: errNotRoot, Code: -32189, Name: "services.not_root", Message: "this core does not run as root, so it can deploy nothing"})
+		module.PublicError{Err: errNotRoot, Code: -32189, Name: "services.not_root", Message: "this core does not run as root, so it can run no stack"})
 }
 
 // gateUnit is the gate's unit, as install.sh installs it.
@@ -245,7 +241,7 @@ func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateContr
 
 	counts := &counters{}
 	gm := gate.NewModule(st.Routes(), reload)
-	svcs := services.NewModule(st.Services(), serviceSecrets{st: st, vault: vault}, serviceHost(cfg))
+	svcs := services.NewModule(st.Services(), serviceHost(cfg))
 	sys := &sysModule{cfg: cfg, table: table, engine: st.Engine(), started: time.Now(), challenge: sw.Challenge, ca: sw.CA,
 		st: st, log: log, counts: counts, listeners: readListeners, sshLogins: readSSHLogins, gate: gc, serviceUsers: svcs.Users}
 	am, err := auth.New(st, st, vault, func(ctx context.Context) {

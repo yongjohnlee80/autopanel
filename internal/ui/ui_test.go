@@ -14,6 +14,7 @@ import (
 	"github.com/yongjohnlee80/golib/tui/decl/decltest"
 
 	"github.com/yongjohnlee80/autopanel/core/gate"
+	"github.com/yongjohnlee80/autopanel/core/services"
 )
 
 // fakeClient is a Client over routes in memory, recording what it was asked.
@@ -34,13 +35,16 @@ type fakeClient struct {
 	kept    []Prefs  // what SetPrefs was asked to keep
 	sshNote string
 
-	services  []Service     // what Services answers
-	deployed  []ServiceSpec // what DeployService was asked for
-	changed   []ServiceSpec // what UpdateService was asked for
-	unitAsks  []string      // "stop turn": what ServiceUnit was asked for
-	removals  []string      // "turn" or "turn purge": what RemoveService was asked for
-	secretAsk []string      // "turn/auth-secret": what ServiceSecret was asked for
-	deployErr error
+	stacks    []services.View            // what Stacks answers
+	folders   []services.Folder          // what AvailableStacks answers
+	reviews   map[string]services.Review // what CheckStack answers, by stack
+	checks    []string                   // the stacks CheckStack was asked for
+	applies   []string                   // "add web <sha>": what ApplyStack was asked for
+	applyErrs []error                    // what the next ApplyStacks answer, in turn
+	pulls     []string                   // "web" or "web/app": what PullStack was asked for
+	unitAsks  []string                   // "stop web/app": what StackUnit was asked for
+	removals  []string                   // "web" or "web purge": what RemoveStack was asked for
+	logAsks   []string                   // "web" or "web/app": what StackLogs was asked for
 }
 
 func newFakeClient() *fakeClient {
@@ -378,7 +382,7 @@ func TestShowsRoutesRefreshesAndQuits(t *testing.T) {
 	// The menu bar, the overview and the status bar; the routes are not on
 	// the main screen.
 	// the menus, in their order
-	s.WaitForText(t, "System    Routes    Certs    Services    Users    Go    Help")
+	s.WaitForText(t, "System    Routes    Certs    Services    Mail    Users    Go    Help")
 	for _, part := range []string{"Overview", "Let's Encrypt staging", "CA LE staging", "2 routes", "r refresh"} {
 		s.WaitForText(t, part)
 	}

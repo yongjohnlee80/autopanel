@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"testing"
 	"time"
@@ -356,49 +357,92 @@ func TestAuditLogReadsNewestFirst(t *testing.T) {
 	}
 }
 
-func TestServicesAreKeptAsTheyWereAskedFor(t *testing.T) {
+func TestStacksAreKeptAsTheyWereApplied(t *testing.T) {
 	for engine, s := range engines(t) {
 		t.Run(engine, func(t *testing.T) {
 			ctx := context.Background()
 			sv := s.Services()
-			turn := services.Service{Name: "turn", Template: "turn", Options: map[string]string{"realm": "turn.example.com", "port": "3478"}, State: services.Deploying}
-			if err := sv.Add(ctx, turn); err != nil {
+			if err := sv.Add(ctx, "chat"); err != nil {
 				t.Fatal(err)
 			}
-			if err := sv.Add(ctx, turn); !errors.Is(err, services.ErrDuplicate) {
-				t.Fatalf("a second service of the name = %v; want ErrDuplicate", err)
+			if err := sv.Add(ctx, "chat"); !errors.Is(err, services.ErrDuplicate) {
+				t.Fatalf("a second stack of the name = %v; want ErrDuplicate", err)
 			}
-			if err := sv.Add(ctx, services.Service{Name: "mail", Template: "turn", Options: map[string]string{}, State: services.Deployed}); err != nil {
+			if err := sv.Add(ctx, "blog"); err != nil {
 				t.Fatal(err)
 			}
-			if err := sv.SetState(ctx, "turn", services.Deployed); err != nil {
+			got, err := sv.Get(ctx, "chat")
+			if err != nil || got.State != services.Deploying || got.Legacy || got.Pending != nil || len(got.Applied.Units) != 0 || !got.AppliedAt.IsZero() {
+				t.Fatalf("a new stack = %+v, %v", got, err)
+			}
+
+			applied := services.Applied{
+				Manifest: services.NewManifest([]services.Input{{Path: "compose.yaml", Mode: 0o400, Size: 12, SHA256: "aa"}}),
+				Units: []services.UnitFile{{Path: ".config/containers/systemd/chat-web.container", Kind: services.KindContainer, Service: "web",
+					Body: "[Container]\nExec=\"a b\" 100%%\n", Image: "example.com/web:1", Digest: "sha256:aa",
+					Ports: []services.PortUse{{Proto: "tcp", From: 8080, To: 8080}}, Inputs: []string{"web.conf"}, Needs: []string{"db"}}},
+				Data: []string{"data"},
+			}
+			pending := services.Pending{Step: "pull", Managed: []string{"compose.yaml", "web.conf"}, Applied: applied}
+			if err := sv.SetPending(ctx, "chat", pending); err != nil {
 				t.Fatal(err)
 			}
-			if err := sv.SetOptions(ctx, "turn", map[string]string{"realm": "turn.example.com", "port": "3479"}); err != nil {
+			got, err = sv.Get(ctx, "chat")
+			if err != nil || got.Pending == nil || !reflect.DeepEqual(*got.Pending, pending) || got.State != services.Deploying {
+				t.Fatalf("a stack with an apply in flight = %+v, %v", got, err)
+			}
+			if err := sv.SetApplied(ctx, "chat", applied); err != nil {
 				t.Fatal(err)
 			}
-			got, err := sv.Get(ctx, "turn")
-			if err != nil || got.State != services.Deployed || got.Options["port"] != "3479" || got.Template != "turn" {
-				t.Fatalf("Get = %+v, %v", got, err)
+			if err := sv.SetStopped(ctx, "chat", []string{"web"}); err != nil {
+				t.Fatal(err)
+			}
+			got, err = sv.Get(ctx, "chat")
+			if err != nil || got.State != services.Deployed || got.Pending != nil || !reflect.DeepEqual(got.Applied, applied) ||
+				!reflect.DeepEqual(got.Stopped, []string{"web"}) || got.AppliedAt.IsZero() {
+				t.Fatalf("an applied stack = %+v, %v; want what was applied, nothing pending, and when", got, err)
+			}
+			if err := sv.SetStopped(ctx, "chat", nil); err != nil {
+				t.Fatal(err)
+			}
+			if got, _ = sv.Get(ctx, "chat"); len(got.Stopped) != 0 {
+				t.Fatalf("stopped = %v; want none", got.Stopped)
+			}
+			if err := sv.SetState(ctx, "chat", services.Removing); err != nil {
+				t.Fatal(err)
 			}
 			all, err := sv.All(ctx)
-			if err != nil || len(all) != 2 || all[0].Name != "mail" || all[1].Name != "turn" {
+			if err != nil || len(all) != 2 || all[0].Name != "blog" || all[1].Name != "chat" || all[1].State != services.Removing {
 				t.Fatalf("All = %+v, %v; want both, by name", all, err)
+			}
+			if err := sv.Remove(ctx, "chat"); err != nil {
+				t.Fatal(err)
+			}
+			for what, err := range map[string]error{
+				"Get":        func() error { _, err := sv.Get(ctx, "chat"); return err }(),
+				"SetState":   sv.SetState(ctx, "chat", services.Removing),
+				"SetPending": sv.SetPending(ctx, "chat", pending),
+				"SetApplied": sv.SetApplied(ctx, "chat", applied),
+				"SetStopped": sv.SetStopped(ctx, "chat", nil),
+				"Remove":     sv.Remove(ctx, "chat"),
+			} {
+				if !errors.Is(err, services.ErrNotFound) {
+					t.Errorf("%s of a removed stack = %v; want ErrNotFound", what, err)
+				}
+			}
+
+			// A row an older AutoPanel wrote from a template is read as one.
+			if _, err := s.conn.ExecContext(ctx, s.q("INSERT INTO service(name, template, options, state, created_at, updated_at) VALUES (?, ?, ?, ?, 1, 1)"),
+				"turn", "turn", `{"realm":"turn.example.com"}`, "deployed"); err != nil {
+				t.Fatal(err)
+			}
+			if got, err := sv.Get(ctx, "turn"); err != nil || !got.Legacy || got.State != services.Deployed {
+				t.Fatalf("a templated row = %+v, %v; want it marked", got, err)
 			}
 			if err := sv.Remove(ctx, "turn"); err != nil {
 				t.Fatal(err)
 			}
-			for what, err := range map[string]error{
-				"Get":        func() error { _, err := sv.Get(ctx, "turn"); return err }(),
-				"SetState":   sv.SetState(ctx, "turn", services.Removing),
-				"SetOptions": sv.SetOptions(ctx, "turn", nil),
-				"Remove":     sv.Remove(ctx, "turn"),
-			} {
-				if !errors.Is(err, services.ErrNotFound) {
-					t.Errorf("%s of a removed service = %v; want ErrNotFound", what, err)
-				}
-			}
-			if err := sv.Remove(ctx, "mail"); err != nil {
+			if err := sv.Remove(ctx, "blog"); err != nil {
 				t.Fatal(err)
 			}
 		})

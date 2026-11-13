@@ -30,7 +30,7 @@ SELF=/usr/local/sbin/autopanel-uninstall
 CONF_DIR=/etc/autopanel
 STATE_DIR=/var/lib/autopanel
 SVC_USER=autopanel
-SERVICES_DIR=/var/lib/autopanel-services   # one directory per deployed service, each its user's home
+SERVICES_DIR=/var/lib/autopanel-services   # one directory per stack, each its user's home
 BACKUP_DIR=/root
 
 MODE=check
@@ -52,14 +52,14 @@ USAGE:
 MODES:
   --check        List what would be removed. Changes nothing. (default)
   --apply        Stop and remove the two services, the binary and this uninstaller.
-                 Stops each deployed service. Keeps /var/lib/autopanel, /etc/autopanel
-                 (with the keyfile), the user, and each service's user and directory,
+                 Stops each stack. Keeps /var/lib/autopanel, /etc/autopanel
+                 (with the keyfile), the user, and each stack's user and directory,
                  so a reinstall picks up where it left off.
   --purge        --apply, plus the store, the configuration, the keyfile and the user,
-                 and each deployed service's user and directory.
+                 and each stack's user and directory, with its data.
 
 OPTIONS:
-  --keep-services  Leave the deployed services as they are: running, with their users
+  --keep-services  Leave the stacks as they are: running, with their users
                  and directories. They are then yours to stop and remove.
   --no-backup    With --purge: don't back the store up first.
   --backup-dir   Where --purge writes its backup. Default: /root
@@ -90,9 +90,9 @@ if [ -r "$CONF_DIR/autopanel.env" ] && grep -q '^AUTOPANEL_STORE_ENGINE=postgres
   engine=postgres
 fi
 
-# service_names lists the deployed services: each directory under SERVICES_DIR
-# whose user (ap-<name>) the host has. A directory kept from a removed service
-# has no user, and is listed by --check as a directory only.
+# service_names lists the stacks: each directory under SERVICES_DIR whose user
+# (ap-<name>) the host has. A directory kept from a removed stack has no user,
+# and is listed by --check as a directory only.
 service_names() {
   [ -d "$SERVICES_DIR" ] || return 0
   for d in "$SERVICES_DIR"/*; do
@@ -110,13 +110,14 @@ for f in "$CORE_UNIT" "$GATE_UNIT" "$UNIT_DIR/autopanel-core.service.d" "$BIN" "
 if exists "$OLD_UNIT"; then info "$OLD_UNIT (the one service of an earlier version)"; fi
 say "Kept by --apply, removed by --purge:"
 for f in "$STATE_DIR" "$CONF_DIR"; do show "$f"; done
+if [ -d "$CONF_DIR/stacks" ]; then info "$CONF_DIR/stacks: your stacks' compose files, with $CONF_DIR"; fi
 if id "$SVC_USER" >/dev/null 2>&1; then info "system user $SVC_USER"; else info "system user $SVC_USER (absent)"; fi
 [ "$engine" = postgres ] && info "NOT the PostgreSQL store: drop its schema yourself"
 if [ -n "$SERVICES" ]; then
   if [ "$KEEP_SERVICES" -eq 1 ]; then
-    say "Deployed services, left as they are (--keep-services):"
+    say "Stacks, left as they are (--keep-services):"
   else
-    say "Deployed services, stopped by --apply; their users and directories removed by --purge:"
+    say "Stacks, stopped by --apply; their users and directories, with their data, removed by --purge:"
   fi
   for n in $SERVICES; do info "$n (user ap-$n, $SERVICES_DIR/$n)"; done
 fi
@@ -136,24 +137,23 @@ if [ "$MODE" = purge ] && [ "$YES" -eq 0 ]; then
   [ "$answer" = purge ] || die "not confirmed; nothing was removed"
 fi
 
-# --- the deployed services -----------------------------------------------------
+# --- the stacks ----------------------------------------------------------------
 
 # Each runs under its own user's systemd, which runs without a login. --apply
-# stops the unit and that systemd, so nothing AutoPanel started is left
-# running; the user, its directory and its unit file stay, and a reinstalled
-# AutoPanel starts the service again. --purge deletes the user and the
-# directory.
+# ends that systemd, and every container of the stack with it, so nothing
+# AutoPanel started is left running; the user, its directory and its unit
+# files stay, and start again when a reinstalled AutoPanel starts the stack.
+# --purge deletes the user and the directory.
 if [ "$KEEP_SERVICES" -eq 0 ]; then
   for n in $SERVICES; do
-    runuser -u "ap-$n" -- env XDG_RUNTIME_DIR="/run/user/$(id -u "ap-$n")" systemctl --user stop "$n.service" >/dev/null 2>&1 || true
     loginctl disable-linger "ap-$n" >/dev/null 2>&1 || true
     loginctl terminate-user "ap-$n" >/dev/null 2>&1 || true
     if [ "$MODE" = purge ]; then
       userdel "ap-$n" >/dev/null 2>&1 || userdel --force "ap-$n" >/dev/null 2>&1 \
         || info "could not remove user ap-$n; remove it by hand"
-      info "removed the service $n and its user ap-$n"
+      info "removed the stack $n and its user ap-$n"
     else
-      info "stopped the service $n"
+      info "stopped the stack $n"
     fi
   done
   if [ "$MODE" = purge ] && exists "$SERVICES_DIR"; then

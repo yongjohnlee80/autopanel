@@ -135,7 +135,37 @@ func applyAndCheck(t *testing.T, db dao.DataConn) {
 	if err := exec("INSERT INTO audit(at, actor, action, subject, outcome) VALUES (0, 'root', 'services.deploy', 'turn', 'attempt')"); err != nil {
 		t.Fatal(err)
 	}
-	// The newest script can be undone and applied again.
+	// 000003: a stack's row keeps what was applied, and starts with none of it.
+	if err := exec("UPDATE service SET applied = '{}', applied_at = 1, stopped = '[\"web\"]', pending = '{}' WHERE name = 'turn'"); err != nil {
+		t.Fatal(err)
+	}
+	if err := exec("INSERT INTO service(name, template, options, state, created_at, updated_at) VALUES ('blog', '', '{}', 'deploying', 0, 0)"); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := db.QueryContext(ctx, "SELECT applied, applied_at, stopped, pending FROM service WHERE name = 'blog'")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var applied, stopped, pending string
+	var at int64
+	if !rows.Next() {
+		t.Fatal("the new stack's row is not there")
+	}
+	if err := rows.Scan(&applied, &at, &stopped, &pending); err != nil || applied != "" || at != 0 || stopped != "[]" || pending != "" {
+		t.Fatalf("a new stack's row = %q, %d, %q, %q, %v; want nothing applied, stopped or pending", applied, at, stopped, pending, err)
+	}
+	_ = rows.Close()
+	// The newest script can be undone and applied again: a row an older
+	// AutoPanel wrote is whole after the revert.
+	if name, err := deployments.Runner().Revert(ctx, db, 3); err != nil {
+		t.Fatalf("reverting 000003 = %q, %v", name, err)
+	}
+	if err := exec("SELECT applied FROM service"); err == nil {
+		t.Fatal("the stacks' columns outlived their revert")
+	}
+	if err := exec("SELECT name, template, options, state FROM service WHERE name = 'turn'"); err != nil {
+		t.Fatalf("after the revert, a templated row: %v", err)
+	}
 	if name, err := deployments.Runner().Revert(ctx, db, 2); err != nil {
 		t.Fatalf("reverting 000002 = %q, %v", name, err)
 	}

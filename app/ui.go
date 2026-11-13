@@ -2,8 +2,11 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+
+	"github.com/yongjohnlee80/golib/server/rpc"
 
 	"github.com/yongjohnlee80/autopanel/core/gate"
 	"github.com/yongjohnlee80/autopanel/core/services"
@@ -67,44 +70,65 @@ func (u uiClient) Ports(ctx context.Context) ([]ui.Port, error) {
 	return ps, u.c.Call(ctx, "sys.ports", nil, &ps)
 }
 
-func (u uiClient) Services(ctx context.Context) ([]ui.Service, error) {
-	var ss []ui.Service
-	return ss, u.c.Call(ctx, "services.list", nil, &ss)
+func (u uiClient) Stacks(ctx context.Context) ([]services.View, error) {
+	var vs []services.View
+	return vs, u.c.Call(ctx, "services.list", nil, &vs)
 }
 
-func (u uiClient) ServiceTemplates(ctx context.Context) ([]ui.ServiceTemplate, error) {
-	var ts []ui.ServiceTemplate
-	return ts, u.c.Call(ctx, "services.templates", nil, &ts)
+func (u uiClient) AvailableStacks(ctx context.Context) ([]services.Folder, error) {
+	var fs []services.Folder
+	return fs, u.c.Call(ctx, "services.available", nil, &fs)
 }
 
-func (u uiClient) DeployService(ctx context.Context, s ui.ServiceSpec) error {
-	return u.c.Call(ctx, "services.deploy", services.Deploy{Template: s.Template, Name: s.Name, Options: s.Options}, nil)
+func (u uiClient) CheckStack(ctx context.Context, name string) (services.Review, error) {
+	var r services.Review
+	return r, u.c.Call(ctx, "services.check", services.Ref{Name: name}, &r)
 }
 
-func (u uiClient) UpdateService(ctx context.Context, s ui.ServiceSpec) error {
-	return u.c.Call(ctx, "services.update", services.Update{Name: s.Name, Options: s.Options}, nil)
+// changedCode is the wire code of services.changed.
+var changedCode = func() int64 {
+	for _, e := range (&services.Module{}).Errors() {
+		if e.Err == services.ErrChanged {
+			return e.Code
+		}
+	}
+	return 0
+}()
+
+func (u uiClient) ApplyStack(ctx context.Context, verb, name, accept string) error {
+	switch verb {
+	case "prepare", "add", "apply":
+	default:
+		return fmt.Errorf("no apply verb %q", verb)
+	}
+	err := u.c.Call(ctx, "services."+verb, services.Accept{Name: name, Accept: accept}, nil)
+	// The panel reviews the definition again on this one, so it is named.
+	var re *rpc.Error
+	if errors.As(err, &re) && re.Code == changedCode {
+		return fmt.Errorf("%w (%s)", services.ErrChanged, re.Message)
+	}
+	return err
 }
 
-func (u uiClient) ServiceUnit(ctx context.Context, action, name string) error {
+func (u uiClient) PullStack(ctx context.Context, name, service string) error {
+	return u.c.Call(ctx, "services.pull", services.Ref{Name: name, Service: service}, nil)
+}
+
+func (u uiClient) StackUnit(ctx context.Context, action, name, service string) error {
 	switch action {
 	case "start", "stop", "restart":
-		return u.c.Call(ctx, "services."+action, services.Ref{Name: name}, nil)
+		return u.c.Call(ctx, "services."+action, services.Ref{Name: name, Service: service}, nil)
 	}
 	return fmt.Errorf("no unit action %q", action)
 }
 
-func (u uiClient) RemoveService(ctx context.Context, name string, purge bool) error {
+func (u uiClient) RemoveStack(ctx context.Context, name string, purge bool) error {
 	return u.c.Call(ctx, "services.remove", services.Remove{Name: name, Purge: purge}, nil)
 }
 
-func (u uiClient) ServiceLogs(ctx context.Context, name string) ([]string, error) {
+func (u uiClient) StackLogs(ctx context.Context, name, service string) ([]string, error) {
 	var l services.Logs
-	return l.Lines, u.c.Call(ctx, "services.logs", services.LogsAsk{Name: name}, &l)
-}
-
-func (u uiClient) ServiceSecret(ctx context.Context, name, key string) (string, error) {
-	var v services.SecretValue
-	return v.Value, u.c.Call(ctx, "services.secret", services.SecretAsk{Name: name, Key: key}, &v)
+	return l.Lines, u.c.Call(ctx, "services.logs", services.LogsAsk{Name: name, Service: service}, &l)
 }
 
 func (u uiClient) Prefs(ctx context.Context) (ui.Prefs, error) {

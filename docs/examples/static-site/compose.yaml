@@ -1,0 +1,25 @@
+# A static site behind AutoPanel's gate: nginx serves ./site, on a loopback
+# port a route points at.
+#
+# Copy this folder to /etc/autopanel/stacks/site, put your pages into ./site,
+# add the stack (Services > Add a stack), then add a route to
+# http://127.0.0.1:8080 (Routes > Proxy routes).
+services:
+  web:
+    # nginx as a user that is not root, listening on 8080.
+    image: docker.io/nginxinc/nginx-unprivileged:1.27-alpine
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      # Read-only: an apply replaces it with what is in the definition folder.
+      - ./site:/usr/share/nginx/html:ro
+    read_only: true
+    tmpfs: [/tmp]
+    mem_limit: 64m
+    cap_drop: [ALL]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

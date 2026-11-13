@@ -37,21 +37,26 @@ func (h *host) commands() map[string]decl.HandlerFunc {
 		"App.stopShells":     none(h.stopShells),
 		"App.nextShell":      none(func() error { return h.cycleShell(1) }),
 		"App.previousShell":  none(func() error { return h.cycleShell(-1) }),
-		"App.openServices":   none(h.openServices),
-		"App.reloadServices": none(h.reloadServices),
-		"App.servicesClosed": none(h.servicesClosed),
-		"App.deployTurn":     none(h.deployTurn),
-		"App.editService":    oneRow("App.editService", h.editService),
-		"App.submitTurn":     fourStrings("App.submitTurn", h.submitTurn),
-		"App.startService":   oneRow("App.startService", func(row int) error { return h.serviceUnit("start", row) }),
-		"App.stopService":    oneRow("App.stopService", func(row int) error { return h.serviceUnit("stop", row) }),
-		"App.restartService": oneRow("App.restartService", func(row int) error { return h.serviceUnit("restart", row) }),
-		"App.removeService":  oneRow("App.removeService", func(row int) error { return h.removeService(row, false) }),
-		"App.purgeService":   oneRow("App.purgeService", func(row int) error { return h.removeService(row, true) }),
-		"App.serviceLogsOf":  oneRow("App.serviceLogsOf", h.openLogs),
+		"App.openStacks":     none(h.openStacks),
+		"App.reloadStacks":   none(h.reloadStacks),
+		"App.stacksClosed":   none(h.stacksClosed),
+		"App.addStack":       none(h.addStack),
+		"App.pickStack":      oneRow("App.pickStack", h.pickStack),
+		"App.applyStack":     oneRow("App.applyStack", h.applyStack),
+		"App.showFinding":    oneRow("App.showFinding", h.showFinding),
+		"App.reviewAccept":   none(h.reviewAccept),
+		"App.reviewPrepare":  none(h.reviewPrepare),
+		"App.pullStack":      oneRow("App.pullStack", h.pullStack),
+		"App.startService":   oneRow("App.startService", func(row int) error { return h.stackUnit("start", row, false) }),
+		"App.stopService":    oneRow("App.stopService", func(row int) error { return h.stackUnit("stop", row, false) }),
+		"App.restartService": oneRow("App.restartService", func(row int) error { return h.stackUnit("restart", row, false) }),
+		"App.startStack":     oneRow("App.startStack", func(row int) error { return h.stackUnit("start", row, true) }),
+		"App.stopStack":      oneRow("App.stopStack", func(row int) error { return h.stackUnit("stop", row, true) }),
+		"App.restartStack":   oneRow("App.restartStack", func(row int) error { return h.stackUnit("restart", row, true) }),
+		"App.removeStack":    oneRow("App.removeStack", func(row int) error { return h.removeStack(row, false) }),
+		"App.purgeStack":     oneRow("App.purgeStack", func(row int) error { return h.removeStack(row, true) }),
+		"App.logsOf":         oneRow("App.logsOf", h.openLogs),
 		"App.reloadLogs":     none(h.reloadLogs),
-		"App.secretsOf":      oneRow("App.secretsOf", h.openSecrets),
-		"App.secretsClosed":  none(h.secretsClosed),
 		"App.nothing":        none(func() error { return nil }),
 		"App.submit":         threeStrings("App.submit", h.submit),
 		"App.refresh":        none(func() error { h.refresh(); return nil }),
@@ -244,9 +249,4 @@ func stringsOf(name string, n int, fn func(args []string) error) decl.HandlerFun
 // threeStrings is a command that takes three strings: the route form's fields.
 func threeStrings(name string, fn func(a, b, c string) error) decl.HandlerFunc {
 	return stringsOf(name, 3, func(a []string) error { return fn(a[0], a[1], a[2]) })
-}
-
-// fourStrings is a command that takes four strings: the TURN form's fields.
-func fourStrings(name string, fn func(a, b, c, d string) error) decl.HandlerFunc {
-	return stringsOf(name, 4, func(a []string) error { return fn(a[0], a[1], a[2], a[3]) })
 }

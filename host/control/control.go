@@ -188,9 +188,10 @@ func handler(v module.Verb, errs []module.PublicError, log *slog.Logger, aud Aud
 	}
 }
 
-// subject is what a privileged call names, for its audit entry: the "name" or
-// "template" of its one param, as the caller sent it. It is recorded before
-// the verb has validated it, so it is quoted and cut short.
+// subject is what a privileged call names, for its audit entry: the "name" of
+// its one param, with the "service" of it and the review it accepts when the
+// call names them, as the caller sent them. It is recorded before the verb
+// has validated any of it, so each is quoted and cut short.
 func subject(params []any) string {
 	if len(params) == 0 {
 		return ""
@@ -199,15 +200,19 @@ func subject(params []any) string {
 	if !ok {
 		return ""
 	}
-	for _, k := range []string{"name", "template"} {
+	out := ""
+	for _, k := range []string{"name", "service", "accept"} {
 		if s, ok := m[k].(string); ok && s != "" {
 			if len(s) > 64 {
 				s = s[:64]
 			}
-			return k + " " + strconv.QuoteToASCII(s)
+			if out != "" {
+				out += " "
+			}
+			out += k + " " + strconv.QuoteToASCII(s)
 		}
 	}
-	return ""
+	return out
 }
 
 // outcome is a privileged verb's result as the audit log keeps it: "ok", the

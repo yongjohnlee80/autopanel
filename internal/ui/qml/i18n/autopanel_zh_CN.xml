@@ -67,6 +67,174 @@
         <source>Remove route</source>
         <translation>删除路由</translation>
     </message>
+    <message id="autopanel.finding.absolute-path">
+        <source>A path must be inside the stack's folder, not absolute</source>
+        <translation>路径必须在堆栈文件夹内,不能是绝对路径</translation>
+    </message>
+    <message id="autopanel.finding.bad-env-line">
+        <source>A line of .env is not valid</source>
+        <translation>.env 中有一行无效</translation>
+    </message>
+    <message id="autopanel.finding.bad-port">
+        <source>A port is not valid</source>
+        <translation>端口无效</translation>
+    </message>
+    <message id="autopanel.finding.bad-service-name">
+        <source>A service's name is not allowed</source>
+        <translation>服务的名称不可用</translation>
+    </message>
+    <message id="autopanel.finding.bad-value">
+        <source>A value is not what its key takes</source>
+        <translation>值与其键不符</translation>
+    </message>
+    <message id="autopanel.finding.bad-volume-name">
+        <source>A volume's name is not allowed</source>
+        <translation>卷的名称不可用</translation>
+    </message>
+    <message id="autopanel.finding.bad-yaml">
+        <source>The compose file is not valid YAML</source>
+        <translation>compose 文件不是有效的 YAML</translation>
+    </message>
+    <message id="autopanel.finding.capability">
+        <source>This capability is not allowed</source>
+        <translation>不允许此 capability</translation>
+    </message>
+    <message id="autopanel.finding.capability-added">
+        <source>It is given a capability</source>
+        <translation>它被授予了 capability</translation>
+    </message>
+    <message id="autopanel.finding.data-overlap">
+        <source>A mount overlaps the stack's data</source>
+        <translation>挂载与堆栈的数据重叠</translation>
+    </message>
+    <message id="autopanel.finding.dependency-cycle">
+        <source>The services depend on each other in a circle</source>
+        <translation>服务之间循环依赖</translation>
+    </message>
+    <message id="autopanel.finding.env-no-value">
+        <source>An environment variable has no value</source>
+        <translation>环境变量没有值</translation>
+    </message>
+    <message id="autopanel.finding.host-network">
+        <source>It shares the host's network: it can reach every service on the host, and what it listens on is the host's</source>
+        <translation>它共享主机的网络:可以访问主机上的所有服务,它监听的端口就是主机的端口</translation>
+    </message>
+    <message id="autopanel.finding.host-network-no-ports">
+        <source>Its ports are not known to AutoPanel</source>
+        <translation>AutoPanel 不知道它的端口</translation>
+    </message>
+    <message id="autopanel.finding.host-network-port">
+        <source>On the host's network a port cannot be given another number or one address</source>
+        <translation>在主机网络上,端口不能改用别的端口号或指定地址</translation>
+    </message>
+    <message id="autopanel.finding.image-by-tag">
+        <source>The image is named by a tag: it can change under its tag between pulls</source>
+        <translation>镜像按标签指定:两次拉取之间,同一标签下的镜像可能改变</translation>
+    </message>
+    <message id="autopanel.finding.image-user">
+        <source>It runs as the image's own user; when that is root, it is root inside its own user namespace</source>
+        <translation>它以镜像自带的用户运行;如果是 root,则是其自身用户命名空间内的 root</translation>
+    </message>
+    <message id="autopanel.finding.missing-file">
+        <source>A file that the definition names is missing</source>
+        <translation>定义指定的文件不存在</translation>
+    </message>
+    <message id="autopanel.finding.no-image">
+        <source>The service names no image</source>
+        <translation>服务没有指定镜像</translation>
+    </message>
+    <message id="autopanel.finding.no-memory-limit">
+        <source>It has no memory limit</source>
+        <translation>它没有内存限制</translation>
+    </message>
+    <message id="autopanel.finding.no-services">
+        <source>The compose file defines no service</source>
+        <translation>compose 文件没有定义任何服务</translation>
+    </message>
+    <message id="autopanel.finding.path-leaves-folder">
+        <source>A path leaves the stack's folder</source>
+        <translation>路径超出了堆栈文件夹</translation>
+    </message>
+    <message id="autopanel.finding.port-in-use">
+        <source>Something on the host listens on this port already</source>
+        <translation>主机上已有程序在监听此端口</translation>
+    </message>
+    <message id="autopanel.finding.port-taken">
+        <source>Another stack has this port</source>
+        <translation>另一个堆栈占用了此端口</translation>
+    </message>
+    <message id="autopanel.finding.port-twice">
+        <source>The stack publishes this port twice</source>
+        <translation>堆栈两次发布了此端口</translation>
+    </message>
+    <message id="autopanel.finding.privileged-port">
+        <source>A port below 1024 is not allowed</source>
+        <translation>不允许使用 1024 以下的端口</translation>
+    </message>
+    <message id="autopanel.finding.public-port">
+        <source>A port is published on every address: it is reachable from outside if the firewall allows it</source>
+        <translation>端口在所有地址上发布:如果防火墙允许,外部可以访问</translation>
+    </message>
+    <message id="autopanel.finding.reach">
+        <source>Containers can reach what the host and other stacks publish; the private network keeps other stacks out of this one, not this one out of the host</source>
+        <translation>容器可以访问主机和其他堆栈发布的内容;私有网络只阻止其他堆栈进入本堆栈,不阻止本堆栈访问主机</translation>
+    </message>
+    <message id="autopanel.finding.reserved-path">
+        <source>This path is reserved for AutoPanel</source>
+        <translation>此路径保留给 AutoPanel</translation>
+    </message>
+    <message id="autopanel.finding.symlink">
+        <source>A symbolic link is not allowed in the definition</source>
+        <translation>定义中不允许符号链接</translation>
+    </message>
+    <message id="autopanel.finding.too-many-services">
+        <source>The stack has too many services</source>
+        <translation>堆栈的服务太多</translation>
+    </message>
+    <message id="autopanel.finding.undeclared-volume">
+        <source>A named volume is not declared under volumes</source>
+        <translation>命名卷未在 volumes 下声明</translation>
+    </message>
+    <message id="autopanel.finding.unit-name-taken">
+        <source>Two units of the stack would have the same name</source>
+        <translation>堆栈的两个单元会重名</translation>
+    </message>
+    <message id="autopanel.finding.unit-text">
+        <source>A value holds a character that a unit file cannot take</source>
+        <translation>值含有单元文件不能使用的字符</translation>
+    </message>
+    <message id="autopanel.finding.unknown-dependency">
+        <source>It depends on a service that the stack does not have</source>
+        <translation>它依赖堆栈中没有的服务</translation>
+    </message>
+    <message id="autopanel.finding.unset-variable">
+        <source>A variable is not set in .env</source>
+        <translation>变量未在 .env 中设置</translation>
+    </message>
+    <message id="autopanel.finding.unsupported-dependency">
+        <source>AutoPanel does not support this depends_on condition</source>
+        <translation>AutoPanel 不支持此 depends_on 条件</translation>
+    </message>
+    <message id="autopanel.finding.unsupported-key">
+        <source>AutoPanel does not support this key</source>
+        <translation>AutoPanel 不支持此键</translation>
+    </message>
+    <message id="autopanel.finding.unsupported-value">
+        <source>AutoPanel does not support this value</source>
+        <translation>AutoPanel 不支持此值</translation>
+    </message>
+    <message id="autopanel.finding.user-not-numeric">
+        <source>The user must be given as numbers</source>
+        <translation>用户必须用数字指定</translation>
+    </message>
+    <message id="autopanel.finding.whole-folder">
+        <source>The stack's whole folder cannot be mounted</source>
+        <translation>不能挂载堆栈的整个文件夹</translation>
+    </message>
+    <message id="autopanel.finding.writable-root">
+        <source>The container's root file system is writable</source>
+        <translation>容器的根文件系统可写</translation>
+    </message>
     <message id="autopanel.form.add">
         <source>Add route</source>
         <translation>添加路由</translation>
@@ -175,6 +343,14 @@
         <source>&amp;About AutoPanel</source>
         <translation>关于 AutoPanel(&amp;a)</translation>
     </message>
+    <message id="autopanel.menu.mail">
+        <source>&amp;Mail</source>
+        <translation>邮件(&amp;m)</translation>
+    </message>
+    <message id="autopanel.menu.mail.none">
+        <source>Mail is &amp;not set up yet</source>
+        <translation>邮件尚未设置(&amp;n)</translation>
+    </message>
     <message id="autopanel.menu.routes">
         <source>&amp;Routes</source>
         <translation>路由(&amp;r)</translation>
@@ -191,17 +367,13 @@
         <source>&amp;Services</source>
         <translation>服务(&amp;s)</translation>
     </message>
-    <message id="autopanel.menu.services.deployed">
-        <source>&amp;Deployed services…</source>
-        <translation>已部署的服务(&amp;d)…</translation>
+    <message id="autopanel.menu.services.add">
+        <source>&amp;Add a stack…</source>
+        <translation>添加堆栈(&amp;a)…</translation>
     </message>
-    <message id="autopanel.menu.services.mail">
-        <source>&amp;Mail server…</source>
-        <translation>邮件服务器(&amp;m)…</translation>
-    </message>
-    <message id="autopanel.menu.services.turn">
-        <source>Deploy a &amp;TURN relay…</source>
-        <translation>部署 TURN 中继(&amp;t)…</translation>
+    <message id="autopanel.menu.services.stacks">
+        <source>&amp;Stacks…</source>
+        <translation>堆栈(&amp;s)…</translation>
     </message>
     <message id="autopanel.menu.system">
         <source>S&amp;ystem</source>
@@ -427,6 +599,70 @@
         <source>Open ports</source>
         <translation>开放端口</translation>
     </message>
+    <message id="autopanel.review.go.add">
+        <source>&amp;Add and start</source>
+        <translation>添加并启动(&amp;a)</translation>
+    </message>
+    <message id="autopanel.review.go.apply">
+        <source>&amp;Apply</source>
+        <translation>应用(&amp;a)</translation>
+    </message>
+    <message id="autopanel.review.go.start">
+        <source>&amp;Start</source>
+        <translation>启动(&amp;s)</translation>
+    </message>
+    <message id="autopanel.review.help">
+        <source>Nothing changes until you confirm. Confirming accepts the warnings.</source>
+        <translation>确认之前不会有任何更改。确认即接受这些警告。</translation>
+    </message>
+    <message id="autopanel.review.help.changed">
+        <source>The definition changed since it was shown. This is its new review.</source>
+        <translation>定义在显示之后已更改。这是新的审查。</translation>
+    </message>
+    <message id="autopanel.review.help.refused">
+        <source>The stack was refused. Fix its definition, then review it again.</source>
+        <translation>堆栈被拒绝。请修正其定义,然后重新审查。</translation>
+    </message>
+    <message id="autopanel.review.level.refused">
+        <source>refused</source>
+        <translation>拒绝</translation>
+    </message>
+    <message id="autopanel.review.level.warning">
+        <source>warning</source>
+        <translation>警告</translation>
+    </message>
+    <message id="autopanel.review.memory.none">
+        <source>none</source>
+        <translation>无</translation>
+    </message>
+    <message id="autopanel.review.prepare">
+        <source>&amp;Prepare only</source>
+        <translation>仅准备(&amp;p)</translation>
+    </message>
+    <message id="autopanel.review.removes">
+        <source>Applying stops and removes: %1</source>
+        <translation>应用时将停止并移除:%1</translation>
+    </message>
+    <message id="autopanel.review.summary">
+        <source>Definition %1 · %2 files</source>
+        <translation>定义 %1 · %2 个文件</translation>
+    </message>
+    <message id="autopanel.review.title.add">
+        <source>Add stack %1: review</source>
+        <translation>添加堆栈 %1:审查</translation>
+    </message>
+    <message id="autopanel.review.title.apply">
+        <source>Apply stack %1: review</source>
+        <translation>应用堆栈 %1:审查</translation>
+    </message>
+    <message id="autopanel.review.title.start">
+        <source>Start stack %1: review</source>
+        <translation>启动堆栈 %1:审查</translation>
+    </message>
+    <message id="autopanel.review.user.image">
+        <source>image's own</source>
+        <translation>镜像自带</translation>
+    </message>
     <message id="autopanel.routes.add">
         <source>Add</source>
         <translation>添加</translation>
@@ -447,145 +683,165 @@
         <source>Proxy routes</source>
         <translation>代理路由</translation>
     </message>
-    <message id="autopanel.services.change">
-        <source>Change</source>
-        <translation>更改</translation>
+    <message id="autopanel.stacks.add">
+        <source>Add</source>
+        <translation>添加</translation>
     </message>
-    <message id="autopanel.services.confirm.purge">
-        <source>Remove %1 and delete its directory? Its unit, its user %2, its secrets and its data are deleted.</source>
-        <translation>移除 %1 并删除其目录？其单元、用户 %2、密钥和数据将被删除。</translation>
+    <message id="autopanel.stacks.apply">
+        <source>Apply</source>
+        <translation>应用</translation>
     </message>
-    <message id="autopanel.services.confirm.remove">
-        <source>Remove %1? Its unit, its user %2 and its secrets are deleted. Its directory is kept, owned by root.</source>
-        <translation>移除 %1？其单元、用户 %2 和密钥将被删除。其目录会保留，归 root 所有。</translation>
+    <message id="autopanel.stacks.available.hint">
+        <source>Enter reviews the selected folder. Nothing changes until you confirm the review.</source>
+        <translation>按 Enter 审查所选文件夹。确认审查之前不会有任何更改。</translation>
     </message>
-    <message id="autopanel.services.confirm.title">
-        <source>Remove service</source>
-        <translation>移除服务</translation>
+    <message id="autopanel.stacks.available.none">
+        <source>No folder holds a new stack. Write a compose file to /etc/autopanel/stacks/&lt;name&gt;/compose.yaml, then open this again.</source>
+        <translation>没有包含新堆栈的文件夹。请将 compose 文件写入 /etc/autopanel/stacks/&lt;name&gt;/compose.yaml,然后重新打开。</translation>
     </message>
-    <message id="autopanel.services.deploy">
-        <source>Deploy TURN</source>
-        <translation>部署 TURN</translation>
+    <message id="autopanel.stacks.available.review">
+        <source>&amp;Review</source>
+        <translation>审查(&amp;r)</translation>
     </message>
-    <message id="autopanel.services.done.change">
-        <source>%1 is changed and restarted</source>
-        <translation>%1 已更改并重启</translation>
+    <message id="autopanel.stacks.available.title">
+        <source>Add a stack</source>
+        <translation>添加堆栈</translation>
     </message>
-    <message id="autopanel.services.done.deploy">
-        <source>%1 is deployed; its image is pulled as it starts</source>
-        <translation>%1 已部署；启动时拉取镜像</translation>
+    <message id="autopanel.stacks.confirm.purge">
+        <source>Remove %1 and delete its directory? Its containers stop, and its units, its user %2 and its data are deleted. Its definition folder is not touched.</source>
+        <translation>移除 %1 并删除其目录?其容器将停止,其单元、用户 %2 和数据将被删除。其定义文件夹不受影响。</translation>
     </message>
-    <message id="autopanel.services.done.purge">
-        <source>%1 removed, with its directory</source>
-        <translation>%1 已连同目录一起移除</translation>
+    <message id="autopanel.stacks.confirm.remove">
+        <source>Remove %1? Its containers stop, and its units and its user %2 are deleted. Its directory, with its data, is kept, owned by root. Its definition folder is not touched.</source>
+        <translation>移除 %1?其容器将停止,其单元和用户 %2 将被删除。其目录及数据将保留,归 root 所有。其定义文件夹不受影响。</translation>
     </message>
-    <message id="autopanel.services.done.remove">
-        <source>%1 removed; its directory is kept</source>
-        <translation>%1 已移除；其目录已保留</translation>
+    <message id="autopanel.stacks.confirm.stopService">
+        <source>Stop %2 of %1, and every service that depends on it? They stay stopped across a boot, until they are started.</source>
+        <translation>停止 %1 的 %2 以及所有依赖它的服务?在启动之前,即使主机重启,它们也保持停止。</translation>
     </message>
-    <message id="autopanel.services.done.restart">
-        <source>%1 restarted</source>
-        <translation>%1 已重启</translation>
+    <message id="autopanel.stacks.confirm.stopStack">
+        <source>Stop every service of %1? They stay stopped across a boot, until they are started.</source>
+        <translation>停止 %1 的所有服务?在启动之前,即使主机重启,它们也保持停止。</translation>
     </message>
-    <message id="autopanel.services.done.start">
-        <source>%1 started</source>
-        <translation>%1 已启动</translation>
-    </message>
-    <message id="autopanel.services.done.stop">
-        <source>%1 stopped</source>
-        <translation>%1 已停止</translation>
-    </message>
-    <message id="autopanel.services.form.change">
-        <source>Change %1</source>
-        <translation>更改 %1</translation>
-    </message>
-    <message id="autopanel.services.form.deploy">
-        <source>Deploy a TURN relay</source>
-        <translation>部署 TURN 中继</translation>
-    </message>
-    <message id="autopanel.services.help">
-        <source>a deploy TURN · e/Enter change · s start · x stop · t restart · o log · c secrets · d remove · Shift+D remove with its directory · r read again · q close</source>
-        <translation>a 部署 TURN · e/Enter 更改 · s 启动 · x 停止 · t 重启 · o 日志 · c 密钥 · d 移除 · Shift+D 连同目录一起移除 · r 重新读取 · q 关闭</translation>
-    </message>
-    <message id="autopanel.services.logs">
-        <source>Log</source>
-        <translation>日志</translation>
-    </message>
-    <message id="autopanel.services.logs.note">
-        <source>%1: %2 lines, read at %3</source>
-        <translation>%1：%2 行，读取于 %3</translation>
-    </message>
-    <message id="autopanel.services.logs.title">
-        <source>Service log</source>
-        <translation>服务日志</translation>
-    </message>
-    <message id="autopanel.services.none">
-        <source>No service at this row.</source>
-        <translation>此行没有服务。</translation>
-    </message>
-    <message id="autopanel.services.remove">
-        <source>Remove</source>
-        <translation>移除</translation>
-    </message>
-    <message id="autopanel.services.restart">
-        <source>Restart</source>
-        <translation>重启</translation>
-    </message>
-    <message id="autopanel.services.secret.none">
-        <source>%1 has no secret.</source>
-        <translation>%1 没有密钥。</translation>
-    </message>
-    <message id="autopanel.services.secret.note">
-        <source>Each read is in the audit log. Give a secret only to the application that needs it. q closes.</source>
-        <translation>每次读取都会记入审计日志。密钥只应交给需要它的应用。q 关闭。</translation>
-    </message>
-    <message id="autopanel.services.secret.title">
-        <source>Secrets of %1</source>
-        <translation>%1 的密钥</translation>
-    </message>
-    <message id="autopanel.services.start">
-        <source>Start</source>
-        <translation>启动</translation>
-    </message>
-    <message id="autopanel.services.state.deploying">
-        <source>deploy unfinished</source>
-        <translation>部署未完成</translation>
-    </message>
-    <message id="autopanel.services.state.removing">
-        <source>removal unfinished</source>
-        <translation>移除未完成</translation>
-    </message>
-    <message id="autopanel.services.stop">
+    <message id="autopanel.stacks.confirm.stopTitle">
         <source>Stop</source>
         <translation>停止</translation>
     </message>
-    <message id="autopanel.services.title">
-        <source>Services</source>
-        <translation>服务</translation>
+    <message id="autopanel.stacks.confirm.title">
+        <source>Remove stack</source>
+        <translation>移除堆栈</translation>
     </message>
-    <message id="autopanel.services.turn">
-        <source>TURN relay</source>
-        <translation>TURN 中继</translation>
+    <message id="autopanel.stacks.done.add">
+        <source>%1 is added and started</source>
+        <translation>%1 已添加并启动</translation>
     </message>
-    <message id="autopanel.services.turn.name">
-        <source>Name (lower-case letters, digits and hyphens; empty for turn)</source>
-        <translation>名称（小写字母、数字和连字符；留空则为 turn）</translation>
+    <message id="autopanel.stacks.done.apply">
+        <source>%1 is applied</source>
+        <translation>%1 已应用</translation>
     </message>
-    <message id="autopanel.services.turn.port">
-        <source>Port, UDP and TCP (1024 or above)</source>
-        <translation>端口，UDP 和 TCP（1024 或以上）</translation>
+    <message id="autopanel.stacks.done.prepare">
+        <source>%1 is prepared and not started. Put its data in place, then apply it (p) to start it.</source>
+        <translation>%1 已准备,尚未启动。放好数据后,应用它 (p) 以启动。</translation>
     </message>
-    <message id="autopanel.services.turn.realm">
-        <source>Realm: the domain name the relay answers for</source>
-        <translation>域（realm）：中继所服务的域名</translation>
+    <message id="autopanel.stacks.done.pull">
+        <source>the images of %1 are pulled; a container whose image changed was restarted</source>
+        <translation>已拉取 %1 的镜像;镜像有变化的容器已重启</translation>
     </message>
-    <message id="autopanel.services.turn.relayPorts">
-        <source>Relay ports, UDP, as first-last</source>
-        <translation>中继端口，UDP，格式为 起始-结束</translation>
+    <message id="autopanel.stacks.done.purge">
+        <source>%1 removed, with its directory</source>
+        <translation>%1 已连同目录移除</translation>
     </message>
-    <message id="autopanel.services.unknownTemplate">
-        <source>This panel has no form for the template %1; use autopanel --call.</source>
-        <translation>此面板没有模板 %1 的表单；请使用 autopanel --call。</translation>
+    <message id="autopanel.stacks.done.remove">
+        <source>%1 removed; its directory is kept</source>
+        <translation>%1 已移除;其目录已保留</translation>
+    </message>
+    <message id="autopanel.stacks.done.restart">
+        <source>%1 restarted</source>
+        <translation>%1 已重启</translation>
+    </message>
+    <message id="autopanel.stacks.done.start">
+        <source>%1 started</source>
+        <translation>%1 已启动</translation>
+    </message>
+    <message id="autopanel.stacks.done.stop">
+        <source>%1 stopped</source>
+        <translation>%1 已停止</translation>
+    </message>
+    <message id="autopanel.stacks.help">
+        <source>a add · p review and apply · u pull images · s start, x stop, t restart the service · with Shift, the whole stack · o log · d remove · Shift+D remove with its directory · r read again · q close · * after a name: its definition changed: apply to review it</source>
+        <translation>a 添加 · p 审查并应用 · u 拉取镜像 · s 启动、x 停止、t 重启服务 · 加 Shift 为整个堆栈 · o 日志 · d 移除 · Shift+D 连同目录移除 · r 重新读取 · q 关闭 · 名称后的 *:定义已更改,应用以审查</translation>
+    </message>
+    <message id="autopanel.stacks.legacy">
+        <source>%1 was deployed from a template by an older AutoPanel. Remove it, then add it again as a stack.</source>
+        <translation>%1 由旧版 AutoPanel 从模板部署。请移除它,再作为堆栈重新添加。</translation>
+    </message>
+    <message id="autopanel.stacks.logs">
+        <source>Log</source>
+        <translation>日志</translation>
+    </message>
+    <message id="autopanel.stacks.logs.note">
+        <source>%1: %2 lines, read at %3</source>
+        <translation>%1:%2 行,读取于 %3</translation>
+    </message>
+    <message id="autopanel.stacks.logs.title">
+        <source>Stack log</source>
+        <translation>堆栈日志</translation>
+    </message>
+    <message id="autopanel.stacks.noService">
+        <source>%1 has no service at this row. Apply the stack first.</source>
+        <translation>%1 在此行没有服务。请先应用堆栈。</translation>
+    </message>
+    <message id="autopanel.stacks.none">
+        <source>No stack at this row.</source>
+        <translation>此行没有堆栈。</translation>
+    </message>
+    <message id="autopanel.stacks.remove">
+        <source>Remove</source>
+        <translation>移除</translation>
+    </message>
+    <message id="autopanel.stacks.restart">
+        <source>Restart</source>
+        <translation>重启</translation>
+    </message>
+    <message id="autopanel.stacks.start">
+        <source>Start</source>
+        <translation>启动</translation>
+    </message>
+    <message id="autopanel.stacks.state.deploying">
+        <source>being applied</source>
+        <translation>正在应用</translation>
+    </message>
+    <message id="autopanel.stacks.state.incomplete">
+        <source>apply stopped at: %1</source>
+        <translation>应用中断于:%1</translation>
+    </message>
+    <message id="autopanel.stacks.state.legacy">
+        <source>from a template</source>
+        <translation>来自模板</translation>
+    </message>
+    <message id="autopanel.stacks.state.prepared">
+        <source>prepared, not started</source>
+        <translation>已准备,未启动</translation>
+    </message>
+    <message id="autopanel.stacks.state.removing">
+        <source>being removed</source>
+        <translation>正在移除</translation>
+    </message>
+    <message id="autopanel.stacks.state.stopped">
+        <source>stopped</source>
+        <translation>已停止</translation>
+    </message>
+    <message id="autopanel.stacks.stop">
+        <source>Stop</source>
+        <translation>停止</translation>
+    </message>
+    <message id="autopanel.stacks.title">
+        <source>Stacks</source>
+        <translation>堆栈</translation>
+    </message>
+    <message id="autopanel.stacks.working">
+        <source>%1: working. Pulling images can take a while.</source>
+        <translation>%1:处理中。拉取镜像可能需要一些时间。</translation>
     </message>
     <message id="autopanel.status.error">
         <source>status: %1</source>

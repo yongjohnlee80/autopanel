@@ -13,7 +13,7 @@
 import tui 1.0                 // the widget vocabulary, and the Tui singleton's enums
 import autopanel 1.0           // the App singleton: the panel's state and commands
 import autopanel.theme.dark 1.0  // the Theme singleton; System › Theme switches it
-import autopanel.dialogs 1.0   // Login, RouteDialog, TurnDialog, ConfirmDialog
+import autopanel.dialogs 1.0   // Login, RouteDialog, AddStackDialog, ReviewDialog, ConfirmDialog
 import autopanel.views 1.0     // About
 import autopanel.panels 1.0    // FloatPanel
 
@@ -97,9 +97,12 @@ Window {
         }
         Menu {
             title: qsTrId("autopanel.menu.services")
-            MenuItem { text: qsTrId("autopanel.menu.services.deployed"); onTriggered: App.openServices() }
-            MenuItem { text: qsTrId("autopanel.menu.services.turn"); onTriggered: App.deployTurn() }
-            MenuItem { text: qsTrId("autopanel.menu.services.mail"); enabled: false }
+            MenuItem { text: qsTrId("autopanel.menu.services.stacks"); onTriggered: App.openStacks() }
+            MenuItem { text: qsTrId("autopanel.menu.services.add"); onTriggered: App.addStack() }
+        }
+        Menu {
+            title: qsTrId("autopanel.menu.mail")
+            MenuItem { text: qsTrId("autopanel.menu.mail.none"); enabled: false }
         }
         Menu {
             title: qsTrId("autopanel.menu.users")
@@ -288,117 +291,82 @@ Window {
         }
     }
 
-    // ---- the services -----------------------------------------------------
+    // ---- the stacks ------------------------------------------------------
     //
-    // Services › Deployed services: a row per service, and its keys
-    // (services.go). None is h, j, k or l: the table moves by them. The daemon records each change before it makes it.
+    // Services › Stacks: a row per container, and its keys (services.go). A
+    // small letter acts on the row's service, its capital on the whole stack.
+    // None is h, j, k or l: the table moves by them. The daemon records each
+    // change before it makes it.
     FloatPanel {
-        id: servicesPanel
-        key: "services"; label: "Services"
-        heading: qsTrId("autopanel.services.title")
-        size: 70; length: 90
-        onOpened: servicesTable.forceActiveFocus()
-        onClosed: App.servicesClosed()   // its log and secrets hand the keyboard back to it while it is open
-        Shortcut { sequence: "r"; onActivated: App.reloadServices() }
-        Shortcut { sequence: "a"; onActivated: App.deployTurn() }
-        Shortcut { sequence: "e"; onActivated: App.editService(servicesTable.currentIndex) }
-        Shortcut { sequence: "s"; onActivated: App.startService(servicesTable.currentIndex) }
-        Shortcut { sequence: "x"; onActivated: App.stopService(servicesTable.currentIndex) }
-        Shortcut { sequence: "t"; onActivated: App.restartService(servicesTable.currentIndex) }
-        Shortcut { sequence: "o"; onActivated: App.serviceLogsOf(servicesTable.currentIndex) }
-        Shortcut { sequence: "c"; onActivated: App.secretsOf(servicesTable.currentIndex) }
-        Shortcut { sequence: "d"; onActivated: App.removeService(servicesTable.currentIndex) }
-        Shortcut { sequence: "Shift+D"; onActivated: App.purgeService(servicesTable.currentIndex) }
+        id: stacksPanel
+        key: "stacks"; label: "Stacks"
+        heading: qsTrId("autopanel.stacks.title")
+        size: 75; length: 98
+        onOpened: stacksTable.forceActiveFocus()
+        onClosed: App.stacksClosed()   // its log hands the keyboard back to it while it is open
+        Shortcut { sequence: "r"; onActivated: App.reloadStacks() }
+        Shortcut { sequence: "a"; onActivated: App.addStack() }
+        Shortcut { sequence: "p"; onActivated: App.applyStack(stacksTable.currentIndex) }
+        Shortcut { sequence: "u"; onActivated: App.pullStack(stacksTable.currentIndex) }
+        Shortcut { sequence: "s"; onActivated: App.startService(stacksTable.currentIndex) }
+        Shortcut { sequence: "x"; onActivated: App.stopService(stacksTable.currentIndex) }
+        Shortcut { sequence: "t"; onActivated: App.restartService(stacksTable.currentIndex) }
+        Shortcut { sequence: "Shift+S"; onActivated: App.startStack(stacksTable.currentIndex) }
+        Shortcut { sequence: "Shift+X"; onActivated: App.stopStack(stacksTable.currentIndex) }
+        Shortcut { sequence: "Shift+T"; onActivated: App.restartStack(stacksTable.currentIndex) }
+        Shortcut { sequence: "o"; onActivated: App.logsOf(stacksTable.currentIndex) }
+        Shortcut { sequence: "d"; onActivated: App.removeStack(stacksTable.currentIndex) }
+        Shortcut { sequence: "Shift+D"; onActivated: App.purgeStack(stacksTable.currentIndex) }
         Flex {
             direction: Tui.Vertical
             TableView {
-                id: servicesTable
+                id: stacksTable
                 Layout.fillHeight: true
                 palette.highlight: Theme.document.highlight
                 palette.highlightedText: Theme.document.highlightedText
-                model: App.services
-                onActivated: App.editService(index)
-                TableViewColumn { role: "name"; title: "NAME"; width: 14 }
-                TableViewColumn { role: "kind"; title: "KIND"; width: 12 }
-                TableViewColumn { role: "state"; title: "STATE"; width: 20 }
-                TableViewColumn { role: "memory"; title: "MEMORY"; width: 10 }
-                TableViewColumn { role: "user"; title: "USER"; width: 12 }
-                TableViewColumn { role: "ports"; title: "PORTS" }
+                model: App.stacks
+                TableViewColumn { role: "stack"; title: "STACK"; width: 12 }
+                TableViewColumn { role: "service"; title: "SERVICE"; width: 10 }
+                TableViewColumn { role: "state"; title: "STATE"; width: 22 }
+                TableViewColumn { role: "health"; title: "HEALTH"; width: 9 }
+                TableViewColumn { role: "memory"; title: "MEMORY"; width: 9 }
+                TableViewColumn { role: "restarts"; title: "RESTARTS"; width: 8 }
+                TableViewColumn { role: "ports"; title: "PORTS"; width: 14 }
+                TableViewColumn { role: "image"; title: "IMAGE" }
             }
             Flex {
                 direction: Tui.Horizontal
-                Button { text: qsTrId("autopanel.services.deploy"); onClicked: App.deployTurn() }
-                Button { text: qsTrId("autopanel.services.change"); onClicked: App.editService(servicesTable.currentIndex) }
-                Button { text: qsTrId("autopanel.services.start"); onClicked: App.startService(servicesTable.currentIndex) }
-                Button { text: qsTrId("autopanel.services.stop"); onClicked: App.stopService(servicesTable.currentIndex) }
-                Button { text: qsTrId("autopanel.services.restart"); onClicked: App.restartService(servicesTable.currentIndex) }
-                Button { text: qsTrId("autopanel.services.logs"); onClicked: App.serviceLogsOf(servicesTable.currentIndex) }
-                Button { text: qsTrId("autopanel.services.remove"); onClicked: App.removeService(servicesTable.currentIndex) }
+                Button { text: qsTrId("autopanel.stacks.add"); onClicked: App.addStack() }
+                Button { text: qsTrId("autopanel.stacks.apply"); onClicked: App.applyStack(stacksTable.currentIndex) }
+                Button { text: qsTrId("autopanel.stacks.start"); onClicked: App.startService(stacksTable.currentIndex) }
+                Button { text: qsTrId("autopanel.stacks.stop"); onClicked: App.stopService(stacksTable.currentIndex) }
+                Button { text: qsTrId("autopanel.stacks.restart"); onClicked: App.restartService(stacksTable.currentIndex) }
+                Button { text: qsTrId("autopanel.stacks.logs"); onClicked: App.logsOf(stacksTable.currentIndex) }
+                Button { text: qsTrId("autopanel.stacks.remove"); onClicked: App.removeStack(stacksTable.currentIndex) }
             }
-            Text { text: App.servicesNote }
-            Text { text: qsTrId("autopanel.services.help"); wrapMode: Tui.WordWrap }
+            Text { text: App.stacksNote }
+            Text { text: qsTrId("autopanel.stacks.help"); wrapMode: Tui.WordWrap }
         }
     }
     FloatPanel {
-        id: serviceLogsPanel
-        key: "serviceLogs"; label: "Service log"
-        heading: qsTrId("autopanel.services.logs.title")
+        id: stackLogsPanel
+        key: "stackLogs"; label: "Stack log"
+        heading: qsTrId("autopanel.stacks.logs.title")
         size: 75; length: 95
-        onOpened: serviceLogsTable.forceActiveFocus()
+        onOpened: stackLogsTable.forceActiveFocus()
         Shortcut { sequence: "r"; onActivated: App.reloadLogs() }
         Flex {
             direction: Tui.Vertical
             TableView {
-                id: serviceLogsTable
+                id: stackLogsTable
                 Layout.fillHeight: true
                 palette.highlight: Theme.document.highlight
                 palette.highlightedText: Theme.document.highlightedText
-                model: App.serviceLogs
+                model: App.stackLogs
                 TableViewColumn { role: "line"; title: "JOURNAL" }
             }
-            Text { text: App.serviceLogsNote }
+            Text { text: App.stackLogsNote }
             Text { text: qsTrId("autopanel.monitor.help") }
-        }
-    }
-    // A service's secrets. Its own Drawer, not a FloatPanel: closing it has
-    // the host forget what it showed (App.secretsClosed).
-    Drawer {
-        id: serviceSecretsPanel
-        key: "serviceSecrets"; label: "Secrets"
-        modal: false
-        closeOnQ: true
-        edge: Tui.Center
-        size: 30
-        length: 90
-        movable: true
-        windowResize: true
-        closable: true
-        onOpened: serviceSecretsTable.forceActiveFocus()
-        onClosed: App.secretsClosed()
-        Frame {
-            title: App.secretsTitle
-            palette.window: Theme.document.base
-            Flex {
-                direction: Tui.Vertical
-                WindowButtons {}
-                FocusScope {
-                    Layout.fillHeight: true
-                    Shortcut { sequence: "r"; onActivated: App.nothing() }
-                    Flex {
-                        direction: Tui.Vertical
-                        TableView {
-                            id: serviceSecretsTable
-                            Layout.fillHeight: true
-                            palette.highlight: Theme.document.highlight
-                            palette.highlightedText: Theme.document.highlightedText
-                            model: App.serviceSecrets
-                            TableViewColumn { role: "name"; title: "SECRET"; width: 16 }
-                            TableViewColumn { role: "value"; title: "VALUE" }
-                        }
-                        Text { text: qsTrId("autopanel.services.secret.note"); wrapMode: Tui.WordWrap }
-                    }
-                }
-            }
         }
     }
 
@@ -468,9 +436,12 @@ Window {
     // The host fills a dialog's sources, then opens it by id; each closes
     // itself on Close, Cancel, No or Escape. The route form stays open on a
     // failed change, showing why; the host closes it once the change is made.
+    // A stack's review closes when it is answered, and the host opens it again
+    // on the new review when the definition changed in between.
     Login { id: loginDialog }
     RouteDialog { id: routeDialog }
-    TurnDialog { id: turnDialog }
+    AddStackDialog { id: addStackDialog }
+    ReviewDialog { id: reviewDialog }
     ConfirmDialog { id: confirmDialog }
     About { id: aboutDialog }
 }
