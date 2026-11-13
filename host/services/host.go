@@ -1,7 +1,8 @@
-// Package services is the machine side of core/services: it makes a service's
-// user and directory, writes its files, and asks that user's systemd to run
-// its Podman unit. Every command it runs is one of internal/hostcmd's tools,
-// with arguments built from a service name the module has validated.
+// Package services is the machine side of core/services: it makes a stack's
+// user and directory, stages and commits its definition, writes its unit
+// files, and asks that user's systemd and Podman to run them. Every command it
+// runs is one of internal/hostcmd's tools, with arguments built from names and
+// references the module has validated.
 package services
 
 import (
@@ -12,6 +13,7 @@ import (
 	"os/user"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -20,18 +22,21 @@ import (
 	"github.com/yongjohnlee80/autopanel/internal/hostcmd"
 )
 
-// Host runs services on this machine. It must run as root.
+// Host runs stacks on this machine. It must run as root.
 type Host struct {
-	// root holds one directory per service, each the home of that service's
-	// user: /var/lib/autopanel-services.
+	// root holds one directory per stack, each the home of that stack's user:
+	// /var/lib/autopanel-services.
 	root string
+	// defs holds one folder per stack's definition, written by the
+	// administrator: /etc/autopanel/stacks.
+	defs string
 	// subuid and subgid are the host's tables of subordinate ids.
 	subuid, subgid string
 }
 
-// New is the host whose services live under root.
-func New(root string) *Host {
-	return &Host{root: root, subuid: "/etc/subuid", subgid: "/etc/subgid"}
+// New is the host whose stacks live under root and are defined under defs.
+func New(root, defs string) *Host {
+	return &Host{root: root, defs: defs, subuid: "/etc/subuid", subgid: "/etc/subgid"}
 }
 
 // Podman is the host's Podman version.
@@ -75,6 +80,11 @@ func parseVersion(out string) (major, minor int, ok bool) {
 
 func (h *Host) home(name string) string { return filepath.Join(h.root, name) }
 
+// staging is where a stack's definition is copied for a review and an apply:
+// root's alone, outside the stack user's home, so that user cannot change a
+// file after its hash was taken.
+func (h *Host) staging(name string) string { return filepath.Join(h.root, ".staging", name) }
+
 // ids are a user's numbers; ok is false for a user the host does not have.
 func ids(name string) (uid, gid int, ok bool, err error) {
 	u, err := user.Lookup(name)
@@ -102,11 +112,26 @@ func userSystemctl(ctx context.Context, usr string, uid int, args ...string) ([]
 	return hostcmd.Run(ctx, hostcmd.Runuser, append(run, args...)...)
 }
 
-// Install makes the service's user (with its sub-id ranges and a systemd of
-// its own that runs without a login) and its directory, writes the files, and
-// has the user's systemd read the unit file.
-func (h *Host) Install(ctx context.Context, u services.Unit) error {
-	usr, home := services.UserOf(u.Name), h.home(u.Name)
+// userPodman runs Podman as a user, in that user's home: its storage and its
+// containers are the user's own.
+func (h *Host) userPodman(ctx context.Context, name string, args ...string) ([]byte, error) {
+	usr := services.UserOf(name)
+	uid, _, ok, err := ids(usr)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, fmt.Errorf("services: %s has no user %s", name, usr)
+	}
+	run := []string{"-u", usr, "--", "/usr/bin/env", "-C", h.home(name), "XDG_RUNTIME_DIR=/run/user/" + strconv.Itoa(uid),
+		"HOME=" + h.home(name), "/usr/bin/podman"}
+	return hostcmd.Run(ctx, hostcmd.Runuser, append(run, args...)...)
+}
+
+// EnsureUser makes the stack's user (with its sub-id ranges and a systemd of
+// its own that runs without a login) and its directory.
+func (h *Host) EnsureUser(ctx context.Context, name string) error {
+	usr, home := services.UserOf(name), h.home(name)
 	// The services' directory lets each user reach its own, and list nothing.
 	if err := os.MkdirAll(h.root, 0o711); err != nil {
 		return err
@@ -114,7 +139,7 @@ func (h *Host) Install(ctx context.Context, u services.Unit) error {
 	if err := os.Chmod(h.root, 0o711); err != nil {
 		return err
 	}
-	uid, gid, ok, err := ids(usr)
+	uid, _, ok, err := ids(usr)
 	if err != nil {
 		return err
 	}
@@ -122,7 +147,7 @@ func (h *Host) Install(ctx context.Context, u services.Unit) error {
 		if _, err := hostcmd.Run(ctx, hostcmd.Useradd, "--system", "--create-home", "--home-dir", home, "--shell", "/usr/sbin/nologin", usr); err != nil {
 			return err
 		}
-		if uid, gid, ok, err = ids(usr); err != nil || !ok {
+		if uid, _, ok, err = ids(usr); err != nil || !ok {
 			return fmt.Errorf("services: user %s was not made: %v", usr, err)
 		}
 	}
@@ -132,14 +157,103 @@ func (h *Host) Install(ctx context.Context, u services.Unit) error {
 	if err := h.subIDs(ctx, usr); err != nil {
 		return err
 	}
-	if err := linger(ctx, usr, uid); err != nil {
+	return linger(ctx, usr, uid)
+}
+
+// stackUser is the stack's user, with its numbers.
+func stackUser(name string) (usr string, uid, gid int, err error) {
+	usr = services.UserOf(name)
+	uid, gid, ok, err := ids(usr)
+	if err == nil && !ok {
+		err = fmt.Errorf("services: %s has no user %s", name, usr)
+	}
+	return usr, uid, gid, err
+}
+
+// Install writes the unit files and has the user's systemd read them.
+func (h *Host) Install(ctx context.Context, u services.Unit) error {
+	usr, uid, gid, err := stackUser(u.Name)
+	if err != nil {
 		return err
 	}
-	if err := writeFiles(home, uid, gid, u.Files); err != nil {
+	if err := writeFiles(h.home(u.Name), uid, gid, u.Files); err != nil {
 		return err
 	}
 	_, err = userSystemctl(ctx, usr, uid, "daemon-reload")
 	return err
+}
+
+// DeleteUnits removes unit files and has the user's systemd forget them. A
+// file that is gone already is no error.
+func (h *Host) DeleteUnits(ctx context.Context, name string, paths []string) error {
+	usr, uid, _, err := stackUser(name)
+	if err != nil {
+		return err
+	}
+	root, err := os.OpenRoot(h.home(name))
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+	for _, p := range paths {
+		c := path.Clean(p)
+		if !strings.HasPrefix(c, ".config/containers/systemd/") {
+			return fmt.Errorf("services: %q is not a unit file", p)
+		}
+		if err := root.Remove(c); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+	}
+	_, err = userSystemctl(ctx, usr, uid, "daemon-reload")
+	return err
+}
+
+var digestRE = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
+
+// pullTime bounds one pull: an image is hundreds of megabytes.
+const pullTime = 10 * time.Minute
+
+// HasImage reports whether the stack's user holds the image ref.
+func (h *Host) HasImage(ctx context.Context, name, ref string) (bool, error) {
+	_, err := h.userPodman(ctx, name, "image", "exists", ref)
+	if code, ok := hostcmd.ExitCode(err); ok && code == 1 {
+		return false, nil
+	}
+	return err == nil, err
+}
+
+// pull runs "podman pull" as a transient unit of the stack user's own systemd,
+// and waits for it. Run as the core's own child it would count against the
+// core's memory limit, and unpacking an image takes more than the core has.
+func (h *Host) pull(ctx context.Context, name, ref string) error {
+	usr, uid, _, err := stackUser(name)
+	if err != nil {
+		return err
+	}
+	home := h.home(name)
+	_, err = hostcmd.Run(ctx, hostcmd.Runuser, "-u", usr, "--", "/usr/bin/env", "-C", home,
+		"XDG_RUNTIME_DIR=/run/user/"+strconv.Itoa(uid), "HOME="+home,
+		"/usr/bin/systemd-run", "--user", "--quiet", "--wait", "--collect", "--pipe", "--working-directory="+home,
+		"--setenv=HOME="+home, "/usr/bin/podman", "pull", "--quiet", ref)
+	return err
+}
+
+// Pull pulls ref as the stack's user and answers the digest it resolved.
+func (h *Host) Pull(ctx context.Context, name, ref string) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, pullTime)
+	defer cancel()
+	if err := h.pull(ctx, name, ref); err != nil {
+		return "", err
+	}
+	out, err := h.userPodman(ctx, name, "image", "inspect", "--format", "{{.Digest}}", ref)
+	if err != nil {
+		return "", err
+	}
+	d := strings.TrimSpace(string(out))
+	if !digestRE.MatchString(d) {
+		return "", fmt.Errorf("services: the image %s has no digest", firstLine(ref))
+	}
+	return d, nil
 }
 
 // linger has usr's systemd run without a login, now and after a boot, and
@@ -283,50 +397,61 @@ func writeFiles(home string, uid, gid int, files []services.File) error {
 	return nil
 }
 
-func (h *Host) unit(ctx context.Context, usr string, uid int, name string, args ...string) error {
-	_, err := userSystemctl(ctx, usr, uid, append(args, name+".service")...)
-	return err
+// Start asks for the units to start and does not wait for them. Running says
+// how it went.
+func (h *Host) Start(ctx context.Context, name string, units []string) error {
+	return h.up(ctx, name, "start", units)
 }
 
-// Start asks for the unit to start and does not wait for it: a first start
-// pulls the image. Running says how it went.
-func (h *Host) Start(ctx context.Context, name string) error {
-	return h.up(ctx, name, "start")
-}
-
-// up starts or restarts the unit, with the user's systemd brought up first:
-// the uninstaller's --apply stops it, and a reinstall starts from there.
-func (h *Host) up(ctx context.Context, name, verb string) error {
-	usr := services.UserOf(name)
-	uid, _, ok, err := ids(usr)
+// up starts or restarts units, with the user's systemd brought up first: the
+// uninstaller's --apply stops it, and a reinstall starts from there.
+func (h *Host) up(ctx context.Context, name, verb string, units []string) error {
+	if len(units) == 0 {
+		return nil
+	}
+	usr, uid, _, err := stackUser(name)
 	if err != nil {
 		return err
-	}
-	if !ok {
-		return fmt.Errorf("services: %s has no user %s", name, usr)
 	}
 	if err := linger(ctx, usr, uid); err != nil {
 		return err
 	}
-	return h.unit(ctx, usr, uid, name, "--no-block", verb)
+	_, err = userSystemctl(ctx, usr, uid, append([]string{"--no-block", verb}, units...)...)
+	return err
 }
 
-// Restart is Start for a unit that may be running.
-func (h *Host) Restart(ctx context.Context, name string) error {
-	return h.up(ctx, name, "restart")
+// Restart is Start for units that may be running.
+func (h *Host) Restart(ctx context.Context, name string, units []string) error {
+	return h.up(ctx, name, "restart", units)
 }
 
-// Stop stops the unit. A service with no user has nothing to stop.
-func (h *Host) Stop(ctx context.Context, name string) error {
+// notLoaded is systemctl's exit code for a unit it does not have.
+const notLoaded = 5
+
+// Stop stops the units, and waits for them. A stack with no user has nothing
+// to stop, and a unit systemd does not have is stopped already: an apply that
+// failed before it wrote a unit leaves that unit's name on record.
+func (h *Host) Stop(ctx context.Context, name string, units []string) error {
 	usr := services.UserOf(name)
 	uid, _, ok, err := ids(usr)
-	if err != nil || !ok {
+	if err != nil || !ok || len(units) == 0 {
 		return err
 	}
-	return h.unit(ctx, usr, uid, name, "stop")
+	_, err = userSystemctl(ctx, usr, uid, append([]string{"stop"}, units...)...)
+	if code, ok := hostcmd.ExitCode(err); !ok || code != notLoaded {
+		return err
+	}
+	// One of them is not loaded, and systemctl stopped none: each on its own.
+	for _, u := range units {
+		_, err := userSystemctl(ctx, usr, uid, "stop", u)
+		if code, ok := hostcmd.ExitCode(err); err != nil && (!ok || code != notLoaded) {
+			return err
+		}
+	}
+	return nil
 }
 
-// Uninstall stops the unit, ends the user's systemd and deletes the user.
+// Uninstall ends the user's systemd, and every unit with it, and deletes the user.
 // With purge the directory goes too; without, it is kept as root's, under a
 // name no later service takes. Every step tolerates the one before having
 // already happened: an uninstall that was interrupted is run again.
@@ -337,7 +462,6 @@ func (h *Host) Uninstall(ctx context.Context, name string, purge bool) error {
 		return err
 	}
 	if ok {
-		_ = h.Stop(ctx, name) // the unit, or the user's systemd, may be gone already
 		_, _ = hostcmd.Run(ctx, hostcmd.Loginctl, "disable-linger", usr)
 		_, _ = hostcmd.Run(ctx, hostcmd.Loginctl, "terminate-user", usr)
 		_ = waitFor(ctx, 20*time.Second, func() bool {
@@ -356,6 +480,9 @@ func (h *Host) Uninstall(ctx context.Context, name string, purge bool) error {
 				return err
 			}
 		}
+	}
+	if err := os.RemoveAll(h.staging(name)); err != nil {
+		return err
 	}
 	if _, err := os.Lstat(home); errors.Is(err, os.ErrNotExist) {
 		return nil
@@ -384,48 +511,106 @@ func (h *Host) Uninstall(ctx context.Context, name string, purge bool) error {
 	return os.Rename(home, home+".removed-"+strconv.FormatInt(time.Now().Unix(), 10))
 }
 
-// Running is the unit's state as the user's systemd reports it.
-func (h *Host) Running(ctx context.Context, name string) (services.Running, error) {
+// Running is each unit's state as the user's systemd reports it, by unit.
+func (h *Host) Running(ctx context.Context, name string, units []string) (map[string]services.Running, error) {
 	usr := services.UserOf(name)
 	uid, _, ok, err := ids(usr)
 	if err != nil {
-		return services.Running{}, err
+		return nil, err
 	}
+	out := map[string]services.Running{}
 	if !ok {
-		return services.Running{Active: "absent"}, nil
+		for _, u := range units {
+			out[u] = services.Running{Active: "absent"}
+		}
+		return out, nil
 	}
-	out, err := userSystemctl(ctx, usr, uid, "show", name+".service", "-p", "ActiveState,SubState,MemoryCurrent")
+	if len(units) == 0 {
+		return out, nil
+	}
+	args := append([]string{"show", "--timestamp=unix", "-p", "Id,ActiveState,SubState,MemoryCurrent,NRestarts,ActiveEnterTimestamp,CPUUsageNSec"}, units...)
+	text, err := userSystemctl(ctx, usr, uid, args...)
 	if err != nil {
-		return services.Running{}, err
+		return nil, err
 	}
-	return parseShow(string(out)), nil
+	return parseShow(string(text)), nil
 }
 
-// parseShow reads systemctl show's "Key=value" lines.
-func parseShow(out string) services.Running {
-	var r services.Running
-	for _, line := range strings.Split(out, "\n") {
-		k, v, _ := strings.Cut(strings.TrimSpace(line), "=")
-		switch k {
-		case "ActiveState":
-			r.Active = v
-		case "SubState":
-			r.Sub = v
-		case "MemoryCurrent":
-			r.MemoryBytes, _ = strconv.ParseUint(v, 10, 64) // "[not set]" for a unit that is not running
+// parseShow reads systemctl show's blocks of "Key=value" lines, one block per
+// unit, by each block's Id. A property a unit has no value for is "[not set]"
+// or empty, and reads as zero.
+func parseShow(out string) map[string]services.Running {
+	units := map[string]services.Running{}
+	for _, block := range strings.Split(out, "\n\n") {
+		var r services.Running
+		id := ""
+		for _, line := range strings.Split(block, "\n") {
+			k, v, _ := strings.Cut(strings.TrimSpace(line), "=")
+			switch k {
+			case "Id":
+				id = v
+			case "ActiveState":
+				r.Active = v
+			case "SubState":
+				r.Sub = v
+			case "MemoryCurrent":
+				r.MemoryBytes, _ = strconv.ParseUint(v, 10, 64)
+			case "NRestarts":
+				r.Restarts, _ = strconv.Atoi(v)
+			case "ActiveEnterTimestamp":
+				r.Since, _ = strconv.ParseInt(strings.TrimPrefix(v, "@"), 10, 64)
+			case "CPUUsageNSec":
+				r.CPUNanos, _ = strconv.ParseUint(v, 10, 64)
+			}
+		}
+		if id != "" {
+			units[id] = r
 		}
 	}
-	return r
+	return units
 }
 
-// Logs are the newest journal lines of the service's user: the unit's own and
-// its container's, and nothing of another user's.
-func (h *Host) Logs(ctx context.Context, name string, limit int) ([]string, error) {
+// Health is each container's health, by its name, as Podman's listing says it
+// in a status such as "Up 2 minutes (healthy)".
+func (h *Host) Health(ctx context.Context, name string) (map[string]string, error) {
+	if _, _, ok, err := ids(services.UserOf(name)); err != nil || !ok {
+		return map[string]string{}, err
+	}
+	out, err := h.userPodman(ctx, name, "ps", "--all", "--format", "{{.Names}}\t{{.Status}}")
+	if err != nil {
+		return nil, err
+	}
+	return parseHealth(string(out)), nil
+}
+
+func parseHealth(out string) map[string]string {
+	health := map[string]string{}
+	for _, line := range strings.Split(out, "\n") {
+		n, status, ok := strings.Cut(line, "\t")
+		if !ok {
+			continue
+		}
+		for _, word := range []string{"healthy", "unhealthy", "starting"} {
+			if strings.HasSuffix(strings.TrimSpace(status), "("+word+")") {
+				health[n] = word
+			}
+		}
+	}
+	return health
+}
+
+// Logs are the newest journal lines of the stack's user, or of one of its
+// containers: nothing of another user's.
+func (h *Host) Logs(ctx context.Context, name, container string, limit int) ([]string, error) {
 	uid, _, ok, err := ids(services.UserOf(name))
 	if err != nil || !ok {
 		return nil, err
 	}
-	out, err := hostcmd.Run(ctx, hostcmd.Journalctl, "_UID="+strconv.Itoa(uid), "-n", strconv.Itoa(limit), "--no-pager", "-o", "short-iso")
+	args := []string{"_UID=" + strconv.Itoa(uid)}
+	if container != "" {
+		args = append(args, "CONTAINER_NAME="+container)
+	}
+	out, err := hostcmd.Run(ctx, hostcmd.Journalctl, append(args, "-n", strconv.Itoa(limit), "--no-pager", "-o", "short-iso")...)
 	if err != nil {
 		return nil, err
 	}

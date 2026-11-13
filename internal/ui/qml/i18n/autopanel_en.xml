@@ -67,6 +67,174 @@
         <source>Remove route</source>
         <translation>Remove route</translation>
     </message>
+    <message id="autopanel.finding.absolute-path">
+        <source>A path must be inside the stack's folder, not absolute</source>
+        <translation>A path must be inside the stack's folder, not absolute</translation>
+    </message>
+    <message id="autopanel.finding.bad-env-line">
+        <source>A line of .env is not valid</source>
+        <translation>A line of .env is not valid</translation>
+    </message>
+    <message id="autopanel.finding.bad-port">
+        <source>A port is not valid</source>
+        <translation>A port is not valid</translation>
+    </message>
+    <message id="autopanel.finding.bad-service-name">
+        <source>A service's name is not allowed</source>
+        <translation>A service's name is not allowed</translation>
+    </message>
+    <message id="autopanel.finding.bad-value">
+        <source>A value is not what its key takes</source>
+        <translation>A value is not what its key takes</translation>
+    </message>
+    <message id="autopanel.finding.bad-volume-name">
+        <source>A volume's name is not allowed</source>
+        <translation>A volume's name is not allowed</translation>
+    </message>
+    <message id="autopanel.finding.bad-yaml">
+        <source>The compose file is not valid YAML</source>
+        <translation>The compose file is not valid YAML</translation>
+    </message>
+    <message id="autopanel.finding.capability">
+        <source>This capability is not allowed</source>
+        <translation>This capability is not allowed</translation>
+    </message>
+    <message id="autopanel.finding.capability-added">
+        <source>It is given a capability</source>
+        <translation>It is given a capability</translation>
+    </message>
+    <message id="autopanel.finding.data-overlap">
+        <source>A mount overlaps the stack's data</source>
+        <translation>A mount overlaps the stack's data</translation>
+    </message>
+    <message id="autopanel.finding.dependency-cycle">
+        <source>The services depend on each other in a circle</source>
+        <translation>The services depend on each other in a circle</translation>
+    </message>
+    <message id="autopanel.finding.env-no-value">
+        <source>An environment variable has no value</source>
+        <translation>An environment variable has no value</translation>
+    </message>
+    <message id="autopanel.finding.host-network">
+        <source>It shares the host's network: it can reach every service on the host, and what it listens on is the host's</source>
+        <translation>It shares the host's network: it can reach every service on the host, and what it listens on is the host's</translation>
+    </message>
+    <message id="autopanel.finding.host-network-no-ports">
+        <source>Its ports are not known to AutoPanel</source>
+        <translation>Its ports are not known to AutoPanel</translation>
+    </message>
+    <message id="autopanel.finding.host-network-port">
+        <source>On the host's network a port cannot be given another number or one address</source>
+        <translation>On the host's network a port cannot be given another number or one address</translation>
+    </message>
+    <message id="autopanel.finding.image-by-tag">
+        <source>The image is named by a tag: it can change under its tag between pulls</source>
+        <translation>The image is named by a tag: it can change under its tag between pulls</translation>
+    </message>
+    <message id="autopanel.finding.image-user">
+        <source>It runs as the image's own user; when that is root, it is root inside its own user namespace</source>
+        <translation>It runs as the image's own user; when that is root, it is root inside its own user namespace</translation>
+    </message>
+    <message id="autopanel.finding.missing-file">
+        <source>A file that the definition names is missing</source>
+        <translation>A file that the definition names is missing</translation>
+    </message>
+    <message id="autopanel.finding.no-image">
+        <source>The service names no image</source>
+        <translation>The service names no image</translation>
+    </message>
+    <message id="autopanel.finding.no-memory-limit">
+        <source>It has no memory limit</source>
+        <translation>It has no memory limit</translation>
+    </message>
+    <message id="autopanel.finding.no-services">
+        <source>The compose file defines no service</source>
+        <translation>The compose file defines no service</translation>
+    </message>
+    <message id="autopanel.finding.path-leaves-folder">
+        <source>A path leaves the stack's folder</source>
+        <translation>A path leaves the stack's folder</translation>
+    </message>
+    <message id="autopanel.finding.port-in-use">
+        <source>Something on the host listens on this port already</source>
+        <translation>Something on the host listens on this port already</translation>
+    </message>
+    <message id="autopanel.finding.port-taken">
+        <source>Another stack has this port</source>
+        <translation>Another stack has this port</translation>
+    </message>
+    <message id="autopanel.finding.port-twice">
+        <source>The stack publishes this port twice</source>
+        <translation>The stack publishes this port twice</translation>
+    </message>
+    <message id="autopanel.finding.privileged-port">
+        <source>A port below 1024 is not allowed</source>
+        <translation>A port below 1024 is not allowed</translation>
+    </message>
+    <message id="autopanel.finding.public-port">
+        <source>A port is published on every address: it is reachable from outside if the firewall allows it</source>
+        <translation>A port is published on every address: it is reachable from outside if the firewall allows it</translation>
+    </message>
+    <message id="autopanel.finding.reach">
+        <source>Containers can reach what the host and other stacks publish; the private network keeps other stacks out of this one, not this one out of the host</source>
+        <translation>Containers can reach what the host and other stacks publish; the private network keeps other stacks out of this one, not this one out of the host</translation>
+    </message>
+    <message id="autopanel.finding.reserved-path">
+        <source>This path is reserved for AutoPanel</source>
+        <translation>This path is reserved for AutoPanel</translation>
+    </message>
+    <message id="autopanel.finding.symlink">
+        <source>A symbolic link is not allowed in the definition</source>
+        <translation>A symbolic link is not allowed in the definition</translation>
+    </message>
+    <message id="autopanel.finding.too-many-services">
+        <source>The stack has too many services</source>
+        <translation>The stack has too many services</translation>
+    </message>
+    <message id="autopanel.finding.undeclared-volume">
+        <source>A named volume is not declared under volumes</source>
+        <translation>A named volume is not declared under volumes</translation>
+    </message>
+    <message id="autopanel.finding.unit-name-taken">
+        <source>Two units of the stack would have the same name</source>
+        <translation>Two units of the stack would have the same name</translation>
+    </message>
+    <message id="autopanel.finding.unit-text">
+        <source>A value holds a character that a unit file cannot take</source>
+        <translation>A value holds a character that a unit file cannot take</translation>
+    </message>
+    <message id="autopanel.finding.unknown-dependency">
+        <source>It depends on a service that the stack does not have</source>
+        <translation>It depends on a service that the stack does not have</translation>
+    </message>
+    <message id="autopanel.finding.unset-variable">
+        <source>A variable is not set in .env</source>
+        <translation>A variable is not set in .env</translation>
+    </message>
+    <message id="autopanel.finding.unsupported-dependency">
+        <source>AutoPanel does not support this depends_on condition</source>
+        <translation>AutoPanel does not support this depends_on condition</translation>
+    </message>
+    <message id="autopanel.finding.unsupported-key">
+        <source>AutoPanel does not support this key</source>
+        <translation>AutoPanel does not support this key</translation>
+    </message>
+    <message id="autopanel.finding.unsupported-value">
+        <source>AutoPanel does not support this value</source>
+        <translation>AutoPanel does not support this value</translation>
+    </message>
+    <message id="autopanel.finding.user-not-numeric">
+        <source>The user must be given as numbers</source>
+        <translation>The user must be given as numbers</translation>
+    </message>
+    <message id="autopanel.finding.whole-folder">
+        <source>The stack's whole folder cannot be mounted</source>
+        <translation>The stack's whole folder cannot be mounted</translation>
+    </message>
+    <message id="autopanel.finding.writable-root">
+        <source>The container's root file system is writable</source>
+        <translation>The container's root file system is writable</translation>
+    </message>
     <message id="autopanel.form.add">
         <source>Add route</source>
         <translation>Add route</translation>
@@ -175,6 +343,14 @@
         <source>&amp;About AutoPanel</source>
         <translation>&amp;About AutoPanel</translation>
     </message>
+    <message id="autopanel.menu.mail">
+        <source>&amp;Mail</source>
+        <translation>&amp;Mail</translation>
+    </message>
+    <message id="autopanel.menu.mail.none">
+        <source>Mail is &amp;not set up yet</source>
+        <translation>Mail is &amp;not set up yet</translation>
+    </message>
     <message id="autopanel.menu.routes">
         <source>&amp;Routes</source>
         <translation>&amp;Routes</translation>
@@ -191,17 +367,13 @@
         <source>&amp;Services</source>
         <translation>&amp;Services</translation>
     </message>
-    <message id="autopanel.menu.services.deployed">
-        <source>&amp;Deployed services…</source>
-        <translation>&amp;Deployed services…</translation>
+    <message id="autopanel.menu.services.add">
+        <source>&amp;Add a stack…</source>
+        <translation>&amp;Add a stack…</translation>
     </message>
-    <message id="autopanel.menu.services.mail">
-        <source>&amp;Mail server…</source>
-        <translation>&amp;Mail server…</translation>
-    </message>
-    <message id="autopanel.menu.services.turn">
-        <source>Deploy a &amp;TURN relay…</source>
-        <translation>Deploy a &amp;TURN relay…</translation>
+    <message id="autopanel.menu.services.stacks">
+        <source>&amp;Stacks…</source>
+        <translation>&amp;Stacks…</translation>
     </message>
     <message id="autopanel.menu.system">
         <source>S&amp;ystem</source>
@@ -427,6 +599,70 @@
         <source>Open ports</source>
         <translation>Open ports</translation>
     </message>
+    <message id="autopanel.review.go.add">
+        <source>&amp;Add and start</source>
+        <translation>&amp;Add and start</translation>
+    </message>
+    <message id="autopanel.review.go.apply">
+        <source>&amp;Apply</source>
+        <translation>&amp;Apply</translation>
+    </message>
+    <message id="autopanel.review.go.start">
+        <source>&amp;Start</source>
+        <translation>&amp;Start</translation>
+    </message>
+    <message id="autopanel.review.help">
+        <source>Nothing changes until you confirm. Confirming accepts the warnings.</source>
+        <translation>Nothing changes until you confirm. Confirming accepts the warnings.</translation>
+    </message>
+    <message id="autopanel.review.help.changed">
+        <source>The definition changed since it was shown. This is its new review.</source>
+        <translation>The definition changed since it was shown. This is its new review.</translation>
+    </message>
+    <message id="autopanel.review.help.refused">
+        <source>The stack was refused. Fix its definition, then review it again.</source>
+        <translation>The stack was refused. Fix its definition, then review it again.</translation>
+    </message>
+    <message id="autopanel.review.level.refused">
+        <source>refused</source>
+        <translation>refused</translation>
+    </message>
+    <message id="autopanel.review.level.warning">
+        <source>warning</source>
+        <translation>warning</translation>
+    </message>
+    <message id="autopanel.review.memory.none">
+        <source>none</source>
+        <translation>none</translation>
+    </message>
+    <message id="autopanel.review.prepare">
+        <source>&amp;Prepare only</source>
+        <translation>&amp;Prepare only</translation>
+    </message>
+    <message id="autopanel.review.removes">
+        <source>Applying stops and removes: %1</source>
+        <translation>Applying stops and removes: %1</translation>
+    </message>
+    <message id="autopanel.review.summary">
+        <source>Definition %1 · %2 files</source>
+        <translation>Definition %1 · %2 files</translation>
+    </message>
+    <message id="autopanel.review.title.add">
+        <source>Add stack %1: review</source>
+        <translation>Add stack %1: review</translation>
+    </message>
+    <message id="autopanel.review.title.apply">
+        <source>Apply stack %1: review</source>
+        <translation>Apply stack %1: review</translation>
+    </message>
+    <message id="autopanel.review.title.start">
+        <source>Start stack %1: review</source>
+        <translation>Start stack %1: review</translation>
+    </message>
+    <message id="autopanel.review.user.image">
+        <source>image's own</source>
+        <translation>image's own</translation>
+    </message>
     <message id="autopanel.routes.add">
         <source>Add</source>
         <translation>Add</translation>
@@ -447,145 +683,165 @@
         <source>Proxy routes</source>
         <translation>Proxy routes</translation>
     </message>
-    <message id="autopanel.services.change">
-        <source>Change</source>
-        <translation>Change</translation>
+    <message id="autopanel.stacks.add">
+        <source>Add</source>
+        <translation>Add</translation>
     </message>
-    <message id="autopanel.services.confirm.purge">
-        <source>Remove %1 and delete its directory? Its unit, its user %2, its secrets and its data are deleted.</source>
-        <translation>Remove %1 and delete its directory? Its unit, its user %2, its secrets and its data are deleted.</translation>
+    <message id="autopanel.stacks.apply">
+        <source>Apply</source>
+        <translation>Apply</translation>
     </message>
-    <message id="autopanel.services.confirm.remove">
-        <source>Remove %1? Its unit, its user %2 and its secrets are deleted. Its directory is kept, owned by root.</source>
-        <translation>Remove %1? Its unit, its user %2 and its secrets are deleted. Its directory is kept, owned by root.</translation>
+    <message id="autopanel.stacks.available.hint">
+        <source>Enter reviews the selected folder. Nothing changes until you confirm the review.</source>
+        <translation>Enter reviews the selected folder. Nothing changes until you confirm the review.</translation>
     </message>
-    <message id="autopanel.services.confirm.title">
-        <source>Remove service</source>
-        <translation>Remove service</translation>
+    <message id="autopanel.stacks.available.none">
+        <source>No folder holds a new stack. Write a compose file to /etc/autopanel/stacks/&lt;name&gt;/compose.yaml, then open this again.</source>
+        <translation>No folder holds a new stack. Write a compose file to /etc/autopanel/stacks/&lt;name&gt;/compose.yaml, then open this again.</translation>
     </message>
-    <message id="autopanel.services.deploy">
-        <source>Deploy TURN</source>
-        <translation>Deploy TURN</translation>
+    <message id="autopanel.stacks.available.review">
+        <source>&amp;Review</source>
+        <translation>&amp;Review</translation>
     </message>
-    <message id="autopanel.services.done.change">
-        <source>%1 is changed and restarted</source>
-        <translation>%1 is changed and restarted</translation>
+    <message id="autopanel.stacks.available.title">
+        <source>Add a stack</source>
+        <translation>Add a stack</translation>
     </message>
-    <message id="autopanel.services.done.deploy">
-        <source>%1 is deployed; its image is pulled as it starts</source>
-        <translation>%1 is deployed; its image is pulled as it starts</translation>
+    <message id="autopanel.stacks.confirm.purge">
+        <source>Remove %1 and delete its directory? Its containers stop, and its units, its user %2 and its data are deleted. Its definition folder is not touched.</source>
+        <translation>Remove %1 and delete its directory? Its containers stop, and its units, its user %2 and its data are deleted. Its definition folder is not touched.</translation>
     </message>
-    <message id="autopanel.services.done.purge">
-        <source>%1 removed, with its directory</source>
-        <translation>%1 removed, with its directory</translation>
+    <message id="autopanel.stacks.confirm.remove">
+        <source>Remove %1? Its containers stop, and its units and its user %2 are deleted. Its directory, with its data, is kept, owned by root. Its definition folder is not touched.</source>
+        <translation>Remove %1? Its containers stop, and its units and its user %2 are deleted. Its directory, with its data, is kept, owned by root. Its definition folder is not touched.</translation>
     </message>
-    <message id="autopanel.services.done.remove">
-        <source>%1 removed; its directory is kept</source>
-        <translation>%1 removed; its directory is kept</translation>
+    <message id="autopanel.stacks.confirm.stopService">
+        <source>Stop %2 of %1, and every service that depends on it? They stay stopped across a boot, until they are started.</source>
+        <translation>Stop %2 of %1, and every service that depends on it? They stay stopped across a boot, until they are started.</translation>
     </message>
-    <message id="autopanel.services.done.restart">
-        <source>%1 restarted</source>
-        <translation>%1 restarted</translation>
+    <message id="autopanel.stacks.confirm.stopStack">
+        <source>Stop every service of %1? They stay stopped across a boot, until they are started.</source>
+        <translation>Stop every service of %1? They stay stopped across a boot, until they are started.</translation>
     </message>
-    <message id="autopanel.services.done.start">
-        <source>%1 started</source>
-        <translation>%1 started</translation>
-    </message>
-    <message id="autopanel.services.done.stop">
-        <source>%1 stopped</source>
-        <translation>%1 stopped</translation>
-    </message>
-    <message id="autopanel.services.form.change">
-        <source>Change %1</source>
-        <translation>Change %1</translation>
-    </message>
-    <message id="autopanel.services.form.deploy">
-        <source>Deploy a TURN relay</source>
-        <translation>Deploy a TURN relay</translation>
-    </message>
-    <message id="autopanel.services.help">
-        <source>a deploy TURN · e/Enter change · s start · x stop · t restart · o log · c secrets · d remove · Shift+D remove with its directory · r read again · q close</source>
-        <translation>a deploy TURN · e/Enter change · s start · x stop · t restart · o log · c secrets · d remove · Shift+D remove with its directory · r read again · q close</translation>
-    </message>
-    <message id="autopanel.services.logs">
-        <source>Log</source>
-        <translation>Log</translation>
-    </message>
-    <message id="autopanel.services.logs.note">
-        <source>%1: %2 lines, read at %3</source>
-        <translation>%1: %2 lines, read at %3</translation>
-    </message>
-    <message id="autopanel.services.logs.title">
-        <source>Service log</source>
-        <translation>Service log</translation>
-    </message>
-    <message id="autopanel.services.none">
-        <source>No service at this row.</source>
-        <translation>No service at this row.</translation>
-    </message>
-    <message id="autopanel.services.remove">
-        <source>Remove</source>
-        <translation>Remove</translation>
-    </message>
-    <message id="autopanel.services.restart">
-        <source>Restart</source>
-        <translation>Restart</translation>
-    </message>
-    <message id="autopanel.services.secret.none">
-        <source>%1 has no secret.</source>
-        <translation>%1 has no secret.</translation>
-    </message>
-    <message id="autopanel.services.secret.note">
-        <source>Each read is in the audit log. Give a secret only to the application that needs it. q closes.</source>
-        <translation>Each read is in the audit log. Give a secret only to the application that needs it. q closes.</translation>
-    </message>
-    <message id="autopanel.services.secret.title">
-        <source>Secrets of %1</source>
-        <translation>Secrets of %1</translation>
-    </message>
-    <message id="autopanel.services.start">
-        <source>Start</source>
-        <translation>Start</translation>
-    </message>
-    <message id="autopanel.services.state.deploying">
-        <source>deploy unfinished</source>
-        <translation>deploy unfinished</translation>
-    </message>
-    <message id="autopanel.services.state.removing">
-        <source>removal unfinished</source>
-        <translation>removal unfinished</translation>
-    </message>
-    <message id="autopanel.services.stop">
+    <message id="autopanel.stacks.confirm.stopTitle">
         <source>Stop</source>
         <translation>Stop</translation>
     </message>
-    <message id="autopanel.services.title">
-        <source>Services</source>
-        <translation>Services</translation>
+    <message id="autopanel.stacks.confirm.title">
+        <source>Remove stack</source>
+        <translation>Remove stack</translation>
     </message>
-    <message id="autopanel.services.turn">
-        <source>TURN relay</source>
-        <translation>TURN relay</translation>
+    <message id="autopanel.stacks.done.add">
+        <source>%1 is added and started</source>
+        <translation>%1 is added and started</translation>
     </message>
-    <message id="autopanel.services.turn.name">
-        <source>Name (lower-case letters, digits and hyphens; empty for turn)</source>
-        <translation>Name (lower-case letters, digits and hyphens; empty for turn)</translation>
+    <message id="autopanel.stacks.done.apply">
+        <source>%1 is applied</source>
+        <translation>%1 is applied</translation>
     </message>
-    <message id="autopanel.services.turn.port">
-        <source>Port, UDP and TCP (1024 or above)</source>
-        <translation>Port, UDP and TCP (1024 or above)</translation>
+    <message id="autopanel.stacks.done.prepare">
+        <source>%1 is prepared and not started. Put its data in place, then apply it (p) to start it.</source>
+        <translation>%1 is prepared and not started. Put its data in place, then apply it (p) to start it.</translation>
     </message>
-    <message id="autopanel.services.turn.realm">
-        <source>Realm: the domain name the relay answers for</source>
-        <translation>Realm: the domain name the relay answers for</translation>
+    <message id="autopanel.stacks.done.pull">
+        <source>the images of %1 are pulled; a container whose image changed was restarted</source>
+        <translation>the images of %1 are pulled; a container whose image changed was restarted</translation>
     </message>
-    <message id="autopanel.services.turn.relayPorts">
-        <source>Relay ports, UDP, as first-last</source>
-        <translation>Relay ports, UDP, as first-last</translation>
+    <message id="autopanel.stacks.done.purge">
+        <source>%1 removed, with its directory</source>
+        <translation>%1 removed, with its directory</translation>
     </message>
-    <message id="autopanel.services.unknownTemplate">
-        <source>This panel has no form for the template %1; use autopanel --call.</source>
-        <translation>This panel has no form for the template %1; use autopanel --call.</translation>
+    <message id="autopanel.stacks.done.remove">
+        <source>%1 removed; its directory is kept</source>
+        <translation>%1 removed; its directory is kept</translation>
+    </message>
+    <message id="autopanel.stacks.done.restart">
+        <source>%1 restarted</source>
+        <translation>%1 restarted</translation>
+    </message>
+    <message id="autopanel.stacks.done.start">
+        <source>%1 started</source>
+        <translation>%1 started</translation>
+    </message>
+    <message id="autopanel.stacks.done.stop">
+        <source>%1 stopped</source>
+        <translation>%1 stopped</translation>
+    </message>
+    <message id="autopanel.stacks.help">
+        <source>a add · p review and apply · u pull images · s start, x stop, t restart the service · with Shift, the whole stack · o log · d remove · Shift+D remove with its directory · r read again · q close · * after a name: its definition changed: apply to review it</source>
+        <translation>a add · p review and apply · u pull images · s start, x stop, t restart the service · with Shift, the whole stack · o log · d remove · Shift+D remove with its directory · r read again · q close · * after a name: its definition changed: apply to review it</translation>
+    </message>
+    <message id="autopanel.stacks.legacy">
+        <source>%1 was deployed from a template by an older AutoPanel. Remove it, then add it again as a stack.</source>
+        <translation>%1 was deployed from a template by an older AutoPanel. Remove it, then add it again as a stack.</translation>
+    </message>
+    <message id="autopanel.stacks.logs">
+        <source>Log</source>
+        <translation>Log</translation>
+    </message>
+    <message id="autopanel.stacks.logs.note">
+        <source>%1: %2 lines, read at %3</source>
+        <translation>%1: %2 lines, read at %3</translation>
+    </message>
+    <message id="autopanel.stacks.logs.title">
+        <source>Stack log</source>
+        <translation>Stack log</translation>
+    </message>
+    <message id="autopanel.stacks.noService">
+        <source>%1 has no service at this row. Apply the stack first.</source>
+        <translation>%1 has no service at this row. Apply the stack first.</translation>
+    </message>
+    <message id="autopanel.stacks.none">
+        <source>No stack at this row.</source>
+        <translation>No stack at this row.</translation>
+    </message>
+    <message id="autopanel.stacks.remove">
+        <source>Remove</source>
+        <translation>Remove</translation>
+    </message>
+    <message id="autopanel.stacks.restart">
+        <source>Restart</source>
+        <translation>Restart</translation>
+    </message>
+    <message id="autopanel.stacks.start">
+        <source>Start</source>
+        <translation>Start</translation>
+    </message>
+    <message id="autopanel.stacks.state.deploying">
+        <source>being applied</source>
+        <translation>being applied</translation>
+    </message>
+    <message id="autopanel.stacks.state.incomplete">
+        <source>apply stopped at: %1</source>
+        <translation>apply stopped at: %1</translation>
+    </message>
+    <message id="autopanel.stacks.state.legacy">
+        <source>from a template</source>
+        <translation>from a template</translation>
+    </message>
+    <message id="autopanel.stacks.state.prepared">
+        <source>prepared, not started</source>
+        <translation>prepared, not started</translation>
+    </message>
+    <message id="autopanel.stacks.state.removing">
+        <source>being removed</source>
+        <translation>being removed</translation>
+    </message>
+    <message id="autopanel.stacks.state.stopped">
+        <source>stopped</source>
+        <translation>stopped</translation>
+    </message>
+    <message id="autopanel.stacks.stop">
+        <source>Stop</source>
+        <translation>Stop</translation>
+    </message>
+    <message id="autopanel.stacks.title">
+        <source>Stacks</source>
+        <translation>Stacks</translation>
+    </message>
+    <message id="autopanel.stacks.working">
+        <source>%1: working. Pulling images can take a while.</source>
+        <translation>%1: working. Pulling images can take a while.</translation>
     </message>
     <message id="autopanel.status.error">
         <source>status: %1</source>

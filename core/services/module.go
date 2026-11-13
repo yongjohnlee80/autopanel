@@ -2,172 +2,235 @@ package services
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"sort"
-	"strings"
 	"sync"
+	"time"
 
 	"github.com/yongjohnlee80/autopanel/internal/module"
 )
 
-// State is where a service's deployment got to. Whether it is running is the
-// host's to say, and is read when asked, never kept.
+// State is where a stack's deployment got to, as the store keeps it. Whether
+// its containers run is the host's to say, and is read when asked, never kept.
 type State string
 
 const (
-	// Deploying is a service whose row is written and whose user, files or
-	// unit may not be: a deploy that was interrupted leaves it, and remove
-	// clears it.
+	// Deploying is a stack whose row is written and that no apply has
+	// finished for.
 	Deploying State = "deploying"
 	Deployed  State = "deployed"
 	Removing  State = "removing"
 )
 
-// Service is a deployed service as the store keeps it: what was asked for.
+// Service is a stack as the store keeps it.
 type Service struct {
-	Name     string
-	Template string
-	Options  map[string]string
-	State    State
+	Name  string
+	State State
+	// Legacy marks a row an older AutoPanel made from a template. It has no
+	// definition, and can only be removed.
+	Legacy    bool
+	Applied   Applied
+	AppliedAt time.Time
+	Stopped   []string // the services a person stopped
+	Pending   *Pending // an apply that did not finish
 }
 
-// Store is where services are kept.
+// Store is where stacks are kept.
 type Store interface {
 	All(ctx context.Context) ([]Service, error)
 	Get(ctx context.Context, name string) (Service, error) // ErrNotFound
-	Add(ctx context.Context, s Service) error              // ErrDuplicate
-	SetOptions(ctx context.Context, name string, options map[string]string) error
+	Add(ctx context.Context, name string) error            // ErrDuplicate
 	SetState(ctx context.Context, name string, state State) error
+	SetPending(ctx context.Context, name string, p Pending) error
+	// SetApplied records what an apply left, clears what was pending, and
+	// makes the stack Deployed.
+	SetApplied(ctx context.Context, name string, a Applied) error
+	SetStopped(ctx context.Context, name string, services []string) error
 	Remove(ctx context.Context, name string) error
 }
 
-// Secrets keeps a service's generated secrets, sealed.
-type Secrets interface {
-	Get(ctx context.Context, name string) (value []byte, ok bool, err error)
-	Put(ctx context.Context, name string, value []byte) error
-	Delete(ctx context.Context, name string) error
-}
-
-// Unit is a service as the host installs it: its name, and the files of its
-// directory, the Podman unit file among them.
+// Unit is what the host writes into a stack's home: its unit files.
 type Unit struct {
 	Name  string
 	Files []File
 }
 
-// Running is a service's unit as systemd reports it.
+// Running is a unit as systemd reports it.
 type Running struct {
 	Active      string `json:"active"` // "active", "activating", "failed", "inactive"; "absent" with no user or unit
 	Sub         string `json:"sub"`
 	MemoryBytes uint64 `json:"memory_bytes"`
+	Restarts    int    `json:"restarts"`  // the times systemd restarted it on its own
+	Since       int64  `json:"since"`     // when it last became active, Unix seconds; 0 when never
+	CPUNanos    uint64 `json:"cpu_nanos"` // the processor time it has used
 }
 
-// Host is the machine the services run on. Every method names a service by a
+// Commit is what an apply moves into a stack's own folder.
+type Commit struct {
+	Managed   []string // the staged files that replace the folder's
+	Stale     []string // managed files, and folders of them, the definition no longer has
+	Data      []string // paths made when absent, and never written otherwise
+	Generated []File   // the files the core writes itself; any other it wrote before goes
+}
+
+// Host is the machine the stacks run on. Every method names a stack by a
 // name the module has validated; none takes a command.
 type Host interface {
 	// Podman is the host's Podman version, or ErrNoPodman.
 	Podman(ctx context.Context) (major, minor int, err error)
-	// Install makes the service's user and directory when they are missing,
-	// writes its files, and has the user's systemd read the unit. It is safe
-	// to run again.
+	// Available are the folders that hold a stack's definition.
+	Available(ctx context.Context) ([]string, error)
+	// Stage reads a stack's compose.yaml and .env once, into a folder only
+	// root reaches, and answers them: ErrNoDefinition without a compose.yaml.
+	Stage(ctx context.Context, name string) (compose, env []byte, err error)
+	// StagePaths adds the files at paths to the staged copy and answers every
+	// staged file. missing are the paths the definition does not have; links
+	// are the ones that are, or hold, a symbolic link.
+	StagePaths(ctx context.Context, name string, paths []string) (files []Input, missing, links []string, err error)
+	// Look says which of paths are in the stack's own folder already, and
+	// which of those are, or pass through, a symbolic link.
+	Look(ctx context.Context, name string, paths []string) (present map[string]bool, links []string, err error)
+	// Changed reports whether the definition differs from m, by each file's
+	// size and time: enough to say a review is due, never to skip one.
+	Changed(ctx context.Context, name string, m Manifest, since time.Time) bool
+	// EnsureUser makes the stack's user, with its sub-id range and a systemd
+	// of its own. It is safe to run again.
+	EnsureUser(ctx context.Context, name string) error
+	Commit(ctx context.Context, name string, c Commit) error
+	// Install writes the unit files and has the user's systemd read them.
 	Install(ctx context.Context, u Unit) error
-	Start(ctx context.Context, name string) error
-	Stop(ctx context.Context, name string) error
-	Restart(ctx context.Context, name string) error
-	// Uninstall stops the unit and deletes the user; with purge, its
+	// DeleteUnits removes unit files and has the user's systemd forget them.
+	DeleteUnits(ctx context.Context, name string, paths []string) error
+	// HasImage reports whether the stack's user holds the image ref.
+	HasImage(ctx context.Context, name, ref string) (bool, error)
+	// Pull pulls ref as the stack's user and answers the digest it resolved.
+	Pull(ctx context.Context, name, ref string) (digest string, err error)
+	Start(ctx context.Context, name string, units []string) error
+	Stop(ctx context.Context, name string, units []string) error
+	Restart(ctx context.Context, name string, units []string) error
+	// Uninstall stops the units and deletes the user; with purge, its
 	// directory too. Each step tolerates the one before having already
 	// happened.
 	Uninstall(ctx context.Context, name string, purge bool) error
-	Running(ctx context.Context, name string) (Running, error)
-	Logs(ctx context.Context, name string, limit int) ([]string, error)
+	Running(ctx context.Context, name string, units []string) (map[string]Running, error)
+	// Health is each container's health by its name: "healthy", "unhealthy",
+	// "starting", or "" with no check.
+	Health(ctx context.Context, name string) (map[string]string, error)
+	Logs(ctx context.Context, name, container string, limit int) ([]string, error)
+	// Listening are the host's listening sockets that the stack's own user,
+	// and the ids under it, do not hold.
+	Listening(ctx context.Context, name string) ([]PortUse, error)
 }
 
 var (
-	ErrNoTemplate = errors.New("services: no such template")
-	ErrNotFound   = errors.New("services: no such service")
-	ErrDuplicate  = errors.New("services: a service of this name exists")
-	ErrPortTaken  = errors.New("services: another service has the port")
-	ErrNoPodman   = errors.New("services: the host has no Podman")
-	ErrOldPodman  = errors.New("services: the host's Podman is older than 4.4")
-	ErrNoSecret   = errors.New("services: the service has no such secret")
-	ErrBusy       = errors.New("services: the service is being removed")
+	ErrNoDefinition = errors.New("services: no definition of that name")
+	ErrNotFound     = errors.New("services: no such stack")
+	ErrDuplicate    = errors.New("services: a stack of this name exists")
+	ErrRefused      = errors.New("services: the stack was refused")
+	ErrChanged      = errors.New("services: the definition changed since its review")
+	ErrNoPodman     = errors.New("services: the host has no Podman")
+	ErrOldPodman    = errors.New("services: the host's Podman is older than 4.9")
+	ErrStoppedNeed  = errors.New("services: a service it depends on is stopped")
+	ErrBusy         = errors.New("services: the stack is being removed")
+	ErrNoService    = errors.New("services: the stack has no such service")
+	ErrLegacy       = errors.New("services: the stack was deployed from a template")
+	ErrTooLarge     = errors.New("services: the definition is too large")
+	ErrNotApplied   = errors.New("services: the stack has not been applied")
+	ErrIncomplete   = errors.New("services: the apply did not finish")
 )
+
+// detailed is a declared error that names what it is about.
+type detailed struct {
+	err    error
+	detail string
+}
+
+func (e *detailed) Error() string        { return e.err.Error() + ": " + e.detail }
+func (e *detailed) Unwrap() error        { return e.err }
+func (e *detailed) PublicDetail() string { return e.detail }
+
+func with(err error, detail string) error { return &detailed{err: err, detail: short(detail)} }
 
 // Module is the services.* verbs.
 type Module struct {
-	templates map[string]Template
-	store     Store
-	secrets   Secrets
-	host      Host
-	// mu orders the verbs that change a service: two deploys of one name, or
-	// a remove under an update, would otherwise interleave on the host.
-	mu sync.Mutex
+	store Store
+	host  Host
+	// mu guards locks and busy; ports orders the checks that claim ports, so
+	// two stacks cannot both be given one. A caller that holds several takes
+	// them in this order: a stack's lock, then ports.
+	mu    sync.Mutex
+	locks map[string]*sync.Mutex
+	busy  map[string]bool
+	ports sync.Mutex
 }
 
-// NewModule returns the verbs over the built-in templates.
-func NewModule(store Store, secrets Secrets, host Host) *Module {
-	return &Module{templates: map[string]Template{TURN.Name: TURN}, store: store, secrets: secrets, host: host}
+// NewModule returns the verbs.
+func NewModule(store Store, host Host) *Module {
+	return &Module{store: store, host: host, locks: map[string]*sync.Mutex{}, busy: map[string]bool{}}
 }
 
 func (m *Module) Name() string { return "services" }
 
 func (m *Module) Errors() []module.PublicError {
 	return []module.PublicError{
-		{Err: ErrNoTemplate, Code: -32190, Name: "services.no_template", Message: "no such template"},
-		{Err: ErrNotFound, Code: -32191, Name: "services.not_found", Message: "no such service"},
-		{Err: ErrDuplicate, Code: -32192, Name: "services.duplicate", Message: "a service of this name exists"},
-		{Err: ErrBadName, Code: -32193, Name: "services.bad_name", Message: "a service name is a lower-case letter, then letters, digits and hyphens, 29 characters at most"},
-		{Err: ErrBadOption, Code: -32194, Name: "services.bad_option", Message: "an option was refused"},
-		{Err: ErrPortTaken, Code: -32195, Name: "services.port_taken", Message: "another service has the port"},
-		{Err: ErrNoPodman, Code: -32196, Name: "services.no_podman", Message: "the host has no Podman; install it (4.4 or newer) to deploy a service"},
-		{Err: ErrOldPodman, Code: -32197, Name: "services.old_podman", Message: "the host's Podman is older than 4.4, which deploying a service needs"},
-		{Err: ErrNoSecret, Code: -32198, Name: "services.no_secret", Message: "the service has no such secret"},
-		{Err: ErrBusy, Code: -32199, Name: "services.busy", Message: "the service is being removed"},
+		{Err: ErrIncomplete, Code: -32183, Name: "services.incomplete", Message: "the apply did not finish; fix the cause and apply again to finish it"},
+		{Err: ErrTooLarge, Code: -32184, Name: "services.too_large", Message: "the stack's definition is too large: 1,000 files and 64 MB at most"},
+		{Err: ErrNotApplied, Code: -32185, Name: "services.not_applied", Message: "the stack has not been applied yet"},
+		{Err: ErrLegacy, Code: -32186, Name: "services.legacy", Message: "the stack was deployed from a template by an older AutoPanel; remove it, and add it again as a stack"},
+		{Err: ErrNoService, Code: -32187, Name: "services.no_service", Message: "the stack has no such service"},
+		{Err: ErrNoDefinition, Code: -32190, Name: "services.no_definition", Message: "no folder of that name with a compose.yaml in it"},
+		{Err: ErrNotFound, Code: -32191, Name: "services.not_found", Message: "no such stack"},
+		{Err: ErrDuplicate, Code: -32192, Name: "services.duplicate", Message: "a stack of this name exists"},
+		{Err: ErrBadName, Code: -32193, Name: "services.bad_name", Message: "a stack's name is a lower-case letter, then letters, digits and hyphens, 29 characters at most"},
+		{Err: ErrRefused, Code: -32194, Name: "services.refused", Message: "the stack was refused"},
+		{Err: ErrChanged, Code: -32195, Name: "services.changed", Message: "the definition changed since its review; review it again"},
+		{Err: ErrNoPodman, Code: -32196, Name: "services.no_podman", Message: "the host has no Podman; install it (4.9 or newer) to run a stack"},
+		{Err: ErrOldPodman, Code: -32197, Name: "services.old_podman", Message: "the host's Podman is older than 4.9, which running a stack needs"},
+		{Err: ErrStoppedNeed, Code: -32198, Name: "services.stopped_dependency", Message: "a service it depends on is stopped; start that one first"},
+		{Err: ErrBusy, Code: -32199, Name: "services.busy", Message: "the stack is being removed"},
 	}
 }
 
-// TemplateView is a template as a client sees it.
-type TemplateView struct {
-	Name    string   `json:"name"`
-	Title   string   `json:"title"`
-	Image   string   `json:"image"`
-	Network Network  `json:"network"`
-	Memory  string   `json:"memory"`
-	Options []Option `json:"options"`
-	Secrets []string `json:"secrets"`
+// View states beyond the stored ones.
+const (
+	Prepared   = "prepared"   // its user, files and images are in place; nothing runs
+	Incomplete = "incomplete" // an apply did not finish
+	LegacyRow  = "legacy"     // deployed from a template by an older AutoPanel
+)
+
+// View is a stack as a client sees it.
+type View struct {
+	Name       string      `json:"name"`
+	State      string      `json:"state"`
+	Step       string      `json:"step"` // for Incomplete: the step the apply stopped at
+	User       string      `json:"user"`
+	SHA256     string      `json:"sha256"`  // of the manifest last applied
+	Changed    bool        `json:"changed"` // the definition differs from the one applied
+	Containers []Container `json:"containers"`
 }
 
-// View is a service as a client sees it: what was asked for, and what the
-// host says is running.
-type View struct {
-	Name     string            `json:"name"`
-	Template string            `json:"template"`
-	Options  map[string]string `json:"options"`
-	State    State             `json:"state"`
-	User     string            `json:"user"`
-	Ports    []PortUse         `json:"ports"`
+// Container is one of a stack's containers, as the host reports it now.
+type Container struct {
+	Service string    `json:"service"`
+	Image   string    `json:"image"`
+	Digest  string    `json:"digest"`
+	Ports   []PortUse `json:"ports"`
+	Stopped bool      `json:"stopped"` // a person stopped it: it stays so across a boot
+	Health  string    `json:"health"`
 	Running
 }
 
-// Deploy is services.deploy's param.
-type Deploy struct {
-	Template string            `json:"template"`
-	Name     string            `json:"name,omitempty"`
-	Options  map[string]string `json:"options,omitempty"`
-}
-
-// Update is services.update's param.
-type Update struct {
-	Name    string            `json:"name"`
-	Options map[string]string `json:"options,omitempty"`
-}
-
-// Ref names one service.
+// Ref names a stack, and one service of it or all.
 type Ref struct {
-	Name string `json:"name"`
+	Name    string `json:"name"`
+	Service string `json:"service,omitempty"`
+}
+
+// Accept is the param of the verbs that apply a definition.
+type Accept struct {
+	Name   string `json:"name"`
+	Accept string `json:"accept"` // the review's sha256
 }
 
 // Remove is services.remove's param.
@@ -178,8 +241,9 @@ type Remove struct {
 
 // LogsAsk is services.logs's param.
 type LogsAsk struct {
-	Name  string `json:"name"`
-	Limit int    `json:"limit,omitempty"`
+	Name    string `json:"name"`
+	Service string `json:"service,omitempty"`
+	Limit   int    `json:"limit,omitempty"`
 }
 
 // Logs is services.logs's answer.
@@ -187,76 +251,145 @@ type Logs struct {
 	Lines []string `json:"lines"`
 }
 
-// SecretAsk is services.secret's param.
-type SecretAsk struct {
+// Folder is a definition folder that no stack is registered for.
+type Folder struct {
 	Name string `json:"name"`
-	Key  string `json:"key"`
-}
-
-// SecretValue is services.secret's answer.
-type SecretValue struct {
-	Value string `json:"value"`
 }
 
 const (
-	viewShape = "{name, template, options, state, user, ports: [{proto, from, to}], active, sub, memory_bytes}"
+	viewShape = "{name, state, step, user, sha256, changed, containers: [{service, image, digest, ports: [{proto, from, to}], stopped, health, active, sub, memory_bytes, restarts, since, cpu_nanos}]}"
 	deploy    = "services.deploy"
 )
 
 func (m *Module) Verbs() []module.Verb {
+	change := func(verb, param, doc string) module.Contract {
+		return module.Contract{Verb: verb, Since: 4, Param: param, Result: viewShape, Mutates: true, Privileged: true, Right: deploy, Doc: doc}
+	}
 	return []module.Verb{
-		module.Handle(module.Contract{Verb: "services.templates", Since: 3,
-			Result: "[{name, title, image, network, memory, options: [{key, label, kind, default?, choices?}], secrets}]",
-			Doc:    "The kinds of service this AutoPanel can deploy, each with the options its deploy form asks."}, m.listTemplates),
+		module.Handle(module.Contract{Verb: "services.available", Since: 4, Result: "[{name}]",
+			Doc: "The folders under the stacks' directory that hold a compose.yaml and that no stack is registered for."}, m.available),
+		module.Handle(module.Contract{Verb: "services.check", Since: 4, Param: "{name}",
+			Result: "{sha256, files: [{path, mode, size, sha256}], containers: [{service, image, user, network, ports, mounts, memory, read_only, restart, depends_on, cap_add, cap_drop}], findings: [{id, severity, service, detail}], removes}",
+			Doc:    "Reviews a stack's definition and changes nothing: every file that defines it, by hash; each container it would run; and what the policy refuses or warns of. Its sha256 is what an apply must be given."}, m.check),
+		module.Handle(change("services.prepare", "{name, accept}",
+			"Registers a stack, makes its user, copies its definition and pulls its images. It writes no unit and starts nothing, so its data can be put in place first."), m.prepare),
+		module.Handle(change("services.add", "{name, accept}",
+			"Registers a stack and applies it; on a prepared stack, starts it. Refused unless accept is the sha256 its review answered. Needs Podman 4.9 or newer."), m.add),
+		module.Handle(change("services.apply", "{name, accept}",
+			"Applies a registered stack's definition as it is now: stops and removes what it no longer has, replaces its configuration, restarts what changed. Also finishes an apply that did not end. A stack's data is never written."), m.applyVerb),
+		module.Handle(change("services.pull", "{name, service?}",
+			"Pulls a stack's images again, records the digests they resolve to now, and restarts the containers whose image changed."), m.pull),
 		module.Handle(module.Contract{Verb: "services.list", Since: 3, Result: "[" + viewShape + "]",
-			Doc: "Every deployed service: what was asked for, and what the host's systemd says of its unit now."}, m.list),
-		module.Handle(module.Contract{Verb: "services.deploy", Since: 3, Param: "{template, name?, options?}", Result: viewShape,
-			Mutates: true, Privileged: true, Right: deploy,
-			Doc: "Deploys a service from a template: makes its user and directory, writes its configuration and its Podman unit, and starts it. Its image is pulled as it starts, so a new service is activating for a while. Needs Podman 4.4 or newer."}, m.deploy),
-		module.Handle(module.Contract{Verb: "services.update", Since: 3, Param: "{name, options?}", Result: viewShape,
-			Mutates: true, Privileged: true, Right: deploy,
-			Doc: "Changes a service's options and restarts it. An option left out goes back to its default. Its secrets are kept. Also finishes a deploy that was interrupted."}, m.update),
-		module.Handle(module.Contract{Verb: "services.start", Since: 3, Param: "{name}", Result: viewShape,
-			Mutates: true, Privileged: true, Right: deploy, Doc: "Starts a service's unit."}, m.start),
-		module.Handle(module.Contract{Verb: "services.stop", Since: 3, Param: "{name}", Result: viewShape,
-			Mutates: true, Privileged: true, Right: deploy, Doc: "Stops a service's unit. It stays stopped until it is started, or the host restarts."}, m.stop),
-		module.Handle(module.Contract{Verb: "services.restart", Since: 3, Param: "{name}", Result: viewShape,
-			Mutates: true, Privileged: true, Right: deploy, Doc: "Restarts a service's unit."}, m.restart),
+			Doc: "Every stack: what was applied, and what the host says of each container now."}, m.list),
+		module.Handle(change("services.start", "{name, service?}",
+			"Starts a stack's containers, or one of them. Refused for a service whose requirement is stopped."), m.start),
+		module.Handle(change("services.stop", "{name, service?}",
+			"Stops a stack's containers, or one of them with the services that depend on it. They stay stopped across a boot, until they are started."), m.stop),
+		module.Handle(change("services.restart", "{name, service?}", "Restarts a stack's containers that are not stopped, or one of them."), m.restart),
 		module.Handle(module.Contract{Verb: "services.remove", Since: 3, Param: "{name, purge?}",
 			Mutates: true, Privileged: true, Right: deploy,
-			Doc: "Stops a service and deletes its unit, its user and its secrets. Its directory is kept, as root's, unless purge says to delete it."}, m.remove),
-		module.Handle(module.Contract{Verb: "services.logs", Since: 3, Param: "{name, limit?}", Result: "{lines}",
-			Doc: "The newest journal lines of a service's user, oldest first: 100 unless limit says, 500 at most."}, m.logs),
-		module.Handle(module.Contract{Verb: "services.secret", Since: 3, Param: "{name, key}", Result: "{value}",
-			Privileged: true, Right: deploy,
-			Doc: "A secret AutoPanel generated for a service, such as a TURN relay's auth-secret, for the application that needs it. Audited."}, m.secret),
+			Doc: "Stops a stack and deletes its units and its user. Its directory, with its data, is kept as root's unless purge says to delete it. Its definition folder is never deleted."}, m.remove),
+		module.Handle(module.Contract{Verb: "services.logs", Since: 3, Param: "{name, service?, limit?}", Result: "{lines}",
+			Doc: "The newest journal lines of a stack, or of one of its containers, oldest first: 100 unless limit says, 500 at most."}, m.logs),
 	}
 }
 
-func (m *Module) listTemplates(context.Context, struct{}) ([]TemplateView, error) {
-	out := make([]TemplateView, 0, len(m.templates))
-	for _, t := range m.templates {
-		out = append(out, TemplateView{Name: t.Name, Title: t.Title, Image: t.Image, Network: t.Network, Memory: t.Memory,
-			Options: t.Options, Secrets: t.Secrets})
+// lock takes the stack's own lock: one change to a stack at a time.
+func (m *Module) lock(name string) func() {
+	if !ValidName(name) {
+		return func() {} // the verb refuses the name; no lock is kept for it
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	m.mu.Lock()
+	l, ok := m.locks[name]
+	if !ok {
+		l = &sync.Mutex{}
+		m.locks[name] = l
+	}
+	m.mu.Unlock()
+	l.Lock()
+	return l.Unlock
+}
+
+// working marks a stack whose apply is running, for the list.
+func (m *Module) working(name string, on bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if on {
+		m.busy[name] = true
+	} else {
+		delete(m.busy, name)
+	}
+}
+
+func (m *Module) available(ctx context.Context, _ struct{}) ([]Folder, error) {
+	names, err := m.host.Available(ctx)
+	if err != nil {
+		return nil, err
+	}
+	all, err := m.store.All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	have := map[string]bool{}
+	for _, s := range all {
+		have[s.Name] = true
+	}
+	out := []Folder{}
+	sort.Strings(names)
+	for _, n := range names {
+		if ValidName(n) && !have[n] {
+			out = append(out, Folder{Name: n})
+		}
+	}
 	return out, nil
 }
 
-// view is s with what the host says of it. A host that cannot say leaves the
-// unit "unknown": the row is still worth showing.
+// view is s with what the host says of it. A host that cannot say leaves a
+// container "unknown": the row is still worth showing.
 func (m *Module) view(ctx context.Context, s Service) View {
-	v := View{Name: s.Name, Template: s.Template, Options: s.Options, State: s.State, User: UserOf(s.Name), Ports: []PortUse{}}
-	if t, ok := m.templates[s.Template]; ok && t.Ports != nil {
-		if vals, err := t.Validate(s.Options); err == nil {
-			v.Ports = t.Ports(vals)
+	v := View{Name: s.Name, State: string(s.State), User: UserOf(s.Name), SHA256: s.Applied.Manifest.SHA256, Containers: []Container{}}
+	m.mu.Lock()
+	busy := m.busy[s.Name]
+	m.mu.Unlock()
+	switch {
+	case s.Legacy:
+		v.State = LegacyRow
+	case s.State == Removing || busy:
+	case s.Pending != nil && s.Pending.Prepared && len(s.Applied.Units) == 0:
+		v.State = Prepared
+	case s.Pending != nil:
+		v.State, v.Step = Incomplete, s.Pending.Step
+	}
+	var units []string
+	for _, u := range s.Applied.Units {
+		if u.Kind == KindContainer {
+			units = append(units, u.systemdName())
 		}
 	}
-	r, err := m.host.Running(ctx, s.Name)
-	if err != nil {
-		r = Running{Active: "unknown"}
+	if len(units) == 0 {
+		return v
 	}
-	v.Running = r
+	v.Changed = m.host.Changed(ctx, s.Name, s.Applied.Manifest, s.AppliedAt)
+	running, err := m.host.Running(ctx, s.Name, units)
+	health, _ := m.host.Health(ctx, s.Name)
+	stopped := map[string]bool{}
+	for _, name := range s.Stopped {
+		stopped[name] = true
+	}
+	for _, u := range s.Applied.Units {
+		if u.Kind != KindContainer {
+			continue
+		}
+		c := Container{Service: u.Service, Image: u.Image, Digest: u.Digest, Ports: u.Ports, Stopped: stopped[u.Service],
+			Health: health[s.Name+"-"+u.Service], Running: Running{Active: "unknown"}}
+		if c.Ports == nil {
+			c.Ports = []PortUse{}
+		}
+		if r, ok := running[u.systemdName()]; ok && err == nil {
+			c.Running = r
+		}
+		v.Containers = append(v.Containers, c)
+	}
 	return v
 }
 
@@ -272,8 +405,8 @@ func (m *Module) list(ctx context.Context, _ struct{}) ([]View, error) {
 	return out, nil
 }
 
-// Users are the host users of the deployed services, each with its service's
-// name: what Open ports names a service's sockets by.
+// Users are the host users of the stacks, each with its stack's name: what
+// Open ports names a stack's sockets by.
 func (m *Module) Users(ctx context.Context) (map[string]string, error) {
 	all, err := m.store.All(ctx)
 	if err != nil {
@@ -286,199 +419,201 @@ func (m *Module) Users(ctx context.Context) (map[string]string, error) {
 	return out, nil
 }
 
-// podman refuses a host that cannot run a service.
+// podman refuses a host that cannot run a stack.
 func (m *Module) podman(ctx context.Context) error {
 	major, minor, err := m.host.Podman(ctx)
 	if err != nil {
 		return err
 	}
-	if major < 4 || (major == 4 && minor < 4) {
+	if major < 4 || (major == 4 && minor < 9) {
 		return ErrOldPodman
 	}
 	return nil
 }
 
-// free refuses ports that another service has. Whether a process outside
-// AutoPanel holds one is for the unit to find when it starts.
-func (m *Module) free(ctx context.Context, name string, ports []PortUse) error {
-	all, err := m.store.All(ctx)
+// known is the stack name, for a verb that works on what was applied. A stack
+// being removed is refused: only remove may touch it.
+func (m *Module) known(ctx context.Context, name string) (Service, error) {
+	if !ValidName(name) {
+		return Service{}, ErrBadName
+	}
+	svc, err := m.store.Get(ctx, name)
+	switch {
+	case err != nil:
+		return Service{}, err
+	case svc.State == Removing:
+		return Service{}, ErrBusy
+	case svc.Legacy:
+		return Service{}, ErrLegacy
+	}
+	return svc, nil
+}
+
+// applied is known for a stack that an apply has finished for, with the
+// service the caller named checked against it.
+func (m *Module) applied(ctx context.Context, r Ref) (Service, error) {
+	svc, err := m.known(ctx, r.Name)
 	if err != nil {
+		return Service{}, err
+	}
+	if len(svc.Applied.Units) == 0 {
+		return Service{}, ErrNotApplied
+	}
+	if r.Service != "" {
+		if _, ok := svc.Applied.unit(r.Service); !ok {
+			return Service{}, ErrNoService
+		}
+	}
+	return svc, nil
+}
+
+// unitFiles are the files of units as the host is to write them: a stopped
+// service's without its [Install] section.
+func unitFiles(units []UnitFile, stopped []string) []File {
+	off := map[string]bool{}
+	for _, s := range stopped {
+		off[s] = true
+	}
+	out := make([]File, 0, len(units))
+	for _, u := range units {
+		body := u.Body
+		if u.Kind == KindContainer && off[u.Service] {
+			body = withoutInstall(body)
+		}
+		out = append(out, File{Path: u.Path, Mode: 0o600, Body: []byte(body)})
+	}
+	return out
+}
+
+// systemdNames are the services of the container units of services; of every
+// container unit when services is nil.
+func systemdNames(units []UnitFile, services []string) []string {
+	want := map[string]bool{}
+	for _, s := range services {
+		want[s] = true
+	}
+	var out []string
+	for _, u := range units {
+		if u.Kind == KindContainer && (services == nil || want[u.Service]) {
+			out = append(out, u.systemdName())
+		}
+	}
+	return out
+}
+
+func (m *Module) start(ctx context.Context, r Ref) (View, error) {
+	defer m.lock(r.Name)()
+	svc, err := m.applied(ctx, r)
+	if err != nil {
+		return View{}, err
+	}
+	stopped := map[string]bool{}
+	for _, s := range svc.Stopped {
+		stopped[s] = true
+	}
+	var starting []string
+	if r.Service == "" {
+		stopped = map[string]bool{}
+	} else {
+		u, _ := svc.Applied.unit(r.Service)
+		for _, need := range u.Needs {
+			if stopped[need] {
+				// Starting it would start what a person stopped.
+				return View{}, with(ErrStoppedNeed, need)
+			}
+		}
+		delete(stopped, r.Service)
+		starting = []string{r.Service}
+	}
+	svc.Stopped = keys(stopped)
+	if err := m.remember(ctx, svc); err != nil {
+		return View{}, err
+	}
+	if err := m.host.Start(ctx, svc.Name, systemdNames(svc.Applied.Units, starting)); err != nil {
+		return View{}, fmt.Errorf("services: starting %s: %w", svc.Name, err)
+	}
+	return m.view(ctx, svc), nil
+}
+
+func (m *Module) stop(ctx context.Context, r Ref) (View, error) {
+	defer m.lock(r.Name)()
+	svc, err := m.applied(ctx, r)
+	if err != nil {
+		return View{}, err
+	}
+	stopped := map[string]bool{}
+	for _, s := range svc.Stopped {
+		stopped[s] = true
+	}
+	var stopping []string
+	if r.Service == "" {
+		for _, u := range svc.Applied.Units {
+			if u.Kind == KindContainer {
+				stopping = append(stopping, u.Service)
+			}
+		}
+	} else {
+		// With it, every service that needs it: one of those starting again
+		// would start it too.
+		stopping = append([]string{r.Service}, dependants(svc.Applied.Units, r.Service)...)
+	}
+	for _, s := range stopping {
+		stopped[s] = true
+	}
+	svc.Stopped = keys(stopped)
+	if err := m.remember(ctx, svc); err != nil {
+		return View{}, err
+	}
+	if err := m.host.Stop(ctx, svc.Name, systemdNames(svc.Applied.Units, stopping)); err != nil {
+		return View{}, fmt.Errorf("services: stopping %s: %w", svc.Name, err)
+	}
+	return m.view(ctx, svc), nil
+}
+
+// remember records which services are stopped, and writes each unit with or
+// without its [Install] section to match: the store first, so that a failure
+// leaves a record an apply acts on.
+func (m *Module) remember(ctx context.Context, svc Service) error {
+	if err := m.store.SetStopped(ctx, svc.Name, svc.Stopped); err != nil {
 		return err
 	}
-	for _, s := range all {
-		t, ok := m.templates[s.Template]
-		if s.Name == name || !ok || t.Ports == nil {
-			continue
-		}
-		vals, err := t.Validate(s.Options)
-		if err != nil {
-			continue
-		}
-		if distinct(append(t.Ports(vals), ports...)) != nil {
-			return ErrPortTaken
-		}
+	if err := m.host.Install(ctx, Unit{Name: svc.Name, Files: unitFiles(svc.Applied.Units, svc.Stopped)}); err != nil {
+		return fmt.Errorf("services: writing the units of %s: %w", svc.Name, err)
 	}
 	return nil
 }
 
-func (m *Module) deploy(ctx context.Context, p Deploy) (View, error) {
-	t, ok := m.templates[p.Template]
-	if !ok {
-		return View{}, ErrNoTemplate
-	}
-	name := p.Name
-	if name == "" {
-		name = t.Name
-	}
-	if !ValidName(name) {
-		return View{}, ErrBadName
-	}
-	v, err := t.Validate(p.Options)
-	if err != nil {
-		return View{}, err
-	}
-	if err := m.podman(ctx); err != nil {
-		return View{}, err
-	}
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if err := m.free(ctx, name, t.Ports(v)); err != nil {
-		return View{}, err
-	}
-	// The row first: a crash from here on leaves a row the panel shows and
-	// remove clears, never a user or a unit nobody knows about.
-	svc := Service{Name: name, Template: t.Name, Options: v.Raw(), State: Deploying}
-	if err := m.store.Add(ctx, svc); err != nil {
-		return View{}, err
-	}
-	return m.apply(ctx, t, svc, v)
-}
-
-func (m *Module) update(ctx context.Context, p Update) (View, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	svc, t, err := m.known(ctx, p.Name)
-	if err != nil {
-		return View{}, err
-	}
-	v, err := t.Validate(p.Options)
-	if err != nil {
-		return View{}, err
-	}
-	if err := m.podman(ctx); err != nil {
-		return View{}, err
-	}
-	if err := m.free(ctx, svc.Name, t.Ports(v)); err != nil {
-		return View{}, err
-	}
-	svc.Options, svc.State = v.Raw(), Deploying
-	if err := m.store.SetOptions(ctx, svc.Name, svc.Options); err != nil {
-		return View{}, err
-	}
-	if err := m.store.SetState(ctx, svc.Name, Deploying); err != nil {
-		return View{}, err
-	}
-	return m.apply(ctx, t, svc, v)
-}
-
-// known is the service name with its template. A service being removed is
-// refused: only remove may touch it.
-func (m *Module) known(ctx context.Context, name string) (Service, Template, error) {
-	if !ValidName(name) {
-		return Service{}, Template{}, ErrBadName
-	}
-	svc, err := m.store.Get(ctx, name)
-	if err != nil {
-		return Service{}, Template{}, err
-	}
-	if svc.State == Removing {
-		return Service{}, Template{}, ErrBusy
-	}
-	t, ok := m.templates[svc.Template]
-	if !ok {
-		return Service{}, Template{}, ErrNoTemplate
-	}
-	return svc, t, nil
-}
-
-// apply makes the host match the row: the user, the files, the unit, a
-// restart. It is the same for a first deploy and for an update.
-func (m *Module) apply(ctx context.Context, t Template, svc Service, v Values) (View, error) {
-	secrets, err := m.secretsOf(ctx, svc.Name, t.Secrets)
-	if err != nil {
-		return View{}, err
-	}
-	files := append(t.Files(v, secrets), File{Path: unitPath(svc.Name), Mode: 0o600, Body: []byte(quadlet(t, svc.Name, v))})
-	if err := m.host.Install(ctx, Unit{Name: svc.Name, Files: files}); err != nil {
-		return View{}, fmt.Errorf("services: installing %s: %w", svc.Name, err)
-	}
-	if err := m.host.Restart(ctx, svc.Name); err != nil {
-		return View{}, fmt.Errorf("services: starting %s: %w", svc.Name, err)
-	}
-	if err := m.store.SetState(ctx, svc.Name, Deployed); err != nil {
-		return View{}, err
-	}
-	svc.State = Deployed
-	return m.view(ctx, svc), nil
-}
-
-func secretName(service, key string) string { return "service/" + service + "/" + key }
-
-// secretsOf reads the service's secrets, generating the ones it has not got:
-// 32 random bytes, in hex.
-func (m *Module) secretsOf(ctx context.Context, service string, keys []string) (map[string]string, error) {
-	out := make(map[string]string, len(keys))
-	for _, k := range keys {
-		b, ok, err := m.secrets.Get(ctx, secretName(service, k))
-		if err != nil {
-			return nil, err
-		}
-		if !ok {
-			raw := make([]byte, 32)
-			if _, err := rand.Read(raw); err != nil {
-				return nil, err
-			}
-			b = []byte(hex.EncodeToString(raw))
-			if err := m.secrets.Put(ctx, secretName(service, k), b); err != nil {
-				return nil, err
-			}
-		}
-		out[k] = string(b)
-	}
-	return out, nil
-}
-
-func (m *Module) unit(ctx context.Context, name string, do func(context.Context, string) error) (View, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	svc, _, err := m.known(ctx, name)
-	if err != nil {
-		return View{}, err
-	}
-	if err := do(ctx, svc.Name); err != nil {
-		return View{}, fmt.Errorf("services: %s: %w", svc.Name, err)
-	}
-	return m.view(ctx, svc), nil
-}
-
-func (m *Module) start(ctx context.Context, r Ref) (View, error) {
-	return m.unit(ctx, r.Name, m.host.Start)
-}
-
-func (m *Module) stop(ctx context.Context, r Ref) (View, error) {
-	return m.unit(ctx, r.Name, m.host.Stop)
-}
-
 func (m *Module) restart(ctx context.Context, r Ref) (View, error) {
-	return m.unit(ctx, r.Name, m.host.Restart)
+	defer m.lock(r.Name)()
+	svc, err := m.applied(ctx, r)
+	if err != nil {
+		return View{}, err
+	}
+	stopped := map[string]bool{}
+	for _, s := range svc.Stopped {
+		stopped[s] = true
+	}
+	var which []string
+	for _, u := range svc.Applied.Units {
+		if u.Kind == KindContainer && !stopped[u.Service] && (r.Service == "" || r.Service == u.Service) {
+			which = append(which, u.Service)
+		}
+	}
+	if len(which) == 0 {
+		// A restart never starts what a person stopped.
+		return m.view(ctx, svc), nil
+	}
+	if err := m.host.Restart(ctx, svc.Name, systemdNames(svc.Applied.Units, which)); err != nil {
+		return View{}, fmt.Errorf("services: restarting %s: %w", svc.Name, err)
+	}
+	return m.view(ctx, svc), nil
 }
 
 func (m *Module) remove(ctx context.Context, p Remove) (struct{}, error) {
 	if !ValidName(p.Name) {
 		return struct{}{}, ErrBadName
 	}
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	defer m.lock(p.Name)()
 	svc, err := m.store.Get(ctx, p.Name)
 	if err != nil {
 		return struct{}{}, err
@@ -489,20 +624,20 @@ func (m *Module) remove(ctx context.Context, p Remove) (struct{}, error) {
 	if err := m.host.Uninstall(ctx, svc.Name, p.Purge); err != nil {
 		return struct{}{}, fmt.Errorf("services: removing %s: %w", svc.Name, err)
 	}
-	if t, ok := m.templates[svc.Template]; ok {
-		for _, k := range t.Secrets {
-			if err := m.secrets.Delete(ctx, secretName(svc.Name, k)); err != nil {
-				return struct{}{}, err
-			}
-		}
-	}
 	return struct{}{}, m.store.Remove(ctx, svc.Name)
 }
 
 func (m *Module) logs(ctx context.Context, p LogsAsk) (Logs, error) {
-	svc, _, err := m.known(ctx, p.Name)
+	svc, err := m.known(ctx, p.Name)
 	if err != nil {
 		return Logs{}, err
+	}
+	container := ""
+	if p.Service != "" {
+		if _, ok := svc.Applied.unit(p.Service); !ok {
+			return Logs{}, ErrNoService
+		}
+		container = svc.Name + "-" + p.Service
 	}
 	limit := p.Limit
 	switch {
@@ -511,7 +646,7 @@ func (m *Module) logs(ctx context.Context, p LogsAsk) (Logs, error) {
 	case limit > 500:
 		limit = 500
 	}
-	lines, err := m.host.Logs(ctx, svc.Name, limit)
+	lines, err := m.host.Logs(ctx, svc.Name, container, limit)
 	if err != nil {
 		return Logs{}, err
 	}
@@ -519,79 +654,4 @@ func (m *Module) logs(ctx context.Context, p LogsAsk) (Logs, error) {
 		lines = []string{}
 	}
 	return Logs{Lines: lines}, nil
-}
-
-func (m *Module) secret(ctx context.Context, p SecretAsk) (SecretValue, error) {
-	svc, t, err := m.known(ctx, p.Name)
-	if err != nil {
-		return SecretValue{}, err
-	}
-	for _, k := range t.Secrets {
-		if k != p.Key {
-			continue
-		}
-		b, ok, err := m.secrets.Get(ctx, secretName(svc.Name, k))
-		if err != nil {
-			return SecretValue{}, err
-		}
-		if !ok {
-			break
-		}
-		return SecretValue{Value: string(b)}, nil
-	}
-	return SecretValue{}, ErrNoSecret
-}
-
-// unitPath is where a user's systemd looks for Podman unit files (Quadlet),
-// relative to the user's home.
-func unitPath(name string) string { return ".config/containers/systemd/" + name + ".container" }
-
-// quadlet renders the service's Podman unit file. The service's user's
-// systemd turns it into <name>.service. Every value is the template's own or
-// a validated option.
-func quadlet(t Template, name string, v Values) string {
-	var b strings.Builder
-	b.WriteString("# Written by AutoPanel. Changed through the panel, not here: a deploy writes it again.\n")
-	fmt.Fprintf(&b, "[Unit]\nDescription=AutoPanel service %s (%s)\n\n", name, t.Name)
-	fmt.Fprintf(&b, "[Container]\nImage=%s\n", t.Image)
-	if t.Args != nil {
-		if args := t.Args(v); len(args) > 0 {
-			fmt.Fprintf(&b, "Exec=%s\n", strings.Join(args, " "))
-		}
-	}
-	if t.Network == HostNetwork {
-		b.WriteString("Network=host\n")
-	} else if t.Ports != nil {
-		for _, p := range t.Ports(v) {
-			if p.From == p.To {
-				fmt.Fprintf(&b, "PublishPort=%d:%d/%s\n", p.From, p.From, p.Proto)
-			} else {
-				fmt.Fprintf(&b, "PublishPort=%d-%d:%d-%d/%s\n", p.From, p.To, p.From, p.To, p.Proto)
-			}
-		}
-	}
-	dirs := make([]string, 0, len(t.Mounts))
-	for d := range t.Mounts {
-		dirs = append(dirs, d)
-	}
-	sort.Strings(dirs)
-	for _, d := range dirs {
-		fmt.Fprintf(&b, "Volume=%%h/%s:%s:ro,Z\n", d, t.Mounts[d])
-	}
-	// What every service gets, whatever its template: a read-only root, no
-	// capability but the ones its template keeps, and no way to gain one.
-	b.WriteString("ReadOnly=true\nDropCapability=ALL\n")
-	for _, c := range t.Keeps {
-		fmt.Fprintf(&b, "AddCapability=%s\n", c)
-	}
-	// Its own user inside as outside (%U and %G are the unit's user and
-	// group): the process is the service's user on the host, so it reads the
-	// files only that user may, and Open ports and the journal name it. An
-	// image's own user would be one of the user's sub-ids, which can read
-	// none of them.
-	b.WriteString("NoNewPrivileges=true\nUserNS=keep-id\nUser=%U\nGroup=%G\n\n")
-	// The first start pulls the image: give it time.
-	fmt.Fprintf(&b, "[Service]\nMemoryMax=%s\nMemorySwapMax=0\nRestart=always\nTimeoutStartSec=600\n\n", t.Memory)
-	b.WriteString("[Install]\nWantedBy=default.target\n")
-	return b.String()
 }

@@ -159,97 +159,156 @@ detach it yourself (`nohup`, `tmux`).
 What is typed in a shell is not in AutoPanel's audit log. The shells are ordinary processes of
 the panel, and the daemon neither starts nor sees them.
 
-### Deploy a service
+### Run a stack
 
-AutoPanel can run a service for you from a template. The first template is a TURN relay
-([coturn](https://github.com/coturn/coturn)).
+AutoPanel runs your services as **stacks**. A stack is a compose file you write: the format
+projects already publish. AutoPanel reads it itself and runs its containers under rootless
+Podman, as systemd units of an unprivileged user of the stack's own. No compose program and no
+Docker is used.
 
-In the panel (`sudo autopanel --ui`), **Services → Deploy a TURN relay…** opens a form: a name,
-the realm, the port and the relay ports. **Services → Deployed services…** lists each service
-with its state, its memory, its user and its ports. The keys there:
+1. Write the stack's definition into a folder of its own, as root:
+
+   ```sh
+   sudo mkdir /etc/autopanel/stacks/site
+   sudo cp -r docs/examples/static-site/. /etc/autopanel/stacks/site/
+   ```
+
+   The folder's name is the stack's name: a lower-case letter, then letters, digits and hyphens.
+   It holds `compose.yaml`, a `.env` when the file uses `${VARIABLES}`, and any configuration
+   files the containers mount.
+
+2. In the panel (`sudo autopanel --ui`), **Services → Add a stack…** lists the folders that are
+   not running yet. Pick one, and the panel shows a **review**: every file that defines the
+   stack, each container it would run (its image, user, ports, mounts and memory limit), and
+   what AutoPanel refuses or warns of.
+
+3. Confirm. AutoPanel makes the stack's user (`ap-<name>`), copies the definition into that
+   user's directory (`/var/lib/autopanel-services/<name>`), pulls the images, writes the units
+   and starts them.
+
+**Services → Stacks…** lists each container with its state, health, memory, restarts and ports.
+The keys there:
 
 | Key | What it does |
 | --- | --- |
-| `a` | deploy a TURN relay |
-| `e` or Enter | change the selected service's options, and restart it |
-| `s`, `x`, `t` | start, stop, restart its unit |
+| `a` | add a stack |
+| `p` | review the selected stack's definition as it is now, and apply it |
+| `u` | pull its images again, and restart what changed |
+| `s`, `x`, `t` | start, stop, restart the selected service |
+| `Shift+S`, `Shift+X`, `Shift+T` | the same for the whole stack |
 | `o` | its newest log lines |
-| `c` | its generated secrets; they leave the screen when the window closes |
-| `d` | remove it, after a question; its directory is kept, as root's |
+| `d` | remove the stack, after a question; its directory and data are kept, as root's |
 | `Shift+D` | remove it and delete its directory, after a question |
 | `r` | read the list again |
 
 The same from the command line:
 
 ```sh
-sudo autopanel --call services.templates                 # what can be deployed, and each one's options
-sudo autopanel --call services.deploy '{"template":"turn","options":{"realm":"turn.example.com"}}'
-sudo autopanel --call services.list                      # each service, and whether it is running
-sudo autopanel --call services.logs '{"name":"turn"}'
+sudo autopanel --call services.available                          # the folders that are not stacks yet
+sudo autopanel --call services.check '{"name":"site"}'            # the review; changes nothing
+sudo autopanel --call services.add '{"name":"site","accept":"<the review's sha256>"}'
+sudo autopanel --call services.list                               # each stack and its containers
+sudo autopanel --call services.logs '{"name":"site","service":"web"}'
 ```
 
-Deploying needs **Podman 4.4 or newer** on the server (`apt install podman`; Debian 12's is too
-old). AutoPanel does not install it. Without it the panel and the gate work as before, and
-`services.deploy` says what is missing.
+Stacks need **Podman 4.9 or newer** on the server. `install.sh` installs it (skip that with
+`--no-podman`). Without it the panel and the gate work as before, and a stack is refused with the
+reason.
 
-A new service is `activating` in `services.list` while its image is pulled, then `active`.
+#### Changing a stack
 
-What a deploy does, in order:
+Edit the files in `/etc/autopanel/stacks/<name>/`. Nothing changes until you apply: `p` in the
+panel, or `services.check` then `services.apply`. An apply shows the review again, and then:
 
-1. Creates a system user for the service, `ap-<name>`, with no login shell, and a directory only
-   that user can open: `/var/lib/autopanel-services/<name>`.
-2. Generates the service's secret and seals it in AutoPanel's store.
-3. Writes the service's configuration and a Podman unit file into that directory.
-4. Starts the service as a systemd unit of that user, under rootless Podman.
+- stops and removes the services the file no longer has;
+- replaces the stack's configuration with what you reviewed;
+- restarts the containers whose unit, image or configuration changed, and no others.
 
-Every service runs as its own user, with a read-only root filesystem, no way to gain a
-privilege, a memory limit, and every capability dropped but the ones its template names. The
-TURN relay keeps one, `NET_BIND_SERVICE`: coturn's program in the image is marked with it, and
-Linux refuses to start such a program without it. The relay holds it inside its own user
-namespace, where it opens no port of the server's below 1024. Its image is pinned by digest in AutoPanel's code: no command takes an image, a
-command line or a path.
+A stack whose definition differs from what is running is marked in the list.
 
-| Command | What it does |
-| --- | --- |
-| `services.update '{"name":"turn","options":{…}}'` | changes the options and restarts the service; the secret is kept |
-| `services.stop`, `services.start`, `services.restart` `'{"name":"turn"}'` | the unit |
-| `services.secret '{"name":"turn","key":"auth-secret"}'` | prints a generated secret |
-| `services.remove '{"name":"turn"}'` | stops the service and deletes its user and its secret; its directory is kept, as root's, without the pulled image |
-| `services.remove '{"name":"turn","purge":true}'` | also deletes the directory |
+An apply that fails part-way leaves the stack marked incomplete, with the step it stopped at.
+Apply again to finish it.
 
-Each of these is written to the audit log **before** it runs, with how it ended once it has. If
-the entry cannot be written, the command is refused and nothing is done. **System → Audit log**
-shows them.
+#### What an apply reviews, and what it never touches
 
-#### The TURN relay
+The review covers every file that defines the stack: `compose.yaml`, `.env`, every `env_file`,
+and every file under a mount marked `:ro`. Its hash is what `services.add` and `services.apply`
+must be given, so a file edited between the review and the apply is refused, and you are shown
+the new review.
 
-| Option | Default | What it is |
-| --- | --- | --- |
-| `realm` | none: required | the relay's name, such as `turn.example.com` |
-| `port` | `3478` | where it listens, on UDP and TCP |
-| `relay_ports` | `49152-49999` | the UDP ports it relays on |
+A mount **without** `:ro` is the stack's **data**: a database, uploaded files. AutoPanel makes
+that folder when it is not there, and never writes into it again. An apply cannot overwrite it,
+and a definition that would turn a data folder into configuration is refused. To put data into a
+new stack before it first starts, use **Prepare only** in the review (`services.prepare`): it
+makes the user, copies the definition and pulls the images, and starts nothing. Copy the data
+into `/var/lib/autopanel-services/<name>/stack/`, then add the stack.
 
-Open the port and the relay range in your firewall. A service's user cannot bind a port below
-1024, so no option takes one.
+A file a container must read as a user that is not the stack's (most images that do not run as
+root) has to be readable by all in the definition folder (`chmod 644`). The folder itself is
+root's, and the stack's own directory is its user's alone, so no other user of the server reads
+it. `.env` is always kept readable by the stack's user only.
 
-The relay authenticates with a shared secret (coturn's `use-auth-secret`): your application
-makes short-lived TURN credentials from it, and the relay keeps no list of users. Read the secret
-with `c` in the panel or `services.secret`, and give it to the application. Each read is in the
-audit log.
+#### The compose keys AutoPanel takes
 
-The relay refuses to relay to this server itself and to private and link-local addresses, so it
-cannot be used to reach what the server can and the internet cannot.
+`image`, `command`, `entrypoint`, `environment`, `env_file`, `ports`, `volumes`,
+`network_mode: host`, `depends_on`, `restart`, `user` (two numbers, as `"991:991"`), `read_only`,
+`cap_add`, `cap_drop`, `tmpfs`, `working_dir`, `hostname`, `mem_limit`, `healthcheck`, and named
+`volumes` with no options. `labels` and `container_name` are read and not used: a container is
+named `<stack>-<service>`.
 
-The relay's settings are on its command line, in its unit; its configuration file holds only the
-secret. coturn starts on its defaults when it cannot read its file, and its defaults are a relay
-that asks for no credentials. Set up this way, a relay that lost its file has no secret and
-serves nobody.
+Any other key is refused by its name, never dropped: `build`, `privileged`, `devices`,
+`networks`, `secrets`, `security_opt`, `sysctls` and the rest. So is:
 
-The relay uses the host's network, not a network of its own. A relay hands out hundreds of UDP
-ports, and passing each through a rootless container's port forwarder costs more than the
-separation is worth for a relay. Its other limits are those of every service.
+- a mount from outside the stack's folder (an absolute path, or one with `..`);
+- a capability beyond Podman's rootless defaults;
+- a host port below 1024: a stack's user cannot bind one, and web traffic goes through a route;
+- a port another stack has, or another program listens on;
+- a `depends_on` condition other than `service_started`;
+- a `${VARIABLE}` that `.env` does not have. The server's own environment is never used.
 
-TURN over TLS is not offered yet.
+The review warns, and lets you go on, when: an image is named by a tag and not a digest; a port
+is published on every address; a service uses the host's network; a service has no memory limit,
+a writable root or no `user`; a value from `.env` is used in a command, where every user of the
+server can read it (use `environment` for a secret: it reaches the container through a file).
+
+#### What every stack gets
+
+- Its own unprivileged user, and a directory only that user can open.
+- A network of its own: its containers reach each other by service name, and no other stack's
+  container is on it. This is not a wall around the stack: a container can still reach what the
+  server publishes, another stack's published ports included.
+- No way for a container to gain a privilege.
+- Each image runs by the digest its pull resolved. A restart or a reboot cannot change the image;
+  only `services.pull` (`u`) asks the registry again.
+- A service you stop stays stopped across a reboot, with the services that depend on it, until
+  you start it.
+
+Each change is written to the audit log **before** it runs, with the review it accepted and how
+it ended. If the entry cannot be written, the change is refused and nothing is done. **System →
+Audit log** shows them.
+
+#### Removing a stack
+
+`d` in the panel, or `services.remove '{"name":"site"}'`, stops the stack and deletes its units
+and its user. Its directory, with its data, is kept as root's, under a name no later stack takes.
+`Shift+D`, or `"purge":true`, deletes the directory too. The definition folder under
+`/etc/autopanel/stacks` is never deleted.
+
+#### Examples
+
+- [`docs/examples/static-site`](docs/examples/static-site): nginx serving a folder of pages on a
+  loopback port, for a route to point at.
+- [`docs/examples/turn`](docs/examples/turn): a TURN relay ([coturn](https://github.com/coturn/coturn))
+  on the host's network. Open its port and its relay range in your firewall. The relay
+  authenticates with a shared secret your application makes short-lived credentials from; the
+  secret is in a file the relay alone reads, and its other settings are on its command line, so
+  a relay that lost its file serves nobody.
+
+#### Coming from v0.2.2
+
+The TURN template and its form are gone, with `services.templates`, `services.deploy`,
+`services.update` and `services.secret`. A relay deployed from the template is still listed, and
+can only be removed: remove it, then add the example stack above with the same settings.
 
 ### Themes and languages
 

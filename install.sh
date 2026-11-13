@@ -28,8 +28,10 @@
 # What it does, in order:
 #   1. creates the system user "autopanel" (no login shell, no home), for the gate;
 #   2. installs /usr/local/bin/autopanel and the two systemd units;
-#   3. creates /etc/autopanel (root's, 0700) with autopanel.env, and
-#      /etc/autopanel/keyslot for the service keyfile;
+#   3. creates /etc/autopanel (root's, 0700) with autopanel.env,
+#      /etc/autopanel/keyslot for the service keyfile, and /etc/autopanel/stacks,
+#      where each stack's compose file goes; installs Podman (4.9 or newer),
+#      which runs the stacks, unless --no-podman says not to;
 #   4. on first install, asks twice for the master passphrase and runs
 #      `autopanel --init`, which makes the root user, the master key and the
 #      keyfile that lets the core unlock it after a reboot;
@@ -57,6 +59,7 @@ CONTROL_SOCK=/run/autopanel-core/control.sock
 CONF_DIR=/etc/autopanel
 ENV_FILE=$CONF_DIR/autopanel.env
 KEY_DIR=$CONF_DIR/keyslot
+STACKS_DIR=$CONF_DIR/stacks   # one folder per stack's definition
 KEYFILE=$KEY_DIR/service.key
 STATE_DIR=/var/lib/autopanel
 SVC_USER=autopanel
@@ -79,6 +82,7 @@ HTTPS_ADDR=":443"
 ROOT_USER=root
 PASSFILE=""
 START=1
+PODMAN=1
 RESTART=always
 
 say()  { printf '%s\n' "$*"; }
@@ -110,6 +114,7 @@ OPTIONS:
   --restart <policy>       always (default): restart after any exit, and start at boot
                            on-failure: only after a crash;  no: never restart on its own
   --no-start               Install and initialize, but don't start the services
+  --no-podman              Don't install Podman. Stacks answer services.no_podman until the host has it
   -h, --help               This text
 USAGE
 }
@@ -127,6 +132,7 @@ while [ $# -gt 0 ]; do
     --passphrase-file) PASSFILE=${2:?}; shift 2 ;;
     --restart) RESTART=${2:?}; shift 2 ;;
     --no-start) START=0; shift ;;
+    --no-podman) PODMAN=0; shift ;;
     -h|--help) usage; exit 0 ;;
     *) usage >&2; die "unknown option: $1" ;;
   esac
@@ -423,6 +429,62 @@ else
   chown root:root "$ENV_FILE"
   chmod 0600 "$ENV_FILE"
   info "wrote $ENV_FILE"
+fi
+
+# --- 3b. Podman, for the stacks ------------------------------------------------
+
+# A stack's definition is a folder here, written by the administrator: root's alone.
+install -d -m 0700 -o root -g root "$STACKS_DIR"
+
+pkg_install() {
+  if command -v apt-get >/dev/null 2>&1; then
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -q "$@" >/dev/null
+  elif command -v dnf >/dev/null 2>&1; then
+    dnf install -y -q "$@" >/dev/null
+  else
+    return 1
+  fi
+}
+
+# ensure_podman leaves Podman ready for stacks. It is best effort: without
+# Podman, or with an old one, AutoPanel runs, and a stack is refused with the
+# reason.
+ensure_podman() {
+  installed_here=0
+  if ! command -v podman >/dev/null 2>&1; then
+    say "Installing Podman, which runs the stacks"
+    if ! pkg_install podman; then
+      warn "Podman could not be installed; install it (4.9 or newer) to run a stack"
+      return 0
+    fi
+    installed_here=1
+  fi
+  v=$(podman --version 2>/dev/null | awk '{print $NF}')
+  major=${v%%.*}; rest=${v#*.}; minor=${rest%%.*}
+  case "$major$minor" in
+    *[!0-9]*|'') warn "Podman's version could not be read ($v); stacks need 4.9 or newer" ;;
+    *)
+      if [ "$major" -lt 4 ] || { [ "$major" -eq 4 ] && [ "$minor" -lt 9 ]; }; then
+        warn "Podman $v is older than 4.9, which stacks need; they are refused until it is upgraded"
+      else
+        info "Podman $v"
+      fi ;;
+  esac
+  # Each stack's user needs a range of subordinate ids, which newuidmap maps.
+  command -v newuidmap >/dev/null 2>&1 || pkg_install uidmap 2>/dev/null || pkg_install shadow-utils 2>/dev/null \
+    || warn "newuidmap is missing; install the package that has it (uidmap, or shadow-utils)"
+  # A system-wide Podman socket and its timers serve nobody here: each stack
+  # runs under its own user. Only a Podman this run installed is AutoPanel's to
+  # change: one that was there may serve someone, and is left as it is.
+  if [ "$installed_here" -eq 1 ]; then
+    systemctl disable --now podman.socket podman.service podman-restart.service \
+      podman-auto-update.timer podman-clean-transient.service >/dev/null 2>&1 || true
+  fi
+}
+if [ "$PODMAN" -eq 1 ]; then
+  ensure_podman
+else
+  info "Podman was not installed (--no-podman)"
 fi
 
 # --- 4. the root user and the master key -------------------------------------

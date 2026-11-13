@@ -67,6 +67,174 @@
         <source>Remove route</source>
         <translation>ルートを削除</translation>
     </message>
+    <message id="autopanel.finding.absolute-path">
+        <source>A path must be inside the stack's folder, not absolute</source>
+        <translation>パスは絶対パスではなく、スタックのフォルダー内にしてください</translation>
+    </message>
+    <message id="autopanel.finding.bad-env-line">
+        <source>A line of .env is not valid</source>
+        <translation>.env の行が正しくありません</translation>
+    </message>
+    <message id="autopanel.finding.bad-port">
+        <source>A port is not valid</source>
+        <translation>ポートが正しくありません</translation>
+    </message>
+    <message id="autopanel.finding.bad-service-name">
+        <source>A service's name is not allowed</source>
+        <translation>サービスの名前が使えません</translation>
+    </message>
+    <message id="autopanel.finding.bad-value">
+        <source>A value is not what its key takes</source>
+        <translation>値がキーに合っていません</translation>
+    </message>
+    <message id="autopanel.finding.bad-volume-name">
+        <source>A volume's name is not allowed</source>
+        <translation>ボリュームの名前が使えません</translation>
+    </message>
+    <message id="autopanel.finding.bad-yaml">
+        <source>The compose file is not valid YAML</source>
+        <translation>compose ファイルが有効な YAML ではありません</translation>
+    </message>
+    <message id="autopanel.finding.capability">
+        <source>This capability is not allowed</source>
+        <translation>このケーパビリティは許可されていません</translation>
+    </message>
+    <message id="autopanel.finding.capability-added">
+        <source>It is given a capability</source>
+        <translation>ケーパビリティが追加されています</translation>
+    </message>
+    <message id="autopanel.finding.data-overlap">
+        <source>A mount overlaps the stack's data</source>
+        <translation>マウントがスタックのデータと重なっています</translation>
+    </message>
+    <message id="autopanel.finding.dependency-cycle">
+        <source>The services depend on each other in a circle</source>
+        <translation>サービスの依存関係が循環しています</translation>
+    </message>
+    <message id="autopanel.finding.env-no-value">
+        <source>An environment variable has no value</source>
+        <translation>環境変数に値がありません</translation>
+    </message>
+    <message id="autopanel.finding.host-network">
+        <source>It shares the host's network: it can reach every service on the host, and what it listens on is the host's</source>
+        <translation>ホストのネットワークを共有します。ホスト上のすべてのサービスに到達でき、待ち受けるポートはホストのものになります</translation>
+    </message>
+    <message id="autopanel.finding.host-network-no-ports">
+        <source>Its ports are not known to AutoPanel</source>
+        <translation>AutoPanel はそのポートを把握していません</translation>
+    </message>
+    <message id="autopanel.finding.host-network-port">
+        <source>On the host's network a port cannot be given another number or one address</source>
+        <translation>ホストのネットワークでは、ポートに別の番号や特定のアドレスを指定できません</translation>
+    </message>
+    <message id="autopanel.finding.image-by-tag">
+        <source>The image is named by a tag: it can change under its tag between pulls</source>
+        <translation>イメージがタグで指定されています。取得のたびに、同じタグでも中身が変わることがあります</translation>
+    </message>
+    <message id="autopanel.finding.image-user">
+        <source>It runs as the image's own user; when that is root, it is root inside its own user namespace</source>
+        <translation>イメージ既定のユーザーで動作します。それが root の場合、自身のユーザー名前空間内の root です</translation>
+    </message>
+    <message id="autopanel.finding.missing-file">
+        <source>A file that the definition names is missing</source>
+        <translation>定義が指定するファイルがありません</translation>
+    </message>
+    <message id="autopanel.finding.no-image">
+        <source>The service names no image</source>
+        <translation>サービスにイメージの指定がありません</translation>
+    </message>
+    <message id="autopanel.finding.no-memory-limit">
+        <source>It has no memory limit</source>
+        <translation>メモリの上限がありません</translation>
+    </message>
+    <message id="autopanel.finding.no-services">
+        <source>The compose file defines no service</source>
+        <translation>compose ファイルにサービスがありません</translation>
+    </message>
+    <message id="autopanel.finding.path-leaves-folder">
+        <source>A path leaves the stack's folder</source>
+        <translation>パスがスタックのフォルダーの外に出ています</translation>
+    </message>
+    <message id="autopanel.finding.port-in-use">
+        <source>Something on the host listens on this port already</source>
+        <translation>ホスト上で既にこのポートが使われています</translation>
+    </message>
+    <message id="autopanel.finding.port-taken">
+        <source>Another stack has this port</source>
+        <translation>別のスタックがこのポートを使っています</translation>
+    </message>
+    <message id="autopanel.finding.port-twice">
+        <source>The stack publishes this port twice</source>
+        <translation>スタックがこのポートを 2 回公開しています</translation>
+    </message>
+    <message id="autopanel.finding.privileged-port">
+        <source>A port below 1024 is not allowed</source>
+        <translation>1024 未満のポートは使えません</translation>
+    </message>
+    <message id="autopanel.finding.public-port">
+        <source>A port is published on every address: it is reachable from outside if the firewall allows it</source>
+        <translation>ポートがすべてのアドレスで公開されます。ファイアウォールが許可すれば外部から到達できます</translation>
+    </message>
+    <message id="autopanel.finding.reach">
+        <source>Containers can reach what the host and other stacks publish; the private network keeps other stacks out of this one, not this one out of the host</source>
+        <translation>コンテナは、ホストや他のスタックが公開しているものに到達できます。プライベートネットワークは他のスタックをこのスタックから遠ざけますが、このスタックをホストから遠ざけはしません</translation>
+    </message>
+    <message id="autopanel.finding.reserved-path">
+        <source>This path is reserved for AutoPanel</source>
+        <translation>このパスは AutoPanel 用に予約されています</translation>
+    </message>
+    <message id="autopanel.finding.symlink">
+        <source>A symbolic link is not allowed in the definition</source>
+        <translation>定義にシンボリックリンクは使えません</translation>
+    </message>
+    <message id="autopanel.finding.too-many-services">
+        <source>The stack has too many services</source>
+        <translation>スタックのサービスが多すぎます</translation>
+    </message>
+    <message id="autopanel.finding.undeclared-volume">
+        <source>A named volume is not declared under volumes</source>
+        <translation>名前付きボリュームが volumes に宣言されていません</translation>
+    </message>
+    <message id="autopanel.finding.unit-name-taken">
+        <source>Two units of the stack would have the same name</source>
+        <translation>スタックの 2 つのユニットが同じ名前になります</translation>
+    </message>
+    <message id="autopanel.finding.unit-text">
+        <source>A value holds a character that a unit file cannot take</source>
+        <translation>値にユニットファイルで使えない文字があります</translation>
+    </message>
+    <message id="autopanel.finding.unknown-dependency">
+        <source>It depends on a service that the stack does not have</source>
+        <translation>スタックにないサービスに依存しています</translation>
+    </message>
+    <message id="autopanel.finding.unset-variable">
+        <source>A variable is not set in .env</source>
+        <translation>変数が .env に設定されていません</translation>
+    </message>
+    <message id="autopanel.finding.unsupported-dependency">
+        <source>AutoPanel does not support this depends_on condition</source>
+        <translation>AutoPanel はこの depends_on の条件に対応していません</translation>
+    </message>
+    <message id="autopanel.finding.unsupported-key">
+        <source>AutoPanel does not support this key</source>
+        <translation>AutoPanel はこのキーに対応していません</translation>
+    </message>
+    <message id="autopanel.finding.unsupported-value">
+        <source>AutoPanel does not support this value</source>
+        <translation>AutoPanel はこの値に対応していません</translation>
+    </message>
+    <message id="autopanel.finding.user-not-numeric">
+        <source>The user must be given as numbers</source>
+        <translation>ユーザーは数字で指定してください</translation>
+    </message>
+    <message id="autopanel.finding.whole-folder">
+        <source>The stack's whole folder cannot be mounted</source>
+        <translation>スタックのフォルダー全体はマウントできません</translation>
+    </message>
+    <message id="autopanel.finding.writable-root">
+        <source>The container's root file system is writable</source>
+        <translation>コンテナのルートファイルシステムが書き込み可能です</translation>
+    </message>
     <message id="autopanel.form.add">
         <source>Add route</source>
         <translation>ルートを追加</translation>
@@ -175,6 +343,14 @@
         <source>&amp;About AutoPanel</source>
         <translation>AutoPanel について(&amp;a)</translation>
     </message>
+    <message id="autopanel.menu.mail">
+        <source>&amp;Mail</source>
+        <translation>メール(&amp;m)</translation>
+    </message>
+    <message id="autopanel.menu.mail.none">
+        <source>Mail is &amp;not set up yet</source>
+        <translation>メールはまだ設定されていません(&amp;n)</translation>
+    </message>
     <message id="autopanel.menu.routes">
         <source>&amp;Routes</source>
         <translation>ルート(&amp;r)</translation>
@@ -191,17 +367,13 @@
         <source>&amp;Services</source>
         <translation>サービス(&amp;s)</translation>
     </message>
-    <message id="autopanel.menu.services.deployed">
-        <source>&amp;Deployed services…</source>
-        <translation>デプロイ済みサービス(&amp;d)…</translation>
+    <message id="autopanel.menu.services.add">
+        <source>&amp;Add a stack…</source>
+        <translation>スタックを追加(&amp;a)…</translation>
     </message>
-    <message id="autopanel.menu.services.mail">
-        <source>&amp;Mail server…</source>
-        <translation>メールサーバー(&amp;m)…</translation>
-    </message>
-    <message id="autopanel.menu.services.turn">
-        <source>Deploy a &amp;TURN relay…</source>
-        <translation>TURN リレーをデプロイ(&amp;t)…</translation>
+    <message id="autopanel.menu.services.stacks">
+        <source>&amp;Stacks…</source>
+        <translation>スタック(&amp;s)…</translation>
     </message>
     <message id="autopanel.menu.system">
         <source>S&amp;ystem</source>
@@ -427,6 +599,70 @@
         <source>Open ports</source>
         <translation>開いているポート</translation>
     </message>
+    <message id="autopanel.review.go.add">
+        <source>&amp;Add and start</source>
+        <translation>追加して開始(&amp;a)</translation>
+    </message>
+    <message id="autopanel.review.go.apply">
+        <source>&amp;Apply</source>
+        <translation>適用(&amp;a)</translation>
+    </message>
+    <message id="autopanel.review.go.start">
+        <source>&amp;Start</source>
+        <translation>開始(&amp;s)</translation>
+    </message>
+    <message id="autopanel.review.help">
+        <source>Nothing changes until you confirm. Confirming accepts the warnings.</source>
+        <translation>確認するまで何も変わりません。確認すると警告を受け入れたことになります。</translation>
+    </message>
+    <message id="autopanel.review.help.changed">
+        <source>The definition changed since it was shown. This is its new review.</source>
+        <translation>表示した後に定義が変わりました。これが新しいレビューです。</translation>
+    </message>
+    <message id="autopanel.review.help.refused">
+        <source>The stack was refused. Fix its definition, then review it again.</source>
+        <translation>スタックは拒否されました。定義を直してから、もう一度レビューしてください。</translation>
+    </message>
+    <message id="autopanel.review.level.refused">
+        <source>refused</source>
+        <translation>拒否</translation>
+    </message>
+    <message id="autopanel.review.level.warning">
+        <source>warning</source>
+        <translation>警告</translation>
+    </message>
+    <message id="autopanel.review.memory.none">
+        <source>none</source>
+        <translation>なし</translation>
+    </message>
+    <message id="autopanel.review.prepare">
+        <source>&amp;Prepare only</source>
+        <translation>準備のみ(&amp;p)</translation>
+    </message>
+    <message id="autopanel.review.removes">
+        <source>Applying stops and removes: %1</source>
+        <translation>適用すると停止して削除されるもの: %1</translation>
+    </message>
+    <message id="autopanel.review.summary">
+        <source>Definition %1 · %2 files</source>
+        <translation>定義 %1 · %2 ファイル</translation>
+    </message>
+    <message id="autopanel.review.title.add">
+        <source>Add stack %1: review</source>
+        <translation>スタック %1 の追加: レビュー</translation>
+    </message>
+    <message id="autopanel.review.title.apply">
+        <source>Apply stack %1: review</source>
+        <translation>スタック %1 の適用: レビュー</translation>
+    </message>
+    <message id="autopanel.review.title.start">
+        <source>Start stack %1: review</source>
+        <translation>スタック %1 の開始: レビュー</translation>
+    </message>
+    <message id="autopanel.review.user.image">
+        <source>image's own</source>
+        <translation>イメージ既定</translation>
+    </message>
     <message id="autopanel.routes.add">
         <source>Add</source>
         <translation>追加</translation>
@@ -447,145 +683,165 @@
         <source>Proxy routes</source>
         <translation>プロキシルート</translation>
     </message>
-    <message id="autopanel.services.change">
-        <source>Change</source>
-        <translation>変更</translation>
+    <message id="autopanel.stacks.add">
+        <source>Add</source>
+        <translation>追加</translation>
     </message>
-    <message id="autopanel.services.confirm.purge">
-        <source>Remove %1 and delete its directory? Its unit, its user %2, its secrets and its data are deleted.</source>
-        <translation>%1 を削除し、ディレクトリも削除しますか？ユニット、ユーザー %2、シークレット、データが削除されます。</translation>
+    <message id="autopanel.stacks.apply">
+        <source>Apply</source>
+        <translation>適用</translation>
     </message>
-    <message id="autopanel.services.confirm.remove">
-        <source>Remove %1? Its unit, its user %2 and its secrets are deleted. Its directory is kept, owned by root.</source>
-        <translation>%1 を削除しますか？ユニット、ユーザー %2、シークレットが削除されます。ディレクトリは root 所有で残ります。</translation>
+    <message id="autopanel.stacks.available.hint">
+        <source>Enter reviews the selected folder. Nothing changes until you confirm the review.</source>
+        <translation>Enter で選択したフォルダーをレビューします。レビューを確認するまで何も変わりません。</translation>
     </message>
-    <message id="autopanel.services.confirm.title">
-        <source>Remove service</source>
-        <translation>サービスを削除</translation>
+    <message id="autopanel.stacks.available.none">
+        <source>No folder holds a new stack. Write a compose file to /etc/autopanel/stacks/&lt;name&gt;/compose.yaml, then open this again.</source>
+        <translation>新しいスタックのフォルダーがありません。compose ファイルを /etc/autopanel/stacks/&lt;name&gt;/compose.yaml に書いてから、もう一度開いてください。</translation>
     </message>
-    <message id="autopanel.services.deploy">
-        <source>Deploy TURN</source>
-        <translation>TURN をデプロイ</translation>
+    <message id="autopanel.stacks.available.review">
+        <source>&amp;Review</source>
+        <translation>レビュー(&amp;r)</translation>
     </message>
-    <message id="autopanel.services.done.change">
-        <source>%1 is changed and restarted</source>
-        <translation>%1 を変更して再起動しました</translation>
+    <message id="autopanel.stacks.available.title">
+        <source>Add a stack</source>
+        <translation>スタックを追加</translation>
     </message>
-    <message id="autopanel.services.done.deploy">
-        <source>%1 is deployed; its image is pulled as it starts</source>
-        <translation>%1 をデプロイしました。起動時にイメージを取得します</translation>
+    <message id="autopanel.stacks.confirm.purge">
+        <source>Remove %1 and delete its directory? Its containers stop, and its units, its user %2 and its data are deleted. Its definition folder is not touched.</source>
+        <translation>%1 を削除し、ディレクトリも削除しますか? コンテナは停止し、ユニット、ユーザー %2、データは削除されます。定義フォルダーには触れません。</translation>
     </message>
-    <message id="autopanel.services.done.purge">
-        <source>%1 removed, with its directory</source>
-        <translation>%1 をディレクトリごと削除しました</translation>
+    <message id="autopanel.stacks.confirm.remove">
+        <source>Remove %1? Its containers stop, and its units and its user %2 are deleted. Its directory, with its data, is kept, owned by root. Its definition folder is not touched.</source>
+        <translation>%1 を削除しますか? コンテナは停止し、ユニットとユーザー %2 は削除されます。データを含むディレクトリは root 所有で残ります。定義フォルダーには触れません。</translation>
     </message>
-    <message id="autopanel.services.done.remove">
-        <source>%1 removed; its directory is kept</source>
-        <translation>%1 を削除しました。ディレクトリは残っています</translation>
+    <message id="autopanel.stacks.confirm.stopService">
+        <source>Stop %2 of %1, and every service that depends on it? They stay stopped across a boot, until they are started.</source>
+        <translation>%1 の %2 と、それに依存するすべてのサービスを停止しますか? 開始するまで、ホストを再起動しても停止したままです。</translation>
     </message>
-    <message id="autopanel.services.done.restart">
-        <source>%1 restarted</source>
-        <translation>%1 を再起動しました</translation>
+    <message id="autopanel.stacks.confirm.stopStack">
+        <source>Stop every service of %1? They stay stopped across a boot, until they are started.</source>
+        <translation>%1 のすべてのサービスを停止しますか? 開始するまで、ホストを再起動しても停止したままです。</translation>
     </message>
-    <message id="autopanel.services.done.start">
-        <source>%1 started</source>
-        <translation>%1 を開始しました</translation>
-    </message>
-    <message id="autopanel.services.done.stop">
-        <source>%1 stopped</source>
-        <translation>%1 を停止しました</translation>
-    </message>
-    <message id="autopanel.services.form.change">
-        <source>Change %1</source>
-        <translation>%1 を変更</translation>
-    </message>
-    <message id="autopanel.services.form.deploy">
-        <source>Deploy a TURN relay</source>
-        <translation>TURN リレーをデプロイ</translation>
-    </message>
-    <message id="autopanel.services.help">
-        <source>a deploy TURN · e/Enter change · s start · x stop · t restart · o log · c secrets · d remove · Shift+D remove with its directory · r read again · q close</source>
-        <translation>a TURN をデプロイ · e/Enter 変更 · s 開始 · x 停止 · t 再起動 · o ログ · c シークレット · d 削除 · Shift+D ディレクトリごと削除 · r 再読み込み · q 閉じる</translation>
-    </message>
-    <message id="autopanel.services.logs">
-        <source>Log</source>
-        <translation>ログ</translation>
-    </message>
-    <message id="autopanel.services.logs.note">
-        <source>%1: %2 lines, read at %3</source>
-        <translation>%1: %2 行、%3 に読み込み</translation>
-    </message>
-    <message id="autopanel.services.logs.title">
-        <source>Service log</source>
-        <translation>サービスログ</translation>
-    </message>
-    <message id="autopanel.services.none">
-        <source>No service at this row.</source>
-        <translation>この行にサービスはありません。</translation>
-    </message>
-    <message id="autopanel.services.remove">
-        <source>Remove</source>
-        <translation>削除</translation>
-    </message>
-    <message id="autopanel.services.restart">
-        <source>Restart</source>
-        <translation>再起動</translation>
-    </message>
-    <message id="autopanel.services.secret.none">
-        <source>%1 has no secret.</source>
-        <translation>%1 にシークレットはありません。</translation>
-    </message>
-    <message id="autopanel.services.secret.note">
-        <source>Each read is in the audit log. Give a secret only to the application that needs it. q closes.</source>
-        <translation>読み取りはすべて監査ログに記録されます。シークレットは必要なアプリケーションにだけ渡してください。q で閉じます。</translation>
-    </message>
-    <message id="autopanel.services.secret.title">
-        <source>Secrets of %1</source>
-        <translation>%1 のシークレット</translation>
-    </message>
-    <message id="autopanel.services.start">
-        <source>Start</source>
-        <translation>開始</translation>
-    </message>
-    <message id="autopanel.services.state.deploying">
-        <source>deploy unfinished</source>
-        <translation>デプロイ未完了</translation>
-    </message>
-    <message id="autopanel.services.state.removing">
-        <source>removal unfinished</source>
-        <translation>削除未完了</translation>
-    </message>
-    <message id="autopanel.services.stop">
+    <message id="autopanel.stacks.confirm.stopTitle">
         <source>Stop</source>
         <translation>停止</translation>
     </message>
-    <message id="autopanel.services.title">
-        <source>Services</source>
-        <translation>サービス</translation>
+    <message id="autopanel.stacks.confirm.title">
+        <source>Remove stack</source>
+        <translation>スタックの削除</translation>
     </message>
-    <message id="autopanel.services.turn">
-        <source>TURN relay</source>
-        <translation>TURN リレー</translation>
+    <message id="autopanel.stacks.done.add">
+        <source>%1 is added and started</source>
+        <translation>%1 を追加して開始しました</translation>
     </message>
-    <message id="autopanel.services.turn.name">
-        <source>Name (lower-case letters, digits and hyphens; empty for turn)</source>
-        <translation>名前 (小文字・数字・ハイフン。空なら turn)</translation>
+    <message id="autopanel.stacks.done.apply">
+        <source>%1 is applied</source>
+        <translation>%1 を適用しました</translation>
     </message>
-    <message id="autopanel.services.turn.port">
-        <source>Port, UDP and TCP (1024 or above)</source>
-        <translation>ポート、UDP と TCP (1024 以上)</translation>
+    <message id="autopanel.stacks.done.prepare">
+        <source>%1 is prepared and not started. Put its data in place, then apply it (p) to start it.</source>
+        <translation>%1 を準備しました(未開始)。データを配置してから、適用(p)して開始してください。</translation>
     </message>
-    <message id="autopanel.services.turn.realm">
-        <source>Realm: the domain name the relay answers for</source>
-        <translation>レルム: リレーが応答するドメイン名</translation>
+    <message id="autopanel.stacks.done.pull">
+        <source>the images of %1 are pulled; a container whose image changed was restarted</source>
+        <translation>%1 のイメージを取得しました。イメージが変わったコンテナは再起動されました</translation>
     </message>
-    <message id="autopanel.services.turn.relayPorts">
-        <source>Relay ports, UDP, as first-last</source>
-        <translation>リレーポート、UDP、最初-最後 の形式</translation>
+    <message id="autopanel.stacks.done.purge">
+        <source>%1 removed, with its directory</source>
+        <translation>%1 をディレクトリごと削除しました</translation>
     </message>
-    <message id="autopanel.services.unknownTemplate">
-        <source>This panel has no form for the template %1; use autopanel --call.</source>
-        <translation>このパネルには %1 テンプレートのフォームがありません。autopanel --call を使ってください。</translation>
+    <message id="autopanel.stacks.done.remove">
+        <source>%1 removed; its directory is kept</source>
+        <translation>%1 を削除しました。ディレクトリは残ります</translation>
+    </message>
+    <message id="autopanel.stacks.done.restart">
+        <source>%1 restarted</source>
+        <translation>%1 を再起動しました</translation>
+    </message>
+    <message id="autopanel.stacks.done.start">
+        <source>%1 started</source>
+        <translation>%1 を開始しました</translation>
+    </message>
+    <message id="autopanel.stacks.done.stop">
+        <source>%1 stopped</source>
+        <translation>%1 を停止しました</translation>
+    </message>
+    <message id="autopanel.stacks.help">
+        <source>a add · p review and apply · u pull images · s start, x stop, t restart the service · with Shift, the whole stack · o log · d remove · Shift+D remove with its directory · r read again · q close · * after a name: its definition changed: apply to review it</source>
+        <translation>a 追加 · p レビューして適用 · u イメージを取得 · s 開始、x 停止、t 再起動(サービス) · Shift でスタック全体 · o ログ · d 削除 · Shift+D ディレクトリごと削除 · r 再読み込み · q 閉じる · 名前の後の *: 定義が変わりました。適用してレビューしてください</translation>
+    </message>
+    <message id="autopanel.stacks.legacy">
+        <source>%1 was deployed from a template by an older AutoPanel. Remove it, then add it again as a stack.</source>
+        <translation>%1 は以前の AutoPanel がテンプレートからデプロイしました。削除してから、スタックとして追加し直してください。</translation>
+    </message>
+    <message id="autopanel.stacks.logs">
+        <source>Log</source>
+        <translation>ログ</translation>
+    </message>
+    <message id="autopanel.stacks.logs.note">
+        <source>%1: %2 lines, read at %3</source>
+        <translation>%1: %2 行、%3 に読み込み</translation>
+    </message>
+    <message id="autopanel.stacks.logs.title">
+        <source>Stack log</source>
+        <translation>スタックのログ</translation>
+    </message>
+    <message id="autopanel.stacks.noService">
+        <source>%1 has no service at this row. Apply the stack first.</source>
+        <translation>%1 のこの行にサービスはありません。先にスタックを適用してください。</translation>
+    </message>
+    <message id="autopanel.stacks.none">
+        <source>No stack at this row.</source>
+        <translation>この行にスタックはありません。</translation>
+    </message>
+    <message id="autopanel.stacks.remove">
+        <source>Remove</source>
+        <translation>削除</translation>
+    </message>
+    <message id="autopanel.stacks.restart">
+        <source>Restart</source>
+        <translation>再起動</translation>
+    </message>
+    <message id="autopanel.stacks.start">
+        <source>Start</source>
+        <translation>開始</translation>
+    </message>
+    <message id="autopanel.stacks.state.deploying">
+        <source>being applied</source>
+        <translation>適用中</translation>
+    </message>
+    <message id="autopanel.stacks.state.incomplete">
+        <source>apply stopped at: %1</source>
+        <translation>適用が中断: %1</translation>
+    </message>
+    <message id="autopanel.stacks.state.legacy">
+        <source>from a template</source>
+        <translation>テンプレート由来</translation>
+    </message>
+    <message id="autopanel.stacks.state.prepared">
+        <source>prepared, not started</source>
+        <translation>準備済み、未開始</translation>
+    </message>
+    <message id="autopanel.stacks.state.removing">
+        <source>being removed</source>
+        <translation>削除中</translation>
+    </message>
+    <message id="autopanel.stacks.state.stopped">
+        <source>stopped</source>
+        <translation>停止済み</translation>
+    </message>
+    <message id="autopanel.stacks.stop">
+        <source>Stop</source>
+        <translation>停止</translation>
+    </message>
+    <message id="autopanel.stacks.title">
+        <source>Stacks</source>
+        <translation>スタック</translation>
+    </message>
+    <message id="autopanel.stacks.working">
+        <source>%1: working. Pulling images can take a while.</source>
+        <translation>%1: 処理中。イメージの取得には時間がかかることがあります。</translation>
     </message>
     <message id="autopanel.status.error">
         <source>status: %1</source>

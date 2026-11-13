@@ -76,6 +76,16 @@ func Run(ctx context.Context, tool Tool, args ...string) ([]byte, error) {
 	return out.Bytes(), fmt.Errorf("%s: %w: %s", tool.path, err, msg)
 }
 
+// ExitCode is the code a failed run's tool exited with; ok is false for an
+// error that is not a tool's own exit.
+func ExitCode(err error) (code int, ok bool) {
+	var exit *exec.ExitError
+	if errors.As(err, &exit) {
+		return exit.ExitCode(), true
+	}
+	return 0, false
+}
+
 // bounded keeps the first maxOutput bytes written to it and drops the rest.
 type bounded struct{ bytes.Buffer }
 
