@@ -55,6 +55,30 @@
         <source>&amp;Sign in</source>
         <translation>登录(&amp;s)</translation>
     </message>
+    <message id="autopanel.button.mail.add">
+        <source>&amp;Add…</source>
+        <translation>添加(&amp;a)…</translation>
+    </message>
+    <message id="autopanel.button.mail.password">
+        <source>&amp;Password…</source>
+        <translation>密码(&amp;p)…</translation>
+    </message>
+    <message id="autopanel.button.mail.reload">
+        <source>&amp;Reload</source>
+        <translation>重新读取(&amp;r)</translation>
+    </message>
+    <message id="autopanel.button.mail.remove">
+        <source>&amp;Remove…</source>
+        <translation>移除(&amp;r)…</translation>
+    </message>
+    <message id="autopanel.button.mail.sync">
+        <source>&amp;Sync</source>
+        <translation>同步(&amp;s)</translation>
+    </message>
+    <message id="autopanel.button.mail.takeover">
+        <source>&amp;Take over…</source>
+        <translation>接管(&amp;t)…</translation>
+    </message>
     <message id="autopanel.button.panel.close">
         <source>Close (&amp;q)</source>
         <translation>关闭(&amp;q)</translation>
@@ -651,6 +675,74 @@
         <source>User</source>
         <translation>用户</translation>
     </message>
+    <message id="autopanel.label.mail.address">
+        <source>Address</source>
+        <translation>地址</translation>
+    </message>
+    <message id="autopanel.label.mail.aliases">
+        <source>Aliases</source>
+        <translation>别名</translation>
+    </message>
+    <message id="autopanel.label.mail.certificate">
+        <source>Certificate</source>
+        <translation>证书</translation>
+    </message>
+    <message id="autopanel.label.mail.dkim">
+        <source>DKIM keys</source>
+        <translation>DKIM 密钥</translation>
+    </message>
+    <message id="autopanel.label.mail.domains">
+        <source>Domains</source>
+        <translation>域名</translation>
+    </message>
+    <message id="autopanel.label.mail.error">
+        <source>Error</source>
+        <translation>错误</translation>
+    </message>
+    <message id="autopanel.label.mail.errors">
+        <source>Problems</source>
+        <translation>问题</translation>
+    </message>
+    <message id="autopanel.label.mail.found">
+        <source>In the zone now</source>
+        <translation>当前区域中</translation>
+    </message>
+    <message id="autopanel.label.mail.host">
+        <source>Mail host</source>
+        <translation>邮件主机</translation>
+    </message>
+    <message id="autopanel.label.mail.loopback">
+        <source>Loopback rule</source>
+        <translation>回环规则</translation>
+    </message>
+    <message id="autopanel.label.mail.quota">
+        <source>Quota</source>
+        <translation>配额</translation>
+    </message>
+    <message id="autopanel.label.mail.stack">
+        <source>Stack</source>
+        <translation>栈</translation>
+    </message>
+    <message id="autopanel.label.mail.state">
+        <source>State</source>
+        <translation>状态</translation>
+    </message>
+    <message id="autopanel.label.mail.synced">
+        <source>Last pass</source>
+        <translation>上次同步</translation>
+    </message>
+    <message id="autopanel.label.mail.used">
+        <source>Used</source>
+        <translation>已用</translation>
+    </message>
+    <message id="autopanel.label.mail.value">
+        <source>Value</source>
+        <translation>值</translation>
+    </message>
+    <message id="autopanel.label.mail.why">
+        <source>For</source>
+        <translation>用途</translation>
+    </message>
     <message id="autopanel.label.metrics.coreMemory">
         <source>Core memory</source>
         <translation>核心内存</translation>
@@ -718,6 +810,26 @@
     <message id="autopanel.label.prompt.domain">
         <source>The domain's name, a name and a suffix:</source>
         <translation>域名，由名称和后缀组成：</translation>
+    </message>
+    <message id="autopanel.label.prompt.mailAccount">
+        <source>Its address (name@domain):</source>
+        <translation>地址（名称@域名）：</translation>
+    </message>
+    <message id="autopanel.label.prompt.mailAddDomain">
+        <source>A registered domain to receive mail for:</source>
+        <translation>要接收邮件的已注册域名：</translation>
+    </message>
+    <message id="autopanel.label.prompt.mailDomain">
+        <source>The first domain that receives mail, a registered one:</source>
+        <translation>第一个接收邮件的域名（须已注册）：</translation>
+    </message>
+    <message id="autopanel.label.prompt.mailHost">
+        <source>The mail host's name, under one of your domains. Its certificate and the domains' MX point at it:</source>
+        <translation>邮件主机名，位于你的某个域名之下。其证书和各域名的 MX 指向它：</translation>
+    </message>
+    <message id="autopanel.label.prompt.mailPassword">
+        <source>The password for %1, 12 characters at least. It goes to the mail server and is kept nowhere else:</source>
+        <translation>%1 的密码，至少 12 个字符。它只交给邮件服务器，不在别处保存：</translation>
     </message>
     <message id="autopanel.label.prompt.stackName">
         <source>The stack's name: a lower-case letter, then letters, digits and hyphens.</source>
@@ -907,9 +1019,21 @@
         <source>&amp;Help</source>
         <translation>帮助(&amp;h)</translation>
     </message>
-    <message id="autopanel.menu.mail.none">
-        <source>Mail is &amp;not set up yet</source>
-        <translation>邮件尚未设置(&amp;n)</translation>
+    <message id="autopanel.menu.mail.accounts">
+        <source>&amp;Accounts…</source>
+        <translation>账户(&amp;a)…</translation>
+    </message>
+    <message id="autopanel.menu.mail.domains">
+        <source>&amp;Domains…</source>
+        <translation>域名(&amp;d)…</translation>
+    </message>
+    <message id="autopanel.menu.mail.server">
+        <source>Se&amp;rver…</source>
+        <translation>服务器(&amp;r)…</translation>
+    </message>
+    <message id="autopanel.menu.mail.setup">
+        <source>&amp;Set up mail…</source>
+        <translation>设置邮件(&amp;s)…</translation>
     </message>
     <message id="autopanel.menu.mail.title">
         <source>&amp;Mail</source>
@@ -1151,6 +1275,74 @@
         <source>signed in as %1</source>
         <translation>已以 %1 身份登录</translation>
     </message>
+    <message id="autopanel.notice.mail.accountAdded">
+        <source>%1 made</source>
+        <translation>已创建 %1</translation>
+    </message>
+    <message id="autopanel.notice.mail.accountRemoved">
+        <source>%1 deleted</source>
+        <translation>已删除 %1</translation>
+    </message>
+    <message id="autopanel.notice.mail.badAddress">
+        <source>an address is name@domain, of a domain that receives mail</source>
+        <translation>地址为 名称@域名，且该域名须接收邮件</translation>
+    </message>
+    <message id="autopanel.notice.mail.badHost">
+        <source>the mail host is a name with a dot: mail.example.com</source>
+        <translation>邮件主机是带点的名称：mail.example.com</translation>
+    </message>
+    <message id="autopanel.notice.mail.domainAdded">
+        <source>%1 receives mail; its records are being published</source>
+        <translation>%1 现在接收邮件；正在发布其记录</translation>
+    </message>
+    <message id="autopanel.notice.mail.domainRemoved">
+        <source>%1 no longer receives mail</source>
+        <translation>%1 不再接收邮件</translation>
+    </message>
+    <message id="autopanel.notice.mail.noRecord">
+        <source>that record is held by no other: nothing to take over</source>
+        <translation>该记录未被他人占据：无需接管</translation>
+    </message>
+    <message id="autopanel.notice.mail.none">
+        <source>choose one first</source>
+        <translation>请先选择一项</translation>
+    </message>
+    <message id="autopanel.notice.mail.notReady">
+        <source>Stalwart is still being set up: see Mail › Server</source>
+        <translation>Stalwart 仍在设置中：见 邮件 › 服务器</translation>
+    </message>
+    <message id="autopanel.notice.mail.notRegistered">
+        <source>%1 is not a registered domain: add it under Routes › Domains first</source>
+        <translation>%1 不是已注册的域名：请先在 路由 › 域名 中添加</translation>
+    </message>
+    <message id="autopanel.notice.mail.notSetUp">
+        <source>Mail is not set up: Mail › Set up mail</source>
+        <translation>邮件尚未设置：邮件 › 设置邮件</translation>
+    </message>
+    <message id="autopanel.notice.mail.passwordSet">
+        <source>%1's password set</source>
+        <translation>已设置 %1 的密码</translation>
+    </message>
+    <message id="autopanel.notice.mail.setUp">
+        <source>mail is set up already</source>
+        <translation>邮件已设置</translation>
+    </message>
+    <message id="autopanel.notice.mail.syncing">
+        <source>the DNS, DKIM and certificate pass has started</source>
+        <translation>DNS、DKIM 和证书同步已开始</translation>
+    </message>
+    <message id="autopanel.notice.mail.takenOver">
+        <source>%1 taken over: the next pass publishes AutoPanel's</source>
+        <translation>已接管 %1：下一次同步将发布 AutoPanel 的记录</translation>
+    </message>
+    <message id="autopanel.notice.mail.weakPassword">
+        <source>a password is 12 characters at least, 256 at most</source>
+        <translation>密码至少 12 个字符，至多 256 个</translation>
+    </message>
+    <message id="autopanel.notice.mail.written">
+        <source>the mail stack is written: review it, and confirm to run it</source>
+        <translation>已写入邮件栈：请审查，确认后运行</translation>
+    </message>
     <message id="autopanel.notice.prefs.notKept">
         <source>the choice is shown but was not kept: %1</source>
         <translation>选择已显示，但未保存: %1</translation>
@@ -1271,6 +1463,18 @@
         <source>Remove the domain %1? Its routes stay; the removal is refused while a route would be left under no domain.</source>
         <translation>移除域名 %1？其路由会保留；若会有路由不属于任何域名，则拒绝移除。</translation>
     </message>
+    <message id="autopanel.question.mail.removeAccount">
+        <source>Delete %1 and all its mail? This cannot be undone.</source>
+        <translation>删除 %1 及其全部邮件？此操作无法撤销。</translation>
+    </message>
+    <message id="autopanel.question.mail.removeDomain">
+        <source>Stop receiving mail for %1? AutoPanel removes the records it published there, and only those.</source>
+        <translation>停止为 %1 接收邮件？AutoPanel 只删除它在那里发布的记录。</translation>
+    </message>
+    <message id="autopanel.question.mail.takeover">
+        <source>Replace %1 %2, which AutoPanel did not write? Now: %3 · Wanted: %4 · An SPF record is merged (AutoPanel adds itself to it); any other is deleted and AutoPanel's published.</source>
+        <translation>替换 AutoPanel 未写入的 %1 %2？当前：%3 · 需要：%4 · SPF 记录会合并（AutoPanel 将自己加入），其他记录会删除并发布 AutoPanel 的记录。</translation>
+    </message>
     <message id="autopanel.question.routes.remove">
         <source>Remove route %1?</source>
         <translation>删除路由 %1 吗?</translation>
@@ -1371,6 +1575,38 @@
         <source>Read the journal again</source>
         <translation>重新读取日志</translation>
     </message>
+    <message id="autopanel.tip.mail.accountAdd">
+        <source>Make a mail account</source>
+        <translation>创建邮件账户</translation>
+    </message>
+    <message id="autopanel.tip.mail.accountPassword">
+        <source>Set the selected account's password</source>
+        <translation>设置所选账户的密码</translation>
+    </message>
+    <message id="autopanel.tip.mail.accountRemove">
+        <source>Delete the selected account and its mail</source>
+        <translation>删除所选账户及其邮件</translation>
+    </message>
+    <message id="autopanel.tip.mail.domainAdd">
+        <source>Receive mail for a registered domain</source>
+        <translation>为已注册的域名接收邮件</translation>
+    </message>
+    <message id="autopanel.tip.mail.domainRemove">
+        <source>Stop receiving mail for the selected domain</source>
+        <translation>停止为所选域名接收邮件</translation>
+    </message>
+    <message id="autopanel.tip.mail.reload">
+        <source>Read mail's state again</source>
+        <translation>重新读取邮件状态</translation>
+    </message>
+    <message id="autopanel.tip.mail.sync">
+        <source>Publish the records, move DKIM along and hand the certificate over now</source>
+        <translation>立即发布记录、推进 DKIM 并移交证书</translation>
+    </message>
+    <message id="autopanel.tip.mail.takeover">
+        <source>Replace the record another wrote that holds the selected record's place</source>
+        <translation>替换占据所选记录位置的他人记录</translation>
+    </message>
     <message id="autopanel.tip.panel.close">
         <source>Close the panel</source>
         <translation>关闭面板</translation>
@@ -1455,6 +1691,18 @@
         <source>%1 · more than shown</source>
         <translation>%1 · 未全部显示</translation>
     </message>
+    <message id="autopanel.title.confirm.mailRemoveAccount">
+        <source>Delete a mail account</source>
+        <translation>删除邮件账户</translation>
+    </message>
+    <message id="autopanel.title.confirm.mailRemoveDomain">
+        <source>Stop receiving mail</source>
+        <translation>停止接收邮件</translation>
+    </message>
+    <message id="autopanel.title.confirm.mailTakeover">
+        <source>Take a record over</source>
+        <translation>接管记录</translation>
+    </message>
     <message id="autopanel.title.confirm.removeDomain">
         <source>Remove domain</source>
         <translation>移除域名</translation>
@@ -1523,6 +1771,18 @@
         <source>Attempts</source>
         <translation>尝试</translation>
     </message>
+    <message id="autopanel.title.list.mailAccounts">
+        <source>Accounts</source>
+        <translation>账户</translation>
+    </message>
+    <message id="autopanel.title.list.mailDomains">
+        <source>Domains</source>
+        <translation>域名</translation>
+    </message>
+    <message id="autopanel.title.list.mailRecords">
+        <source>Records</source>
+        <translation>记录</translation>
+    </message>
     <message id="autopanel.title.list.metrics">
         <source>Metrics</source>
         <translation>指标</translation>
@@ -1571,6 +1831,18 @@
         <source>Login attempts</source>
         <translation>登录尝试</translation>
     </message>
+    <message id="autopanel.title.panel.mailAccounts">
+        <source>Mail accounts</source>
+        <translation>邮件账户</translation>
+    </message>
+    <message id="autopanel.title.panel.mailDomains">
+        <source>Mail domains</source>
+        <translation>邮件域名</translation>
+    </message>
+    <message id="autopanel.title.panel.mailServer">
+        <source>Mail server</source>
+        <translation>邮件服务器</translation>
+    </message>
     <message id="autopanel.title.panel.metrics">
         <source>Metrics</source>
         <translation>指标</translation>
@@ -1602,6 +1874,26 @@
     <message id="autopanel.title.prompt.import">
         <source>Import a stack</source>
         <translation>导入堆栈</translation>
+    </message>
+    <message id="autopanel.title.prompt.mailAccount">
+        <source>New mail account</source>
+        <translation>新邮件账户</translation>
+    </message>
+    <message id="autopanel.title.prompt.mailAddDomain">
+        <source>Receive mail for a domain</source>
+        <translation>为域名接收邮件</translation>
+    </message>
+    <message id="autopanel.title.prompt.mailDomain">
+        <source>Set up mail: the first domain</source>
+        <translation>设置邮件：第一个域名</translation>
+    </message>
+    <message id="autopanel.title.prompt.mailHost">
+        <source>Set up mail: the mail host</source>
+        <translation>设置邮件：邮件主机</translation>
+    </message>
+    <message id="autopanel.title.prompt.mailPassword">
+        <source>Mail account password</source>
+        <translation>邮件账户密码</translation>
     </message>
     <message id="autopanel.title.review.add">
         <source>Add stack %1: review</source>
@@ -1730,6 +2022,14 @@
     <message id="autopanel.value.logins.ok">
         <source>ok</source>
         <translation>成功</translation>
+    </message>
+    <message id="autopanel.value.mail.never">
+        <source>never</source>
+        <translation>从未</translation>
+    </message>
+    <message id="autopanel.value.mail.none">
+        <source>none</source>
+        <translation>无</translation>
     </message>
     <message id="autopanel.value.metrics.availableOf">
         <source>%1 available of %2</source>

@@ -84,6 +84,7 @@ type host struct {
 	wid    widgets            // the main screen's widgets (widgets.go)
 	brw    browser            // the file browser (browse.go)
 	form   routeForm          // the route form (routes.go)
+	mail   mailPanes          // the mail panels (mail.go)
 
 	signingIn bool // a login attempt is in flight
 	signedIn  bool // a panel user has logged in; nothing is read before
@@ -103,6 +104,7 @@ type host struct {
 	confirmed func() error       // what Yes in the confirmation runs
 	other     func() error       // what its third button runs, when it has one
 	prompted  func(string) error // what OK in the prompt runs, with the text
+	secreted  func(string)       // what OK in the password dialog runs, with the password
 	busy      bool               // a change is in flight
 }
 
@@ -124,6 +126,7 @@ func newHost(ctx context.Context, c Client, version string) *host {
 		wid:         newWidgets(),
 		brw:         newBrowser(),
 		form:        newRouteForm(),
+		mail:        newMailPanes(),
 		statusShown: true,
 		pollEvery:   pollEvery,
 	}
@@ -213,7 +216,7 @@ func (h *host) state() map[string]any {
 		s[name] = v
 	}
 	for _, part := range []map[string]any{h.mon.state(), h.stk.state(), h.wid.state(), h.brw.state(), h.form.state(),
-		h.layoutState(), tipState(inEnglish{})} {
+		h.mail.state(), h.layoutState(), tipState(inEnglish{})} {
 		for name, v := range part {
 			s[name] = v
 		}

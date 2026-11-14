@@ -43,6 +43,8 @@ type fakeClient struct {
 	metricsReads int
 	domainAsks   []string // "add example.org" or "remove example.com"
 
+	mail fakeMail // the Mail menu's verbs (mail_test.go)
+
 	stacks    []services.View            // what Stacks answers
 	reviews   map[string]services.Review // what CheckStack answers, by stack
 	checks    []string                   // the stacks CheckStack was asked for

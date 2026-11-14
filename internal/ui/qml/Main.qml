@@ -21,7 +21,7 @@
 import tui 1.0
 import autopanel 1.0              // App: the panel's state and commands
 import autopanel.theme.dark 1.0   // the Theme singleton; System › Theme switches it
-import autopanel.dialogs 1.0      // Login, RouteDialog, BrowseDialog, ReviewDialog, PromptDialog, ConfirmDialog
+import autopanel.dialogs 1.0      // Login, RouteDialog, BrowseDialog, ReviewDialog, PromptDialog, SecretDialog, ConfirmDialog
 import autopanel.views 1.0        // Keys, About
 import tui.panels 1.0             // Panel: the panels the menus open (golib)
 import tui.tiles 1.0              // TilePanel: the widgets of the main screen (golib)
@@ -131,7 +131,10 @@ Window {
         }
         Menu {
             title: qsTrId("autopanel.menu.mail.title")
-            MenuItem { text: qsTrId("autopanel.menu.mail.none"); enabled: false }
+            MenuItem { text: qsTrId("autopanel.menu.mail.setup"); enabled: App.mailNotSetUp; onTriggered: App.mailSetup() }
+            MenuItem { text: qsTrId("autopanel.menu.mail.domains"); onTriggered: App.openMailDomains() }
+            MenuItem { text: qsTrId("autopanel.menu.mail.accounts"); onTriggered: App.openMailAccounts() }
+            MenuItem { text: qsTrId("autopanel.menu.mail.server"); onTriggered: App.openMailServer() }
         }
         Menu {
             title: qsTrId("autopanel.menu.users.title")
@@ -592,6 +595,169 @@ Window {
         }
     }
 
+    // Mail › Domains: the domains that receive mail on the left; the selected
+    // one's records, each with its state, and its DKIM keys on the right (mail.go)
+    Panel {
+        id: mailDomainsPanel
+        key: "mailDomains"
+        heading: qsTrId("autopanel.title.panel.mailDomains")
+        edge: Tui.Center; size: 90; length: 85
+        closeOnQ: true; maximizable: true; closable: true
+        onOpened: App.panelOpened("mailDomains")
+        onClosed: App.panelClosed("mailDomains")
+        onChanged: App.panelChanged("mailDomains", operation)
+        Shortcut { sequence: "a"; onActivated: App.mailAddDomain() }
+        Shortcut { sequence: "r"; onActivated: App.mailRemoveDomain(mailDomainsTable.currentIndex) }
+        Shortcut { sequence: "t"; onActivated: App.mailTakeover(mailRecordsTable.currentIndex) }
+        Shortcut { sequence: "s"; onActivated: App.mailSync() }
+        Flex {
+            direction: Tui.Vertical
+            Split {
+                Layout.fillHeight: true
+                orientation: Tui.Horizontal
+                ratio: 0.25
+                Frame {
+                    title: App.mailDomainsTitle
+                    TableView {
+                        id: mailDomainsTable
+                        palette.highlight: Theme.document.highlight
+                        palette.highlightedText: Theme.document.highlightedText
+                        model: App.mailDomains
+                        onCurrentIndexChanged: App.mailDomainMoved(index)
+                        TableViewColumn { role: "name"; title: "DOMAIN"; width: 0 }
+                    }
+                }
+                Split {
+                    orientation: Tui.Vertical
+                    ratio: 0.55
+                    Frame {
+                        title: App.mailRecordsTitle
+                        TableView {
+                            id: mailRecordsTable
+                            palette.highlight: Theme.document.highlight
+                            palette.highlightedText: Theme.document.highlightedText
+                            model: App.mailRecords
+                            onCurrentIndexChanged: App.mailRecordMoved(index)
+                            TableViewColumn { role: "state"; title: "STATE"; width: 11 }
+                            TableViewColumn { role: "type"; title: "TYPE"; width: 5 }
+                            TableViewColumn { role: "name"; title: "NAME"; width: 0 }
+                        }
+                    }
+                    Frame {
+                        title: qsTrId("autopanel.title.pane.details")
+                        Text { text: App.mailRecordDetail; wrapMode: Tui.WordWrap }
+                    }
+                }
+            }
+            Flex {
+                direction: Tui.Horizontal
+                Text { text: " "; Layout.fillWidth: true }
+                Button { text: qsTrId("autopanel.button.mail.add"); toolTipText: App.tipMailDomainAdd; onClicked: App.mailAddDomain() }
+                Text { text: " " }
+                Button { text: qsTrId("autopanel.button.mail.remove"); toolTipText: App.tipMailDomainRemove; onClicked: App.mailRemoveDomain(mailDomainsTable.currentIndex) }
+                Text { text: " " }
+                Button { text: qsTrId("autopanel.button.mail.takeover"); toolTipText: App.tipMailTakeover; onClicked: App.mailTakeover(mailRecordsTable.currentIndex) }
+                Text { text: " " }
+                Button { text: qsTrId("autopanel.button.mail.sync"); toolTipText: App.tipMailSync; onClicked: App.mailSync() }
+                Text { text: " " }
+                Button { text: qsTrId("autopanel.button.panel.close"); toolTipText: App.tipPanelClose; onClicked: App.closePanel("mailDomains") }
+                Text { text: " "; Layout.fillWidth: true }
+            }
+        }
+    }
+
+    // Mail › Accounts: the accounts on the left, the selected one on the right
+    Panel {
+        id: mailAccountsPanel
+        key: "mailAccounts"
+        heading: qsTrId("autopanel.title.panel.mailAccounts")
+        edge: Tui.Center; size: 80; length: 80
+        closeOnQ: true; maximizable: true; closable: true
+        onOpened: App.panelOpened("mailAccounts")
+        onClosed: App.panelClosed("mailAccounts")
+        onChanged: App.panelChanged("mailAccounts", operation)
+        Shortcut { sequence: "a"; onActivated: App.mailAddAccount() }
+        Shortcut { sequence: "p"; onActivated: App.mailAccountPassword(mailAccountsTable.currentIndex) }
+        Shortcut { sequence: "r"; onActivated: App.mailRemoveAccount(mailAccountsTable.currentIndex) }
+        Flex {
+            direction: Tui.Vertical
+            Split {
+                Layout.fillHeight: true
+                orientation: Tui.Horizontal
+                ratio: 0.55
+                Frame {
+                    title: App.mailAccountsTitle
+                    TableView {
+                        id: mailAccountsTable
+                        palette.highlight: Theme.document.highlight
+                        palette.highlightedText: Theme.document.highlightedText
+                        model: App.mailAccounts
+                        onCurrentIndexChanged: App.mailAccountMoved(index)
+                        TableViewColumn { role: "address"; title: "ADDRESS"; width: 0 }
+                        TableViewColumn { role: "used"; title: "USED"; width: 10 }
+                        TableViewColumn { role: "quota"; title: "QUOTA"; width: 10 }
+                    }
+                }
+                Frame {
+                    title: qsTrId("autopanel.title.pane.details")
+                    Text { text: App.mailAccountDetail; wrapMode: Tui.WordWrap }
+                }
+            }
+            Flex {
+                direction: Tui.Horizontal
+                Text { text: " "; Layout.fillWidth: true }
+                Button { text: qsTrId("autopanel.button.mail.add"); toolTipText: App.tipMailAccountAdd; onClicked: App.mailAddAccount() }
+                Text { text: " " }
+                Button { text: qsTrId("autopanel.button.mail.password"); toolTipText: App.tipMailAccountPassword; onClicked: App.mailAccountPassword(mailAccountsTable.currentIndex) }
+                Text { text: " " }
+                Button { text: qsTrId("autopanel.button.mail.remove"); toolTipText: App.tipMailAccountRemove; onClicked: App.mailRemoveAccount(mailAccountsTable.currentIndex) }
+                Text { text: " " }
+                Button { text: qsTrId("autopanel.button.panel.close"); toolTipText: App.tipPanelClose; onClicked: App.closePanel("mailAccounts") }
+                Text { text: " "; Layout.fillWidth: true }
+            }
+        }
+    }
+
+    // Mail › Server: Stalwart's state, the loopback rule, the certificate,
+    // the last DNS and certificate pass
+    Panel {
+        id: mailServerPanel
+        key: "mailServer"
+        heading: qsTrId("autopanel.title.panel.mailServer")
+        edge: Tui.Center; size: 70; length: 60
+        closeOnQ: true; maximizable: true; closable: true
+        onOpened: App.panelOpened("mailServer")
+        onClosed: App.panelClosed("mailServer")
+        onChanged: App.panelChanged("mailServer", operation)
+        Shortcut { sequence: "r"; onActivated: App.mailReload() }
+        Shortcut { sequence: "s"; onActivated: App.mailSync() }
+        Flex {
+            direction: Tui.Vertical
+            Frame {
+                Layout.fillHeight: true
+                title: App.mailServerTitle
+                TableView {
+                    id: mailServerTable
+                    palette.highlight: Theme.document.highlight
+                    palette.highlightedText: Theme.document.highlightedText
+                    model: App.mailServerRows
+                    TableViewColumn { role: "label"; title: ""; width: 16 }
+                    TableViewColumn { role: "value"; title: ""; width: 0 }
+                }
+            }
+            Flex {
+                direction: Tui.Horizontal
+                Text { text: " "; Layout.fillWidth: true }
+                Button { text: qsTrId("autopanel.button.mail.reload"); toolTipText: App.tipMailReload; onClicked: App.mailReload() }
+                Text { text: " " }
+                Button { text: qsTrId("autopanel.button.mail.sync"); toolTipText: App.tipMailSync; onClicked: App.mailSync() }
+                Text { text: " " }
+                Button { text: qsTrId("autopanel.button.panel.close"); toolTipText: App.tipPanelClose; onClicked: App.closePanel("mailServer") }
+                Text { text: " "; Layout.fillWidth: true }
+            }
+        }
+    }
+
     // Routes › Domains: the domains and their routes' counts on the left, the
     // selected one and the routes under it on the right (routes.go)
     Panel {
@@ -866,6 +1032,7 @@ Window {
     BrowseDialog { id: browseDialog }
     ReviewDialog { id: reviewDialog }
     PromptDialog { id: promptDialog }
+    SecretDialog { id: secretDialog }
     ConfirmDialog { id: confirmDialog }
     Keys { id: keysDialog }
     About { id: aboutDialog }
