@@ -224,6 +224,7 @@ func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateContr
 	// certificate, and it is what the gate is sent.
 	table := gate.NewTable[http.Handler]()
 	rev := newRevision(time.Now().Unix())
+	streams := newStreamTable(time.Now().Unix())
 	reload := func(ctx context.Context) error {
 		rs, err := st.Routes().All(ctx)
 		if err != nil {
@@ -285,7 +286,7 @@ func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateContr
 			return err
 		}
 	}
-	lnk, err := hostcontrol.Listen(cfg.LinkSocket, log, acc, &linkModule{cfg: cfg, table: table, rev: rev, sw: sw, counts: counts})
+	lnk, err := hostcontrol.Listen(cfg.LinkSocket, log, acc, &linkModule{cfg: cfg, table: table, rev: rev, sw: sw, counts: counts, streams: streams})
 	if err != nil {
 		return err
 	}

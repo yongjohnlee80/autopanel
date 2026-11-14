@@ -32,6 +32,7 @@ var (
 	Pkill      = Tool{"/usr/bin/pkill"}
 	Podman     = Tool{"/usr/bin/podman"}
 	Runuser    = Tool{"/usr/sbin/runuser"}
+	Nft        = Tool{"/usr/sbin/nft"}
 )
 
 const (

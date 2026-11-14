@@ -15,7 +15,27 @@ const (
 	VerbCert      = "link.cert"
 	VerbChallenge = "link.challenge"
 	VerbReport    = "link.report"
+	VerbStreams   = "link.streams"
 )
+
+// Stream is one port the gate forwards byte for byte to a loopback port, each
+// connection preceded by a PROXY protocol v2 header naming the client.
+type Stream struct {
+	Name      string `json:"name"`       // "smtp": for the log and the limits
+	Listen    string `json:"listen"`     // the address the gate binds: ":25"
+	To        string `json:"to"`         // the loopback address it forwards to: "127.0.0.1:10025"
+	IdleSecs  int    `json:"idle_secs"`  // a connection with no byte either way for this long is closed
+	PerClient int    `json:"per_client"` // connections at once from one client (an IPv4 address, an IPv6 /64); 0: no limit of its own
+	Share     int    `json:"share"`      // at most this many of Total; 0: Total
+}
+
+// Streams is link.streams's answer: every stream, the limit they share, and
+// the revision. No streams is the usual answer: only mail has them.
+type Streams struct {
+	Rev     int64    `json:"rev"`
+	Total   int      `json:"total"` // forwarded connections at once, every stream together
+	Streams []Stream `json:"streams"`
+}
 
 // Hello is link.hello's answer: the gate's whole configuration.
 type Hello struct {
@@ -72,4 +92,8 @@ type Report struct {
 	HTTPRequests  int64  `json:"http_requests"`
 	PID           int    `json:"pid"`
 	MemoryBytes   uint64 `json:"memory_bytes"` // resident memory; what the runtime holds where that cannot be read
+
+	StreamsOpen    int64 `json:"streams_open"`    // forwarded connections now
+	StreamsServed  int64 `json:"streams_served"`  // forwarded since the gate started
+	StreamsRefused int64 `json:"streams_refused"` // closed by a limit since the gate started
 }

@@ -1,6 +1,7 @@
 package gate
 
 import (
+	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
@@ -43,6 +44,7 @@ type fakeCore struct {
 	certs   map[string]Cert
 	pool    *x509.CertPool
 	reports []Report
+	streams Streams // link.streams: its Rev counts the changes
 }
 
 func newFakeCore(t *testing.T, https, http string) *fakeCore {
@@ -85,6 +87,14 @@ func (f *fakeCore) setRoutes(routes ...core.RouteView) {
 }
 
 // setDown stops (or starts) the core: every open connection fails.
+// setStreams names the streams the gate should forward.
+func (f *fakeCore) setStreams(total int, streams ...Stream) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.streams = Streams{Rev: f.streams.Rev + 1, Total: total, Streams: streams}
+	f.wake()
+}
+
 func (f *fakeCore) setDown(down bool) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -169,6 +179,22 @@ func (c *fakeConn) Call(ctx context.Context, verb string, param any, out any) er
 		}
 	case VerbReport:
 		f.reports = append(f.reports, param.(Report))
+	case VerbStreams:
+		for f.streams.Rev == param.(After).After {
+			ch := f.changed
+			f.mu.Unlock()
+			select {
+			case <-ch:
+			case <-ctx.Done():
+				f.mu.Lock()
+				return ctx.Err()
+			}
+			f.mu.Lock()
+			if f.down || f.epoch != c.epoch {
+				return errLinkLost
+			}
+		}
+		*out.(*Streams) = Streams{Rev: f.streams.Rev, Total: f.streams.Total, Streams: append([]Stream(nil), f.streams.Streams...)}
 	default:
 		return &rpc.Error{Code: rpc.CodeMethodNotFound, Message: "unknown method: " + verb}
 	}
@@ -401,4 +427,47 @@ func TestTheGateReachesNoStoreVaultOrACMEClient(t *testing.T) {
 			}
 		}
 	}
+}
+
+// TestTheGateForwardsTheCoresStreams: a stream the core names is bound and
+// forwarded with a PROXY header, keeps forwarding while the core is away, is
+// counted in the report, and is let go when the core takes it back.
+func TestTheGateForwardsTheCoresStreams(t *testing.T) {
+	defer func(d time.Duration) { ReportEvery = d }(ReportEvery)
+	ReportEvery = 30 * time.Millisecond
+	b := newBackend(t)
+	f := newFakeCore(t, freeAddr(t), freeAddr(t))
+	startGate(t, f)
+	s := Stream{Name: "smtp", Listen: freeAddr(t), To: b.l.Addr().String(), IdleSecs: 60, PerClient: 10}
+	f.setStreams(200, s)
+	var c net.Conn
+	until(t, "the gate never bound the stream", func() bool {
+		var err error
+		c, err = net.Dial("tcp", s.Listen)
+		return err == nil
+	})
+	defer c.Close()
+	if h := <-b.headers; !bytes.HasPrefix(h, proxySignature) {
+		t.Fatalf("no PROXY header: % x", h)
+	}
+	until(t, "the open stream was never reported", func() bool { return f.lastReport().StreamsOpen == 1 })
+
+	f.setDown(true)
+	if _, err := c.Write([]byte("hi")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := io.ReadFull(c, make([]byte, 2)); err != nil {
+		t.Fatalf("a stream should outlive the core: %v", err)
+	}
+	f.setDown(false)
+
+	f.setStreams(200)
+	until(t, "a stream the core took back is still bound", func() bool {
+		l, err := net.Listen("tcp", s.Listen)
+		if err != nil {
+			return false
+		}
+		l.Close()
+		return true
+	})
 }

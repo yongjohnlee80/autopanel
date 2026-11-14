@@ -85,7 +85,7 @@ func Run(ctx context.Context, dial Dialer, log *slog.Logger) error {
 	}
 
 	table := core.NewTable[http.Handler]()
-	g := &process{link: l, log: log, table: table, hello: hello, trusted: trusted,
+	g := &process{link: l, log: log, table: table, hello: hello, trusted: trusted, streams: newForwarder(log),
 		certs: &certCache{link: l, table: table, held: map[string]heldCert{}, flights: map[string]*flight{}}}
 	// The first table before the first request: a gate that listens with an
 	// empty table answers 404 for every site.
@@ -118,7 +118,7 @@ func Run(ctx context.Context, dial Dialer, log *slog.Logger) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	var wg sync.WaitGroup
-	errs := make(chan error, 4)
+	errs := make(chan error, 5)
 	run := func(name string, fn func(context.Context) error) {
 		wg.Add(1)
 		go func() {
@@ -132,6 +132,7 @@ func Run(ctx context.Context, dial Dialer, log *slog.Logger) error {
 	run("gate https", https.Run)
 	run("gate http", plain.Run)
 	run("gate routes", g.follow)
+	run("gate streams", g.followStreams)
 	run("gate report", g.report)
 	log.Info("gate serving", "https", hello.HTTPS, "http", hello.HTTP, "core", hello.Version, "routes", len(table.Routes()))
 	<-ctx.Done()
@@ -149,6 +150,7 @@ type process struct {
 	hello   Hello
 	trusted Trusted
 	rev     int64 // the table's revision; only sync and follow touch it, one at a time
+	streams *forwarder
 
 	https, http atomic.Int64 // requests served, per listener
 }
@@ -231,6 +233,35 @@ func (g *process) follow(ctx context.Context) error {
 	return nil
 }
 
+// followStreams keeps the streams the gate forwards the ones the core names,
+// until ctx ends. Like the routes, they outlive a core that went away: the
+// streams in hand keep forwarding, and the gate asks again from the start once
+// the link is back.
+func (g *process) followStreams(ctx context.Context) error {
+	defer g.streams.stopAll()
+	wait := newBackoff()
+	var rev int64
+	for ctx.Err() == nil {
+		var s Streams
+		if err := g.link.call(ctx, VerbStreams, After{After: rev}, &s); err != nil {
+			if ctx.Err() != nil {
+				return nil
+			}
+			if !isVerbError(err) {
+				rev = 0 // the link was lost: whatever the core holds when it is back, take it
+			}
+			if !wait.sleep(ctx) {
+				return nil
+			}
+			continue
+		}
+		wait.reset()
+		rev = s.Rev
+		g.streams.apply(ctx, s.Total, s.Streams)
+	}
+	return nil
+}
+
 // report sends the request counts, the gate's process and its memory to the
 // core, every ReportEvery: a report that stops coming is how the core knows
 // the gate is gone.
@@ -242,7 +273,8 @@ func (g *process) report(ctx context.Context) error {
 		case <-ctx.Done():
 			return nil
 		case <-t.C:
-			now := Report{HTTPSRequests: g.https.Load(), HTTPRequests: g.http.Load(), PID: os.Getpid(), MemoryBytes: residentBytes()}
+			now := Report{HTTPSRequests: g.https.Load(), HTTPRequests: g.http.Load(), PID: os.Getpid(), MemoryBytes: residentBytes(),
+				StreamsOpen: g.streams.openNow(), StreamsServed: g.streams.served.Load(), StreamsRefused: g.streams.refused.Load()}
 			cctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 			_ = g.link.call(cctx, VerbReport, now, nil)
 			cancel()

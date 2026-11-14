@@ -31,7 +31,7 @@ halves of the rule.
 ## The link
 
 **Decided:** the gate dials the core, on a unix socket only the gate's user can open; the core
-never dials the gate. The socket offers five verbs and no others:
+never dials the gate. The socket offers six verbs and no others:
 
 | Verb | What the gate gets |
 | --- | --- |
@@ -39,7 +39,8 @@ never dials the gate. The socket offers five verbs and no others:
 | `link.routes` | the routing table; the call stays open until the table changes |
 | `link.cert` | the certificate and key for a name a route holds |
 | `link.challenge` | the answer to an ACME HTTP-01 request it received |
-| `link.report` | nothing: it sends its request counts, its process number and its memory, every few seconds |
+| `link.report` | nothing: it sends its request counts, its process number, its memory and its streams' connections, every few seconds |
+| `link.streams` | the ports it forwards byte for byte (mail's); the call stays open until they change |
 
 **Why the gate dials:** a core that connected out to the gate would need the gate to listen for
 it, and a second listener on the exposed process is a second way in. With the gate dialling, the
@@ -47,6 +48,7 @@ kernel's record of the peer's user is all the authentication the link needs.
 
 **Why one open call for routes:** a change must reach the gate at once, and the core cannot call
 it. The gate keeps one `link.routes` call open, and the core answers it when the table changes.
+`link.streams` works the same way ([Mail](mail.md#the-gate-forwards-the-mail-ports)).
 
 **Certificates:** the gate asks for a certificate on a handshake for a name its table holds, and
 keeps it for an hour. A name no route holds is refused by the gate itself, so a stranger's SNI
