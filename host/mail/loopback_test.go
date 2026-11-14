@@ -142,3 +142,20 @@ func TestOnThisHost(t *testing.T) {
 		t.Fatalf("ensure after a flush: found %s, reloaded %v, %v", found, reloaded, err)
 	}
 }
+
+// TestForwarderOnThisHost reads the mail stack network's subnet from a host
+// where mail is set up: AUTOPANEL_TEST_MAILHOST=throwaway, as root.
+func TestForwarderOnThisHost(t *testing.T) {
+	if os.Getenv("AUTOPANEL_TEST_MAILHOST") != "throwaway" || os.Geteuid() != 0 {
+		t.Skip("needs a host with mail set up: AUTOPANEL_TEST_MAILHOST=throwaway, as root")
+	}
+	h := New("/etc/autopanel/stacks", "/var/lib/autopanel-services", "autopanel")
+	got, err := h.Forwarder(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("the mail stack network: %s", got)
+	if !strings.HasSuffix(got, "/24") && !strings.HasSuffix(got, "/16") {
+		t.Fatalf("not a private subnet: %s", got)
+	}
+}
