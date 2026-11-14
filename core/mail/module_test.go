@@ -197,6 +197,10 @@ func TestTheGuard(t *testing.T) {
 	if f := m.Review(ctx, Stack, append(Compose(), "# edited\n"...)); len(f) != 1 || f[0].Severity != services.Warning {
 		t.Fatalf("an edited definition: %+v; want a warning", f)
 	}
+	two := strings.Replace(string(Compose()), "services:\n", "services:\n  webmail:\n    image: docker.io/library/nginx@sha256:"+strings.Repeat("a", 64)+"\n", 1)
+	if f := m.Review(ctx, Stack, []byte(two)); len(f) != 1 || f[0].ID != "mail-one-service" || f[0].Severity != services.Refused {
+		t.Fatalf("a second service in the mail stack: %+v; want refused", f)
+	}
 	if f := m.Review(ctx, "blog", []byte("anything")); f != nil {
 		t.Fatalf("another stack: %+v", f)
 	}

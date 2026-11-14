@@ -136,6 +136,10 @@ func (h *Host) FirstPassword(ctx context.Context, since time.Time) (string, erro
 	}
 }
 
+// ErrNotAlone is a mail stack network that holds more than Stalwart's
+// container: its subnet cannot be trusted.
+var ErrNotAlone = errors.New("mail: the mail stack's network holds containers other than Stalwart's")
+
 // ErrNoForwarder is a stack network Podman does not describe.
 var ErrNoForwarder = errors.New("mail: Podman names no subnet for the mail stack's network")
 
@@ -156,6 +160,16 @@ func (h *Host) Forwarder(ctx context.Context) (string, error) {
 		"--format", "{{range .Subnets}}{{.Subnet}} {{end}}")
 	if err != nil {
 		return "", err
+	}
+	// The subnet is trusted because the mail container is alone on it: a
+	// second container there could forge a PROXY header past the gate.
+	ps, err := hostcmd.Run(ctx, hostcmd.Runuser, "-u", services.UserOf(coremail.Stack), "--", "/usr/bin/env", "-C", home,
+		"XDG_RUNTIME_DIR=/run/user/"+strconv.Itoa(uid), "/usr/bin/podman", "ps", "-a", "--filter", "network="+coremail.Stack, "--format", "{{.Names}}")
+	if err != nil {
+		return "", err
+	}
+	if names := strings.Fields(string(ps)); len(names) != 1 || names[0] != coremail.Stack+"-stalwart" {
+		return "", fmt.Errorf("%w: it holds %v", ErrNotAlone, names)
 	}
 	for _, f := range strings.Fields(string(out)) {
 		p, err := netip.ParsePrefix(f)

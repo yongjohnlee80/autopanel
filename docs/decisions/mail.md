@@ -115,6 +115,12 @@ connection to Stalwart from inside the stack's own network (from its container's
 network holds the mail container alone, so its subnet, as Podman reports it, is what Stalwart
 trusts. It is never written into the code: another network backend (pasta) forwards from elsewhere.
 
+**So the mail stack runs Stalwart alone:** a second service in it would share that network, and
+could send Stalwart a forged PROXY header container to container, past the gate and the loopback
+rule. Its review refuses a second service (`mail-one-service`), and the bootstrap trusts the subnet
+only when Podman lists Stalwart's container alone on it. Webmail, when it comes, is a stack of its
+own.
+
 **Sealed under the master key:** mail's settings, Stalwart's administrator and the core's API key,
 in the store's secret table, as the Cloudflare token is. With the vault locked, set-up and the
 verbs that need Stalwart wait for root's login.

@@ -209,6 +209,13 @@ func (m *Module) Review(ctx context.Context, name string, compose []byte) []serv
 		return []services.Finding{{ID: "reserved-name", Severity: services.Refused,
 			Detail: "the stack mail is AutoPanel's: set it up from Mail → Set up mail"}}
 	}
+	// Stalwart trusts PROXY headers from its stack's network: a second service
+	// there could forge one, past the gate and the loopback rule. Webmail and
+	// the like are stacks of their own.
+	if st, _ := services.Parse(compose, nil); len(st.Services) != 1 {
+		return []services.Finding{{ID: "mail-one-service", Severity: services.Refused,
+			Detail: "the mail stack runs Stalwart alone: it trusts its network, so any other service belongs in a stack of its own"}}
+	}
 	if string(compose) != string(Compose()) {
 		return []services.Finding{{ID: "not-autopanels", Severity: services.Warning,
 			Detail: "the mail stack's definition is not the one AutoPanel wrote; Mail may not manage it"}}
