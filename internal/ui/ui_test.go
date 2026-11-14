@@ -3,6 +3,8 @@ package ui
 import (
 	"context"
 	"errors"
+	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -15,12 +17,14 @@ import (
 
 	"github.com/yongjohnlee80/autopanel/core/gate"
 	"github.com/yongjohnlee80/autopanel/core/services"
+	"github.com/yongjohnlee80/autopanel/internal/sysinfo"
 )
 
-// fakeClient is a Client over routes in memory, recording what it was asked.
+// fakeClient is a Client over a daemon in memory, recording what it was asked.
 type fakeClient struct {
 	mu      sync.Mutex
 	routes  []gate.RouteView
+	domains []gate.DomainView
 	nextID  int64
 	added   []gate.RouteSpec
 	updated []gate.RouteSpec
@@ -35,8 +39,11 @@ type fakeClient struct {
 	kept    []Prefs  // what SetPrefs was asked to keep
 	sshNote string
 
+	metricsErr   error // what Metrics answers, when set
+	metricsReads int
+	domainAsks   []string // "add example.org" or "remove example.com"
+
 	stacks    []services.View            // what Stacks answers
-	folders   []services.Folder          // what AvailableStacks answers
 	reviews   map[string]services.Review // what CheckStack answers, by stack
 	checks    []string                   // the stacks CheckStack was asked for
 	applies   []string                   // "add web <sha>": what ApplyStack was asked for
@@ -45,13 +52,20 @@ type fakeClient struct {
 	unitAsks  []string                   // "stop web/app": what StackUnit was asked for
 	removals  []string                   // "web" or "web purge": what RemoveStack was asked for
 	logAsks   []string                   // "web" or "web/app": what StackLogs was asked for
+	imports   []string                   // "/home/ada/blog as blog": what ImportStack was asked for
+	reimports []string                   // what ReimportStack was asked for
+	folders   map[string]services.Listing
+	files     map[string]services.PreviewText
 }
 
 func newFakeClient() *fakeClient {
-	return &fakeClient{nextID: 3, ca: certmagic.LetsEncryptStagingCA, routes: []gate.RouteView{
-		{ID: 1, Host: "app.example.com", PathPrefix: "/", Upstream: "http://127.0.0.1:8080"},
-		{ID: 2, Host: "api.example.com", PathPrefix: "/v1", Upstream: "http://127.0.0.1:9090"},
-	}}
+	return &fakeClient{nextID: 3, ca: certmagic.LetsEncryptStagingCA,
+		routes: []gate.RouteView{
+			{ID: 1, Host: "app.example.com", PathPrefix: "/", Upstream: "http://127.0.0.1:8080"},
+			{ID: 2, Host: "api.example.com", PathPrefix: "/v1", Upstream: "http://127.0.0.1:9090"},
+		},
+		domains: []gate.DomainView{{Name: "example.com", Routes: 2}, {Name: "example.net", Routes: 0}},
+	}
 }
 
 // passphrase is the one the fake service accepts, for any user.
@@ -88,6 +102,9 @@ func (f *fakeClient) Add(_ context.Context, s gate.RouteSpec) error {
 	defer f.mu.Unlock()
 	if f.addErr != nil {
 		return f.addErr
+	}
+	if !slices.ContainsFunc(f.domains, func(d gate.DomainView) bool { return gate.Under(s.Host, d.Name) }) {
+		return gate.ErrNoDomain // as the daemon: a route's host is under a registered domain
 	}
 	f.added = append(f.added, s)
 	f.routes = append(f.routes, gate.RouteView{ID: f.nextID, Host: s.Host, PathPrefix: s.PathPrefix, Upstream: s.Upstream})
@@ -126,7 +143,56 @@ func (f *fakeClient) SetCA(_ context.Context, ca string) error {
 	return nil
 }
 
-func (f *fakeClient) Metrics(context.Context) (Metrics, error) {
+func (f *fakeClient) Domains(context.Context) ([]gate.DomainView, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	out := make([]gate.DomainView, 0, len(f.domains))
+	for _, d := range f.domains {
+		d.Routes = 0
+		for _, r := range f.routes {
+			if gate.Under(r.Host, d.Name) {
+				d.Routes++
+			}
+		}
+		out = append(out, d)
+	}
+	return out, nil
+}
+
+func (f *fakeClient) AddDomain(_ context.Context, name string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.domainAsks = append(f.domainAsks, "add "+name)
+	for _, d := range f.domains {
+		if d.Name == name {
+			return gate.ErrDomainExists
+		}
+	}
+	f.domains = append(f.domains, gate.DomainView{Name: name})
+	return nil
+}
+
+func (f *fakeClient) RemoveDomain(_ context.Context, name string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.domainAsks = append(f.domainAsks, "remove "+name)
+	for _, r := range f.routes {
+		if gate.Under(r.Host, name) {
+			return gate.ErrDomainInUse
+		}
+	}
+	for i, d := range f.domains {
+		if d.Name == name {
+			f.domains = append(f.domains[:i], f.domains[i+1:]...)
+			return nil
+		}
+	}
+	return gate.ErrNoSuchDomain
+}
+
+// someMetrics is a host 42% busy on 4 CPUs, half its memory used, a quarter of
+// its swap, a quarter of its disk, up 3 days and 4 hours, with two interfaces.
+func someMetrics() Metrics {
 	var m Metrics
 	m.Uptime, m.Goroutines, m.HeapBytes, m.RuntimeBytes = "1m0s", 12, 3<<20, 9<<20
 	m.HTTPSRequests, m.HTTPRequests, m.Routes = 41, 7, 2
@@ -134,7 +200,22 @@ func (f *fakeClient) Metrics(context.Context) (Metrics, error) {
 	m.Host.Load.One, m.Host.Load.Five, m.Host.Load.Fifteen = 0.5, 0.25, 0.1
 	m.Host.MemTotal, m.Host.MemAvailable = 2<<30, 1<<30
 	m.Host.DiskTotal, m.Host.DiskFree = 40<<30, 30<<30
-	return m, nil
+	m.Activity = sysinfo.Sample{CPUPercent: 42, CPUs: 4, SwapTotal: 1 << 30, SwapFree: 768 << 20, Uptime: 3*86400 + 4*3600 + 120, Seconds: 5,
+		Network: []sysinfo.IfaceRate{
+			{Iface: sysinfo.Iface{Name: "podman0", RxBytes: 3 << 20, TxBytes: 1 << 20}, RxPerSec: 512, TxPerSec: 0},
+			{Iface: sysinfo.Iface{Name: "eth0", RxBytes: 5 << 30, TxBytes: 2 << 30, RxErrors: 1, TxErrors: 2}, RxPerSec: 1500, TxPerSec: 2_300_000},
+		}}
+	return m
+}
+
+func (f *fakeClient) Metrics(context.Context) (Metrics, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.metricsReads++
+	if f.metricsErr != nil {
+		return Metrics{}, f.metricsErr
+	}
+	return someMetrics(), nil
 }
 
 func (f *fakeClient) AuditLog(context.Context) ([]AuditEntry, error) {
@@ -188,14 +269,14 @@ func (f *fakeClient) snapshot() (added, updated []gate.RouteSpec, removed []int6
 		append([]int64(nil), f.removed...), f.reads
 }
 
-// TestRoutesModel: the table's rows are the routes, a column per role, keyed
-// by id so the cursor keeps its route across a refresh.
+// TestRoutesModel: the routes list's rows are the routes, a column per role,
+// keyed by id so the cursor keeps its route across a read.
 func TestRoutesModel(t *testing.T) {
 	routes, _ := newFakeClient().Routes(context.Background())
 	h := newHost(context.Background(), newFakeClient(), "v0.1.0")
 	h.setRoutes(routes)
 
-	if n := h.model.RowCount(nil); n != 2 {
+	if n := h.routesModel.RowCount(nil); n != 2 {
 		t.Fatalf("RowCount = %d, want 2", n)
 	}
 	want := []map[string]string{
@@ -204,11 +285,11 @@ func TestRoutesModel(t *testing.T) {
 	}
 	for row, roles := range want {
 		for role, w := range roles {
-			if got := h.model.Data(tuidecl.Index{Row: row}, role).Raw; got != w {
+			if got := h.routesModel.Data(tuidecl.Index{Row: row}, role).Raw; got != w {
 				t.Errorf("row %d %s = %q, want %q", row, role, got, w)
 			}
 		}
-		if got := h.model.Key(tuidecl.Index{Row: row}); got != roles["key"] {
+		if got := h.routesModel.Key(tuidecl.Index{Row: row}); got != roles["key"] {
 			t.Errorf("row %d key = %q, want %q", row, got, roles["key"])
 		}
 	}
@@ -221,7 +302,7 @@ func TestRoutesModel(t *testing.T) {
 		}
 	}
 	h.setRoutes(nil)
-	if n := h.model.RowCount(nil); n != 0 {
+	if n := h.routesModel.RowCount(nil); n != 0 {
 		t.Errorf("RowCount after an empty read = %d, want 0", n)
 	}
 }
@@ -249,30 +330,6 @@ func TestStatusLine(t *testing.T) {
 	}
 }
 
-// TestOverview: the main screen names every fact of the status, and says of
-// staging that browsers do not trust it and where to switch.
-func TestOverview(t *testing.T) {
-	s, _ := newFakeClient().Status(context.Background())
-	line := func(s Status) string {
-		var b strings.Builder
-		for _, f := range overview(inEnglish{}, s) {
-			b.WriteString(f[0] + "=" + f[1] + "\n")
-		}
-		return b.String()
-	}
-	got := line(s)
-	for _, part := range []string{"Version=v0.1.0\n", "HTTPS=:443\n", "HTTP=:80 ", "Store=sqlite\n",
-		"Certificates=Let's Encrypt staging", "browsers do not trust", "Certs → Type", "Challenge=http-01\n", "Routes=2\n", "Uptime=1m0s\n"} {
-		if !strings.Contains(got, part) {
-			t.Errorf("overview = %q, missing %q", got, part)
-		}
-	}
-	s.CA = certmagic.LetsEncryptProductionCA
-	if got := line(s); !strings.Contains(got, "Let's Encrypt production") || strings.Contains(got, "do not trust") {
-		t.Errorf("overview on production = %q", got)
-	}
-}
-
 func TestFormSpec(t *testing.T) {
 	cases := []struct {
 		name                   string
@@ -295,27 +352,28 @@ func TestFormSpec(t *testing.T) {
 }
 
 // TestEveryQMLFileIsSound lints what the package ships: Main.qml under every
-// theme, the dialogs, the views and the panels, parsed and type-checked
-// against the vocabulary, the App singleton's sources and its commands
-// (decl's Check, as qmllint).
+// theme, the dialogs and the views, parsed and type-checked against the
+// vocabulary, the App singleton's sources and its commands (decl's Check, as
+// qmllint).
 func TestEveryQMLFileIsSound(t *testing.T) {
 	h := newHost(context.Background(), newFakeClient(), "v0.1.0")
 	decltest.Check(t, h.options(nil)...)
 }
 
 // TestEveryLanguageIsWhole judges the six catalogs: every message English has,
-// each mnemonic on English's letter, no two rows of a menu on one key.
+// each access key on English's letter, no two rows of a menu on one key.
 func TestEveryLanguageIsWhole(t *testing.T) {
 	h := newHost(context.Background(), newFakeClient(), "v0.1.0")
 	decltest.CheckLanguages(t, h.options(nil)...)
 }
 
-// TestEveryMessageIsInEveryCatalog: each catalog holds exactly English's
-// ids, so no language falls back to English for a message of the panel's.
+// TestEveryMessageIsInEveryCatalog: each catalog holds exactly English's ids,
+// so no language falls back to English for a message of the panel's, and
+// every id is autopanel.<kind>.<area>.<slug>.
 func TestEveryMessageIsInEveryCatalog(t *testing.T) {
 	set := englishCatalog()
 	want := set.IDs("en")
-	if len(want) < 90 {
+	if len(want) < 300 {
 		t.Fatalf("the English catalog holds %d messages", len(want))
 	}
 	for _, lang := range languages {
@@ -324,7 +382,12 @@ func TestEveryMessageIsInEveryCatalog(t *testing.T) {
 			t.Errorf("%s holds %d messages, English %d; they differ", lang, len(got), len(want))
 		}
 	}
-	for _, id := range []string{"autopanel.status.line", "autopanel.notice.caNow", "autopanel.logins.result.closed"} {
+	for _, id := range want {
+		if parts := strings.Split(id, "."); len(parts) != 4 || parts[0] != "autopanel" {
+			t.Errorf("%s is not autopanel.<kind>.<area>.<slug>", id)
+		}
+	}
+	for _, id := range []string{"autopanel.status.bar.line", "autopanel.notice.certs.caNow", "autopanel.value.logins.closed"} {
 		if englishText(id) == id {
 			t.Errorf("the English catalog has no %s", id)
 		}
@@ -335,10 +398,18 @@ func TestEveryMessageIsInEveryCatalog(t *testing.T) {
 // terminal: it stops at the login dialog.
 func open(t *testing.T, c Client) *decltest.Screen {
 	t.Helper()
+	_, s := openHost(t, c, 120, 36)
+	return s
+}
+
+// openHost is open at a size, with the host the screen runs.
+func openHost(t *testing.T, c Client, w, ht int) (*host, *decltest.Screen) {
+	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	h := newHost(ctx, c, "v0.1.0")
-	return decltest.RunWith(t, 120, 30, func(p *tuidecl.Program) error { h.attach(p); return nil }, h.options(nil)...)
+	h.brw.start = "/home/ada"
+	return h, decltest.RunWith(t, w, ht, func(p *tuidecl.Program) error { h.attach(p); return nil }, h.options(nil)...)
 }
 
 // signIn answers the login dialog as root: the passphrase field has the
@@ -359,6 +430,14 @@ func start(t *testing.T, c Client) *decltest.Screen {
 	return s
 }
 
+// startHost is start, with the host.
+func startHost(t *testing.T, c Client) (*host, *decltest.Screen) {
+	t.Helper()
+	h, s := openHost(t, c, 120, 36)
+	signIn(t, s)
+	return h, s
+}
+
 // openRoutes opens the proxy routes panel through the menu bar, as a user
 // does: Alt+R opens Routes, p is "Proxy routes…".
 func openRoutes(t *testing.T, s *decltest.Screen) {
@@ -367,39 +446,45 @@ func openRoutes(t *testing.T, s *decltest.Screen) {
 	s.Keys(t, decltest.Alt('r'))
 	s.WaitForText(t, "Proxy routes…")
 	s.Keys(t, decltest.Rune('p'))
-	s.WaitForText(t, "api.example.com")
+	waitFact(t, s, "Upstream", "http://127.0.0.1:8080") // the first route's details
 }
 
 var (
-	enter  = tui.KeyEvent{Kind: tui.KeyPress, Code: tui.KeyEnter}
-	escape = tui.KeyEvent{Kind: tui.KeyPress, Code: tui.KeyEscape}
-	tab    = tui.KeyEvent{Kind: tui.KeyPress, Code: tui.KeyTab}
+	enter     = tui.KeyEvent{Kind: tui.KeyPress, Code: tui.KeyEnter}
+	escape    = tui.KeyEvent{Kind: tui.KeyPress, Code: tui.KeyEscape}
+	tab       = tui.KeyEvent{Kind: tui.KeyPress, Code: tui.KeyTab}
+	backspace = tui.KeyEvent{Kind: tui.KeyPress, Code: tui.KeyBackspace}
 )
 
-func TestShowsRoutesRefreshesAndQuits(t *testing.T) {
+// TestTheMainScreen: the menu bar with the dock in its corner, the seven
+// widgets, the status bar; no line of keys. The routes panel opens from its
+// menu row and q closes it, not the program; r reads again, and q on the
+// main screen quits.
+func TestTheMainScreen(t *testing.T) {
 	f := newFakeClient()
 	s := start(t, f)
-	// The menu bar, the overview and the status bar; the routes are not on
-	// the main screen.
-	// the menus, in their order
-	s.WaitForText(t, "System    Routes    Certs    Services    Mail    Users    Go    Help")
-	for _, part := range []string{"Overview", "Let's Encrypt staging", "CA LE staging", "2 routes", "r refresh"} {
+	s.WaitForText(t, "System    Routes    Certs    Services    Mail    Users    Go    View    Help")
+	for _, part := range []string{"Host", "Network", "Stacks", "Traffic", "Certificates", "Ports", "Activity",
+		"CA LE staging", "2 routes", "◫  ▦  ⇅  ↯  ✓  ⊡  ≡"} {
 		s.WaitForText(t, part)
 	}
-	if strings.Contains(s.String(), "api.example.com") {
-		t.Fatalf("the routes are on the main screen:\n%s", s)
+	for _, gone := range []string{"r refresh", "q quit", "Menus: Alt"} {
+		if strings.Contains(s.String(), gone) {
+			t.Fatalf("the main screen shows a key hint %q:\n%s", gone, s)
+		}
 	}
 	openRoutes(t, s)
 	s.Keys(t, decltest.Rune('q')) // closes the routes panel, not the program
-	s.WaitFor(t, "the routes panel to close", func(sc string) bool { return !strings.Contains(sc, "api.example.com") })
+	s.WaitFor(t, "the routes panel to close", func(sc string) bool { return !strings.Contains(sc, "Proxy routes") })
 	select {
 	case <-s.Quit():
 		t.Fatalf("q in the routes panel quit the program:\n%s", s)
 	default:
 	}
 
+	_, _, _, before := f.snapshot()
 	s.Keys(t, decltest.Rune('r'))
-	s.WaitFor(t, "a second read", func(string) bool { _, _, _, reads := f.snapshot(); return reads >= 2 })
+	s.WaitFor(t, "a read again", func(string) bool { _, _, _, reads := f.snapshot(); return reads > before })
 
 	s.Keys(t, decltest.Rune('q'))
 	select {
@@ -420,20 +505,42 @@ func TestCtrlCQuits(t *testing.T) {
 	}
 }
 
+// TestTheRoutesPanel: two panes, the routes on the left and the selected one
+// whole on the right, its domain and the stack its upstream reaches named.
+func TestTheRoutesPanel(t *testing.T) {
+	f := withStacks()
+	s := start(t, f)
+	openRoutes(t, s)
+	for _, part := range []string{"Routes · 2 · read at", "Details", "[ Add… ]", "[ Domains… ]", "[ Close (q) ]"} {
+		s.WaitForText(t, part)
+	}
+	for _, f := range [][2]string{{"Route", "#1"}, {"Host", "app.example.com"}, {"Domain", "example.com"}, {"Stack", "web-app"}} {
+		waitFact(t, s, f[0], f[1])
+	}
+	s.Keys(t, decltest.Rune('j'))
+	waitFact(t, s, "Path prefix", "/v1")
+	waitFact(t, s, "Stack", "-")
+}
+
+// TestAddThroughTheForm: a subdomain typed, the one domain chosen first, and
+// the upstream typed; a refused add keeps the form, as typed, saying why; a
+// second add starts empty.
 func TestAddThroughTheForm(t *testing.T) {
 	f := newFakeClient()
+	f.domains = []gate.DomainView{{Name: "example.com"}}
 	f.addErr = errors.New("gate: a route for this host and path prefix exists")
 	s := start(t, f)
 	openRoutes(t, s)
 
 	s.Keys(t, decltest.Rune('a'))
 	s.WaitForText(t, "Add route")
-	s.Keys(t, decltest.Type("new.example.com")...)
-	s.Keys(t, tab, tab) // past the path prefix, left at "/"
+	s.WaitForText(t, "example.com") // the one domain, chosen
+	s.Keys(t, decltest.Type("new")...)
+	s.Keys(t, tab, tab, tab) // past the domain and the path prefix, left at "/"
 	s.Keys(t, decltest.Type("http://127.0.0.1:7000")...)
 	s.Keys(t, enter)
 	s.WaitForText(t, "error: gate: a route for this host and path prefix exists")
-	if !strings.Contains(s.String(), "Add route") || !strings.Contains(s.String(), "new.example.com") {
+	if !strings.Contains(s.String(), "Add route") || !strings.Contains(s.String(), "127.0.0.1:7000") {
 		t.Fatalf("a refused add closed the form or lost what was typed:\n%s", s)
 	}
 
@@ -442,10 +549,7 @@ func TestAddThroughTheForm(t *testing.T) {
 	f.mu.Unlock()
 	s.Keys(t, enter)
 	s.WaitForText(t, "added new.example.com/")
-	s.WaitForText(t, "http://127.0.0.1:7000") // the table was read again
-	if strings.Contains(s.String(), "Add route") {
-		t.Fatalf("the form stayed open after the add:\n%s", s)
-	}
+	gone(t, s, "Add route")
 	added, _, _, _ := f.snapshot()
 	want := gate.RouteSpec{Host: "new.example.com", PathPrefix: "/", Upstream: "http://127.0.0.1:7000"}
 	if len(added) != 1 || added[0] != want {
@@ -455,13 +559,15 @@ func TestAddThroughTheForm(t *testing.T) {
 	// A second add starts empty, though the first form was typed in.
 	s.Keys(t, decltest.Rune('a'))
 	s.WaitForText(t, "Add route")
-	if strings.Contains(s.String(), "new.example.com") { // the screen behind the dialog is dimmed out
+	if strings.Contains(s.String(), "7000") {
 		t.Fatalf("the form kept the last route's text:\n%s", s)
 	}
 	s.Keys(t, escape)
-	s.WaitFor(t, "the form to close", func(sc string) bool { return !strings.Contains(sc, "Add route") })
+	gone(t, s, "Add route")
 }
 
+// TestEditTheSelectedRoute: the form opens on the route, its host split into
+// the subdomain and its domain.
 func TestEditTheSelectedRoute(t *testing.T) {
 	f := newFakeClient()
 	s := start(t, f)
@@ -469,8 +575,9 @@ func TestEditTheSelectedRoute(t *testing.T) {
 
 	s.Keys(t, decltest.Rune('j'), enter) // the second row, Enter edits it
 	s.WaitForText(t, "Edit route #2")
-	s.Keys(t, tab, tab)
-	s.Keys(t, decltest.Type("1")...) // upstream http://127.0.0.1:90901
+	s.WaitForText(t, "api")
+	s.Keys(t, tab, tab, tab) // the domain, the path, the upstream
+	s.Keys(t, decltest.Type("1")...)
 	s.Keys(t, enter)
 	s.WaitForText(t, "updated api.example.com/v1")
 	_, updated, _, _ := f.snapshot()
@@ -485,32 +592,41 @@ func TestRemoveAsksFirst(t *testing.T) {
 	s := start(t, f)
 	openRoutes(t, s)
 
-	s.Keys(t, decltest.Rune('d'))
+	s.Keys(t, decltest.Rune('r'))
 	s.WaitForText(t, "Remove route #1")
 	s.Keys(t, escape)
-	s.WaitFor(t, "the question to close", func(sc string) bool { return !strings.Contains(sc, "Remove route #1") })
+	gone(t, s, "Remove route #1")
 	if _, _, removed, _ := f.snapshot(); len(removed) != 0 {
 		t.Fatalf("removed without a yes: %v", removed)
 	}
 
-	s.Keys(t, decltest.Rune('d'))
+	s.Keys(t, decltest.Rune('r'))
+	s.WaitForText(t, "Remove route #1")
+	s.Keys(t, enter) // No is first: Enter alone removes nothing
+	gone(t, s, "Remove route #1")
+	if _, _, removed, _ := f.snapshot(); len(removed) != 0 {
+		t.Fatalf("Enter removed: %v", removed)
+	}
+
+	s.Keys(t, decltest.Rune('r'))
 	s.WaitForText(t, "Remove route #1")
 	s.Keys(t, decltest.Rune('y'))
 	s.WaitForText(t, "removed #1")
-	s.WaitFor(t, "the table without route 1", func(sc string) bool { return !strings.Contains(sc, "app.example.com") })
+	s.WaitFor(t, "the list without route 1", func(sc string) bool { return !strings.Contains(sc, "app.example.com") })
 	if _, _, removed, _ := f.snapshot(); len(removed) != 1 || removed[0] != 1 {
 		t.Fatalf("removed = %v, want [1]", removed)
 	}
 }
 
 // TestCertsTypeSwitchesTheService: Certs → Type → Production asks the daemon
-// for production, and the overview and status bar then show what the daemon
-// reports. A switch the daemon refuses says why and leaves the service as it
-// was.
+// for production, and the certificates widget and the status bar then show
+// what the daemon reports. A switch the daemon refuses says why and leaves the
+// service as it was.
 func TestCertsTypeSwitchesTheService(t *testing.T) {
 	f := newFakeClient()
 	s := start(t, f)
 	s.WaitForText(t, "CA LE staging")
+	s.WaitForText(t, "Issuer: Let's Encrypt staging")
 
 	choose := func(letter rune) {
 		t.Helper()
@@ -524,7 +640,7 @@ func TestCertsTypeSwitchesTheService(t *testing.T) {
 	choose('p')
 	s.WaitForText(t, "certificates now come from Let's Encrypt production")
 	s.WaitForText(t, "CA LE production")
-	s.WaitForText(t, "real certificates, trusted by browsers")
+	gone(t, s, "Issuer: Let's Encrypt staging") // the widget's line is production's now, wrapped at its width
 	f.mu.Lock()
 	asked := append([]string(nil), f.setCAs...)
 	f.caErr = errors.New("certs: the vault is locked")
@@ -548,11 +664,36 @@ func TestHelpAboutShowsTheVersions(t *testing.T) {
 	s.Keys(t, decltest.Alt('h'))
 	s.WaitForText(t, "About AutoPanel")
 	s.Keys(t, decltest.Rune('a'))
-	for _, part := range []string{"AutoPanel v0.1.0", "Daemon", "v0.1.0 · up 1m0s", "Apache-2.0", "github.com/yongjohnlee80/autopanel"} {
+	for _, part := range []string{"AutoPanel v0.1.0", "Daemon", "v0.1.0 · up 1m0s", "Apache-2.0", "github.com/yongjohnlee80/autopanel", "Close (q)"} {
 		s.WaitForText(t, part)
 	}
 	s.Keys(t, escape)
-	s.WaitFor(t, "About to close", func(sc string) bool { return !strings.Contains(sc, "Apache-2.0") })
+	gone(t, s, "Apache-2.0")
+}
+
+// TestHelpKeysListsEveryKey: Help → Keys is a card of every key, by where it
+// works; F1 opens it too.
+func TestHelpKeysListsEveryKey(t *testing.T) {
+	s := start(t, newFakeClient())
+	s.WaitForText(t, "CA LE staging")
+	s.Keys(t, decltest.Alt('h'))
+	s.WaitForText(t, "Keys")
+	s.Keys(t, decltest.Rune('k'))
+	for _, part := range []string{"EVERYWHERE", "show these keys", "THE WIDGETS OF THE MAIN SCREEN", "PANELS"} {
+		s.WaitForText(t, part)
+	}
+	s.Keys(t, decltest.Rune('q'))
+	gone(t, s, "EVERYWHERE")
+	s.Keys(t, tui.KeyEvent{Kind: tui.KeyPress, Code: tui.KeyF1})
+	s.WaitForText(t, "EVERYWHERE")
+	text := keysText(inEnglish{})
+	for _, sec := range keySections {
+		for _, r := range sec.rows {
+			if !strings.Contains(text, r.keys) {
+				t.Errorf("Help › Keys lacks %q", r.keys)
+			}
+		}
+	}
 }
 
 // openSystem opens a row of the System menu by its access key.
@@ -564,8 +705,9 @@ func openSystem(t *testing.T, s *decltest.Screen, key rune) {
 }
 
 // TestSystemMonitors: each row of the System menu opens its panel and reads
-// it; the rows are what the daemon answered, and the note says how many and
-// when. r in a panel reads it again.
+// it. The list's title says how many rows and when; the audit log, the logins
+// and the ports are two panes, the selected row whole on the right. r in a
+// panel reads it again.
 func TestSystemMonitors(t *testing.T) {
 	f := newFakeClient()
 	f.sshNote = "SSH logins are not shown: the journal could not be read."
@@ -573,54 +715,48 @@ func TestSystemMonitors(t *testing.T) {
 	s.WaitForText(t, "CA LE staging")
 
 	openSystem(t, s, 'm')
-	for _, part := range []string{"Metrics", "HTTPS requests", "41", "Core memory", "3.0 MiB in use · 9.0 MiB held", "Gate memory", "18.0 MiB · process 177",
-		"0.50 · 0.25 · 0.10 (1, 5 and 15 minutes)", "1.0 GiB available of 2.0 GiB", "30.0 GiB free of 40.0 GiB", "read at "} {
+	for _, part := range []string{"HTTPS requests", "41", "Core memory", "3.0 MiB in use · 9.0 MiB held", "Gate memory", "18.0 MiB · process 177",
+		"0.50 · 0.25 · 0.10 (1, 5 and 15 minutes)", "1.0 GiB available of 2.0 GiB", "30.0 GiB free of 40.0 GiB", "Metrics · 10 · read at "} {
 		s.WaitForText(t, part)
 	}
 	s.Keys(t, decltest.Rune('q'))
-	s.WaitFor(t, "the metrics panel to close", func(sc string) bool { return !strings.Contains(sc, "Core memory") })
+	gone(t, s, "Core memory")
 
 	openSystem(t, s, 'a')
-	for _, part := range []string{"Audit log", "route.add", "root (local:999)", "route 2 api", "http://127.0.0.1:9090", "2 rows, read at "} {
+	for _, part := range []string{"Audit log", "Entries · 2 · read at ", "route.add"} {
 		s.WaitForText(t, part)
 	}
+	for _, f := range [][2]string{{"Subject", "route 2 api.example.com/v1"}, {"Detail", "http://127.0.0.1:9090"}, {"Entry", "#9"}} {
+		waitFact(t, s, f[0], f[1])
+	}
+	s.Keys(t, decltest.Rune('j'))
+	waitFact(t, s, "Action", "auth.login")
 	s.Keys(t, decltest.Rune('q'))
-	s.WaitFor(t, "the audit panel to close", func(sc string) bool { return !strings.Contains(sc, "route.add") })
+	gone(t, s, "Entries · 2")
 
 	openSystem(t, s, 'l')
-	for _, part := range []string{"Login attempts", "192.0.2.66", "admin", "failed", "password, invalid user", "panel", "ok",
-		"the journal could not be read"} {
+	for _, part := range []string{"Login attempts", "the journal could not be read", "admin", "failed"} {
 		s.WaitForText(t, part)
 	}
+	waitFact(t, s, "From", "192.0.2.66")
+	waitFact(t, s, "Detail", "password, invalid user")
 	s.Keys(t, decltest.Rune('q'))
-	s.WaitFor(t, "the logins panel to close", func(sc string) bool { return !strings.Contains(sc, "192.0.2.66") })
+	gone(t, s, "192.0.2.66")
 
 	openSystem(t, s, 'p')
-	for _, part := range []string{"Open ports", "3478", "udp", "TURN/STUN (usual for this port)", "AutoPanel: HTTPS (the proxy)",
-		"PROCESS", "sshd (612)", "autopanel (177)", "USER", "root", "3 rows, read at "} {
+	for _, part := range []string{"Open ports", "Sockets · 3 · read at ", "3478", "sshd (612)"} {
 		s.WaitForText(t, part)
 	}
-	f.mu.Lock()
-	f.sshNote = ""
-	f.mu.Unlock()
-	s.Keys(t, decltest.Rune('r')) // the panel's r: its own read, not the Window's refresh
-	s.WaitForText(t, "3 rows, read at ")
-	if _, _, _, reads := f.snapshot(); reads != 1 {
-		t.Fatalf("r in a panel read the routes again (%d reads): it is the panel's key there", reads)
+	waitFact(t, s, "Process", "sshd (612)")
+	waitFact(t, s, "User", "root")
+	s.Keys(t, decltest.Rune('j'), decltest.Rune('j'))
+	waitFact(t, s, "For", "TURN/STUN (usual for this port)")
+	_, _, _, reads := f.snapshot()
+	s.Keys(t, decltest.Rune('r')) // the panel's r: its own read, not the Window's
+	s.WaitForText(t, "Sockets · 3 · read at ")
+	if _, _, _, now := f.snapshot(); now != reads {
+		t.Fatalf("r in a panel read the routes again: it is the panel's key there")
 	}
-}
-
-// controlAt is the cell of a window control in the routes panel's top row:
-// its three controls are "_", "+" and "x", in that order.
-func controlAt(t *testing.T, s *decltest.Screen, control string) (x, y int) {
-	t.Helper()
-	for y, line := range strings.Split(s.String(), "\n") {
-		if i := strings.Index(line, "_   +   x"); i >= 0 {
-			return len([]rune(line[:i])) + strings.Index("_   +   x", control), y
-		}
-	}
-	t.Fatalf("no window controls on the screen:\n%s", s)
-	return 0, 0
 }
 
 // click presses and releases the left button on a cell.
@@ -630,41 +766,42 @@ func click(t *testing.T, s *decltest.Screen, x, y int) {
 		tui.MouseEvent{Kind: tui.MouseRelease, Button: tui.MouseLeft, X: x, Y: y})
 }
 
-// TestAPanelsWindowControls: a floating panel has its three window controls,
-// and each works with the mouse. Minimized, the panel leaves the screen and
-// is listed on the hints row, and its menu row brings it back; maximized, it
-// takes the whole Window; closed, it is gone and the Window's keys work again.
-func TestAPanelsWindowControls(t *testing.T) {
-	f := newFakeClient()
-	s := start(t, f)
-	openRoutes(t, s)
-
-	x, y := controlAt(t, s, "_")
-	click(t, s, x, y)
-	s.WaitFor(t, "the panel to leave the screen", func(sc string) bool { return !strings.Contains(sc, "api.example.com") })
-	s.WaitForText(t, "[ Proxy routes ]") // its entry on the hints row
-
-	openRoutes(t, s) // the menu row restores it
-	s.WaitFor(t, "its entry to leave the hints row", func(sc string) bool { return !strings.Contains(sc, "[ Proxy routes ]") })
-
-	x, y = controlAt(t, s, "+")
-	click(t, s, x, y)
-	// Maximized, the panel is the whole Window: its frame starts the first
-	// row. The controls are read only once it has settled there; a frame
-	// earlier they are still where the floating panel had them.
-	s.WaitFor(t, "the maximized panel to take the whole Window", func(sc string) bool {
-		return strings.HasPrefix(sc, "┌ Proxy routes") && strings.Contains(sc, "api.example.com")
-	})
-
-	x, y = controlAt(t, s, "x")
-	click(t, s, x, y)
-	s.WaitFor(t, "the panel to close", func(sc string) bool { return !strings.Contains(sc, "api.example.com") })
-	s.Keys(t, decltest.Rune('r')) // the Window's r, now the panel is gone
-	s.WaitFor(t, "a second read", func(string) bool { _, _, _, reads := f.snapshot(); return reads >= 2 })
+// dockAt is the cell of an icon in the dock, the menu bar's corner.
+func dockAt(t *testing.T, s *decltest.Screen, icon string) (x, y int) {
+	t.Helper()
+	bar := strings.Split(s.String(), "\n")[0]
+	i := strings.LastIndex(bar, icon)
+	if i < 0 {
+		t.Fatalf("no %s in the dock:\n%s", icon, s)
+	}
+	return len([]rune(bar[:i])), 0
 }
 
-// TestAPanelMovesAndResizes: Alt with the left button drags a floating panel,
-// and Alt with the right button resizes it from its corner.
+// TestTheDockHidesAndShowsAPanel: an open panel's icon is in the dock; a
+// click hides the panel, its state kept, and a click shows it again; Close
+// closes it, and its icon goes.
+func TestTheDockHidesAndShowsAPanel(t *testing.T) {
+	s := start(t, newFakeClient())
+	openRoutes(t, s)
+	s.WaitFor(t, "the routes' icon in the dock", func(sc string) bool { return strings.Contains(strings.Split(sc, "\n")[0], "⇄") })
+
+	x, y := dockAt(t, s, "⇄")
+	click(t, s, x, y)
+	gone(t, s, "Proxy routes")
+	if !strings.Contains(strings.Split(s.String(), "\n")[0], "⇄") {
+		t.Fatalf("a hidden panel left the dock:\n%s", s)
+	}
+	click(t, s, x, y)
+	s.WaitForText(t, "Proxy routes")
+	waitFact(t, s, "Host", "app.example.com")
+
+	s.Keys(t, escape)
+	gone(t, s, "Proxy routes")
+	s.WaitFor(t, "the routes' icon to leave the dock", func(sc string) bool { return !strings.Contains(strings.Split(sc, "\n")[0], "⇄") })
+}
+
+// TestAPanelMovesAndResizes: Alt with the left button drags a panel, and Alt
+// with the right button resizes it from its corner.
 func TestAPanelMovesAndResizes(t *testing.T) {
 	s := start(t, newFakeClient())
 	openRoutes(t, s)
@@ -701,18 +838,37 @@ func TestAPanelMovesAndResizes(t *testing.T) {
 }
 
 // TestLanguageSwitchesEverything: System → Language → 한국어 relabels the
-// menus, and the text composed in Go (the status line, the overview) is
-// composed again in Korean; the choice is kept. A panel opened on a daemon
-// that holds a language opens in it.
+// menus, the widgets and the text composed in Go (the status line, a widget's
+// values, a panel's details, the tooltips); the choice is kept. A panel opened
+// on a daemon that holds a language opens in it.
 func TestLanguageSwitchesEverything(t *testing.T) {
 	f := newFakeClient()
-	s := start(t, f)
+	h, s := startHost(t, f)
 	s.WaitForText(t, "CA LE staging")
 	openSystem(t, s, 'g')
 	s.WaitForText(t, "한국어")
 	s.Keys(t, decltest.Rune('2'))
-	for _, part := range []string{"라우트", "인증서", "시스템", "개요", "CA LE 스테이징", "라우트 2개", "가동 시간"} {
-		s.WaitForText(t, part)
+	ko := map[string]string{}
+	for _, id := range []string{"autopanel.menu.routes.title", "autopanel.menu.view.title", "autopanel.title.widget.host",
+		"autopanel.title.widget.network", "autopanel.value.ca.shortStaging", "autopanel.tip.panel.close"} {
+		ko[id] = onLoop(h, func() string { return h.tr(id) })
+		if ko[id] == englishText(id) {
+			t.Errorf("%s is English in Korean: %q", id, ko[id])
+		}
+	}
+	for _, id := range []string{"autopanel.menu.routes.title", "autopanel.menu.view.title", "autopanel.title.widget.host", "autopanel.title.widget.network"} {
+		word, _, _ := strings.Cut(ko[id], "(&") // a menu's "라우트(&r)" is drawn "라우트(r)": its word before the key
+		s.WaitForText(t, strings.TrimSpace(word))
+	}
+	s.WaitForText(t, "CA "+ko["autopanel.value.ca.shortStaging"])
+	if got := onLoop(h, func() string {
+		c, ok := h.p.Find("routesClose")
+		if !ok {
+			return ""
+		}
+		return c.(interface{ ToolTip() string }).ToolTip()
+	}); got != ko["autopanel.tip.panel.close"] {
+		t.Errorf("the close tooltip after the switch = %q, want %q", got, ko["autopanel.tip.panel.close"])
 	}
 	s.WaitFor(t, "the language to be kept", func(string) bool {
 		k := f.keptPrefs()
@@ -721,10 +877,11 @@ func TestLanguageSwitchesEverything(t *testing.T) {
 
 	g := newFakeClient()
 	g.prefs = Prefs{Language: "ja_JP"}
-	s2 := start(t, g)
-	for _, part := range []string{"ルート", "証明書", "概要", "CA LE ステージング"} {
-		s2.WaitForText(t, part)
-	}
+	h2, s2 := startHost(t, g)
+	s2.WaitFor(t, "the kept language", func(string) bool {
+		return onLoop(h2, func() string { return h2.language }) == "ja_JP"
+	})
+	s2.WaitForText(t, "CA "+onLoop(h2, func() string { return h2.tr("autopanel.value.ca.shortStaging") }))
 	if k := g.keptPrefs(); len(k) != 0 {
 		t.Fatalf("opening in the kept language wrote it again: %+v", k)
 	}
@@ -750,15 +907,9 @@ func TestThemeSwitchesAndIsKept(t *testing.T) {
 
 	g := newFakeClient()
 	g.prefs = Prefs{Theme: "sepia", Language: "en"}
-	h := newHost(context.Background(), g, "v0.1.0")
-	s2 := decltest.RunWith(t, 120, 30, func(p *tuidecl.Program) error { h.attach(p); return nil }, h.options(nil)...)
-	signIn(t, s2)
+	h, s2 := startHost(t, g)
 	s2.WaitForText(t, "CA LE staging")
-	s2.WaitFor(t, "the kept theme to be shown", func(string) bool {
-		done := make(chan string, 1)
-		s2.Program.Post(func() { done <- h.theme })
-		return <-done == "sepia"
-	})
+	s2.WaitFor(t, "the kept theme to be shown", func(string) bool { return onLoop(h, func() string { return h.theme }) == "sepia" })
 }
 
 func TestBytesText(t *testing.T) {
@@ -772,11 +923,11 @@ func TestBytesText(t *testing.T) {
 // TestThePanelOpensOnTheLogin: nothing is read before a login. A wrong
 // passphrase opens the dialog again with the reason and the user as typed,
 // and the passphrase is never on the screen; the right one signs in, and the
-// routes and status are then read.
+// screen is then read.
 func TestThePanelOpensOnTheLogin(t *testing.T) {
 	f := newFakeClient()
 	s := open(t, f)
-	for _, part := range []string{"Sign in to AutoPanel", "User", "root", "Passphrase"} {
+	for _, part := range []string{"Sign in to AutoPanel", "User", "root", "Passphrase", "Sign in", "Quit"} {
 		s.WaitForText(t, part)
 	}
 	if _, _, _, reads := f.snapshot(); reads != 0 {
@@ -818,7 +969,7 @@ func TestALoginAsAnotherUser(t *testing.T) {
 	shiftTab := tui.KeyEvent{Kind: tui.KeyPress, Code: tui.KeyTab, Mods: tui.ModShift}
 	s.Keys(t, shiftTab) // back to the user field, from the passphrase
 	s.Keys(t, decltest.Type("2")...)
-	s.Keys(t, tab)
+	s.Keys(t, enter) // Enter in the user field moves to the passphrase
 	s.Keys(t, decltest.Type(passphrase)...)
 	s.Keys(t, enter)
 	s.WaitForText(t, "signed in as root2")
@@ -837,5 +988,28 @@ func TestCancellingTheLoginQuits(t *testing.T) {
 	}
 	if _, _, _, reads := f.snapshot(); reads != 0 {
 		t.Fatalf("a cancelled login read the routes (%d reads)", reads)
+	}
+}
+
+// waitFact waits for a details pane's line: the label, the spaces that line
+// the values up, then the value.
+func waitFact(t *testing.T, s *decltest.Screen, label, value string) {
+	t.Helper()
+	re := regexp.MustCompile(regexp.QuoteMeta(label) + ` {2,}` + regexp.QuoteMeta(value))
+	s.WaitFor(t, label+" "+value, func(sc string) bool { return re.MatchString(sc) })
+}
+
+// onLoop runs fn on the UI loop and returns its answer.
+func onLoop[T any](h *host, fn func() T) T {
+	ch := make(chan T, 1)
+	h.p.Post(func() { ch <- fn() })
+	return <-ch
+}
+
+// run runs fn on the loop, failing the test on its error.
+func run(t *testing.T, h *host, fn func() error) {
+	t.Helper()
+	if err := onLoop(h, fn); err != nil {
+		t.Fatal(err)
 	}
 }

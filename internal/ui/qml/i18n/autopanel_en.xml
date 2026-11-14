@@ -3,313 +3,869 @@
 <TS version="2.1" language="en">
 <context>
     <name>autopanel</name>
-    <message id="autopanel.about.daemon">
-        <source>Daemon</source>
-        <translation>Daemon</translation>
+    <message id="autopanel.button.browse.import">
+        <source>&amp;Import…</source>
+        <translation>&amp;Import…</translation>
     </message>
-    <message id="autopanel.about.daemonLine">
-        <source>%1 · up %2</source>
-        <translation>%1 · up %2</translation>
+    <message id="autopanel.button.browse.up">
+        <source>&amp;Up</source>
+        <translation>&amp;Up</translation>
     </message>
-    <message id="autopanel.about.licence">
-        <source>Licence</source>
-        <translation>Licence</translation>
+    <message id="autopanel.button.confirm.no">
+        <source>&amp;No</source>
+        <translation>&amp;No</translation>
     </message>
-    <message id="autopanel.about.panel">
-        <source>Panel</source>
-        <translation>Panel</translation>
+    <message id="autopanel.button.confirm.purge">
+        <source>Remove with its &amp;directory</source>
+        <translation>Remove with its &amp;directory</translation>
     </message>
-    <message id="autopanel.about.source">
-        <source>Source</source>
-        <translation>Source</translation>
+    <message id="autopanel.button.confirm.yes">
+        <source>&amp;Yes</source>
+        <translation>&amp;Yes</translation>
     </message>
-    <message id="autopanel.about.title">
-        <source>About AutoPanel</source>
-        <translation>About AutoPanel</translation>
-    </message>
-    <message id="autopanel.about.what">
-        <source>A lightweight control plane for self-hosted web services.</source>
-        <translation>A lightweight control plane for self-hosted web services.</translation>
-    </message>
-    <message id="autopanel.audit.title">
-        <source>Audit log</source>
-        <translation>Audit log</translation>
-    </message>
-    <message id="autopanel.ca.name.production">
-        <source>Let's Encrypt production</source>
-        <translation>Let's Encrypt production</translation>
-    </message>
-    <message id="autopanel.ca.name.staging">
-        <source>Let's Encrypt staging</source>
-        <translation>Let's Encrypt staging</translation>
-    </message>
-    <message id="autopanel.ca.note.production">
-        <source>Let's Encrypt production: real certificates, trusted by browsers.</source>
-        <translation>Let's Encrypt production: real certificates, trusted by browsers.</translation>
-    </message>
-    <message id="autopanel.ca.note.staging">
-        <source>Let's Encrypt staging: test certificates, which browsers do not trust. Switch in Certs → Type.</source>
-        <translation>Let's Encrypt staging: test certificates, which browsers do not trust. Switch in Certs → Type.</translation>
-    </message>
-    <message id="autopanel.ca.short.production">
-        <source>LE production</source>
-        <translation>LE production</translation>
-    </message>
-    <message id="autopanel.ca.short.staging">
-        <source>LE staging</source>
-        <translation>LE staging</translation>
-    </message>
-    <message id="autopanel.confirm.remove">
-        <source>Remove route %1?</source>
-        <translation>Remove route %1?</translation>
-    </message>
-    <message id="autopanel.confirm.title">
-        <source>Remove route</source>
-        <translation>Remove route</translation>
-    </message>
-    <message id="autopanel.finding.absolute-path">
-        <source>A path must be inside the stack's folder, not absolute</source>
-        <translation>A path must be inside the stack's folder, not absolute</translation>
-    </message>
-    <message id="autopanel.finding.bad-env-line">
-        <source>A line of .env is not valid</source>
-        <translation>A line of .env is not valid</translation>
-    </message>
-    <message id="autopanel.finding.bad-port">
-        <source>A port is not valid</source>
-        <translation>A port is not valid</translation>
-    </message>
-    <message id="autopanel.finding.bad-service-name">
-        <source>A service's name is not allowed</source>
-        <translation>A service's name is not allowed</translation>
-    </message>
-    <message id="autopanel.finding.bad-value">
-        <source>A value is not what its key takes</source>
-        <translation>A value is not what its key takes</translation>
-    </message>
-    <message id="autopanel.finding.bad-volume-name">
-        <source>A volume's name is not allowed</source>
-        <translation>A volume's name is not allowed</translation>
-    </message>
-    <message id="autopanel.finding.bad-yaml">
-        <source>The compose file is not valid YAML</source>
-        <translation>The compose file is not valid YAML</translation>
-    </message>
-    <message id="autopanel.finding.capability">
-        <source>This capability is not allowed</source>
-        <translation>This capability is not allowed</translation>
-    </message>
-    <message id="autopanel.finding.capability-added">
-        <source>It is given a capability</source>
-        <translation>It is given a capability</translation>
-    </message>
-    <message id="autopanel.finding.data-overlap">
-        <source>A mount overlaps the stack's data</source>
-        <translation>A mount overlaps the stack's data</translation>
-    </message>
-    <message id="autopanel.finding.dependency-cycle">
-        <source>The services depend on each other in a circle</source>
-        <translation>The services depend on each other in a circle</translation>
-    </message>
-    <message id="autopanel.finding.env-no-value">
-        <source>An environment variable has no value</source>
-        <translation>An environment variable has no value</translation>
-    </message>
-    <message id="autopanel.finding.host-network">
-        <source>It shares the host's network: it can reach every service on the host, and what it listens on is the host's</source>
-        <translation>It shares the host's network: it can reach every service on the host, and what it listens on is the host's</translation>
-    </message>
-    <message id="autopanel.finding.host-network-no-ports">
-        <source>Its ports are not known to AutoPanel</source>
-        <translation>Its ports are not known to AutoPanel</translation>
-    </message>
-    <message id="autopanel.finding.host-network-port">
-        <source>On the host's network a port cannot be given another number or one address</source>
-        <translation>On the host's network a port cannot be given another number or one address</translation>
-    </message>
-    <message id="autopanel.finding.image-by-tag">
-        <source>The image is named by a tag: it can change under its tag between pulls</source>
-        <translation>The image is named by a tag: it can change under its tag between pulls</translation>
-    </message>
-    <message id="autopanel.finding.image-user">
-        <source>It runs as the image's own user; when that is root, it is root inside its own user namespace</source>
-        <translation>It runs as the image's own user; when that is root, it is root inside its own user namespace</translation>
-    </message>
-    <message id="autopanel.finding.missing-file">
-        <source>A file that the definition names is missing</source>
-        <translation>A file that the definition names is missing</translation>
-    </message>
-    <message id="autopanel.finding.no-image">
-        <source>The service names no image</source>
-        <translation>The service names no image</translation>
-    </message>
-    <message id="autopanel.finding.no-memory-limit">
-        <source>It has no memory limit</source>
-        <translation>It has no memory limit</translation>
-    </message>
-    <message id="autopanel.finding.no-services">
-        <source>The compose file defines no service</source>
-        <translation>The compose file defines no service</translation>
-    </message>
-    <message id="autopanel.finding.path-leaves-folder">
-        <source>A path leaves the stack's folder</source>
-        <translation>A path leaves the stack's folder</translation>
-    </message>
-    <message id="autopanel.finding.port-in-use">
-        <source>Something on the host listens on this port already</source>
-        <translation>Something on the host listens on this port already</translation>
-    </message>
-    <message id="autopanel.finding.port-taken">
-        <source>Another stack has this port</source>
-        <translation>Another stack has this port</translation>
-    </message>
-    <message id="autopanel.finding.port-twice">
-        <source>The stack publishes this port twice</source>
-        <translation>The stack publishes this port twice</translation>
-    </message>
-    <message id="autopanel.finding.privileged-port">
-        <source>A port below 1024 is not allowed</source>
-        <translation>A port below 1024 is not allowed</translation>
-    </message>
-    <message id="autopanel.finding.public-port">
-        <source>A port is published on every address: it is reachable from outside if the firewall allows it</source>
-        <translation>A port is published on every address: it is reachable from outside if the firewall allows it</translation>
-    </message>
-    <message id="autopanel.finding.reach">
-        <source>Containers can reach what the host and other stacks publish; the private network keeps other stacks out of this one, not this one out of the host</source>
-        <translation>Containers can reach what the host and other stacks publish; the private network keeps other stacks out of this one, not this one out of the host</translation>
-    </message>
-    <message id="autopanel.finding.reserved-path">
-        <source>This path is reserved for AutoPanel</source>
-        <translation>This path is reserved for AutoPanel</translation>
-    </message>
-    <message id="autopanel.finding.symlink">
-        <source>A symbolic link is not allowed in the definition</source>
-        <translation>A symbolic link is not allowed in the definition</translation>
-    </message>
-    <message id="autopanel.finding.too-many-services">
-        <source>The stack has too many services</source>
-        <translation>The stack has too many services</translation>
-    </message>
-    <message id="autopanel.finding.undeclared-volume">
-        <source>A named volume is not declared under volumes</source>
-        <translation>A named volume is not declared under volumes</translation>
-    </message>
-    <message id="autopanel.finding.unit-name-taken">
-        <source>Two units of the stack would have the same name</source>
-        <translation>Two units of the stack would have the same name</translation>
-    </message>
-    <message id="autopanel.finding.unit-text">
-        <source>A value holds a character that a unit file cannot take</source>
-        <translation>A value holds a character that a unit file cannot take</translation>
-    </message>
-    <message id="autopanel.finding.unknown-dependency">
-        <source>It depends on a service that the stack does not have</source>
-        <translation>It depends on a service that the stack does not have</translation>
-    </message>
-    <message id="autopanel.finding.unset-variable">
-        <source>A variable is not set in .env</source>
-        <translation>A variable is not set in .env</translation>
-    </message>
-    <message id="autopanel.finding.unsupported-dependency">
-        <source>AutoPanel does not support this depends_on condition</source>
-        <translation>AutoPanel does not support this depends_on condition</translation>
-    </message>
-    <message id="autopanel.finding.unsupported-key">
-        <source>AutoPanel does not support this key</source>
-        <translation>AutoPanel does not support this key</translation>
-    </message>
-    <message id="autopanel.finding.unsupported-value">
-        <source>AutoPanel does not support this value</source>
-        <translation>AutoPanel does not support this value</translation>
-    </message>
-    <message id="autopanel.finding.user-not-numeric">
-        <source>The user must be given as numbers</source>
-        <translation>The user must be given as numbers</translation>
-    </message>
-    <message id="autopanel.finding.whole-folder">
-        <source>The stack's whole folder cannot be mounted</source>
-        <translation>The stack's whole folder cannot be mounted</translation>
-    </message>
-    <message id="autopanel.finding.writable-root">
-        <source>The container's root file system is writable</source>
-        <translation>The container's root file system is writable</translation>
-    </message>
-    <message id="autopanel.form.add">
-        <source>Add route</source>
-        <translation>Add route</translation>
-    </message>
-    <message id="autopanel.form.cancel">
+    <message id="autopanel.button.dialog.cancel">
         <source>&amp;Cancel</source>
         <translation>&amp;Cancel</translation>
     </message>
-    <message id="autopanel.form.edit">
-        <source>Edit route #%1</source>
-        <translation>Edit route #%1</translation>
+    <message id="autopanel.button.dialog.close">
+        <source>Close (&amp;q)</source>
+        <translation>Close (&amp;q)</translation>
     </message>
-    <message id="autopanel.form.hint">
-        <source>Tab: next field · Enter: OK · Esc: cancel</source>
-        <translation>Tab: next field · Enter: OK · Esc: cancel</translation>
-    </message>
-    <message id="autopanel.form.host">
-        <source>Host</source>
-        <translation>Host</translation>
-    </message>
-    <message id="autopanel.form.ok">
+    <message id="autopanel.button.dialog.ok">
         <source>&amp;OK</source>
         <translation>&amp;OK</translation>
     </message>
-    <message id="autopanel.form.path">
+    <message id="autopanel.button.domains.add">
+        <source>&amp;Add…</source>
+        <translation>&amp;Add…</translation>
+    </message>
+    <message id="autopanel.button.domains.remove">
+        <source>&amp;Remove…</source>
+        <translation>&amp;Remove…</translation>
+    </message>
+    <message id="autopanel.button.form.save">
+        <source>&amp;Save</source>
+        <translation>&amp;Save</translation>
+    </message>
+    <message id="autopanel.button.login.quit">
+        <source>&amp;Quit</source>
+        <translation>&amp;Quit</translation>
+    </message>
+    <message id="autopanel.button.login.signIn">
+        <source>&amp;Sign in</source>
+        <translation>&amp;Sign in</translation>
+    </message>
+    <message id="autopanel.button.panel.close">
+        <source>Close (&amp;q)</source>
+        <translation>Close (&amp;q)</translation>
+    </message>
+    <message id="autopanel.button.panel.reload">
+        <source>&amp;Reload</source>
+        <translation>&amp;Reload</translation>
+    </message>
+    <message id="autopanel.button.review.add">
+        <source>&amp;Add and start</source>
+        <translation>&amp;Add and start</translation>
+    </message>
+    <message id="autopanel.button.review.apply">
+        <source>&amp;Apply</source>
+        <translation>&amp;Apply</translation>
+    </message>
+    <message id="autopanel.button.review.prepare">
+        <source>&amp;Prepare only</source>
+        <translation>&amp;Prepare only</translation>
+    </message>
+    <message id="autopanel.button.review.start">
+        <source>&amp;Start</source>
+        <translation>&amp;Start</translation>
+    </message>
+    <message id="autopanel.button.routes.add">
+        <source>&amp;Add…</source>
+        <translation>&amp;Add…</translation>
+    </message>
+    <message id="autopanel.button.routes.domains">
+        <source>Do&amp;mains…</source>
+        <translation>Do&amp;mains…</translation>
+    </message>
+    <message id="autopanel.button.routes.edit">
+        <source>&amp;Edit…</source>
+        <translation>&amp;Edit…</translation>
+    </message>
+    <message id="autopanel.button.routes.remove">
+        <source>&amp;Remove…</source>
+        <translation>&amp;Remove…</translation>
+    </message>
+    <message id="autopanel.button.stacks.add">
+        <source>&amp;Add…</source>
+        <translation>&amp;Add…</translation>
+    </message>
+    <message id="autopanel.button.stacks.apply">
+        <source>A&amp;pply…</source>
+        <translation>A&amp;pply…</translation>
+    </message>
+    <message id="autopanel.button.stacks.logs">
+        <source>L&amp;ogs</source>
+        <translation>L&amp;ogs</translation>
+    </message>
+    <message id="autopanel.button.stacks.pull">
+        <source>P&amp;ull images</source>
+        <translation>P&amp;ull images</translation>
+    </message>
+    <message id="autopanel.button.stacks.remove">
+        <source>&amp;Remove…</source>
+        <translation>&amp;Remove…</translation>
+    </message>
+    <message id="autopanel.button.stacks.restart">
+        <source>R&amp;estart</source>
+        <translation>R&amp;estart</translation>
+    </message>
+    <message id="autopanel.button.stacks.start">
+        <source>S&amp;tart</source>
+        <translation>S&amp;tart</translation>
+    </message>
+    <message id="autopanel.button.stacks.stop">
+        <source>Stop (&amp;x)</source>
+        <translation>Stop (&amp;x)</translation>
+    </message>
+    <message id="autopanel.button.stacks.update">
+        <source>Update from &amp;source</source>
+        <translation>Update from &amp;source</translation>
+    </message>
+    <message id="autopanel.finding.review.absolute-path">
+        <source>A path must be inside the stack's folder, not absolute</source>
+        <translation>A path must be inside the stack's folder, not absolute</translation>
+    </message>
+    <message id="autopanel.finding.review.bad-env-line">
+        <source>A line of .env is not valid</source>
+        <translation>A line of .env is not valid</translation>
+    </message>
+    <message id="autopanel.finding.review.bad-port">
+        <source>A port is not valid</source>
+        <translation>A port is not valid</translation>
+    </message>
+    <message id="autopanel.finding.review.bad-service-name">
+        <source>A service's name is not allowed</source>
+        <translation>A service's name is not allowed</translation>
+    </message>
+    <message id="autopanel.finding.review.bad-value">
+        <source>A value is not what its key takes</source>
+        <translation>A value is not what its key takes</translation>
+    </message>
+    <message id="autopanel.finding.review.bad-volume-name">
+        <source>A volume's name is not allowed</source>
+        <translation>A volume's name is not allowed</translation>
+    </message>
+    <message id="autopanel.finding.review.bad-yaml">
+        <source>The compose file is not valid YAML</source>
+        <translation>The compose file is not valid YAML</translation>
+    </message>
+    <message id="autopanel.finding.review.capability">
+        <source>This capability is not allowed</source>
+        <translation>This capability is not allowed</translation>
+    </message>
+    <message id="autopanel.finding.review.capability-added">
+        <source>It is given a capability</source>
+        <translation>It is given a capability</translation>
+    </message>
+    <message id="autopanel.finding.review.data-overlap">
+        <source>A mount overlaps the stack's data</source>
+        <translation>A mount overlaps the stack's data</translation>
+    </message>
+    <message id="autopanel.finding.review.dependency-cycle">
+        <source>The services depend on each other in a circle</source>
+        <translation>The services depend on each other in a circle</translation>
+    </message>
+    <message id="autopanel.finding.review.env-no-value">
+        <source>An environment variable has no value</source>
+        <translation>An environment variable has no value</translation>
+    </message>
+    <message id="autopanel.finding.review.host-network">
+        <source>It shares the host's network: it can reach every service on the host, and what it listens on is the host's</source>
+        <translation>It shares the host's network: it can reach every service on the host, and what it listens on is the host's</translation>
+    </message>
+    <message id="autopanel.finding.review.host-network-no-ports">
+        <source>Its ports are not known to AutoPanel</source>
+        <translation>Its ports are not known to AutoPanel</translation>
+    </message>
+    <message id="autopanel.finding.review.host-network-port">
+        <source>On the host's network a port cannot be given another number or one address</source>
+        <translation>On the host's network a port cannot be given another number or one address</translation>
+    </message>
+    <message id="autopanel.finding.review.image-by-tag">
+        <source>The image is named by a tag: it can change under its tag between pulls</source>
+        <translation>The image is named by a tag: it can change under its tag between pulls</translation>
+    </message>
+    <message id="autopanel.finding.review.image-user">
+        <source>It runs as the image's own user; when that is root, it is root inside its own user namespace</source>
+        <translation>It runs as the image's own user; when that is root, it is root inside its own user namespace</translation>
+    </message>
+    <message id="autopanel.finding.review.missing-file">
+        <source>A file that the definition names is missing</source>
+        <translation>A file that the definition names is missing</translation>
+    </message>
+    <message id="autopanel.finding.review.no-image">
+        <source>The service names no image</source>
+        <translation>The service names no image</translation>
+    </message>
+    <message id="autopanel.finding.review.no-memory-limit">
+        <source>It has no memory limit</source>
+        <translation>It has no memory limit</translation>
+    </message>
+    <message id="autopanel.finding.review.no-services">
+        <source>The compose file defines no service</source>
+        <translation>The compose file defines no service</translation>
+    </message>
+    <message id="autopanel.finding.review.path-leaves-folder">
+        <source>A path leaves the stack's folder</source>
+        <translation>A path leaves the stack's folder</translation>
+    </message>
+    <message id="autopanel.finding.review.port-in-use">
+        <source>Something on the host listens on this port already</source>
+        <translation>Something on the host listens on this port already</translation>
+    </message>
+    <message id="autopanel.finding.review.port-taken">
+        <source>Another stack has this port</source>
+        <translation>Another stack has this port</translation>
+    </message>
+    <message id="autopanel.finding.review.port-twice">
+        <source>The stack publishes this port twice</source>
+        <translation>The stack publishes this port twice</translation>
+    </message>
+    <message id="autopanel.finding.review.privileged-port">
+        <source>A port below 1024 is not allowed</source>
+        <translation>A port below 1024 is not allowed</translation>
+    </message>
+    <message id="autopanel.finding.review.public-port">
+        <source>A port is published on every address: it is reachable from outside if the firewall allows it</source>
+        <translation>A port is published on every address: it is reachable from outside if the firewall allows it</translation>
+    </message>
+    <message id="autopanel.finding.review.reach">
+        <source>Containers can reach what the host and other stacks publish; the private network keeps other stacks out of this one, not this one out of the host</source>
+        <translation>Containers can reach what the host and other stacks publish; the private network keeps other stacks out of this one, not this one out of the host</translation>
+    </message>
+    <message id="autopanel.finding.review.reserved-path">
+        <source>This path is reserved for AutoPanel</source>
+        <translation>This path is reserved for AutoPanel</translation>
+    </message>
+    <message id="autopanel.finding.review.symlink">
+        <source>A symbolic link is not allowed in the definition</source>
+        <translation>A symbolic link is not allowed in the definition</translation>
+    </message>
+    <message id="autopanel.finding.review.too-many-services">
+        <source>The stack has too many services</source>
+        <translation>The stack has too many services</translation>
+    </message>
+    <message id="autopanel.finding.review.undeclared-volume">
+        <source>A named volume is not declared under volumes</source>
+        <translation>A named volume is not declared under volumes</translation>
+    </message>
+    <message id="autopanel.finding.review.unit-name-taken">
+        <source>Two units of the stack would have the same name</source>
+        <translation>Two units of the stack would have the same name</translation>
+    </message>
+    <message id="autopanel.finding.review.unit-text">
+        <source>A value holds a character that a unit file cannot take</source>
+        <translation>A value holds a character that a unit file cannot take</translation>
+    </message>
+    <message id="autopanel.finding.review.unknown-dependency">
+        <source>It depends on a service that the stack does not have</source>
+        <translation>It depends on a service that the stack does not have</translation>
+    </message>
+    <message id="autopanel.finding.review.unset-variable">
+        <source>A variable is not set in .env</source>
+        <translation>A variable is not set in .env</translation>
+    </message>
+    <message id="autopanel.finding.review.unsupported-dependency">
+        <source>AutoPanel does not support this depends_on condition</source>
+        <translation>AutoPanel does not support this depends_on condition</translation>
+    </message>
+    <message id="autopanel.finding.review.unsupported-key">
+        <source>AutoPanel does not support this key</source>
+        <translation>AutoPanel does not support this key</translation>
+    </message>
+    <message id="autopanel.finding.review.unsupported-value">
+        <source>AutoPanel does not support this value</source>
+        <translation>AutoPanel does not support this value</translation>
+    </message>
+    <message id="autopanel.finding.review.user-not-numeric">
+        <source>The user must be given as numbers</source>
+        <translation>The user must be given as numbers</translation>
+    </message>
+    <message id="autopanel.finding.review.whole-folder">
+        <source>The stack's whole folder cannot be mounted</source>
+        <translation>The stack's whole folder cannot be mounted</translation>
+    </message>
+    <message id="autopanel.finding.review.writable-root">
+        <source>The container's root file system is writable</source>
+        <translation>The container's root file system is writable</translation>
+    </message>
+    <message id="autopanel.key.browser.enter">
+        <source>go into a folder; on .. go up</source>
+        <translation>go into a folder; on .. go up</translation>
+    </message>
+    <message id="autopanel.key.browser.import">
+        <source>import the folder that holds a compose.yaml</source>
+        <translation>import the folder that holds a compose.yaml</translation>
+    </message>
+    <message id="autopanel.key.browser.up">
+        <source>go to the parent folder</source>
+        <translation>go to the parent folder</translation>
+    </message>
+    <message id="autopanel.key.dialogs.answer">
+        <source>answer yes or no</source>
+        <translation>answer yes or no</translation>
+    </message>
+    <message id="autopanel.key.dialogs.cancel">
+        <source>close without an answer</source>
+        <translation>close without an answer</translation>
+    </message>
+    <message id="autopanel.key.dialogs.enter">
+        <source>press the focused button, or take the field</source>
+        <translation>press the focused button, or take the field</translation>
+    </message>
+    <message id="autopanel.key.domains.add">
+        <source>add a domain</source>
+        <translation>add a domain</translation>
+    </message>
+    <message id="autopanel.key.domains.remove">
+        <source>remove the selected domain, after asking</source>
+        <translation>remove the selected domain, after asking</translation>
+    </message>
+    <message id="autopanel.key.everywhere.focus">
+        <source>move to the next control, or the one before</source>
+        <translation>move to the next control, or the one before</translation>
+    </message>
+    <message id="autopanel.key.everywhere.keys">
+        <source>show these keys</source>
+        <translation>show these keys</translation>
+    </message>
+    <message id="autopanel.key.everywhere.menus">
+        <source>open the menus: F10, or Alt and a menu's marked letter</source>
+        <translation>open the menus: F10, or Alt and a menu's marked letter</translation>
+    </message>
+    <message id="autopanel.key.everywhere.quit">
+        <source>quit, from the main screen</source>
+        <translation>quit, from the main screen</translation>
+    </message>
+    <message id="autopanel.key.everywhere.refresh">
+        <source>read the screen again now</source>
+        <translation>read the screen again now</translation>
+    </message>
+    <message id="autopanel.key.monitors.reload">
+        <source>read it again</source>
+        <translation>read it again</translation>
+    </message>
+    <message id="autopanel.key.panels.close">
+        <source>close the panel</source>
+        <translation>close the panel</translation>
+    </message>
+    <message id="autopanel.key.panels.drag">
+        <source>move the panel</source>
+        <translation>move the panel</translation>
+    </message>
+    <message id="autopanel.key.panels.move">
+        <source>move in a list</source>
+        <translation>move in a list</translation>
+    </message>
+    <message id="autopanel.key.panels.resize">
+        <source>resize the panel</source>
+        <translation>resize the panel</translation>
+    </message>
+    <message id="autopanel.key.review.close">
+        <source>close it; nothing changes</source>
+        <translation>close it; nothing changes</translation>
+    </message>
+    <message id="autopanel.key.review.go">
+        <source>add and start, apply, or start, as its first button says</source>
+        <translation>add and start, apply, or start, as its first button says</translation>
+    </message>
+    <message id="autopanel.key.review.prepare">
+        <source>prepare a new stack, and start nothing</source>
+        <translation>prepare a new stack, and start nothing</translation>
+    </message>
+    <message id="autopanel.key.routes.add">
+        <source>add a route</source>
+        <translation>add a route</translation>
+    </message>
+    <message id="autopanel.key.routes.domains">
+        <source>open the domains</source>
+        <translation>open the domains</translation>
+    </message>
+    <message id="autopanel.key.routes.edit">
+        <source>edit the selected route</source>
+        <translation>edit the selected route</translation>
+    </message>
+    <message id="autopanel.key.routes.remove">
+        <source>remove it, after asking</source>
+        <translation>remove it, after asking</translation>
+    </message>
+    <message id="autopanel.key.section.browser">
+        <source>ADD A STACK: THE FILE BROWSER</source>
+        <translation>ADD A STACK: THE FILE BROWSER</translation>
+    </message>
+    <message id="autopanel.key.section.dialogs">
+        <source>DIALOGS</source>
+        <translation>DIALOGS</translation>
+    </message>
+    <message id="autopanel.key.section.domains">
+        <source>DOMAINS</source>
+        <translation>DOMAINS</translation>
+    </message>
+    <message id="autopanel.key.section.everywhere">
+        <source>EVERYWHERE</source>
+        <translation>EVERYWHERE</translation>
+    </message>
+    <message id="autopanel.key.section.monitors">
+        <source>METRICS, AUDIT LOG, LOGIN ATTEMPTS, OPEN PORTS</source>
+        <translation>METRICS, AUDIT LOG, LOGIN ATTEMPTS, OPEN PORTS</translation>
+    </message>
+    <message id="autopanel.key.section.panels">
+        <source>PANELS</source>
+        <translation>PANELS</translation>
+    </message>
+    <message id="autopanel.key.section.review">
+        <source>A STACK'S REVIEW</source>
+        <translation>A STACK'S REVIEW</translation>
+    </message>
+    <message id="autopanel.key.section.routes">
+        <source>PROXY ROUTES</source>
+        <translation>PROXY ROUTES</translation>
+    </message>
+    <message id="autopanel.key.section.stacks">
+        <source>STACKS</source>
+        <translation>STACKS</translation>
+    </message>
+    <message id="autopanel.key.section.terminal">
+        <source>TERMINAL</source>
+        <translation>TERMINAL</translation>
+    </message>
+    <message id="autopanel.key.section.widgets">
+        <source>THE WIDGETS OF THE MAIN SCREEN</source>
+        <translation>THE WIDGETS OF THE MAIN SCREEN</translation>
+    </message>
+    <message id="autopanel.key.stacks.add">
+        <source>add a stack from a folder</source>
+        <translation>add a stack from a folder</translation>
+    </message>
+    <message id="autopanel.key.stacks.apply">
+        <source>review the selected stack, then apply it</source>
+        <translation>review the selected stack, then apply it</translation>
+    </message>
+    <message id="autopanel.key.stacks.logs">
+        <source>read its journal</source>
+        <translation>read its journal</translation>
+    </message>
+    <message id="autopanel.key.stacks.pull">
+        <source>pull its images again</source>
+        <translation>pull its images again</translation>
+    </message>
+    <message id="autopanel.key.stacks.remove">
+        <source>remove the stack, after asking</source>
+        <translation>remove the stack, after asking</translation>
+    </message>
+    <message id="autopanel.key.stacks.restart">
+        <source>restart it</source>
+        <translation>restart it</translation>
+    </message>
+    <message id="autopanel.key.stacks.start">
+        <source>start the selected container, or the whole stack on its row</source>
+        <translation>start the selected container, or the whole stack on its row</translation>
+    </message>
+    <message id="autopanel.key.stacks.stop">
+        <source>stop it, after asking</source>
+        <translation>stop it, after asking</translation>
+    </message>
+    <message id="autopanel.key.stacks.update">
+        <source>copy the stack's definition from its source again, then review it</source>
+        <translation>copy the stack's definition from its source again, then review it</translation>
+    </message>
+    <message id="autopanel.key.terminal.maximize">
+        <source>maximize or restore the terminal</source>
+        <translation>maximize or restore the terminal</translation>
+    </message>
+    <message id="autopanel.key.terminal.mode">
+        <source>leave the program for the scrollback, and back</source>
+        <translation>leave the program for the scrollback, and back</translation>
+    </message>
+    <message id="autopanel.key.terminal.next">
+        <source>the next shell</source>
+        <translation>the next shell</translation>
+    </message>
+    <message id="autopanel.key.terminal.previous">
+        <source>the shell before</source>
+        <translation>the shell before</translation>
+    </message>
+    <message id="autopanel.key.widgets.dock">
+        <source>the dock, at the menu bar's right: hide or show a widget or a panel</source>
+        <translation>the dock, at the menu bar's right: hide or show a widget or a panel</translation>
+    </message>
+    <message id="autopanel.key.widgets.move">
+        <source>re-dock a widget, or swap it with another</source>
+        <translation>re-dock a widget, or swap it with another</translation>
+    </message>
+    <message id="autopanel.key.widgets.open">
+        <source>open the panel of the row under the cursor</source>
+        <translation>open the panel of the row under the cursor</translation>
+    </message>
+    <message id="autopanel.key.widgets.resize">
+        <source>move the border between two widgets</source>
+        <translation>move the border between two widgets</translation>
+    </message>
+    <message id="autopanel.label.about.daemon">
+        <source>Daemon</source>
+        <translation>Daemon</translation>
+    </message>
+    <message id="autopanel.label.about.licence">
+        <source>Licence</source>
+        <translation>Licence</translation>
+    </message>
+    <message id="autopanel.label.about.panel">
+        <source>Panel</source>
+        <translation>Panel</translation>
+    </message>
+    <message id="autopanel.label.about.source">
+        <source>Source</source>
+        <translation>Source</translation>
+    </message>
+    <message id="autopanel.label.audit.action">
+        <source>Action</source>
+        <translation>Action</translation>
+    </message>
+    <message id="autopanel.label.audit.actor">
+        <source>Who</source>
+        <translation>Who</translation>
+    </message>
+    <message id="autopanel.label.audit.detail">
+        <source>Detail</source>
+        <translation>Detail</translation>
+    </message>
+    <message id="autopanel.label.audit.entry">
+        <source>Entry</source>
+        <translation>Entry</translation>
+    </message>
+    <message id="autopanel.label.audit.outcome">
+        <source>Outcome</source>
+        <translation>Outcome</translation>
+    </message>
+    <message id="autopanel.label.audit.subject">
+        <source>Subject</source>
+        <translation>Subject</translation>
+    </message>
+    <message id="autopanel.label.audit.time">
+        <source>Time</source>
+        <translation>Time</translation>
+    </message>
+    <message id="autopanel.label.browse.folder">
+        <source>Folder</source>
+        <translation>Folder</translation>
+    </message>
+    <message id="autopanel.label.browse.kind">
+        <source>Kind</source>
+        <translation>Kind</translation>
+    </message>
+    <message id="autopanel.label.browse.path">
+        <source>Path</source>
+        <translation>Path</translation>
+    </message>
+    <message id="autopanel.label.domain.name">
+        <source>Domain</source>
+        <translation>Domain</translation>
+    </message>
+    <message id="autopanel.label.domain.routes">
+        <source>Routes</source>
+        <translation>Routes</translation>
+    </message>
+    <message id="autopanel.label.domain.under">
+        <source>The routes under it:</source>
+        <translation>The routes under it:</translation>
+    </message>
+    <message id="autopanel.label.form.host">
+        <source>Host: a subdomain, and the domain it is under</source>
+        <translation>Host: a subdomain, and the domain it is under</translation>
+    </message>
+    <message id="autopanel.label.form.path">
         <source>Path prefix</source>
         <translation>Path prefix</translation>
     </message>
-    <message id="autopanel.form.upstream">
+    <message id="autopanel.label.form.stackPort">
+        <source>From a stack's port:</source>
+        <translation>From a stack's port:</translation>
+    </message>
+    <message id="autopanel.label.form.upstream">
         <source>Upstream URL</source>
         <translation>Upstream URL</translation>
     </message>
-    <message id="autopanel.hints">
-        <source>Menus: Alt and a menu's letter, or F10 · r refresh · q quit</source>
-        <translation>Menus: Alt and a menu's letter, or F10 · r refresh · q quit</translation>
+    <message id="autopanel.label.host.cpu">
+        <source>CPU</source>
+        <translation>CPU</translation>
     </message>
-    <message id="autopanel.login.passphrase">
+    <message id="autopanel.label.host.disk">
+        <source>Disk</source>
+        <translation>Disk</translation>
+    </message>
+    <message id="autopanel.label.host.load">
+        <source>Load</source>
+        <translation>Load</translation>
+    </message>
+    <message id="autopanel.label.host.memory">
+        <source>Memory</source>
+        <translation>Memory</translation>
+    </message>
+    <message id="autopanel.label.host.swap">
+        <source>Swap</source>
+        <translation>Swap</translation>
+    </message>
+    <message id="autopanel.label.host.uptime">
+        <source>Uptime</source>
+        <translation>Uptime</translation>
+    </message>
+    <message id="autopanel.label.login.passphrase">
         <source>Passphrase</source>
         <translation>Passphrase</translation>
     </message>
-    <message id="autopanel.login.running">
-        <source>another sign-in is still running; try again in a moment</source>
-        <translation>another sign-in is still running; try again in a moment</translation>
-    </message>
-    <message id="autopanel.login.signedIn">
-        <source>signed in as %1</source>
-        <translation>signed in as %1</translation>
-    </message>
-    <message id="autopanel.login.title">
-        <source>Sign in to AutoPanel</source>
-        <translation>Sign in to AutoPanel</translation>
-    </message>
-    <message id="autopanel.login.user">
+    <message id="autopanel.label.login.user">
         <source>User</source>
         <translation>User</translation>
     </message>
-    <message id="autopanel.logins.result.closed">
-        <source>closed</source>
-        <translation>closed</translation>
+    <message id="autopanel.label.logins.detail">
+        <source>Detail</source>
+        <translation>Detail</translation>
     </message>
-    <message id="autopanel.logins.result.failed">
-        <source>failed</source>
-        <translation>failed</translation>
+    <message id="autopanel.label.logins.from">
+        <source>From</source>
+        <translation>From</translation>
     </message>
-    <message id="autopanel.logins.result.ok">
-        <source>ok</source>
-        <translation>ok</translation>
+    <message id="autopanel.label.logins.result">
+        <source>Result</source>
+        <translation>Result</translation>
     </message>
-    <message id="autopanel.logins.title">
-        <source>Login attempts</source>
-        <translation>Login attempts</translation>
+    <message id="autopanel.label.logins.time">
+        <source>Time</source>
+        <translation>Time</translation>
     </message>
-    <message id="autopanel.menu.certs">
-        <source>&amp;Certs</source>
-        <translation>&amp;Certs</translation>
+    <message id="autopanel.label.logins.to">
+        <source>To</source>
+        <translation>To</translation>
+    </message>
+    <message id="autopanel.label.logins.user">
+        <source>User</source>
+        <translation>User</translation>
+    </message>
+    <message id="autopanel.label.metrics.coreMemory">
+        <source>Core memory</source>
+        <translation>Core memory</translation>
+    </message>
+    <message id="autopanel.label.metrics.disk">
+        <source>Disk (the store's)</source>
+        <translation>Disk (the store's)</translation>
+    </message>
+    <message id="autopanel.label.metrics.gateMemory">
+        <source>Gate memory</source>
+        <translation>Gate memory</translation>
+    </message>
+    <message id="autopanel.label.metrics.goroutines">
+        <source>Goroutines</source>
+        <translation>Goroutines</translation>
+    </message>
+    <message id="autopanel.label.metrics.hostMemory">
+        <source>Host memory</source>
+        <translation>Host memory</translation>
+    </message>
+    <message id="autopanel.label.metrics.httpRequests">
+        <source>HTTP requests</source>
+        <translation>HTTP requests</translation>
+    </message>
+    <message id="autopanel.label.metrics.httpsRequests">
+        <source>HTTPS requests</source>
+        <translation>HTTPS requests</translation>
+    </message>
+    <message id="autopanel.label.metrics.load">
+        <source>Host load</source>
+        <translation>Host load</translation>
+    </message>
+    <message id="autopanel.label.metrics.routes">
+        <source>Routes</source>
+        <translation>Routes</translation>
+    </message>
+    <message id="autopanel.label.metrics.uptime">
+        <source>Service uptime</source>
+        <translation>Service uptime</translation>
+    </message>
+    <message id="autopanel.label.ports.address">
+        <source>Listens on</source>
+        <translation>Listens on</translation>
+    </message>
+    <message id="autopanel.label.ports.port">
+        <source>Port</source>
+        <translation>Port</translation>
+    </message>
+    <message id="autopanel.label.ports.process">
+        <source>Process</source>
+        <translation>Process</translation>
+    </message>
+    <message id="autopanel.label.ports.protocol">
+        <source>Protocol</source>
+        <translation>Protocol</translation>
+    </message>
+    <message id="autopanel.label.ports.use">
+        <source>For</source>
+        <translation>For</translation>
+    </message>
+    <message id="autopanel.label.ports.user">
+        <source>User</source>
+        <translation>User</translation>
+    </message>
+    <message id="autopanel.label.prompt.domain">
+        <source>The domain's name, a name and a suffix:</source>
+        <translation>The domain's name, a name and a suffix:</translation>
+    </message>
+    <message id="autopanel.label.prompt.stackName">
+        <source>The stack's name: a lower-case letter, then letters, digits and hyphens.</source>
+        <translation>The stack's name: a lower-case letter, then letters, digits and hyphens.</translation>
+    </message>
+    <message id="autopanel.label.review.capAdd">
+        <source>Capabilities added</source>
+        <translation>Capabilities added</translation>
+    </message>
+    <message id="autopanel.label.review.capDrop">
+        <source>Capabilities dropped</source>
+        <translation>Capabilities dropped</translation>
+    </message>
+    <message id="autopanel.label.review.dependsOn">
+        <source>Depends on</source>
+        <translation>Depends on</translation>
+    </message>
+    <message id="autopanel.label.review.image">
+        <source>Image</source>
+        <translation>Image</translation>
+    </message>
+    <message id="autopanel.label.review.level">
+        <source>Level</source>
+        <translation>Level</translation>
+    </message>
+    <message id="autopanel.label.review.memory">
+        <source>Memory limit</source>
+        <translation>Memory limit</translation>
+    </message>
+    <message id="autopanel.label.review.mounts">
+        <source>Mounts</source>
+        <translation>Mounts</translation>
+    </message>
+    <message id="autopanel.label.review.network">
+        <source>Network</source>
+        <translation>Network</translation>
+    </message>
+    <message id="autopanel.label.review.ports">
+        <source>Ports</source>
+        <translation>Ports</translation>
+    </message>
+    <message id="autopanel.label.review.readOnly">
+        <source>Read-only root</source>
+        <translation>Read-only root</translation>
+    </message>
+    <message id="autopanel.label.review.restart">
+        <source>Restart</source>
+        <translation>Restart</translation>
+    </message>
+    <message id="autopanel.label.review.service">
+        <source>Service</source>
+        <translation>Service</translation>
+    </message>
+    <message id="autopanel.label.review.user">
+        <source>User</source>
+        <translation>User</translation>
+    </message>
+    <message id="autopanel.label.route.domain">
+        <source>Domain</source>
+        <translation>Domain</translation>
+    </message>
+    <message id="autopanel.label.route.host">
+        <source>Host</source>
+        <translation>Host</translation>
+    </message>
+    <message id="autopanel.label.route.id">
+        <source>Route</source>
+        <translation>Route</translation>
+    </message>
+    <message id="autopanel.label.route.path">
+        <source>Path prefix</source>
+        <translation>Path prefix</translation>
+    </message>
+    <message id="autopanel.label.route.stack">
+        <source>Stack</source>
+        <translation>Stack</translation>
+    </message>
+    <message id="autopanel.label.route.upstream">
+        <source>Upstream</source>
+        <translation>Upstream</translation>
+    </message>
+    <message id="autopanel.label.stack.containers">
+        <source>Containers</source>
+        <translation>Containers</translation>
+    </message>
+    <message id="autopanel.label.stack.cpu">
+        <source>CPU time</source>
+        <translation>CPU time</translation>
+    </message>
+    <message id="autopanel.label.stack.definition">
+        <source>Definition</source>
+        <translation>Definition</translation>
+    </message>
+    <message id="autopanel.label.stack.digest">
+        <source>Digest</source>
+        <translation>Digest</translation>
+    </message>
+    <message id="autopanel.label.stack.health">
+        <source>Health</source>
+        <translation>Health</translation>
+    </message>
+    <message id="autopanel.label.stack.image">
+        <source>Image</source>
+        <translation>Image</translation>
+    </message>
+    <message id="autopanel.label.stack.imported">
+        <source>Imported</source>
+        <translation>Imported</translation>
+    </message>
+    <message id="autopanel.label.stack.memory">
+        <source>Memory</source>
+        <translation>Memory</translation>
+    </message>
+    <message id="autopanel.label.stack.name">
+        <source>Stack</source>
+        <translation>Stack</translation>
+    </message>
+    <message id="autopanel.label.stack.ports">
+        <source>Ports</source>
+        <translation>Ports</translation>
+    </message>
+    <message id="autopanel.label.stack.restarts">
+        <source>Restarts</source>
+        <translation>Restarts</translation>
+    </message>
+    <message id="autopanel.label.stack.service">
+        <source>Service</source>
+        <translation>Service</translation>
+    </message>
+    <message id="autopanel.label.stack.since">
+        <source>Since</source>
+        <translation>Since</translation>
+    </message>
+    <message id="autopanel.label.stack.source">
+        <source>Source</source>
+        <translation>Source</translation>
+    </message>
+    <message id="autopanel.label.stack.sourceState">
+        <source>Source state</source>
+        <translation>Source state</translation>
+    </message>
+    <message id="autopanel.label.stack.state">
+        <source>State</source>
+        <translation>State</translation>
+    </message>
+    <message id="autopanel.label.stack.user">
+        <source>User</source>
+        <translation>User</translation>
     </message>
     <message id="autopanel.menu.certs.cloudflare">
         <source>&amp;Cloudflare token…</source>
@@ -323,37 +879,45 @@
         <source>&amp;Staging (test certificates)</source>
         <translation>&amp;Staging (test certificates)</translation>
     </message>
+    <message id="autopanel.menu.certs.title">
+        <source>&amp;Certs</source>
+        <translation>&amp;Certs</translation>
+    </message>
     <message id="autopanel.menu.certs.type">
         <source>&amp;Type</source>
         <translation>&amp;Type</translation>
-    </message>
-    <message id="autopanel.menu.go">
-        <source>&amp;Go</source>
-        <translation>&amp;Go</translation>
     </message>
     <message id="autopanel.menu.go.terminal">
         <source>&amp;Terminal</source>
         <translation>&amp;Terminal</translation>
     </message>
-    <message id="autopanel.menu.help">
-        <source>&amp;Help</source>
-        <translation>&amp;Help</translation>
+    <message id="autopanel.menu.go.title">
+        <source>&amp;Go</source>
+        <translation>&amp;Go</translation>
     </message>
     <message id="autopanel.menu.help.about">
         <source>&amp;About AutoPanel</source>
         <translation>&amp;About AutoPanel</translation>
     </message>
-    <message id="autopanel.menu.mail">
-        <source>&amp;Mail</source>
-        <translation>&amp;Mail</translation>
+    <message id="autopanel.menu.help.keys">
+        <source>&amp;Keys</source>
+        <translation>&amp;Keys</translation>
+    </message>
+    <message id="autopanel.menu.help.title">
+        <source>&amp;Help</source>
+        <translation>&amp;Help</translation>
     </message>
     <message id="autopanel.menu.mail.none">
         <source>Mail is &amp;not set up yet</source>
         <translation>Mail is &amp;not set up yet</translation>
     </message>
-    <message id="autopanel.menu.routes">
-        <source>&amp;Routes</source>
-        <translation>&amp;Routes</translation>
+    <message id="autopanel.menu.mail.title">
+        <source>&amp;Mail</source>
+        <translation>&amp;Mail</translation>
+    </message>
+    <message id="autopanel.menu.routes.domains">
+        <source>&amp;Domains…</source>
+        <translation>&amp;Domains…</translation>
     </message>
     <message id="autopanel.menu.routes.forwarding">
         <source>Port &amp;forwarding…</source>
@@ -363,9 +927,9 @@
         <source>&amp;Proxy routes…</source>
         <translation>&amp;Proxy routes…</translation>
     </message>
-    <message id="autopanel.menu.services">
-        <source>&amp;Services</source>
-        <translation>&amp;Services</translation>
+    <message id="autopanel.menu.routes.title">
+        <source>&amp;Routes</source>
+        <translation>&amp;Routes</translation>
     </message>
     <message id="autopanel.menu.services.add">
         <source>&amp;Add a stack…</source>
@@ -375,9 +939,9 @@
         <source>&amp;Stacks…</source>
         <translation>&amp;Stacks…</translation>
     </message>
-    <message id="autopanel.menu.system">
-        <source>S&amp;ystem</source>
-        <translation>S&amp;ystem</translation>
+    <message id="autopanel.menu.services.title">
+        <source>&amp;Services</source>
+        <translation>&amp;Services</translation>
     </message>
     <message id="autopanel.menu.system.audit">
         <source>&amp;Audit log…</source>
@@ -400,504 +964,892 @@
         <translation>Open &amp;ports…</translation>
     </message>
     <message id="autopanel.menu.system.quit">
-        <source>&amp;Quit (q)</source>
-        <translation>&amp;Quit (q)</translation>
+        <source>&amp;Quit</source>
+        <translation>&amp;Quit</translation>
     </message>
     <message id="autopanel.menu.system.refresh">
-        <source>&amp;Refresh (r)</source>
-        <translation>&amp;Refresh (r)</translation>
+        <source>&amp;Refresh</source>
+        <translation>&amp;Refresh</translation>
     </message>
     <message id="autopanel.menu.system.theme">
         <source>&amp;Theme</source>
         <translation>&amp;Theme</translation>
     </message>
-    <message id="autopanel.menu.users">
-        <source>&amp;Users</source>
-        <translation>&amp;Users</translation>
+    <message id="autopanel.menu.system.title">
+        <source>S&amp;ystem</source>
+        <translation>S&amp;ystem</translation>
+    </message>
+    <message id="autopanel.menu.terminal.close">
+        <source>&amp;Close this shell</source>
+        <translation>&amp;Close this shell</translation>
+    </message>
+    <message id="autopanel.menu.terminal.hide">
+        <source>Hi&amp;de</source>
+        <translation>Hi&amp;de</translation>
+    </message>
+    <message id="autopanel.menu.terminal.maximize">
+        <source>&amp;Maximize or restore</source>
+        <translation>&amp;Maximize or restore</translation>
+    </message>
+    <message id="autopanel.menu.terminal.new">
+        <source>&amp;New shell</source>
+        <translation>&amp;New shell</translation>
+    </message>
+    <message id="autopanel.menu.terminal.newRoot">
+        <source>New &amp;root shell</source>
+        <translation>New &amp;root shell</translation>
     </message>
     <message id="autopanel.menu.users.manage">
         <source>&amp;Manage users…</source>
         <translation>&amp;Manage users…</translation>
     </message>
-    <message id="autopanel.metrics.availableOf">
-        <source>%1 available of %2</source>
-        <translation>%1 available of %2</translation>
-    </message>
-    <message id="autopanel.metrics.disk">
-        <source>Disk (the store's)</source>
-        <translation>Disk (the store's)</translation>
-    </message>
-    <message id="autopanel.metrics.freeOf">
-        <source>%1 free of %2</source>
-        <translation>%1 free of %2</translation>
-    </message>
-    <message id="autopanel.metrics.gateMemory">
-        <source>Gate memory</source>
-        <translation>Gate memory</translation>
-    </message>
-    <message id="autopanel.metrics.gateMemoryValue">
-        <source>%1 · process %2</source>
-        <translation>%1 · process %2</translation>
-    </message>
-    <message id="autopanel.metrics.gateSilent">
-        <source>not reporting</source>
-        <translation>not reporting</translation>
-    </message>
-    <message id="autopanel.metrics.goroutines">
-        <source>Goroutines</source>
-        <translation>Goroutines</translation>
-    </message>
-    <message id="autopanel.metrics.hostMemory">
-        <source>Host memory</source>
-        <translation>Host memory</translation>
-    </message>
-    <message id="autopanel.metrics.httpRequests">
-        <source>HTTP requests</source>
-        <translation>HTTP requests</translation>
-    </message>
-    <message id="autopanel.metrics.httpsRequests">
-        <source>HTTPS requests</source>
-        <translation>HTTPS requests</translation>
-    </message>
-    <message id="autopanel.metrics.load">
-        <source>Host load</source>
-        <translation>Host load</translation>
-    </message>
-    <message id="autopanel.metrics.loadValue">
-        <source>%1 · %2 · %3 (1, 5 and 15 minutes)</source>
-        <translation>%1 · %2 · %3 (1, 5 and 15 minutes)</translation>
-    </message>
-    <message id="autopanel.metrics.routes">
-        <source>Routes</source>
-        <translation>Routes</translation>
-    </message>
-    <message id="autopanel.metrics.serviceMemory">
-        <source>Core memory</source>
-        <translation>Core memory</translation>
-    </message>
-    <message id="autopanel.metrics.serviceMemoryValue">
-        <source>%1 in use · %2 held</source>
-        <translation>%1 in use · %2 held</translation>
-    </message>
-    <message id="autopanel.metrics.title">
-        <source>Metrics</source>
-        <translation>Metrics</translation>
-    </message>
-    <message id="autopanel.metrics.uptime">
-        <source>Service uptime</source>
-        <translation>Service uptime</translation>
-    </message>
-    <message id="autopanel.monitor.help">
-        <source>r read again · q close · Alt+drag moves, Alt+right-drag resizes</source>
-        <translation>r read again · q close · Alt+drag moves, Alt+right-drag resizes</translation>
-    </message>
-    <message id="autopanel.monitor.readAt">
-        <source>%1 rows, read at %2</source>
-        <translation>%1 rows, read at %2</translation>
-    </message>
-    <message id="autopanel.monitor.readAtOnly">
-        <source>read at %1</source>
-        <translation>read at %1</translation>
-    </message>
-    <message id="autopanel.notice.added">
-        <source>added %1</source>
-        <translation>added %1</translation>
-    </message>
-    <message id="autopanel.notice.busy">
-        <source>busy: a change is in flight</source>
-        <translation>busy: a change is in flight</translation>
-    </message>
-    <message id="autopanel.notice.caNow">
-        <source>certificates now come from %1</source>
-        <translation>certificates now come from %1</translation>
-    </message>
-    <message id="autopanel.notice.error">
-        <source>error: %1</source>
-        <translation>error: %1</translation>
-    </message>
-    <message id="autopanel.notice.noLanguage">
-        <source>no language %1</source>
-        <translation>no language %1</translation>
-    </message>
-    <message id="autopanel.notice.noRoute">
-        <source>no route selected</source>
-        <translation>no route selected</translation>
-    </message>
-    <message id="autopanel.notice.noTheme">
-        <source>no theme named %1</source>
-        <translation>no theme named %1</translation>
-    </message>
-    <message id="autopanel.notice.notKept">
-        <source>the choice is shown but was not kept: %1</source>
-        <translation>the choice is shown but was not kept: %1</translation>
-    </message>
-    <message id="autopanel.notice.removed">
-        <source>removed #%1</source>
-        <translation>removed #%1</translation>
-    </message>
-    <message id="autopanel.notice.routesError">
-        <source>routes: %1</source>
-        <translation>routes: %1</translation>
-    </message>
-    <message id="autopanel.notice.shellExited">
-        <source>The shell exited with status %1</source>
-        <translation>The shell exited with status %1</translation>
-    </message>
-    <message id="autopanel.notice.shellFailed">
-        <source>The shell could not start: %1</source>
-        <translation>The shell could not start: %1</translation>
-    </message>
-    <message id="autopanel.notice.theme">
-        <source>theme: %1</source>
-        <translation>theme: %1</translation>
-    </message>
-    <message id="autopanel.notice.updated">
-        <source>updated %1</source>
-        <translation>updated %1</translation>
-    </message>
-    <message id="autopanel.overview.certificates">
-        <source>Certificates</source>
-        <translation>Certificates</translation>
-    </message>
-    <message id="autopanel.overview.challenge">
-        <source>Challenge</source>
-        <translation>Challenge</translation>
-    </message>
-    <message id="autopanel.overview.http">
-        <source>HTTP</source>
-        <translation>HTTP</translation>
-    </message>
-    <message id="autopanel.overview.httpNote">
-        <source>%1 (certificate checks, and the redirect to HTTPS)</source>
-        <translation>%1 (certificate checks, and the redirect to HTTPS)</translation>
-    </message>
-    <message id="autopanel.overview.https">
-        <source>HTTPS</source>
-        <translation>HTTPS</translation>
-    </message>
-    <message id="autopanel.overview.routes">
-        <source>Routes</source>
-        <translation>Routes</translation>
-    </message>
-    <message id="autopanel.overview.store">
-        <source>Store</source>
-        <translation>Store</translation>
-    </message>
-    <message id="autopanel.overview.title">
-        <source>Overview</source>
-        <translation>Overview</translation>
-    </message>
-    <message id="autopanel.overview.uptime">
-        <source>Uptime</source>
-        <translation>Uptime</translation>
-    </message>
-    <message id="autopanel.overview.version">
-        <source>Version</source>
-        <translation>Version</translation>
-    </message>
-    <message id="autopanel.ports.title">
-        <source>Open ports</source>
-        <translation>Open ports</translation>
-    </message>
-    <message id="autopanel.review.go.add">
-        <source>&amp;Add and start</source>
-        <translation>&amp;Add and start</translation>
-    </message>
-    <message id="autopanel.review.go.apply">
-        <source>&amp;Apply</source>
-        <translation>&amp;Apply</translation>
-    </message>
-    <message id="autopanel.review.go.start">
-        <source>&amp;Start</source>
-        <translation>&amp;Start</translation>
-    </message>
-    <message id="autopanel.review.help">
-        <source>Nothing changes until you confirm. Confirming accepts the warnings.</source>
-        <translation>Nothing changes until you confirm. Confirming accepts the warnings.</translation>
-    </message>
-    <message id="autopanel.review.help.changed">
-        <source>The definition changed since it was shown. This is its new review.</source>
-        <translation>The definition changed since it was shown. This is its new review.</translation>
-    </message>
-    <message id="autopanel.review.help.refused">
-        <source>The stack was refused. Fix its definition, then review it again.</source>
-        <translation>The stack was refused. Fix its definition, then review it again.</translation>
-    </message>
-    <message id="autopanel.review.level.refused">
-        <source>refused</source>
-        <translation>refused</translation>
-    </message>
-    <message id="autopanel.review.level.warning">
-        <source>warning</source>
-        <translation>warning</translation>
-    </message>
-    <message id="autopanel.review.memory.none">
-        <source>none</source>
-        <translation>none</translation>
-    </message>
-    <message id="autopanel.review.prepare">
-        <source>&amp;Prepare only</source>
-        <translation>&amp;Prepare only</translation>
-    </message>
-    <message id="autopanel.review.removes">
-        <source>Applying stops and removes: %1</source>
-        <translation>Applying stops and removes: %1</translation>
-    </message>
-    <message id="autopanel.review.summary">
-        <source>Definition %1 · %2 files</source>
-        <translation>Definition %1 · %2 files</translation>
-    </message>
-    <message id="autopanel.review.title.add">
-        <source>Add stack %1: review</source>
-        <translation>Add stack %1: review</translation>
-    </message>
-    <message id="autopanel.review.title.apply">
-        <source>Apply stack %1: review</source>
-        <translation>Apply stack %1: review</translation>
-    </message>
-    <message id="autopanel.review.title.start">
-        <source>Start stack %1: review</source>
-        <translation>Start stack %1: review</translation>
-    </message>
-    <message id="autopanel.review.user.image">
-        <source>image's own</source>
-        <translation>image's own</translation>
-    </message>
-    <message id="autopanel.routes.add">
-        <source>Add</source>
-        <translation>Add</translation>
-    </message>
-    <message id="autopanel.routes.delete">
-        <source>Delete</source>
-        <translation>Delete</translation>
-    </message>
-    <message id="autopanel.routes.edit">
-        <source>Edit</source>
-        <translation>Edit</translation>
-    </message>
-    <message id="autopanel.routes.help">
-        <source>a add · e/Enter edit · d delete · q close</source>
-        <translation>a add · e/Enter edit · d delete · q close</translation>
-    </message>
-    <message id="autopanel.routes.title">
-        <source>Proxy routes</source>
-        <translation>Proxy routes</translation>
-    </message>
-    <message id="autopanel.stacks.add">
-        <source>Add</source>
-        <translation>Add</translation>
-    </message>
-    <message id="autopanel.stacks.apply">
-        <source>Apply</source>
-        <translation>Apply</translation>
-    </message>
-    <message id="autopanel.stacks.available.hint">
-        <source>Enter reviews the selected folder. Nothing changes until you confirm the review.</source>
-        <translation>Enter reviews the selected folder. Nothing changes until you confirm the review.</translation>
-    </message>
-    <message id="autopanel.stacks.available.none">
-        <source>No folder holds a new stack. Write a compose file to /etc/autopanel/stacks/&lt;name&gt;/compose.yaml, then open this again.</source>
-        <translation>No folder holds a new stack. Write a compose file to /etc/autopanel/stacks/&lt;name&gt;/compose.yaml, then open this again.</translation>
-    </message>
-    <message id="autopanel.stacks.available.review">
-        <source>&amp;Review</source>
-        <translation>&amp;Review</translation>
-    </message>
-    <message id="autopanel.stacks.available.title">
-        <source>Add a stack</source>
-        <translation>Add a stack</translation>
-    </message>
-    <message id="autopanel.stacks.confirm.purge">
-        <source>Remove %1 and delete its directory? Its containers stop, and its units, its user %2 and its data are deleted. Its definition folder is not touched.</source>
-        <translation>Remove %1 and delete its directory? Its containers stop, and its units, its user %2 and its data are deleted. Its definition folder is not touched.</translation>
-    </message>
-    <message id="autopanel.stacks.confirm.remove">
-        <source>Remove %1? Its containers stop, and its units and its user %2 are deleted. Its directory, with its data, is kept, owned by root. Its definition folder is not touched.</source>
-        <translation>Remove %1? Its containers stop, and its units and its user %2 are deleted. Its directory, with its data, is kept, owned by root. Its definition folder is not touched.</translation>
-    </message>
-    <message id="autopanel.stacks.confirm.stopService">
-        <source>Stop %2 of %1, and every service that depends on it? They stay stopped across a boot, until they are started.</source>
-        <translation>Stop %2 of %1, and every service that depends on it? They stay stopped across a boot, until they are started.</translation>
-    </message>
-    <message id="autopanel.stacks.confirm.stopStack">
-        <source>Stop every service of %1? They stay stopped across a boot, until they are started.</source>
-        <translation>Stop every service of %1? They stay stopped across a boot, until they are started.</translation>
-    </message>
-    <message id="autopanel.stacks.confirm.stopTitle">
-        <source>Stop</source>
-        <translation>Stop</translation>
-    </message>
-    <message id="autopanel.stacks.confirm.title">
-        <source>Remove stack</source>
-        <translation>Remove stack</translation>
-    </message>
-    <message id="autopanel.stacks.done.add">
-        <source>%1 is added and started</source>
-        <translation>%1 is added and started</translation>
-    </message>
-    <message id="autopanel.stacks.done.apply">
-        <source>%1 is applied</source>
-        <translation>%1 is applied</translation>
-    </message>
-    <message id="autopanel.stacks.done.prepare">
-        <source>%1 is prepared and not started. Put its data in place, then apply it (p) to start it.</source>
-        <translation>%1 is prepared and not started. Put its data in place, then apply it (p) to start it.</translation>
-    </message>
-    <message id="autopanel.stacks.done.pull">
-        <source>the images of %1 are pulled; a container whose image changed was restarted</source>
-        <translation>the images of %1 are pulled; a container whose image changed was restarted</translation>
-    </message>
-    <message id="autopanel.stacks.done.purge">
-        <source>%1 removed, with its directory</source>
-        <translation>%1 removed, with its directory</translation>
-    </message>
-    <message id="autopanel.stacks.done.remove">
-        <source>%1 removed; its directory is kept</source>
-        <translation>%1 removed; its directory is kept</translation>
-    </message>
-    <message id="autopanel.stacks.done.restart">
-        <source>%1 restarted</source>
-        <translation>%1 restarted</translation>
-    </message>
-    <message id="autopanel.stacks.done.start">
-        <source>%1 started</source>
-        <translation>%1 started</translation>
-    </message>
-    <message id="autopanel.stacks.done.stop">
-        <source>%1 stopped</source>
-        <translation>%1 stopped</translation>
-    </message>
-    <message id="autopanel.stacks.help">
-        <source>a add · p review and apply · u pull images · s start, x stop, t restart the service · with Shift, the whole stack · o log · d remove · Shift+D remove with its directory · r read again · q close · * after a name: its definition changed: apply to review it</source>
-        <translation>a add · p review and apply · u pull images · s start, x stop, t restart the service · with Shift, the whole stack · o log · d remove · Shift+D remove with its directory · r read again · q close · * after a name: its definition changed: apply to review it</translation>
-    </message>
-    <message id="autopanel.stacks.legacy">
-        <source>%1 was deployed from a template by an older AutoPanel. Remove it, then add it again as a stack.</source>
-        <translation>%1 was deployed from a template by an older AutoPanel. Remove it, then add it again as a stack.</translation>
-    </message>
-    <message id="autopanel.stacks.logs">
-        <source>Log</source>
-        <translation>Log</translation>
-    </message>
-    <message id="autopanel.stacks.logs.note">
-        <source>%1: %2 lines, read at %3</source>
-        <translation>%1: %2 lines, read at %3</translation>
-    </message>
-    <message id="autopanel.stacks.logs.title">
-        <source>Stack log</source>
-        <translation>Stack log</translation>
-    </message>
-    <message id="autopanel.stacks.noService">
-        <source>%1 has no service at this row. Apply the stack first.</source>
-        <translation>%1 has no service at this row. Apply the stack first.</translation>
-    </message>
-    <message id="autopanel.stacks.none">
-        <source>No stack at this row.</source>
-        <translation>No stack at this row.</translation>
-    </message>
-    <message id="autopanel.stacks.remove">
-        <source>Remove</source>
-        <translation>Remove</translation>
-    </message>
-    <message id="autopanel.stacks.restart">
-        <source>Restart</source>
-        <translation>Restart</translation>
-    </message>
-    <message id="autopanel.stacks.start">
-        <source>Start</source>
-        <translation>Start</translation>
-    </message>
-    <message id="autopanel.stacks.state.deploying">
-        <source>being applied</source>
-        <translation>being applied</translation>
-    </message>
-    <message id="autopanel.stacks.state.incomplete">
-        <source>apply stopped at: %1</source>
-        <translation>apply stopped at: %1</translation>
-    </message>
-    <message id="autopanel.stacks.state.legacy">
-        <source>from a template</source>
-        <translation>from a template</translation>
-    </message>
-    <message id="autopanel.stacks.state.prepared">
-        <source>prepared, not started</source>
-        <translation>prepared, not started</translation>
-    </message>
-    <message id="autopanel.stacks.state.removing">
-        <source>being removed</source>
-        <translation>being removed</translation>
-    </message>
-    <message id="autopanel.stacks.state.stopped">
-        <source>stopped</source>
-        <translation>stopped</translation>
-    </message>
-    <message id="autopanel.stacks.stop">
-        <source>Stop</source>
-        <translation>Stop</translation>
-    </message>
-    <message id="autopanel.stacks.title">
-        <source>Stacks</source>
-        <translation>Stacks</translation>
-    </message>
-    <message id="autopanel.stacks.working">
-        <source>%1: working. Pulling images can take a while.</source>
-        <translation>%1: working. Pulling images can take a while.</translation>
-    </message>
-    <message id="autopanel.status.error">
-        <source>status: %1</source>
-        <translation>status: %1</translation>
-    </message>
-    <message id="autopanel.status.line">
-        <source>%1 · CA %2 · %3 routes · up %4</source>
-        <translation>%1 · CA %2 · %3 routes · up %4</translation>
-    </message>
-    <message id="autopanel.status.loading">
-        <source>loading…</source>
-        <translation>loading…</translation>
-    </message>
-    <message id="autopanel.status.signedOut">
-        <source>not signed in</source>
-        <translation>not signed in</translation>
-    </message>
-    <message id="autopanel.terminal.confirmStop">
-        <source>Stop the running shells (%1) and close the terminal?</source>
-        <translation>Stop the running shells (%1) and close the terminal?</translation>
-    </message>
-    <message id="autopanel.terminal.confirmTitle">
-        <source>Close the terminal</source>
-        <translation>Close the terminal</translation>
-    </message>
-    <message id="autopanel.terminal.empty">
+    <message id="autopanel.menu.users.title">
+        <source>&amp;Users</source>
+        <translation>&amp;Users</translation>
+    </message>
+    <message id="autopanel.menu.view.activity">
+        <source>&amp;Activity</source>
+        <translation>&amp;Activity</translation>
+    </message>
+    <message id="autopanel.menu.view.certs">
+        <source>&amp;Certificates</source>
+        <translation>&amp;Certificates</translation>
+    </message>
+    <message id="autopanel.menu.view.host">
+        <source>&amp;Host</source>
+        <translation>&amp;Host</translation>
+    </message>
+    <message id="autopanel.menu.view.network">
+        <source>&amp;Network</source>
+        <translation>&amp;Network</translation>
+    </message>
+    <message id="autopanel.menu.view.ports">
+        <source>&amp;Ports</source>
+        <translation>&amp;Ports</translation>
+    </message>
+    <message id="autopanel.menu.view.reset">
+        <source>Reset the &amp;layout</source>
+        <translation>Reset the &amp;layout</translation>
+    </message>
+    <message id="autopanel.menu.view.stacks">
+        <source>S&amp;tacks</source>
+        <translation>S&amp;tacks</translation>
+    </message>
+    <message id="autopanel.menu.view.statusBar">
+        <source>&amp;Status bar</source>
+        <translation>&amp;Status bar</translation>
+    </message>
+    <message id="autopanel.menu.view.title">
+        <source>&amp;View</source>
+        <translation>&amp;View</translation>
+    </message>
+    <message id="autopanel.menu.view.traffic">
+        <source>T&amp;raffic</source>
+        <translation>T&amp;raffic</translation>
+    </message>
+    <message id="autopanel.note.browse.cut">
+        <source>Only the start of the file is shown.</source>
+        <translation>Only the start of the file is shown.</translation>
+    </message>
+    <message id="autopanel.note.browse.masked">
+        <source>%1 secret values are hidden.</source>
+        <translation>%1 secret values are hidden.</translation>
+    </message>
+    <message id="autopanel.note.browse.notInStack">
+        <source>Only a file inside a stack's folder (one that holds a compose.yaml) is previewed.</source>
+        <translation>Only a file inside a stack's folder (one that holds a compose.yaml) is previewed.</translation>
+    </message>
+    <message id="autopanel.note.browse.notText">
+        <source>The file is not text.</source>
+        <translation>The file is not text.</translation>
+    </message>
+    <message id="autopanel.note.terminal.empty">
         <source>No shell running. Press + to start one.</source>
         <translation>No shell running. Press + to start one.</translation>
     </message>
-    <message id="autopanel.terminal.help">
-        <source>Ctrl+T scroll and copy (i to type again) · F11 maximize · ≡ shells · a hidden terminal keeps its shells</source>
-        <translation>Ctrl+T scroll and copy (i to type again) · F11 maximize · ≡ shells · a hidden terminal keeps its shells</translation>
+    <message id="autopanel.notice.app.busy">
+        <source>busy: a change is in flight</source>
+        <translation>busy: a change is in flight</translation>
     </message>
-    <message id="autopanel.terminal.menu.close">
-        <source>&amp;Close this shell</source>
-        <translation>&amp;Close this shell</translation>
+    <message id="autopanel.notice.app.error">
+        <source>error: %1</source>
+        <translation>error: %1</translation>
     </message>
-    <message id="autopanel.terminal.menu.hide">
-        <source>Hi&amp;de</source>
-        <translation>Hi&amp;de</translation>
+    <message id="autopanel.notice.browse.cannotRead">
+        <source>Cannot read %1: %2</source>
+        <translation>Cannot read %1: %2</translation>
     </message>
-    <message id="autopanel.terminal.menu.maximize">
-        <source>&amp;Maximize or restore</source>
-        <translation>&amp;Maximize or restore</translation>
+    <message id="autopanel.notice.browse.noStack">
+        <source>No folder here holds a compose.yaml to import.</source>
+        <translation>No folder here holds a compose.yaml to import.</translation>
     </message>
-    <message id="autopanel.terminal.menu.new">
-        <source>&amp;New shell</source>
-        <translation>&amp;New shell</translation>
+    <message id="autopanel.notice.certs.caNow">
+        <source>certificates now come from %1</source>
+        <translation>certificates now come from %1</translation>
     </message>
-    <message id="autopanel.terminal.menu.newRoot">
-        <source>New &amp;root shell</source>
-        <translation>New &amp;root shell</translation>
+    <message id="autopanel.notice.domains.added">
+        <source>domain %1 added</source>
+        <translation>domain %1 added</translation>
     </message>
-    <message id="autopanel.terminal.title">
+    <message id="autopanel.notice.domains.badName">
+        <source>%1 is not a domain name: a name and a suffix, as example.com.</source>
+        <translation>%1 is not a domain name: a name and a suffix, as example.com.</translation>
+    </message>
+    <message id="autopanel.notice.domains.exists">
+        <source>%1 is registered already.</source>
+        <translation>%1 is registered already.</translation>
+    </message>
+    <message id="autopanel.notice.domains.gone">
+        <source>%1 was removed already.</source>
+        <translation>%1 was removed already.</translation>
+    </message>
+    <message id="autopanel.notice.domains.inUse">
+        <source>%1 cannot be removed: a route would be left under no domain. Remove or move that route first.</source>
+        <translation>%1 cannot be removed: a route would be left under no domain. Remove or move that route first.</translation>
+    </message>
+    <message id="autopanel.notice.domains.noName">
+        <source>Type the domain's name.</source>
+        <translation>Type the domain's name.</translation>
+    </message>
+    <message id="autopanel.notice.domains.none">
+        <source>No domain is selected.</source>
+        <translation>No domain is selected.</translation>
+    </message>
+    <message id="autopanel.notice.domains.removed">
+        <source>domain %1 removed</source>
+        <translation>domain %1 removed</translation>
+    </message>
+    <message id="autopanel.notice.form.noDomain">
+        <source>The host is under no registered domain. Add the domain in Routes › Domains first.</source>
+        <translation>The host is under no registered domain. Add the domain in Routes › Domains first.</translation>
+    </message>
+    <message id="autopanel.notice.form.noHost">
+        <source>Type a subdomain, or choose a domain.</source>
+        <translation>Type a subdomain, or choose a domain.</translation>
+    </message>
+    <message id="autopanel.notice.import.badName">
+        <source>%1 is not a stack's name: a lower-case letter, then letters, digits and hyphens, 29 characters at most.</source>
+        <translation>%1 is not a stack's name: a lower-case letter, then letters, digits and hyphens, 29 characters at most.</translation>
+    </message>
+    <message id="autopanel.notice.import.done">
+        <source>%1 is imported: %2 files. Review it to add it.</source>
+        <translation>%1 is imported: %2 files. Review it to add it.</translation>
+    </message>
+    <message id="autopanel.notice.import.exists">
+        <source>A stack named %1 exists. Choose another name.</source>
+        <translation>A stack named %1 exists. Choose another name.</translation>
+    </message>
+    <message id="autopanel.notice.language.unknown">
+        <source>no language %1</source>
+        <translation>no language %1</translation>
+    </message>
+    <message id="autopanel.notice.login.running">
+        <source>another sign-in is still running; try again in a moment</source>
+        <translation>another sign-in is still running; try again in a moment</translation>
+    </message>
+    <message id="autopanel.notice.login.signedIn">
+        <source>signed in as %1</source>
+        <translation>signed in as %1</translation>
+    </message>
+    <message id="autopanel.notice.prefs.notKept">
+        <source>the choice is shown but was not kept: %1</source>
+        <translation>the choice is shown but was not kept: %1</translation>
+    </message>
+    <message id="autopanel.notice.review.changed">
+        <source>The definition changed since it was shown. This is its new review.</source>
+        <translation>The definition changed since it was shown. This is its new review.</translation>
+    </message>
+    <message id="autopanel.notice.review.refused">
+        <source>The stack was refused. Fix its definition, then review it again.</source>
+        <translation>The stack was refused. Fix its definition, then review it again.</translation>
+    </message>
+    <message id="autopanel.notice.routes.added">
+        <source>added %1</source>
+        <translation>added %1</translation>
+    </message>
+    <message id="autopanel.notice.routes.none">
+        <source>no route selected</source>
+        <translation>no route selected</translation>
+    </message>
+    <message id="autopanel.notice.routes.readFailed">
+        <source>routes: %1</source>
+        <translation>routes: %1</translation>
+    </message>
+    <message id="autopanel.notice.routes.removed">
+        <source>removed #%1</source>
+        <translation>removed #%1</translation>
+    </message>
+    <message id="autopanel.notice.routes.updated">
+        <source>updated %1</source>
+        <translation>updated %1</translation>
+    </message>
+    <message id="autopanel.notice.stacks.addDone">
+        <source>%1 is added and started</source>
+        <translation>%1 is added and started</translation>
+    </message>
+    <message id="autopanel.notice.stacks.applyDone">
+        <source>%1 is applied</source>
+        <translation>%1 is applied</translation>
+    </message>
+    <message id="autopanel.notice.stacks.legacy">
+        <source>%1 was deployed from a template by an older AutoPanel. Remove it, then add it again as a stack.</source>
+        <translation>%1 was deployed from a template by an older AutoPanel. Remove it, then add it again as a stack.</translation>
+    </message>
+    <message id="autopanel.notice.stacks.noSource">
+        <source>%1 was not imported from a folder.</source>
+        <translation>%1 was not imported from a folder.</translation>
+    </message>
+    <message id="autopanel.notice.stacks.none">
+        <source>No stack at this row.</source>
+        <translation>No stack at this row.</translation>
+    </message>
+    <message id="autopanel.notice.stacks.prepareDone">
+        <source>%1 is prepared and not started. Put its data in place, then apply it to start it.</source>
+        <translation>%1 is prepared and not started. Put its data in place, then apply it to start it.</translation>
+    </message>
+    <message id="autopanel.notice.stacks.pullDone">
+        <source>the images of %1 are pulled; a container whose image changed was restarted</source>
+        <translation>the images of %1 are pulled; a container whose image changed was restarted</translation>
+    </message>
+    <message id="autopanel.notice.stacks.purgeDone">
+        <source>%1 removed, with its directory</source>
+        <translation>%1 removed, with its directory</translation>
+    </message>
+    <message id="autopanel.notice.stacks.reimported">
+        <source>%1: its definition is copied again from its source. Review it to apply it.</source>
+        <translation>%1: its definition is copied again from its source. Review it to apply it.</translation>
+    </message>
+    <message id="autopanel.notice.stacks.removeDone">
+        <source>%1 removed; its directory is kept</source>
+        <translation>%1 removed; its directory is kept</translation>
+    </message>
+    <message id="autopanel.notice.stacks.restartDone">
+        <source>%1 restarted</source>
+        <translation>%1 restarted</translation>
+    </message>
+    <message id="autopanel.notice.stacks.sourceMissing">
+        <source>The source folder of %1 is gone: %2</source>
+        <translation>The source folder of %1 is gone: %2</translation>
+    </message>
+    <message id="autopanel.notice.stacks.sourceSame">
+        <source>The source of %1 has not changed since it was imported.</source>
+        <translation>The source of %1 has not changed since it was imported.</translation>
+    </message>
+    <message id="autopanel.notice.stacks.startDone">
+        <source>%1 started</source>
+        <translation>%1 started</translation>
+    </message>
+    <message id="autopanel.notice.stacks.stopDone">
+        <source>%1 stopped</source>
+        <translation>%1 stopped</translation>
+    </message>
+    <message id="autopanel.notice.stacks.working">
+        <source>%1: working. Pulling images can take a while.</source>
+        <translation>%1: working. Pulling images can take a while.</translation>
+    </message>
+    <message id="autopanel.notice.terminal.shellExited">
+        <source>The shell exited with status %1</source>
+        <translation>The shell exited with status %1</translation>
+    </message>
+    <message id="autopanel.notice.terminal.shellFailed">
+        <source>The shell could not start: %1</source>
+        <translation>The shell could not start: %1</translation>
+    </message>
+    <message id="autopanel.notice.theme.shown">
+        <source>theme: %1</source>
+        <translation>theme: %1</translation>
+    </message>
+    <message id="autopanel.notice.theme.unknown">
+        <source>no theme named %1</source>
+        <translation>no theme named %1</translation>
+    </message>
+    <message id="autopanel.notice.widget.readFailed">
+        <source>read failed: %1</source>
+        <translation>read failed: %1</translation>
+    </message>
+    <message id="autopanel.question.domains.remove">
+        <source>Remove the domain %1? Its routes stay; the removal is refused while a route would be left under no domain.</source>
+        <translation>Remove the domain %1? Its routes stay; the removal is refused while a route would be left under no domain.</translation>
+    </message>
+    <message id="autopanel.question.routes.remove">
+        <source>Remove route %1?</source>
+        <translation>Remove route %1?</translation>
+    </message>
+    <message id="autopanel.question.stacks.remove">
+        <source>Remove %1? Its containers stop, and its units and its user %2 are deleted. Remove keeps its directory, with its data, owned by root; Remove with its directory deletes that too. The folder it was imported from is not touched.</source>
+        <translation>Remove %1? Its containers stop, and its units and its user %2 are deleted. Remove keeps its directory, with its data, owned by root; Remove with its directory deletes that too. The folder it was imported from is not touched.</translation>
+    </message>
+    <message id="autopanel.question.stacks.stopService">
+        <source>Stop %2 of %1, and every service that depends on it? They stay stopped across a boot, until they are started.</source>
+        <translation>Stop %2 of %1, and every service that depends on it? They stay stopped across a boot, until they are started.</translation>
+    </message>
+    <message id="autopanel.question.stacks.stopStack">
+        <source>Stop every service of %1? They stay stopped across a boot, until they are started.</source>
+        <translation>Stop every service of %1? They stay stopped across a boot, until they are started.</translation>
+    </message>
+    <message id="autopanel.question.terminal.stop">
+        <source>Stop the running shells (%1) and close the terminal?</source>
+        <translation>Stop the running shells (%1) and close the terminal?</translation>
+    </message>
+    <message id="autopanel.status.bar.error">
+        <source>status: %1</source>
+        <translation>status: %1</translation>
+    </message>
+    <message id="autopanel.status.bar.line">
+        <source>%1 · CA %2 · %3 routes · up %4</source>
+        <translation>%1 · CA %2 · %3 routes · up %4</translation>
+    </message>
+    <message id="autopanel.status.bar.loading">
+        <source>loading…</source>
+        <translation>loading…</translation>
+    </message>
+    <message id="autopanel.status.bar.readAt">
+        <source>read at %1</source>
+        <translation>read at %1</translation>
+    </message>
+    <message id="autopanel.status.bar.signedOut">
+        <source>not signed in</source>
+        <translation>not signed in</translation>
+    </message>
+    <message id="autopanel.tip.browse.import">
+        <source>Copy the folder's stack definition in, then review it</source>
+        <translation>Copy the folder's stack definition in, then review it</translation>
+    </message>
+    <message id="autopanel.tip.browse.up">
+        <source>Go to the parent folder</source>
+        <translation>Go to the parent folder</translation>
+    </message>
+    <message id="autopanel.tip.confirm.no">
+        <source>Leave it as it is</source>
+        <translation>Leave it as it is</translation>
+    </message>
+    <message id="autopanel.tip.confirm.other">
+        <source>Do it, and delete the stack's directory with its data</source>
+        <translation>Do it, and delete the stack's directory with its data</translation>
+    </message>
+    <message id="autopanel.tip.confirm.yes">
+        <source>Do it</source>
+        <translation>Do it</translation>
+    </message>
+    <message id="autopanel.tip.dialog.cancel">
+        <source>Close without changing anything</source>
+        <translation>Close without changing anything</translation>
+    </message>
+    <message id="autopanel.tip.dialog.close">
+        <source>Close it</source>
+        <translation>Close it</translation>
+    </message>
+    <message id="autopanel.tip.domains.add">
+        <source>Register a domain you own</source>
+        <translation>Register a domain you own</translation>
+    </message>
+    <message id="autopanel.tip.domains.remove">
+        <source>Remove the selected domain</source>
+        <translation>Remove the selected domain</translation>
+    </message>
+    <message id="autopanel.tip.form.domain">
+        <source>The registered domain the host is under</source>
+        <translation>The registered domain the host is under</translation>
+    </message>
+    <message id="autopanel.tip.form.port">
+        <source>Fill the upstream with a port a stack publishes</source>
+        <translation>Fill the upstream with a port a stack publishes</translation>
+    </message>
+    <message id="autopanel.tip.form.save">
+        <source>Save the route</source>
+        <translation>Save the route</translation>
+    </message>
+    <message id="autopanel.tip.login.quit">
+        <source>Quit the panel</source>
+        <translation>Quit the panel</translation>
+    </message>
+    <message id="autopanel.tip.login.signIn">
+        <source>Sign in with this user and passphrase</source>
+        <translation>Sign in with this user and passphrase</translation>
+    </message>
+    <message id="autopanel.tip.logs.reload">
+        <source>Read the journal again</source>
+        <translation>Read the journal again</translation>
+    </message>
+    <message id="autopanel.tip.panel.close">
+        <source>Close the panel</source>
+        <translation>Close the panel</translation>
+    </message>
+    <message id="autopanel.tip.panel.reload">
+        <source>Read it again now</source>
+        <translation>Read it again now</translation>
+    </message>
+    <message id="autopanel.tip.prompt.ok">
+        <source>Take this answer</source>
+        <translation>Take this answer</translation>
+    </message>
+    <message id="autopanel.tip.review.go">
+        <source>Do what the review shows; nothing changes before</source>
+        <translation>Do what the review shows; nothing changes before</translation>
+    </message>
+    <message id="autopanel.tip.review.prepare">
+        <source>Put the user, the files and the images in place, and start nothing</source>
+        <translation>Put the user, the files and the images in place, and start nothing</translation>
+    </message>
+    <message id="autopanel.tip.routes.add">
+        <source>Add a route</source>
+        <translation>Add a route</translation>
+    </message>
+    <message id="autopanel.tip.routes.domains">
+        <source>Open the domains</source>
+        <translation>Open the domains</translation>
+    </message>
+    <message id="autopanel.tip.routes.edit">
+        <source>Edit the selected route</source>
+        <translation>Edit the selected route</translation>
+    </message>
+    <message id="autopanel.tip.routes.remove">
+        <source>Remove the selected route</source>
+        <translation>Remove the selected route</translation>
+    </message>
+    <message id="autopanel.tip.stacks.add">
+        <source>Choose a folder that holds a compose.yaml, and import it</source>
+        <translation>Choose a folder that holds a compose.yaml, and import it</translation>
+    </message>
+    <message id="autopanel.tip.stacks.apply">
+        <source>Review the selected stack's definition, then apply it</source>
+        <translation>Review the selected stack's definition, then apply it</translation>
+    </message>
+    <message id="autopanel.tip.stacks.logs">
+        <source>Read the journal of the selected container, or of the stack</source>
+        <translation>Read the journal of the selected container, or of the stack</translation>
+    </message>
+    <message id="autopanel.tip.stacks.pull">
+        <source>Pull the images again</source>
+        <translation>Pull the images again</translation>
+    </message>
+    <message id="autopanel.tip.stacks.remove">
+        <source>Remove the selected stack</source>
+        <translation>Remove the selected stack</translation>
+    </message>
+    <message id="autopanel.tip.stacks.restart">
+        <source>Restart the selected container, or the whole stack on its row</source>
+        <translation>Restart the selected container, or the whole stack on its row</translation>
+    </message>
+    <message id="autopanel.tip.stacks.start">
+        <source>Start the selected container, or the whole stack on its row</source>
+        <translation>Start the selected container, or the whole stack on its row</translation>
+    </message>
+    <message id="autopanel.tip.stacks.stop">
+        <source>Stop the selected container, or the whole stack on its row</source>
+        <translation>Stop the selected container, or the whole stack on its row</translation>
+    </message>
+    <message id="autopanel.tip.stacks.update">
+        <source>Copy the stack's definition from its source again, then review it</source>
+        <translation>Copy the stack's definition from its source again, then review it</translation>
+    </message>
+    <message id="autopanel.title.browse.entries">
+        <source>Entries: %1</source>
+        <translation>Entries: %1</translation>
+    </message>
+    <message id="autopanel.title.browse.stackEntries">
+        <source>Entries: %1 · holds a compose.yaml</source>
+        <translation>Entries: %1 · holds a compose.yaml</translation>
+    </message>
+    <message id="autopanel.title.browse.truncated">
+        <source>%1 · more than shown</source>
+        <translation>%1 · more than shown</translation>
+    </message>
+    <message id="autopanel.title.confirm.removeDomain">
+        <source>Remove domain</source>
+        <translation>Remove domain</translation>
+    </message>
+    <message id="autopanel.title.confirm.removeRoute">
+        <source>Remove route</source>
+        <translation>Remove route</translation>
+    </message>
+    <message id="autopanel.title.confirm.removeStack">
+        <source>Remove stack</source>
+        <translation>Remove stack</translation>
+    </message>
+    <message id="autopanel.title.confirm.stop">
+        <source>Stop</source>
+        <translation>Stop</translation>
+    </message>
+    <message id="autopanel.title.confirm.stopShells">
+        <source>Close the terminal</source>
+        <translation>Close the terminal</translation>
+    </message>
+    <message id="autopanel.title.dialog.about">
+        <source>About AutoPanel</source>
+        <translation>About AutoPanel</translation>
+    </message>
+    <message id="autopanel.title.dialog.browse">
+        <source>Add a stack: choose its folder</source>
+        <translation>Add a stack: choose its folder</translation>
+    </message>
+    <message id="autopanel.title.dialog.keys">
+        <source>Keys</source>
+        <translation>Keys</translation>
+    </message>
+    <message id="autopanel.title.dialog.login">
+        <source>Sign in to AutoPanel</source>
+        <translation>Sign in to AutoPanel</translation>
+    </message>
+    <message id="autopanel.title.form.add">
+        <source>Add route</source>
+        <translation>Add route</translation>
+    </message>
+    <message id="autopanel.title.form.edit">
+        <source>Edit route #%1</source>
+        <translation>Edit route #%1</translation>
+    </message>
+    <message id="autopanel.title.list.audit">
+        <source>Entries</source>
+        <translation>Entries</translation>
+    </message>
+    <message id="autopanel.title.list.count">
+        <source>%1 · %2 · read at %3</source>
+        <translation>%1 · %2 · read at %3</translation>
+    </message>
+    <message id="autopanel.title.list.domains">
+        <source>Domains</source>
+        <translation>Domains</translation>
+    </message>
+    <message id="autopanel.title.list.failed">
+        <source>%1 · the read failed: %2</source>
+        <translation>%1 · the read failed: %2</translation>
+    </message>
+    <message id="autopanel.title.list.journal">
+        <source>%1 · %2 lines · read at %3</source>
+        <translation>%1 · %2 lines · read at %3</translation>
+    </message>
+    <message id="autopanel.title.list.logins">
+        <source>Attempts</source>
+        <translation>Attempts</translation>
+    </message>
+    <message id="autopanel.title.list.metrics">
+        <source>Metrics</source>
+        <translation>Metrics</translation>
+    </message>
+    <message id="autopanel.title.list.ports">
+        <source>Sockets</source>
+        <translation>Sockets</translation>
+    </message>
+    <message id="autopanel.title.list.readAt">
+        <source>%1 · %2 · read at %3</source>
+        <translation>%1 · %2 · read at %3</translation>
+    </message>
+    <message id="autopanel.title.list.routes">
+        <source>Routes</source>
+        <translation>Routes</translation>
+    </message>
+    <message id="autopanel.title.list.stacks">
+        <source>Stacks</source>
+        <translation>Stacks</translation>
+    </message>
+    <message id="autopanel.title.pane.details">
+        <source>Details</source>
+        <translation>Details</translation>
+    </message>
+    <message id="autopanel.title.pane.entry">
+        <source>Entry</source>
+        <translation>Entry</translation>
+    </message>
+    <message id="autopanel.title.pane.review">
+        <source>Containers and findings</source>
+        <translation>Containers and findings</translation>
+    </message>
+    <message id="autopanel.title.pane.socket">
+        <source>Socket</source>
+        <translation>Socket</translation>
+    </message>
+    <message id="autopanel.title.panel.audit">
+        <source>Audit log</source>
+        <translation>Audit log</translation>
+    </message>
+    <message id="autopanel.title.panel.domains">
+        <source>Domains</source>
+        <translation>Domains</translation>
+    </message>
+    <message id="autopanel.title.panel.logins">
+        <source>Login attempts</source>
+        <translation>Login attempts</translation>
+    </message>
+    <message id="autopanel.title.panel.metrics">
+        <source>Metrics</source>
+        <translation>Metrics</translation>
+    </message>
+    <message id="autopanel.title.panel.ports">
+        <source>Open ports</source>
+        <translation>Open ports</translation>
+    </message>
+    <message id="autopanel.title.panel.routes">
+        <source>Proxy routes</source>
+        <translation>Proxy routes</translation>
+    </message>
+    <message id="autopanel.title.panel.stackLog">
+        <source>Stack log</source>
+        <translation>Stack log</translation>
+    </message>
+    <message id="autopanel.title.panel.stacks">
+        <source>Stacks</source>
+        <translation>Stacks</translation>
+    </message>
+    <message id="autopanel.title.panel.terminal">
         <source>Terminal</source>
         <translation>Terminal</translation>
+    </message>
+    <message id="autopanel.title.prompt.addDomain">
+        <source>Add a domain</source>
+        <translation>Add a domain</translation>
+    </message>
+    <message id="autopanel.title.prompt.import">
+        <source>Import a stack</source>
+        <translation>Import a stack</translation>
+    </message>
+    <message id="autopanel.title.review.add">
+        <source>Add stack %1: review</source>
+        <translation>Add stack %1: review</translation>
+    </message>
+    <message id="autopanel.title.review.apply">
+        <source>Apply stack %1: review</source>
+        <translation>Apply stack %1: review</translation>
+    </message>
+    <message id="autopanel.title.review.start">
+        <source>Start stack %1: review</source>
+        <translation>Start stack %1: review</translation>
+    </message>
+    <message id="autopanel.title.widget.activity">
+        <source>Activity</source>
+        <translation>Activity</translation>
+    </message>
+    <message id="autopanel.title.widget.certs">
+        <source>Certificates</source>
+        <translation>Certificates</translation>
+    </message>
+    <message id="autopanel.title.widget.host">
+        <source>Host</source>
+        <translation>Host</translation>
+    </message>
+    <message id="autopanel.title.widget.network">
+        <source>Network</source>
+        <translation>Network</translation>
+    </message>
+    <message id="autopanel.title.widget.ports">
+        <source>Ports</source>
+        <translation>Ports</translation>
+    </message>
+    <message id="autopanel.title.widget.stacks">
+        <source>Stacks</source>
+        <translation>Stacks</translation>
+    </message>
+    <message id="autopanel.title.widget.traffic">
+        <source>Traffic</source>
+        <translation>Traffic</translation>
+    </message>
+    <message id="autopanel.value.about.daemon">
+        <source>%1 · up %2</source>
+        <translation>%1 · up %2</translation>
+    </message>
+    <message id="autopanel.value.about.what">
+        <source>A lightweight control plane for self-hosted web services.</source>
+        <translation>A lightweight control plane for self-hosted web services.</translation>
+    </message>
+    <message id="autopanel.value.browse.folder">
+        <source>Folder</source>
+        <translation>Folder</translation>
+    </message>
+    <message id="autopanel.value.browse.other">
+        <source>Not a file or a folder: it is not previewed</source>
+        <translation>Not a file or a folder: it is not previewed</translation>
+    </message>
+    <message id="autopanel.value.browse.parent">
+        <source>The parent folder: %1</source>
+        <translation>The parent folder: %1</translation>
+    </message>
+    <message id="autopanel.value.browse.stackFolder">
+        <source>Folder that holds a compose.yaml: Import takes it</source>
+        <translation>Folder that holds a compose.yaml: Import takes it</translation>
+    </message>
+    <message id="autopanel.value.ca.nameProduction">
+        <source>Let's Encrypt production</source>
+        <translation>Let's Encrypt production</translation>
+    </message>
+    <message id="autopanel.value.ca.nameStaging">
+        <source>Let's Encrypt staging</source>
+        <translation>Let's Encrypt staging</translation>
+    </message>
+    <message id="autopanel.value.ca.shortProduction">
+        <source>LE production</source>
+        <translation>LE production</translation>
+    </message>
+    <message id="autopanel.value.ca.shortStaging">
+        <source>LE staging</source>
+        <translation>LE staging</translation>
+    </message>
+    <message id="autopanel.value.certs.challenge">
+        <source>Challenge: %1</source>
+        <translation>Challenge: %1</translation>
+    </message>
+    <message id="autopanel.value.certs.issuer">
+        <source>Issuer: %1</source>
+        <translation>Issuer: %1</translation>
+    </message>
+    <message id="autopanel.value.domain.noRoutes">
+        <source>No route is under it.</source>
+        <translation>No route is under it.</translation>
+    </message>
+    <message id="autopanel.value.host.cpu">
+        <source>%1% of %2 CPUs</source>
+        <translation>%1% of %2 CPUs</translation>
+    </message>
+    <message id="autopanel.value.host.measuring">
+        <source>measuring…</source>
+        <translation>measuring…</translation>
+    </message>
+    <message id="autopanel.value.host.noSwap">
+        <source>no swap</source>
+        <translation>no swap</translation>
+    </message>
+    <message id="autopanel.value.host.uptimeDays">
+        <source>%1 d %2 h</source>
+        <translation>%1 d %2 h</translation>
+    </message>
+    <message id="autopanel.value.host.uptimeHours">
+        <source>%1 h %2 min</source>
+        <translation>%1 h %2 min</translation>
+    </message>
+    <message id="autopanel.value.host.usedOf">
+        <source>%1 of %2</source>
+        <translation>%1 of %2</translation>
+    </message>
+    <message id="autopanel.value.logins.closed">
+        <source>closed</source>
+        <translation>closed</translation>
+    </message>
+    <message id="autopanel.value.logins.failed">
+        <source>failed</source>
+        <translation>failed</translation>
+    </message>
+    <message id="autopanel.value.logins.ok">
+        <source>ok</source>
+        <translation>ok</translation>
+    </message>
+    <message id="autopanel.value.metrics.availableOf">
+        <source>%1 available of %2</source>
+        <translation>%1 available of %2</translation>
+    </message>
+    <message id="autopanel.value.metrics.coreMemory">
+        <source>%1 in use · %2 held</source>
+        <translation>%1 in use · %2 held</translation>
+    </message>
+    <message id="autopanel.value.metrics.freeOf">
+        <source>%1 free of %2</source>
+        <translation>%1 free of %2</translation>
+    </message>
+    <message id="autopanel.value.metrics.gateMemory">
+        <source>%1 · process %2</source>
+        <translation>%1 · process %2</translation>
+    </message>
+    <message id="autopanel.value.metrics.gateSilent">
+        <source>not reporting</source>
+        <translation>not reporting</translation>
+    </message>
+    <message id="autopanel.value.metrics.load">
+        <source>%1 · %2 · %3 (1, 5 and 15 minutes)</source>
+        <translation>%1 · %2 · %3 (1, 5 and 15 minutes)</translation>
+    </message>
+    <message id="autopanel.value.review.container">
+        <source>container</source>
+        <translation>container</translation>
+    </message>
+    <message id="autopanel.value.review.imageUser">
+        <source>image's own</source>
+        <translation>image's own</translation>
+    </message>
+    <message id="autopanel.value.review.no">
+        <source>no</source>
+        <translation>no</translation>
+    </message>
+    <message id="autopanel.value.review.noMemoryLimit">
+        <source>none</source>
+        <translation>none</translation>
+    </message>
+    <message id="autopanel.value.review.refused">
+        <source>refused</source>
+        <translation>refused</translation>
+    </message>
+    <message id="autopanel.value.review.removes">
+        <source>Applying stops and removes: %1</source>
+        <translation>Applying stops and removes: %1</translation>
+    </message>
+    <message id="autopanel.value.review.summary">
+        <source>Definition %1 · files: %2 · containers: %3</source>
+        <translation>Definition %1 · files: %2 · containers: %3</translation>
+    </message>
+    <message id="autopanel.value.review.warning">
+        <source>warning</source>
+        <translation>warning</translation>
+    </message>
+    <message id="autopanel.value.review.yes">
+        <source>yes</source>
+        <translation>yes</translation>
+    </message>
+    <message id="autopanel.value.routes.noDomain">
+        <source>under no registered domain</source>
+        <translation>under no registered domain</translation>
+    </message>
+    <message id="autopanel.value.source.changed">
+        <source>source changed</source>
+        <translation>source changed</translation>
+    </message>
+    <message id="autopanel.value.source.missing">
+        <source>source missing</source>
+        <translation>source missing</translation>
+    </message>
+    <message id="autopanel.value.source.none">
+        <source>not imported from a folder</source>
+        <translation>not imported from a folder</translation>
+    </message>
+    <message id="autopanel.value.source.same">
+        <source>as imported</source>
+        <translation>as imported</translation>
+    </message>
+    <message id="autopanel.value.stacks.changedSince">
+        <source>%1 · changed since it was applied</source>
+        <translation>%1 · changed since it was applied</translation>
+    </message>
+    <message id="autopanel.value.stacks.deployed">
+        <source>deployed</source>
+        <translation>deployed</translation>
+    </message>
+    <message id="autopanel.value.stacks.deploying">
+        <source>being applied</source>
+        <translation>being applied</translation>
+    </message>
+    <message id="autopanel.value.stacks.incomplete">
+        <source>apply stopped at: %1</source>
+        <translation>apply stopped at: %1</translation>
+    </message>
+    <message id="autopanel.value.stacks.legacy">
+        <source>from a template</source>
+        <translation>from a template</translation>
+    </message>
+    <message id="autopanel.value.stacks.prepared">
+        <source>prepared, not started</source>
+        <translation>prepared, not started</translation>
+    </message>
+    <message id="autopanel.value.stacks.removing">
+        <source>being removed</source>
+        <translation>being removed</translation>
+    </message>
+    <message id="autopanel.value.stacks.serviceOf">
+        <source>%1 of stack %2</source>
+        <translation>%1 of stack %2</translation>
+    </message>
+    <message id="autopanel.value.stacks.stopped">
+        <source>stopped</source>
+        <translation>stopped</translation>
+    </message>
+    <message id="autopanel.value.traffic.requests">
+        <source>Since the gate started: %1 HTTPS and %2 HTTP requests. They are not counted by domain yet.</source>
+        <translation>Since the gate started: %1 HTTPS and %2 HTTP requests. They are not counted by domain yet.</translation>
     </message>
 </context>
 </TS>

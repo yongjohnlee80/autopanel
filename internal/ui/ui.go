@@ -1,14 +1,23 @@
-// Package ui is AutoPanel's admin TUI: a menu bar over an overview of the
-// running AutoPanel, with a status bar beneath. The menus open the panel's
-// parts as floating windows that move, resize, maximize, minimize and close:
-// the proxy routes, with a form to add or edit one and a confirmation to
-// remove one, and the System menu's monitors (metrics, the audit log, login
-// attempts, open ports), and the stacks, with a review of a stack's
-// definition before it is added or applied. The certificate service, the
-// theme and the language are chosen in the menus. It opens on a login dialog, and reads nothing
-// until a panel user has signed in. All of it is over a Client that talks to
-// the daemon. The panel keeps no state of its own: every change goes through the
-// Client, and the routes and status are read again after it.
+// Package ui is AutoPanel's admin TUI. The main screen is a set of widgets
+// tiled over the window (host, network, stacks, traffic, certificates, ports
+// and activity), each read again every few seconds while it is shown. A menu
+// bar sits above them, with the dock in its right corner: an icon for each
+// widget and each open panel, which a click hides or shows. The status bar is
+// below.
+//
+// The menus open the panels: the proxy routes and the domains, the System
+// monitors (metrics, the audit log, login attempts, open ports), the stacks
+// and a stack's log, and the terminal. A list and what acts on it are two
+// panes: the rows on the left, the selected row's details on the right, the
+// buttons under both. Every button carries its key in its label; Help › Keys
+// is the one place the keys are listed.
+//
+// The panel opens on a login dialog and reads nothing until a panel user has
+// signed in. All of it is over a Client that talks to the daemon. The panel
+// keeps no state of its own: every change goes through the Client, and what it
+// changed is read again after it.
+//
+// Decision: docs/decisions/ui.md
 package ui
 
 import (
@@ -25,6 +34,7 @@ import (
 
 	"github.com/yongjohnlee80/autopanel/core/gate"
 	"github.com/yongjohnlee80/autopanel/core/services"
+	"github.com/yongjohnlee80/autopanel/internal/sysinfo"
 )
 
 // Status is what the status bar shows: sys.status's answer.
@@ -64,6 +74,9 @@ type Metrics struct {
 		DiskTotal    uint64 `json:"disk_total"`
 		DiskFree     uint64 `json:"disk_free"`
 	} `json:"host"`
+	// Activity is the host's CPU, swap, uptime and network, with the rates
+	// since the daemon's last read.
+	Activity sysinfo.Sample `json:"activity"`
 }
 
 // AuditEntry is one row of sys.audit.list.
@@ -127,7 +140,14 @@ type Client interface {
 	// SetCA chooses the certificate service: "staging" or "production".
 	SetCA(ctx context.Context, ca string) error
 
-	// The System menu's monitors.
+	// Domains are the registered domains, each with its routes' count.
+	Domains(ctx context.Context) ([]gate.DomainView, error)
+	AddDomain(ctx context.Context, name string) error
+	// RemoveDomain is refused with gate.ErrDomainInUse while a route would
+	// be left under no domain.
+	RemoveDomain(ctx context.Context, name string) error
+
+	// The System menu's monitors, and the widgets'.
 	Metrics(ctx context.Context) (Metrics, error)
 	AuditLog(ctx context.Context) ([]AuditEntry, error)
 	Logins(ctx context.Context) (Logins, error)
@@ -135,8 +155,19 @@ type Client interface {
 
 	// The Services menu: the stacks. Each is a verb of the daemon's.
 	Stacks(ctx context.Context) ([]services.View, error)
-	// AvailableStacks are the definition folders no stack is registered for.
-	AvailableStacks(ctx context.Context) ([]services.Folder, error)
+	// Browse lists a folder of the host for the file browser. A path it
+	// cannot read is services.ErrBadPath.
+	Browse(ctx context.Context, path string) (services.Listing, error)
+	// Preview is a file's text, its secrets masked. A file outside a stack's
+	// folder is services.ErrNotInStack; one that is not text,
+	// services.ErrNotText.
+	Preview(ctx context.Context, path string) (services.PreviewText, error)
+	// ImportStack copies a folder's definition in as a new stack; it runs
+	// nothing.
+	ImportStack(ctx context.Context, from, name string) (services.Imported, error)
+	// ReimportStack copies a stack's definition from its source again; what
+	// runs does not change until an apply.
+	ReimportStack(ctx context.Context, name string) (services.Imported, error)
 	// CheckStack reviews a stack's definition and changes nothing.
 	CheckStack(ctx context.Context, name string) (services.Review, error)
 	// ApplyStack runs a reviewed definition: verb is "prepare", "add" or
@@ -163,9 +194,8 @@ type Client interface {
 // own, for About; the daemon reports its own in the status.
 //
 // The screen is QML (qml/Main.qml and the folders beside it): this package
-// builds no widget. It publishes the routes and the status as the App
-// singleton's sources and runs the commands the document invokes
-// (commands.go).
+// builds no widget. It publishes what it read as the App singleton's sources
+// and runs the commands the document invokes (commands.go).
 func Run(ctx context.Context, c Client, version string) error {
 	if c == nil {
 		return errors.New("ui: nil client")
@@ -179,7 +209,7 @@ func Run(ctx context.Context, c Client, version string) error {
 	h := newHost(ctx, c, version)
 	// Handler errors go to the status bar as they happen, rather than being
 	// kept until the panel closes.
-	p, err := tuidecl.NewProgram(h.options(func(err error) { h.say(h.trf("autopanel.notice.error", err.Error())) }, tui.WithBackend(backend))...)
+	p, err := tuidecl.NewProgram(h.options(func(err error) { h.say(h.trf("autopanel.notice.app.error", err.Error())) }, tui.WithBackend(backend))...)
 	if err != nil {
 		return fmt.Errorf("ui: %w", err)
 	}
@@ -200,9 +230,9 @@ func orDash(v string) string {
 func shortCA(w wording, ca string) string {
 	switch strings.TrimSpace(ca) {
 	case certmagic.LetsEncryptStagingCA:
-		return w.tr("autopanel.ca.short.staging")
+		return w.tr("autopanel.value.ca.shortStaging")
 	case certmagic.LetsEncryptProductionCA:
-		return w.tr("autopanel.ca.short.production")
+		return w.tr("autopanel.value.ca.shortProduction")
 	case "":
 		return "-"
 	}
@@ -211,36 +241,51 @@ func shortCA(w wording, ca string) string {
 
 // statusLine is the status bar's summary of s.
 func statusLine(w wording, s Status) string {
-	return w.trf("autopanel.status.line", orDash(s.Version), shortCA(w, s.CA), s.Routes, orDash(s.Uptime))
+	return w.trf("autopanel.status.bar.line", orDash(s.Version), shortCA(w, s.CA), s.Routes, orDash(s.Uptime))
 }
 
-// caNote says what a certificate service's certificates are good for, for the
-// overview.
-func caNote(w wording, ca string) string {
+// caName names an ACME directory: Let's Encrypt's two by name, any other by
+// its URL.
+func caName(w wording, ca string) string {
 	switch strings.TrimSpace(ca) {
 	case certmagic.LetsEncryptStagingCA:
-		return w.tr("autopanel.ca.note.staging")
+		return w.tr("autopanel.value.ca.nameStaging")
 	case certmagic.LetsEncryptProductionCA:
-		return w.tr("autopanel.ca.note.production")
+		return w.tr("autopanel.value.ca.nameProduction")
 	case "":
 		return "-"
 	}
 	return ca
 }
 
-// overview is the main screen's rows: the running AutoPanel, a fact per row,
-// each a name and its value.
-func overview(w wording, s Status) [][2]string {
-	return [][2]string{
-		{w.tr("autopanel.overview.version"), orDash(s.Version)},
-		{w.tr("autopanel.overview.https"), orDash(s.HTTPS)},
-		{w.tr("autopanel.overview.http"), w.trf("autopanel.overview.httpNote", orDash(s.HTTP))},
-		{w.tr("autopanel.overview.store"), orDash(s.Store)},
-		{w.tr("autopanel.overview.certificates"), caNote(w, s.CA)},
-		{w.tr("autopanel.overview.challenge"), orDash(s.Challenge)},
-		{w.tr("autopanel.overview.routes"), strconv.Itoa(s.Routes)},
-		{w.tr("autopanel.overview.uptime"), orDash(s.Uptime)},
+// formHost is the host a route form names: the subdomain under the domain
+// chosen, the domain alone for no subdomain, or the subdomain field alone when
+// no domain is chosen. A trailing or leading dot typed in either is dropped.
+func formHost(sub, domain string) string {
+	sub = strings.Trim(strings.TrimSpace(sub), ".")
+	domain = strings.Trim(strings.TrimSpace(domain), ".")
+	switch {
+	case domain == "":
+		return sub
+	case sub == "":
+		return domain
 	}
+	return sub + "." + domain
+}
+
+// splitHost is a stored host as the form shows it: the part under the longest
+// domain it is under, and that domain. A host under none is all subdomain,
+// with no domain.
+func splitHost(host string, domains []gate.DomainView) (sub, domain string) {
+	for _, d := range domains {
+		if gate.Under(host, d.Name) && len(d.Name) > len(domain) {
+			domain = d.Name
+		}
+	}
+	if domain == "" {
+		return host, ""
+	}
+	return strings.TrimSuffix(strings.TrimSuffix(host, domain), "."), domain
 }
 
 // formSpec is the route the form's fields describe: trimmed, with "/" for an
@@ -256,4 +301,10 @@ func formSpec(id int64, host, prefix, upstream string) gate.RouteSpec {
 // describe is one route on one line, for messages.
 func describe(r gate.RouteView) string {
 	return "#" + strconv.FormatInt(r.ID, 10) + " " + r.Host + r.PathPrefix + " → " + r.Upstream
+}
+
+// domainOf is the longest registered domain host is under, or "".
+func domainOf(host string, domains []gate.DomainView) string {
+	_, d := splitHost(host, domains)
+	return d
 }

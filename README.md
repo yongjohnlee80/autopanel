@@ -91,30 +91,53 @@ sudo autopanel --ui
 ```
 
 It opens on a sign-in dialog. The user is `root`; type the master passphrase and press Enter.
-Cancel or Esc quits.
+Quit or Esc leaves.
 
-The panel has a menu bar: open a menu with Alt and its letter (Alt+R for Routes), or press F10 and
-move with the arrow keys. `r` refreshes and `q` quits.
+**The main screen** is a set of tiled widgets that read the server every five seconds:
+
+| Widget | What it shows |
+| --- | --- |
+| Host | processor use, memory, swap, disk, load and uptime |
+| Network | each interface's traffic in and out per second, its totals and its errors |
+| Stacks | each stack's containers: state, health and memory |
+| Traffic | the requests the gate has served, and each domain with its routes |
+| Ports | the sockets listening on the server |
+| Certificates | the certificate service in use, and the names it certifies |
+| Activity | the newest entries of the audit log |
+
+Drag a widget with Alt (Option) and the left mouse button to put it elsewhere or swap it with
+another; drag the border between two with Alt and the right button. The icons at the right of the
+menu bar are the dock: one per widget and per open panel, dimmed while it is hidden; a click hides
+or shows it. **View** does the same by name, hides the status bar, and puts the layout back.
+
+**The menus** open with Alt and the marked letter of their name, or with F10. A button names its
+key by its marked letter (`Remove` with its R in the accent colour); **Help → Keys** (F1) lists
+every key. `r` reads the screen again and `q` quits.
 
 | Menu | What it holds |
 | --- | --- |
 | System | **Metrics**, **Audit log**, **Login attempts**, **Open ports**; **Theme** and **Language** |
-| Routes | **Proxy routes**: the host names AutoPanel serves and where each one goes |
+| Routes | **Proxy routes**: the names AutoPanel serves and where each goes; **Domains**: the domains you own |
 | Certs | **Type**: which Let's Encrypt service issues the certificates, staging or production |
-| Services, Users | not built yet; their rows are greyed out |
+| Services | **Stacks** and **Add a stack**: your services, below |
+| Mail, Users | not built yet; their rows are greyed out |
 | Go | **Terminal**: shells on the server, a tab each |
-| Help | **About**: the panel's version and the running service's |
+| View | the widgets, the status bar, and the layout |
+| Help | **Keys** and **About** |
 
-To serve a site, open **Routes → Proxy routes** and press `a` to add a route: the host name
-(`example.com`), a path prefix (`/`), and the upstream it forwards to (`http://127.0.0.1:8080`).
-`e` or Enter edits the selected route, `d` removes it and `q` closes the list. AutoPanel gets the
+**Panels** open over the main screen: the list on the left, the selected row's details on the right,
+the buttons under both. Drag a panel with Alt and the left button, resize it with Alt and the right
+button; `q` or Esc closes it.
+
+To serve a site, first register the domain it belongs to: **Routes → Domains**, `a`, and its name
+(`example.com`). A route's name must be a domain you registered or a name under one; one under none
+is refused. Then open **Routes → Proxy routes** and press `a` to add a route: a subdomain (`www`, or
+nothing for the domain itself) and the domain, a path prefix (`/`), and the upstream it forwards to
+(`http://127.0.0.1:8080`, or one of your stacks' ports, offered in the form). AutoPanel gets the
 certificate for a routed name on its first HTTPS request, and redirects plain HTTP to HTTPS.
 
-**Panels float.** Proxy routes and the System panels open as windows over the screen, each with
-three controls in its top row: minimize, maximize and close. Drag a panel with Alt (Option) and
-the left mouse button, and resize it with Alt and the right button. A minimized panel is listed
-at the bottom of the screen; its menu row brings it back. `q` or Esc closes the panel that has
-the keyboard.
+A domain is removed only when no route would be left under none. Upgrading from v0.2.3 or earlier
+registers each name your routes already have as a domain, so nothing stops serving.
 
 ### Watch the server
 
@@ -166,45 +189,62 @@ projects already publish. AutoPanel reads it itself and runs its containers unde
 Podman, as systemd units of an unprivileged user of the stack's own. No compose program and no
 Docker is used.
 
-1. Write the stack's definition into a folder of its own, as root:
+1. Write the stack's definition into a folder of its own, anywhere on the server: a
+   `compose.yaml`, a `.env` when the file uses `${VARIABLES}`, and any configuration files the
+   containers mount. For example:
 
    ```sh
-   sudo mkdir /etc/autopanel/stacks/site
-   sudo cp -r docs/examples/static-site/. /etc/autopanel/stacks/site/
+   mkdir -p ~/services/site
+   cp -r docs/examples/static-site/. ~/services/site/
    ```
 
-   The folder's name is the stack's name: a lower-case letter, then letters, digits and hyphens.
-   It holds `compose.yaml`, a `.env` when the file uses `${VARIABLES}`, and any configuration
-   files the containers mount.
+2. In the panel (`sudo autopanel --ui`), **Services → Add a stack…** opens a file browser: the
+   folders on the left, a preview of the file under the cursor on the right. A folder that holds a
+   `compose.yaml` is marked ◆. The preview hides every value of a `.env` file and the value of each
+   setting whose name says it is a secret.
 
-2. In the panel (`sudo autopanel --ui`), **Services → Add a stack…** lists the folders that are
-   not running yet. Pick one, and the panel shows a **review**: every file that defines the
-   stack, each container it would run (its image, user, ports, mounts and memory limit), and
-   what AutoPanel refuses or warns of.
+3. On the stack's folder, **Import…** asks the stack's name (the folder's own, unless you change it:
+   a lower-case letter, then letters, digits and hyphens) and **imports** it: AutoPanel copies the
+   definition (`compose.yaml`, `.env`, the `env_file`s and the read-only mounts, not the data) into
+   `/etc/autopanel/stacks/<name>/`, which only root can change, and remembers the folder it came
+   from. Then it shows a **review**: every file that defines the stack, each container it would run
+   (its image, user, ports, mounts and memory limit), and what AutoPanel refuses or warns of.
 
-3. Confirm. AutoPanel makes the stack's user (`ap-<name>`), copies the definition into that
-   user's directory (`/var/lib/autopanel-services/<name>`), pulls the images, writes the units
-   and starts them.
+4. Confirm. AutoPanel makes the stack's user (`ap-<name>`), copies the definition into that user's
+   directory (`/var/lib/autopanel-services/<name>`), pulls the images, writes the units and starts
+   them. **Prepare only** does all of that but start them, so data can be put in place first.
 
-**Services → Stacks…** lists each container with its state, health, memory, restarts and ports.
-The keys there:
+A definition copied into `/etc/autopanel/stacks/<name>/` by hand works too; it has no source.
 
-| Key | What it does |
-| --- | --- |
-| `a` | add a stack |
-| `p` | review the selected stack's definition as it is now, and apply it |
-| `u` | pull its images again, and restart what changed |
-| `s`, `x`, `t` | start, stop, restart the selected service |
-| `Shift+S`, `Shift+X`, `Shift+T` | the same for the whole stack |
-| `o` | its newest log lines |
-| `d` | remove the stack, after a question; its directory and data are kept, as root's |
-| `Shift+D` | remove it and delete its directory, after a question |
-| `r` | read the list again |
+**Why a copy:** AutoPanel runs as root. A stack that read your folder on every apply would let
+anyone who can write that folder decide what root runs. The copy is root's, and the stack runs on
+if the folder is moved or deleted.
+
+**Services → Stacks…** lists each stack, its containers under it, with their state and health;
+the details of the selected one are on the right: its image and digest, ports, restarts, when it
+started, processor time, memory, and the folder it was imported from. A button acts on the selected
+row: a container's row on that service, a stack's row on the whole stack.
+
+| Button | Key | What it does |
+| --- | --- | --- |
+| Add… | `a` | add a stack from a folder |
+| Apply… | `p` or Enter | review the stack's definition as it is now, and apply it |
+| Start | `t` | start the service, or the stack |
+| Stop | `x` | stop it, after asking; it stays stopped across a reboot |
+| Restart | `e` | restart it |
+| Logs | `o` | its newest log lines |
+| Pull images | `u` | pull its images again, and restart what changed |
+| Update from source | `s` | copy the definition from its folder again, then review and apply it |
+| Remove… | `r` | remove the stack, after asking: keep its directory and data, as root's, or delete them |
+
+A stack whose definition changed is marked `*`; one whose source folder changed says so, and
+**Update from source** brings the change in.
 
 The same from the command line:
 
 ```sh
-sudo autopanel --call services.available                          # the folders that are not stacks yet
+sudo autopanel --call services.browse '{"path":"/home/admin/services"}'          # a folder, for the browser
+sudo autopanel --call services.import '{"from":"/home/admin/services/site"}'    # copy the definition in
 sudo autopanel --call services.check '{"name":"site"}'            # the review; changes nothing
 sudo autopanel --call services.add '{"name":"site","accept":"<the review's sha256>"}'
 sudo autopanel --call services.list                               # each stack and its containers
@@ -217,8 +257,10 @@ reason.
 
 #### Changing a stack
 
-Edit the files in `/etc/autopanel/stacks/<name>/`. Nothing changes until you apply: `p` in the
-panel, or `services.check` then `services.apply`. An apply shows the review again, and then:
+Edit the files in the stack's source folder, then **Update from source** (`s`) in the panel, or
+`services.reimport` then `services.check` and `services.apply`. A definition you keep in
+`/etc/autopanel/stacks/<name>/` by hand is edited there and applied with `p`. Nothing changes until
+you apply: an apply shows the review again, and then:
 
 - stops and removes the services the file no longer has;
 - replaces the stack's configuration with what you reviewed;
@@ -226,8 +268,8 @@ panel, or `services.check` then `services.apply`. An apply shows the review agai
 
 A stack whose definition differs from what is running is marked in the list.
 
-An apply that fails part-way leaves the stack marked incomplete, with the step it stopped at.
-Apply again to finish it.
+An apply that fails part-way leaves the stack marked incomplete, with the step it stopped at and
+why. Apply again to finish it.
 
 #### What an apply reviews, and what it never touches
 

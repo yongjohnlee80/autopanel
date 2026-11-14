@@ -5,12 +5,15 @@ import (
 	"embed"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/caddyserver/certmagic"
 	"github.com/yongjohnlee80/golib/tui"
 	tuidecl "github.com/yongjohnlee80/golib/tui/decl"
 	"github.com/yongjohnlee80/golib/tui/decl/controls"
+	"github.com/yongjohnlee80/golib/tui/decl/panels"
 	"github.com/yongjohnlee80/golib/tui/decl/themes"
+	"github.com/yongjohnlee80/golib/tui/decl/tiles"
 	"github.com/yongjohnlee80/golib/tui/widget/core"
 
 	"github.com/yongjohnlee80/autopanel/core/gate"
@@ -20,16 +23,17 @@ import (
 //
 //	import autopanel 1.0              the App singleton: state and commands       (declared)
 //	import autopanel.theme.<name> 1.0 golib's themes: the Theme singleton         (offered)
-//	import autopanel.dialogs 1.0      Login, RouteDialog, AddStackDialog,         (offered)
-//	                                  ReviewDialog, ConfirmDialog
-//	import autopanel.views 1.0        About                                       (offered)
-//	import autopanel.panels 1.0       FloatPanel: a floating window with controls (offered)
+//	import autopanel.dialogs 1.0      Login, RouteDialog, BrowseDialog,           (offered)
+//	                                  ReviewDialog, PromptDialog, ConfirmDialog
+//	import autopanel.views 1.0        Keys, About                                 (offered)
+//	import tui.panels 1.0             golib's Panel: a docked, floating panel     (offered)
+//	import tui.tiles 1.0              golib's TilePanel: a tile of the main screen (offered)
 //
 // The text is in catalogs, one per language (qml/i18n/autopanel_<tag>.xml),
 // over golib's own.
 
-// qmlFiles are the screen (qml/Main.qml), its dialogs, views and panels, and
-// the catalogs.
+// qmlFiles are the screen (qml/Main.qml), its dialogs and views, and the
+// catalogs.
 //
 //go:embed qml
 var qmlFiles embed.FS
@@ -39,13 +43,16 @@ const (
 	moduleVersion = "1.0"
 )
 
+// pollEvery is how often the widgets shown, and the panels open, are read
+// again.
+const pollEvery = 5 * time.Second
+
 // host is the program behind Main.qml: state and behaviour, no widgets.
 //
-// It holds no state of the daemon's beyond what it last read: the routes the
-// table shows, by row, so a row index from the document names its route, and
-// the last status and monitoring answers, so a change of language composes
-// their text again. Every change goes through the Client, and the routes and
-// the status are read again after.
+// It holds no state of the daemon's beyond what it last read: the rows each
+// view shows, so a row index from the document names its record, and the last
+// answer of each read, so a change of language composes their text again.
+// Every change goes through the Client, and what it changed is read again.
 type host struct {
 	ctx     context.Context // the client calls'; Run's
 	client  Client
@@ -56,18 +63,27 @@ type host struct {
 	theme    string // the theme on screen
 	language string // the language on screen
 
-	// minimized collects the panels minimized from their window controls; the
-	// taskbar on the hints row shows them, and a menu row restores its panel.
+	// minimized collects the panels and widgets hidden in the dock.
 	minimized *core.MinimizedWindows
+	dock      *tuidecl.ListModel // App.dock: the menu bar's corner
+	panelOpen map[string]bool    // the panels open, hidden or not, by key
+	lastPanel []string           // the panels open, the one opened last at the end
+	place     map[string]tilePlace
 
-	model  *tuidecl.ListModel // App.routes: the table's rows
-	routes []gate.RouteView   // the same rows, as the daemon gave them
-	facts  *tuidecl.ListModel // App.overview: the running AutoPanel, a fact per row
-	status *Status            // the last status read, nil before the first
+	routesModel *tuidecl.ListModel // App.routes: the routes panel's rows
+	routes      []gate.RouteView   // the same rows, as the daemon gave them
+	status      *Status            // the last status read, nil before the first
+
+	domainModel *tuidecl.ListModel // App.domains: the domains panel's rows
+	domains     []gate.DomainView  // the same rows
+	domainsRead bool
 
 	themes *tuidecl.ListModel // App.themes: System › Theme's rows
 	mon    monitors           // the System panels' models and last answers (monitor.go)
-	stk    stacks             // the Services panels' models and last answers (services.go)
+	stk    stacks             // the stacks panel's models and last answers (services.go)
+	wid    widgets            // the main screen's widgets (widgets.go)
+	brw    browser            // the file browser (browse.go)
+	form   routeForm          // the route form (routes.go)
 
 	signingIn bool // a login attempt is in flight
 	signedIn  bool // a panel user has logged in; nothing is read before
@@ -78,10 +94,16 @@ type host struct {
 	rootShell     *shell
 	terminalShown bool
 
-	editID    int64        // the route the form edits; 0 adds one
-	removeID  int64        // the route the confirmation names
-	confirmed func() error // what Yes in the confirmation runs
-	busy      bool         // a change is in flight
+	statusShown bool // the status bar is on screen (View › Status bar)
+
+	pollEvery time.Duration // how often the screen is read again; a test's own
+	polling   bool          // a poll is in flight
+	polled    bool          // the poller runs
+
+	confirmed func() error       // what Yes in the confirmation runs
+	other     func() error       // what its third button runs, when it has one
+	prompted  func(string) error // what OK in the prompt runs, with the text
+	busy      bool               // a change is in flight
 }
 
 func newHost(ctx context.Context, c Client, version string) *host {
@@ -90,12 +112,21 @@ func newHost(ctx context.Context, c Client, version string) *host {
 		panic("ui: the embedded layout: " + err.Error()) // embedded: a test catches it first
 	}
 	h := &host{ctx: ctx, client: c, version: version, layout: layout, theme: defaultTheme, language: defaultLanguage,
-		minimized: core.NewMinimizedWindows(),
-		model:     tuidecl.NewListModel("key", "id", "host", "path", "upstream"),
-		facts:     tuidecl.NewListModel("key", "name", "value"),
-		themes:    tuidecl.NewListModel("key", "label", "checked"),
-		mon:       newMonitors(),
-		stk:       newStacks()}
+		minimized:   core.NewMinimizedWindows(),
+		dock:        tuidecl.NewListModel("key", "icon", "title", "hidden"),
+		panelOpen:   map[string]bool{},
+		place:       defaultPlaces(),
+		routesModel: tuidecl.NewListModel("key", "id", "host", "path", "upstream"),
+		domainModel: tuidecl.NewListModel("key", "name", "routes"),
+		themes:      tuidecl.NewListModel("key", "label", "checked"),
+		mon:         newMonitors(),
+		stk:         newStacks(),
+		wid:         newWidgets(),
+		brw:         newBrowser(),
+		form:        newRouteForm(),
+		statusShown: true,
+		pollEvery:   pollEvery,
+	}
 	h.themes.Reset(themeRows(h.theme))
 	h.ownShell, h.rootShell = hostShells()
 	return h
@@ -112,13 +143,15 @@ func (h *host) options(sink func(error), app ...tui.AppOption) []tuidecl.Program
 		tuidecl.Themes(themes.FS(), ".", "autopanel.theme", moduleVersion),
 		tuidecl.Components(qmlFiles, "qml/dialogs", "autopanel.dialogs", moduleVersion),
 		tuidecl.Components(qmlFiles, "qml/views", "autopanel.views", moduleVersion),
-		tuidecl.Components(qmlFiles, "qml/panels", "autopanel.panels", moduleVersion),
+		panels.Offer(),                     // Panel: every panel the menus open
+		tiles.Offer(),                      // TilePanel: every widget of the main screen
 		tuidecl.Types(controls.Types()...), // TextField
 		tuidecl.LayoutSource("Main.qml", withTheme(h.layout, h.theme)),
 		tuidecl.Translations(qmlFiles, "qml/i18n", "autopanel"),
 		tuidecl.Sources(h.state()),
 		tuidecl.Handlers(h.commands()),
-		tuidecl.AdapterOptions(tuidecl.WithWindowCollector(h.minimized)), // the panels' minimize
+		// the panels' and the widgets' hide: the dock lists what this holds
+		tuidecl.AdapterOptions(tuidecl.WithWindowCollector(h.minimized)),
 		tuidecl.AppOptions(app...),
 	}
 	if sink != nil {
@@ -128,10 +161,14 @@ func (h *host) options(sink func(error), app ...tui.AppOption) []tuidecl.Program
 }
 
 // attach binds the host to the program built from its options, and asks for
-// the login. The first reads (the routes and status, the kept preferences)
-// follow a login that succeeds (auth.go).
+// the login. The first reads follow a login that succeeds (auth.go).
 func (h *host) attach(p *tuidecl.Program) {
 	h.p = p
+	h.minimized.Observe(func() { h.p.Post(h.refreshDock) })
+	h.p.Post(func() {
+		h.retext()
+		h.refreshDock()
+	})
 	h.promptLogin()
 }
 
@@ -139,38 +176,59 @@ func (h *host) attach(p *tuidecl.Program) {
 // source: changing one repaints the bindings that read it.
 func (h *host) state() map[string]any {
 	s := map[string]any{
-		"App.routes":          h.model,
-		"App.overview":        h.facts,
-		"App.themes":          h.themes,
-		"App.status":          tui.Msg("autopanel.status.signedOut"),
-		"App.lastUser":        defaultUser,
-		"App.loginError":      "",
-		"App.message":         "",
-		"App.caStaging":       false,
-		"App.caProduction":    false,
-		"App.aboutHeadline":   "AutoPanel " + orDash(h.version),
-		"App.aboutPanel":      orDash(h.version),
-		"App.aboutDaemon":     "-",
-		"App.formTitle":       tui.Msg("autopanel.form.add"),
-		"App.formHost":        "",
-		"App.formPath":        "/",
-		"App.formUpstream":    "",
-		"App.formHelp":        tui.Msg("autopanel.form.hint"),
-		"App.confirmTitle":    tui.Msg("autopanel.confirm.title"),
-		"App.confirmQuestion": "",
-		"App.terminalShown":   false,
-		"App.terminalEmpty":   englishText("autopanel.terminal.empty"),
+		"App.routes":           h.routesModel,
+		"App.domains":          h.domainModel,
+		"App.themes":           h.themes,
+		"App.dock":             h.dock,
+		"App.status":           tui.Msg("autopanel.status.bar.signedOut"),
+		"App.statusCenter":     "",
+		"App.statusShown":      true,
+		"App.lastUser":         defaultUser,
+		"App.loginError":       "",
+		"App.loginErrorShown":  false,
+		"App.message":          "",
+		"App.caStaging":        false,
+		"App.caProduction":     false,
+		"App.aboutHeadline":    "AutoPanel " + orDash(h.version),
+		"App.aboutPanel":       orDash(h.version),
+		"App.aboutDaemon":      "-",
+		"App.routesTitle":      "",
+		"App.routeDetail":      "",
+		"App.domainsTitle":     "",
+		"App.domainDetail":     "",
+		"App.confirmTitle":     "",
+		"App.confirmQuestion":  "",
+		"App.confirmOther":     "",
+		"App.confirmHasOther":  false,
+		"App.promptTitle":      "",
+		"App.promptLabel":      "",
+		"App.promptText":       "",
+		"App.promptError":      "",
+		"App.promptErrorShown": false,
+		"App.terminalShown":    false,
+		"App.terminalEmpty":    englishText("autopanel.note.terminal.empty"),
+		"App.keysText":         "",
 	}
 	for name, v := range languageChecks(h.language) {
 		s[name] = v
 	}
-	for name, v := range h.mon.state() {
-		s[name] = v
-	}
-	for name, v := range h.stk.state() {
-		s[name] = v
+	for _, part := range []map[string]any{h.mon.state(), h.stk.state(), h.wid.state(), h.brw.state(), h.form.state(),
+		h.layoutState(), tipState(inEnglish{})} {
+		for name, v := range part {
+			s[name] = v
+		}
 	}
 	return s
+}
+
+// retext composes again what the host composes in Go from the catalogs and
+// keeps on screen: the tooltips, Help › Keys, the dock's titles and the
+// terminal's empty line. On the loop.
+func (h *host) retext() {
+	vals := tipState(h)
+	vals["App.keysText"] = keysText(h)
+	vals["App.terminalEmpty"] = h.tr("autopanel.note.terminal.empty")
+	_ = h.p.SetMany(vals)
 }
 
 // background runs fn off the UI loop, then done with its answer on the loop.
@@ -181,39 +239,53 @@ func (h *host) background(fn func(ctx context.Context) error, done func(error)) 
 	}()
 }
 
-// refresh reads the routes and the status again, off the loop. Signed out,
-// it reads nothing: the service would refuse.
+// refresh reads the routes, the domains and the status again, off the loop.
+// Signed out, it reads nothing: the service would refuse.
 func (h *host) refresh() {
 	if !h.signedIn {
 		return
 	}
 	var (
 		routes    []gate.RouteView
+		domains   []gate.DomainView
 		st        Status
 		statusErr error
+		domainErr error
 	)
 	h.background(func(ctx context.Context) error {
 		var err error
 		routes, err = h.client.Routes(ctx)
+		domains, domainErr = h.client.Domains(ctx)
 		st, statusErr = h.client.Status(ctx)
 		return err
 	}, func(err error) {
 		if err != nil {
-			h.say(h.trf("autopanel.notice.routesError", err.Error()))
+			h.say(h.trf("autopanel.notice.routes.readFailed", err.Error()))
+			h.wid.certErr = err
 		} else {
 			h.setRoutes(routes)
 		}
-		if statusErr != nil {
-			_ = h.p.Set("App.status", h.trf("autopanel.status.error", statusErr.Error()))
-			return
+		if domainErr != nil {
+			h.wid.domainErr = domainErr
+		} else {
+			h.setDomains(domains)
 		}
-		h.setStatus(st)
+		if statusErr != nil {
+			h.wid.certErr = statusErr
+			_ = h.p.Set("App.status", h.trf("autopanel.status.bar.error", statusErr.Error()))
+		} else {
+			h.setStatus(st)
+		}
+		h.renderTraffic()
+		h.renderCerts()
+		h.renderRoutes()
+		h.renderDomains()
 	})
 }
 
 // setStatus shows the running AutoPanel as st describes it: the status bar's
-// line, the overview's rows, About's daemon line, and which certificate
-// service the Certs menu checks.
+// line, About's daemon line, and which certificate service the Certs menu
+// checks.
 //
 // The two checks go through false first. Choosing a row checks it in the menu
 // at once, before the daemon has answered; when the daemon then refuses, the
@@ -222,23 +294,20 @@ func (h *host) refresh() {
 // daemon reports.
 func (h *host) setStatus(st Status) {
 	h.status = &st
+	h.wid.certErr = nil
 	ca := strings.TrimSpace(st.CA)
-	rows := make([]tuidecl.Row, 0, 8)
-	for _, f := range overview(h, st) {
-		rows = append(rows, tuidecl.Row{"key": f[0], "name": f[0], "value": f[1]})
-	}
-	h.facts.Reset(rows)
 	_ = h.p.SetMany(map[string]any{"App.caStaging": false, "App.caProduction": false})
 	_ = h.p.SetMany(map[string]any{
 		"App.status":       statusLine(h, st),
-		"App.aboutDaemon":  h.trf("autopanel.about.daemonLine", orDash(st.Version), orDash(st.Uptime)),
+		"App.statusCenter": h.trf("autopanel.status.bar.readAt", time.Now().Format("15:04:05")),
+		"App.aboutDaemon":  h.trf("autopanel.value.about.daemon", orDash(st.Version), orDash(st.Uptime)),
 		"App.caStaging":    ca == certmagic.LetsEncryptStagingCA,
 		"App.caProduction": ca == certmagic.LetsEncryptProductionCA,
 	})
 }
 
-// setRoutes makes routes the table's rows. Each row's key is its route's id,
-// so the cursor stays on its route across a refresh.
+// setRoutes keeps routes as the routes panel's rows. Each row's key is its
+// route's id, so the cursor stays on its route across a read.
 func (h *host) setRoutes(routes []gate.RouteView) {
 	h.routes = routes
 	rows := make([]tuidecl.Row, 0, len(routes))
@@ -246,7 +315,18 @@ func (h *host) setRoutes(routes []gate.RouteView) {
 		rows = append(rows, tuidecl.Row{"key": strconv.FormatInt(r.ID, 10), "id": r.ID,
 			"host": r.Host, "path": r.PathPrefix, "upstream": r.Upstream})
 	}
-	h.model.Reset(rows)
+	h.routesModel.Reset(rows)
+}
+
+// setDomains keeps domains as the domains panel's rows.
+func (h *host) setDomains(domains []gate.DomainView) {
+	h.domains, h.domainsRead = domains, true
+	h.wid.domainErr = nil
+	rows := make([]tuidecl.Row, 0, len(domains))
+	for _, d := range domains {
+		rows = append(rows, tuidecl.Row{"key": d.Name, "name": d.Name, "routes": d.Routes})
+	}
+	h.domainModel.Reset(rows)
 }
 
 // route is the route at a row the document passed, if there is one.
@@ -264,10 +344,14 @@ func (h *host) say(msg string) {
 	}
 }
 
-// fill sets the route form's sources to vals. Each goes through a different
-// value first, so a field the user typed in since the last fill takes the
-// value again even when the source would not change (USAGE §10: "a form is
-// filled by the host, then opened").
+// failed says err on the status bar, as the error line of every action that
+// changes nothing on screen when it fails.
+func (h *host) failed(err error) { h.say(h.trf("autopanel.notice.app.error", err.Error())) }
+
+// fill sets a form's sources to vals. Each goes through a different value
+// first, so a field the user typed in since the last fill takes the value
+// again even when the source would not change (USAGE §10: "a form is filled
+// by the host, then opened").
 func (h *host) fill(vals map[string]any) error {
 	other := make(map[string]any, len(vals))
 	for k, v := range vals {
@@ -280,10 +364,20 @@ func (h *host) fill(vals map[string]any) error {
 }
 
 // ask opens the confirmation under title (a message's id) with question; Yes
-// runs then. No, Enter and Escape leave it.
+// runs then. No comes first, so Enter alone answers No; Escape leaves it.
 func (h *host) ask(title, question string, then func() error) error {
-	h.confirmed = then
-	if err := h.p.SetMany(map[string]any{"App.confirmTitle": h.tr(title), "App.confirmQuestion": question}); err != nil {
+	return h.askOr(title, question, "", nil, then)
+}
+
+// askOr is ask with a third answer: otherLabel (a message's id) runs other.
+func (h *host) askOr(title, question, otherLabel string, other, then func() error) error {
+	h.confirmed, h.other = then, other
+	label := ""
+	if otherLabel != "" {
+		label = h.tr(otherLabel)
+	}
+	if err := h.p.SetMany(map[string]any{"App.confirmTitle": h.tr(title), "App.confirmQuestion": question,
+		"App.confirmOther": label, "App.confirmHasOther": other != nil}); err != nil {
 		return err
 	}
 	return h.p.Call("confirmDialog", "open")
@@ -292,61 +386,54 @@ func (h *host) ask(title, question string, then func() error) error {
 // confirm is Yes in the confirmation: what it was opened for, once.
 func (h *host) confirm() error {
 	then := h.confirmed
-	h.confirmed = nil
+	h.confirmed, h.other = nil, nil
 	if then == nil {
 		return nil
 	}
 	return then()
 }
 
-// panelLeft gives the keyboard back once a panel has closed: to the stacks
-// panel when it is on screen, since its log opens over it, and otherwise to the overview, the Window's focus target. Posted: the handler
-// runs while the panel is still closing.
-func (h *host) panelLeft() error {
-	h.p.Post(func() {
-		if h.stk.shown && !h.isMinimized("stacks") && h.p.Call("stacksTable", "forceActiveFocus") == nil {
-			return
-		}
-		_ = h.p.Call("overview", "forceActiveFocus")
-	})
-	return nil
+// confirmOther is the confirmation's third answer, once.
+func (h *host) confirmOther() error {
+	then := h.other
+	h.confirmed, h.other = nil, nil
+	if then == nil {
+		return nil
+	}
+	return then()
 }
 
-// isMinimized says whether the panel of a window key is minimized.
-func (h *host) isMinimized(key string) bool {
-	for _, e := range h.minimized.Entries() {
-		if e.Key == key {
-			return true
-		}
+// prompt opens the one-field dialog: title and label are messages' ids, text
+// what the field starts with. OK runs then with the
+// field's text; an error then returns is shown in the dialog, which stays.
+func (h *host) prompt(title, label, text string, then func(string) error) error {
+	h.prompted = then
+	if err := h.fill(map[string]any{"App.promptText": text}); err != nil {
+		return err
 	}
-	return false
+	if err := h.p.SetMany(map[string]any{"App.promptTitle": h.tr(title), "App.promptLabel": h.tr(label),
+		"App.promptError": "", "App.promptErrorShown": false}); err != nil {
+		return err
+	}
+	return h.p.Call("promptDialog", "open")
 }
 
-// panelChanged is a panel's completed window operation. A minimized panel
-// has left the screen, as a closed one has; a move, a resize, a maximize or a
-// restore keeps the keyboard where it is.
-func (h *host) panelChanged(operation string) error {
-	if operation == "minimize" {
-		return h.panelLeft()
+// promptAnswered is OK in the prompt.
+func (h *host) promptAnswered(text string) error {
+	if h.prompted == nil {
+		return h.p.Call("promptDialog", "close")
 	}
-	return nil
+	return h.prompted(text)
 }
 
-// openPanel shows a floating panel and gives its view the keyboard: restored
-// when it was minimized, opened otherwise. key is the panel's window key, id
-// its id in the document, view the id of the view inside it.
-func (h *host) openPanel(key, id, view string) error {
-	restored := false
-	for _, e := range h.minimized.Entries() {
-		if e.Key == key {
-			restored = e.Restore()
-			break
-		}
-	}
-	if !restored {
-		if err := h.p.Call(id, "open"); err != nil {
-			return err
-		}
-	}
-	return h.p.Call(view, "forceActiveFocus")
+// promptRefused shows why the prompt's answer was not taken; the dialog stays
+// open, as typed.
+func (h *host) promptRefused(why string) {
+	_ = h.p.SetMany(map[string]any{"App.promptError": why, "App.promptErrorShown": true})
+}
+
+// promptDone closes the prompt once its answer is taken.
+func (h *host) promptDone() {
+	h.prompted = nil
+	_ = h.p.Call("promptDialog", "close")
 }

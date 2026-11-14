@@ -50,7 +50,7 @@ func (h *host) showLanguage(tag string) {
 // setLanguage is System › Language's row: tag, shown and kept.
 func (h *host) setLanguage(tag string) error {
 	if !slices.Contains(languages, tag) {
-		h.say(h.trf("autopanel.notice.noLanguage", strconv.Quote(tag)))
+		h.say(h.trf("autopanel.notice.language.unknown", strconv.Quote(tag)))
 		h.showLanguage(h.language)
 		return nil
 	}
@@ -60,15 +60,21 @@ func (h *host) setLanguage(tag string) error {
 }
 
 // languageChanged composes again the text this package composes in Go and
-// keeps on screen: the status line, the overview and About, and the System
-// panels' rows, and the stacks'.
+// keeps on screen: the status line and About, every widget, the panels' rows,
+// titles and details, the review, the tooltips and Help › Keys.
 func (h *host) languageChanged() {
 	if h.status != nil {
 		h.setStatus(*h.status)
 	}
+	h.retext()
+	h.refreshDock()
+	h.renderWidgets()
 	h.mon.render(h)
 	h.renderStacks()
-	_ = h.p.Set("App.terminalEmpty", h.tr("autopanel.terminal.empty"))
+	h.renderRoutes()
+	h.renderDomains()
+	h.renderBrowse()
+	_ = h.renderReview()
 }
 
 // wording is a catalog's text for a function that composes it: the host, in

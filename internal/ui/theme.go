@@ -51,6 +51,7 @@ func (h *host) showTheme(name string, then func(error)) {
 			h.theme = name
 		}
 		h.themes.Reset(themeRows(h.theme))
+		h.refreshDock()
 		if then != nil {
 			then(err)
 		}
@@ -60,16 +61,16 @@ func (h *host) showTheme(name string, then func(error)) {
 // useTheme is System › Theme's row: the named theme, shown and kept.
 func (h *host) useTheme(name string) error {
 	if !isTheme(name) {
-		h.say(h.trf("autopanel.notice.noTheme", name))
+		h.say(h.trf("autopanel.notice.theme.unknown", name))
 		h.themes.Reset(themeRows(h.theme))
 		return nil
 	}
 	h.showTheme(name, func(err error) {
 		if err != nil {
-			h.say(h.trf("autopanel.notice.error", err.Error()))
+			h.say(h.trf("autopanel.notice.app.error", err.Error()))
 			return
 		}
-		h.say(h.trf("autopanel.notice.theme", name))
+		h.say(h.trf("autopanel.notice.theme.shown", name))
 		h.keepPrefs(Prefs{Theme: name})
 	})
 	return nil
@@ -80,7 +81,7 @@ func (h *host) useTheme(name string) error {
 func (h *host) keepPrefs(p Prefs) {
 	h.background(func(ctx context.Context) error { return h.client.SetPrefs(ctx, p) }, func(err error) {
 		if err != nil {
-			h.say(h.trf("autopanel.notice.notKept", err.Error()))
+			h.say(h.trf("autopanel.notice.prefs.notKept", err.Error()))
 		}
 	})
 }
