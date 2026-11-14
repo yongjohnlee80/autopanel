@@ -144,3 +144,56 @@ module through `DomainUsers`, and imports nothing of it. A mail domain with acco
 
 **In the code:** `core/gate/domain.go` (`DomainUsers`), `core/mail/module.go` (`Uses`,
 `domainRemove`).
+
+## The mail host's certificate is AutoPanel's
+
+**Decided:** the mail host's certificate comes from AutoPanel's own certificate manager, which
+admits the mail host's name though no route holds it, and is handed to Stalwart through its API:
+the first one is made and Stalwart restarted once (a new certificate is served only after a
+restart); a renewal is an update, served at once after `ReloadTlsCertificates`. Stalwart's own ACME
+stays off: its challenges would need the gate's ports, or a second copy of the DNS token.
+
+**In the code:** `core/mail/sync.go` (`syncCertificate`), `app/certswitch.go` (`also`),
+`app/mail.go` (`mailCerts`).
+
+## DNS is kept by AutoPanel
+
+**Decided:** every record a mail domain needs is published to its zone by the core, through the
+sealed Cloudflare token, and kept in step every hour and after each change:
+
+- MX, SPF (`v=spf1 a:<mail host> -all`), DMARC with AutoPanel's policy (`p=quarantine` at first),
+  TLS reporting, the SRV records for the ports it serves (IMAPS, submissions and submission), each
+  DKIM key's record when its rotation says so, and the mail host's own A record and SPF.
+- Not published: what needs Stalwart's own HTTPS, which the gate does not route to it (MTA-STS,
+  autoconfig, autodiscover, JMAP, CalDAV and CardDAV), and POP3.
+- **Only its own records:** each record AutoPanel publishes is kept in the store with the provider's
+  id, and only those are ever changed or deleted. A record of the same name and kind that AutoPanel
+  did not write (another provider's MX, a DMARC record already there) is never touched or given a
+  sibling: the record shows `different` until the administrator takes it over
+  (`mail.records.takeover`). A second MX would split the domain's mail, and a second DMARC record
+  makes DMARC fail everywhere.
+- **SPF is merged, not replaced:** taking an SPF record over adds `a:<mail host>` to it before its
+  `all` term, refusing a merge past SPF's limit of ten DNS lookups.
+- **With no token,** every record is shown with its value to publish by hand (`manual`).
+
+**In the code:** `core/mail/dns.go` (`served`, `keep`, `takeover`, `mergeSPF`),
+`internal/cloudflare`, `app/mail.go` (`mailDNS`), `store/mail.go`.
+
+## DKIM is rotated by AutoPanel
+
+**Decided:** Stalwart makes no DKIM key on request, and rotates its keys itself only when it
+publishes DNS itself. So the core runs the rotation, a pair at a time (Ed25519 and RSA 2048, each
+its own selector, `ap<year><month>e` and `…r`):
+
+1. It makes the keys and hands them to Stalwart, not yet signing.
+2. It publishes their records.
+3. Once the records have had ten minutes and public resolvers answer them with the right key, it
+   has Stalwart sign with them, and stop signing with the pair before.
+4. The old pair's records stay published for a week, for mail in flight, then go with their keys.
+5. Ninety days on, the next pair starts.
+
+A domain signs nothing until its first pair's records resolve, so no mail is signed with a key no
+receiver can find. Each key's step is kept in the store, so a restart carries on from it. The
+private keys are in the core's memory only to be handed over: they are Stalwart's to keep.
+
+**In the code:** `core/mail/dkim.go` (`rotate`), `host/mail/host.go` (`ResolveTXT`).

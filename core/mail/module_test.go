@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"slices"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -25,6 +26,8 @@ type fakeStore struct {
 	mu      sync.Mutex
 	state   *State
 	domains []string
+	owned   map[string]map[string]Owned
+	dkim    map[string]map[string]DKIMRow
 }
 
 func (f *fakeStore) State(context.Context) (State, bool, error) {
@@ -66,6 +69,63 @@ func (f *fakeStore) RemoveDomain(_ context.Context, n string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.domains = slices.DeleteFunc(f.domains, func(d string) bool { return d == n })
+	return nil
+}
+
+func (f *fakeStore) Owned(_ context.Context, owner string) ([]Owned, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	var out []Owned
+	for _, o := range f.owned[owner] {
+		out = append(out, o)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name+out[i].Type < out[j].Name+out[j].Type })
+	return out, nil
+}
+func (f *fakeStore) PutOwned(_ context.Context, owner string, o Owned) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.owned == nil {
+		f.owned = map[string]map[string]Owned{}
+	}
+	if f.owned[owner] == nil {
+		f.owned[owner] = map[string]Owned{}
+	}
+	f.owned[owner][o.Name+" "+o.Type] = o
+	return nil
+}
+func (f *fakeStore) DeleteOwned(_ context.Context, owner, name, typ string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	delete(f.owned[owner], name+" "+typ)
+	return nil
+}
+func (f *fakeStore) DKIM(_ context.Context, d string) ([]DKIMRow, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	var out []DKIMRow
+	for _, r := range f.dkim[d] {
+		out = append(out, r)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Selector < out[j].Selector })
+	return out, nil
+}
+func (f *fakeStore) PutDKIM(_ context.Context, d string, r DKIMRow) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.dkim == nil {
+		f.dkim = map[string]map[string]DKIMRow{}
+	}
+	if f.dkim[d] == nil {
+		f.dkim[d] = map[string]DKIMRow{}
+	}
+	f.dkim[d][r.Selector] = r
+	return nil
+}
+func (f *fakeStore) DeleteDKIM(_ context.Context, d, sel string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	delete(f.dkim[d], sel)
 	return nil
 }
 
@@ -135,6 +195,8 @@ type fakeHost struct {
 	loopback   int // InstallLoopback calls
 	ensured    atomic.Int32
 	reload     bool
+	mu         sync.Mutex
+	txt        map[string][]string // what public resolvers answer
 }
 
 func (h *fakeHost) CPU() error                                        { return h.cpu }
@@ -144,6 +206,12 @@ func (h *fakeHost) FirstPassword(context.Context, time.Time) (string, error) {
 	return "once-printed", nil
 }
 func (h *fakeHost) Forwarder(context.Context) (string, error)  { return "10.89.0.0/24", nil }
+func (h *fakeHost) PublicIPv4(context.Context) (string, error) { return "192.0.2.10", nil }
+func (h *fakeHost) ResolveTXT(_ context.Context, name string) ([]string, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.txt[name], nil
+}
 func (h *fakeHost) InstallLoopback(context.Context, int) error { h.loopback++; return nil }
 func (h *fakeHost) EnsureLoopback(context.Context, int) (bool, error) {
 	h.ensured.Add(1)

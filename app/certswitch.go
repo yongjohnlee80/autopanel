@@ -42,6 +42,9 @@ type certSwitch struct {
 	vault *keyslot.Vault
 	table *gate.Table[http.Handler]
 	log   *slog.Logger
+	// also admits names no route holds that may still have a certificate: the
+	// mail host. Set once, before the first certificate is asked for.
+	also func(host string) bool
 
 	mu        sync.Mutex // orders rebuilds
 	cur       atomic.Pointer[certs.Manager]
@@ -70,7 +73,8 @@ func (s *certSwitch) rebuild(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	opts := certs.Options{Blobs: s.st.Blobs(s.vault), Allowed: s.table.Holds, CA: ca, Email: s.cfg.Email}
+	allowed := func(host string) bool { return s.table.Holds(host) || (s.also != nil && s.also(host)) }
+	opts := certs.Options{Blobs: s.st.Blobs(s.vault), Allowed: allowed, CA: ca, Email: s.cfg.Email}
 	challenge := "http-01, tls-alpn-01"
 	if !s.vault.Unlocked() {
 		challenge = "locked: log in to unlock"
