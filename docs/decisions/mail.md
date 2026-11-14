@@ -174,7 +174,9 @@ sealed Cloudflare token, and kept in step every hour and after each change:
   makes DMARC fail everywhere.
 - **SPF is merged, not replaced:** taking an SPF record over adds `a:<mail host>` to it before its
   `all` term, refusing a merge past SPF's limit of ten DNS lookups.
-- **With no token,** every record is shown with its value to publish by hand (`manual`).
+- **With no token,** every record is shown with its value to publish by hand (`manual`). The panel
+  lists the mail host's own records (its address and SPF) as a last row beside the domains, since
+  they too are entered by hand then.
 
 **In the code:** `core/mail/dns.go` (`served`, `keep`, `takeover`, `mergeSPF`),
 `internal/cloudflare`, `app/mail.go` (`mailDNS`), `store/mail.go`.
@@ -193,7 +195,8 @@ its own selector, `ap<year><month>e` and `…r`):
 5. Ninety days on, the next pair starts.
 
 A domain signs nothing until its first pair's records resolve, so no mail is signed with a key no
-receiver can find. Each key's step is kept in the store, so a restart carries on from it. The
+receiver can find. With the DNS by hand the rotation runs the same way: a new pair is made every 90
+days and waits, the old one signing, until its records are entered and resolve. Each key's step is kept in the store, so a restart carries on from it. The
 private keys are in the core's memory only to be handed over: they are Stalwart's to keep.
 
 **In the code:** `core/mail/dkim.go` (`rotate`), `host/mail/host.go` (`ResolveTXT`).

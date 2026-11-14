@@ -3,12 +3,14 @@ package ui
 import (
 	"context"
 	"errors"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
 	tuidecl "github.com/yongjohnlee80/golib/tui/decl"
 
+	"github.com/yongjohnlee80/autopanel/core/gate"
 	"github.com/yongjohnlee80/autopanel/core/mail"
 )
 
@@ -23,7 +25,8 @@ type mailPanes struct {
 	domains  *tuidecl.ListModel // App.mailDomains
 	records  *tuidecl.ListModel // App.mailRecords: the selected domain's
 	accounts *tuidecl.ListModel // App.mailAccounts
-	server   *tuidecl.ListModel // App.mailServerRows: Mail › Server\'s facts
+	server   *tuidecl.ListModel // App.mailServerRows: Mail › Server's facts
+	dns      *tuidecl.ListModel // App.dnsRows: the DNS records dialog's
 
 	status      mail.Status
 	statusRead  bool
@@ -36,6 +39,8 @@ type mailPanes struct {
 	domainAt    int
 	recordAt    int
 	accountAt   int
+	dnsList     []dnsRow
+	dnsAt       int
 }
 
 func newMailPanes() mailPanes {
@@ -44,6 +49,7 @@ func newMailPanes() mailPanes {
 		records:  tuidecl.NewListModel("key", "state", "type", "name"),
 		accounts: tuidecl.NewListModel("key", "address", "quota", "used"),
 		server:   tuidecl.NewListModel("key", "label", "value"),
+		dns:      tuidecl.NewListModel("key", "type", "host", "value"),
 	}
 }
 
@@ -53,6 +59,11 @@ func (d *mailPanes) state() map[string]any {
 		"App.mailRecords":       d.records,
 		"App.mailAccounts":      d.accounts,
 		"App.mailServerRows":    d.server,
+		"App.dnsRows":           d.dns,
+		"App.dnsIntro":          "",
+		"App.dnsDetail":         "",
+		"App.dnsNote":           "",
+		"App.dnsNoteShown":      false,
 		"App.mailSetUp":         false,
 		"App.mailNotSetUp":      true,
 		"App.mailDomainsTitle":  "",
@@ -106,7 +117,12 @@ func (h *host) loadMail() {
 			return
 		}
 		h.mail.status, h.mail.statusRead = st, true
-		h.mail.domainList = st.Domains
+		// The domains, then the mail host: its own records (its address, its
+		// SPF) are published as theirs are, and by hand without a DNS token.
+		h.mail.domainList = append([]string(nil), st.Domains...)
+		if st.Host != "" && !slices.Contains(st.Domains, st.Host) {
+			h.mail.domainList = append(h.mail.domainList, st.Host)
+		}
 		h.mail.recordsOf = want
 		if recErr == nil {
 			h.mail.recordList, h.mail.dkimList, h.mail.recordsAt = recs.Records, recs.DKIM, recs.At
@@ -123,7 +139,11 @@ func (h *host) renderMail() {
 	m := &h.mail
 	rows := make([]tuidecl.Row, 0, len(m.domainList))
 	for _, d := range m.domainList {
-		rows = append(rows, tuidecl.Row{"key": d, "name": d})
+		label := d
+		if d == m.status.Host {
+			label = h.trf("autopanel.value.mail.hostRow", d)
+		}
+		rows = append(rows, tuidecl.Row{"key": d, "name": label})
 	}
 	m.domains.Reset(rows)
 	rrows := make([]tuidecl.Row, 0, len(m.recordList))
@@ -145,7 +165,7 @@ func (h *host) renderMail() {
 	_ = h.p.SetMany(map[string]any{
 		"App.mailSetUp":         m.status.SetUp,
 		"App.mailNotSetUp":      !m.status.SetUp,
-		"App.mailDomainsTitle":  h.trf("autopanel.title.list.count", h.tr("autopanel.title.list.mailDomains"), len(m.domainList), at),
+		"App.mailDomainsTitle":  h.trf("autopanel.title.list.count", h.tr("autopanel.title.list.mailDomains"), len(m.status.Domains), at),
 		"App.mailRecordsTitle":  recTitle,
 		"App.mailRecordDetail":  h.mailRecordDetail(),
 		"App.mailAccountsTitle": h.trf("autopanel.title.list.count", h.tr("autopanel.title.list.mailAccounts"), len(m.accountList), at),
@@ -396,6 +416,10 @@ func (h *host) mailRemoveDomain(row int) error {
 		return nil
 	}
 	name := h.mail.domainList[row]
+	if name == h.mail.status.Host {
+		h.say(h.tr("autopanel.notice.mail.isHost"))
+		return nil
+	}
 	return h.ask("autopanel.title.confirm.mailRemoveDomain", h.trf("autopanel.question.mail.removeDomain", name), func() error {
 		h.change(func(ctx context.Context) error { return h.client.MailRemoveDomain(ctx, name) }, func() {
 			h.say(h.trf("autopanel.notice.mail.domainRemoved", name))
@@ -558,4 +582,154 @@ func (h *host) secretAnswered(err error, done func()) {
 	h.secreted = nil
 	_ = h.p.Call("secretDialog", "close")
 	done()
+}
+
+// --- the DNS records dialog: what to enter at a DNS provider -------------------
+
+// dnsRow is one record of the dialog, with the zone its host is relative to.
+type dnsRow struct {
+	zone string
+	rec  mail.RecordView
+}
+
+// openDNSRecords reads the records of every mail domain and of the mail host,
+// and shows them as a DNS provider asks for them: each host relative to its
+// zone ("@" for the zone itself), each value whole.
+func (h *host) openDNSRecords() error {
+	st := h.mail.status
+	if !st.SetUp {
+		h.say(h.tr("autopanel.notice.mail.notSetUp"))
+		return nil
+	}
+	owners := append([]string(nil), st.Domains...)
+	if st.Host != "" && !slices.Contains(owners, st.Host) {
+		owners = append(owners, st.Host)
+	}
+	got := map[string]mail.RecordsAnswer{}
+	h.background(func(ctx context.Context) error {
+		for _, o := range owners {
+			r, err := h.client.MailRecords(ctx, o)
+			if err != nil {
+				return err
+			}
+			got[o] = r
+		}
+		return nil
+	}, func(err error) {
+		if err != nil {
+			h.failed(err)
+			return
+		}
+		var list []dnsRow
+		manual := false
+		for _, o := range owners {
+			zone := o
+			if o == st.Host {
+				zone = zoneOf(o, st.Domains, h.domains)
+			}
+			for _, r := range got[o].Records {
+				list = append(list, dnsRow{zone: zone, rec: r})
+				manual = manual || r.State == "manual"
+			}
+		}
+		h.mail.dnsList, h.mail.dnsAt = list, 0
+		rows := make([]tuidecl.Row, 0, len(list))
+		for i, d := range list {
+			rows = append(rows, tuidecl.Row{"key": strconv.Itoa(i), "type": d.rec.Type, "host": relHost(d.rec.Name, d.zone), "value": d.rec.Value})
+		}
+		h.mail.dns.Reset(rows)
+		intro := h.tr("autopanel.label.mail.dnsIntro")
+		if !manual && len(list) > 0 {
+			intro = h.tr("autopanel.label.mail.dnsAuto")
+		}
+		if len(list) == 0 {
+			intro = h.tr("autopanel.notice.mail.notReady")
+		}
+		_ = h.p.SetMany(map[string]any{"App.dnsIntro": intro, "App.dnsDetail": h.dnsDetail(), "App.dnsNote": "", "App.dnsNoteShown": false})
+		_ = h.p.Call("dnsDialog", "open")
+	})
+	return nil
+}
+
+// zoneOf is the zone a name is in: the longest mail or registry domain it is
+// under, or its parent.
+func zoneOf(name string, mailDomains []string, registry []gate.DomainView) string {
+	best := ""
+	consider := func(d string) {
+		if (name == d || strings.HasSuffix(name, "."+d)) && len(d) > len(best) {
+			best = d
+		}
+	}
+	for _, d := range mailDomains {
+		consider(d)
+	}
+	for _, d := range registry {
+		consider(d.Name)
+	}
+	if best == "" {
+		if _, parent, ok := strings.Cut(name, "."); ok {
+			return parent
+		}
+		return name
+	}
+	return best
+}
+
+// relHost is a name as a DNS provider's Host field takes it: without its zone,
+// or "@" for the zone itself.
+func relHost(name, zone string) string {
+	if name == zone {
+		return "@"
+	}
+	return strings.TrimSuffix(name, "."+zone)
+}
+
+// dnsDetail is the selected record whole, its fields split as a provider's form
+// asks for an MX or an SRV record.
+func (h *host) dnsDetail() string {
+	m := &h.mail
+	if m.dnsAt < 0 || m.dnsAt >= len(m.dnsList) {
+		return ""
+	}
+	d := m.dnsList[m.dnsAt]
+	pairs := [][2]string{
+		{"autopanel.label.mail.zone", d.zone},
+		{"autopanel.label.mail.type", d.rec.Type},
+		{"autopanel.label.mail.hostName", relHost(d.rec.Name, d.zone)},
+	}
+	f := strings.Fields(d.rec.Value)
+	switch {
+	case d.rec.Type == "MX" && len(f) == 2:
+		pairs = append(pairs, [2]string{"autopanel.label.mail.priority", f[0]}, [2]string{"autopanel.label.mail.target", f[1]})
+	case d.rec.Type == "SRV" && len(f) == 4:
+		service, proto, _ := strings.Cut(relHost(d.rec.Name, d.zone), ".")
+		proto, _, _ = strings.Cut(proto, ".")
+		pairs = append(pairs, [2]string{"autopanel.label.mail.service", service}, [2]string{"autopanel.label.mail.protocol", proto},
+			[2]string{"autopanel.label.mail.priority", f[0]}, [2]string{"autopanel.label.mail.weight", f[1]},
+			[2]string{"autopanel.label.mail.port", f[2]}, [2]string{"autopanel.label.mail.target", f[3]})
+	default:
+		pairs = append(pairs, [2]string{"autopanel.label.mail.value", d.rec.Value})
+	}
+	pairs = append(pairs, [2]string{"autopanel.label.mail.why", orDash(d.rec.Why)}, [2]string{"autopanel.label.mail.state", d.rec.State})
+	return facts(h, pairs...)
+}
+
+func (h *host) dnsMoved(row int) error {
+	h.mail.dnsAt = row
+	return h.p.Set("App.dnsDetail", h.dnsDetail())
+}
+
+// dnsCopy puts the selected record's value on the clipboard, through the
+// terminal (OSC 52); a terminal that takes none is said so.
+func (h *host) dnsCopy(row int) error {
+	if row < 0 || row >= len(h.mail.dnsList) {
+		h.say(h.tr("autopanel.notice.mail.none"))
+		return nil
+	}
+	// Said in the dialog: the status bar is under it.
+	note := h.tr("autopanel.notice.mail.noClipboard")
+	if app := h.p.App(); app != nil && app.CopyToClipboard(h.mail.dnsList[row].rec.Value) {
+		note = h.tr("autopanel.notice.mail.copied")
+	}
+	return h.p.SetMany(map[string]any{"App.dnsNote": note, "App.dnsNoteShown": true})
 }

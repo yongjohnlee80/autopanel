@@ -358,9 +358,10 @@ can only be removed: remove it, then add the example stack above with the same s
 
 AutoPanel runs [Stalwart](https://stalw.art) as a stack of its own, behind the gate: the gate binds
 25, 465, 587 and 993 and forwards each connection to Stalwart with a PROXY header, so Stalwart sees
-each client's real address. Every key and setting of mail is sealed under the master key, DNS
-records are published and kept for you through the Cloudflare token, and DKIM keys rotate by
-themselves. See [docs/decisions/mail.md](docs/decisions/mail.md).
+each client's real address. Every key and setting of mail is sealed under the master key, and DKIM
+keys rotate by themselves. The DNS records mail needs are published and kept for you when the
+domain's DNS is at Cloudflare; anywhere else, the panel lists them for you to enter. See
+[docs/decisions/mail.md](docs/decisions/mail.md).
 
 **Before you start:**
 
@@ -368,16 +369,99 @@ themselves. See [docs/decisions/mail.md](docs/decisions/mail.md).
   `host` or `x86-64-v2`), or arm64. Setting mail up refuses otherwise.
 - Port 25 must reach out from the host: many providers block it until asked. And the provider sets
   the host address's reverse name (PTR): point it at the mail host, or receivers will distrust it.
-- For records to be published for you, set the Cloudflare token first
-  (`sudo autopanel --call certs.cloudflare.set '{"token":"…"}'`), with DNS edit rights on each mail
-  domain's zone. Without it every record is shown with its value, to publish by hand.
-- The domain is in **Routes → Domains** by its exact name, and the mail host (say
-  `mail.example.com`) has an A record pointing at this host, not proxied.
+- Decide who writes the DNS records (below): AutoPanel, through a Cloudflare token, or you, by
+  hand at your DNS provider.
+- The domain is in **Routes → Domains** by its exact name.
 
-**Setting it up:** **Mail → Set up mail** asks the mail host and the first domain, writes the mail
-stack, and opens its review; **Add and start** runs it. AutoPanel then sets Stalwart up through its
-API, by itself, within a minute or two: **Mail → Server** says `ready` when it is done, and from then
-on the gate forwards the mail ports.
+#### DNS: what mail needs
+
+An A record that points a domain at the server does not bring it mail: mail goes where the domain's
+**MX** record says, and receivers check **SPF**, **DKIM** and **DMARC** before they trust it. So
+every mail domain needs these records, whoever writes them. With `example.com` receiving mail on
+the mail host `mail.example.com` at `192.0.2.10`:
+
+| Record | Name | Value | Needed |
+| --- | --- | --- | --- |
+| A | `mail.example.com` | `192.0.2.10` | yes: the mail host's address. Not proxied |
+| MX | `example.com` | `10 mail.example.com` | yes: where the domain's mail goes |
+| TXT (SPF) | `example.com` | `v=spf1 a:mail.example.com -all` | yes: who may send as the domain |
+| TXT (DKIM) | `ap202611e._domainkey.example.com`, `ap202611r._domainkey.example.com` | `v=DKIM1; k=ed25519; …`, `v=DKIM1; k=rsa; …` | yes: the keys mail is signed with. Copy the values from the panel; they change every 90 days |
+| TXT (DMARC) | `_dmarc.example.com` | `v=DMARC1; p=quarantine; rua=mailto:postmaster@example.com` | yes: what receivers do with mail that fails |
+| TXT (SPF) | `mail.example.com` | `v=spf1 a -all` | recommended: for mail the server sends as itself (bounces) |
+| TXT | `_smtp._tls.example.com` | `v=TLSRPTv1; rua=mailto:postmaster@example.com` | optional: TLS failure reports |
+| SRV | `_imaps._tcp`, `_submissions._tcp`, `_submission._tcp` (each `.example.com`) | `0 1 993 mail.example.com`, `0 1 465 …`, `0 1 587 …` | optional: lets mail apps find the server by themselves |
+
+**Mail → Domains** lists every one, with its exact value, for each mail domain and, as the last row,
+for the mail host itself. `sudo autopanel --call mail.records '{"domain":"example.com"}'` prints the
+same.
+
+One record is not in a zone at all: the **reverse name (PTR)** of the server's address, which the
+hosting provider sets. Ask it to point the address back at the mail host (`mail.example.com`);
+without it many receivers treat the server's mail as spam.
+
+#### With Cloudflare: AutoPanel writes them
+
+When the domain's DNS is hosted at Cloudflare, give AutoPanel an API token, and it publishes every
+record above itself, keeps them in step, and rotates the DKIM keys without you:
+
+1. In Cloudflare, **My Profile → API Tokens → Create Token**, from the **Edit zone DNS** template:
+   permission *Zone · DNS · Edit*, and under *Zone Resources* the zone of each mail domain (and of
+   the mail host, if it is under another).
+2. Give it to AutoPanel: `sudo autopanel --call certs.cloudflare.set '{"token":"…"}'`. It is sealed
+   under the master key. The same token also lets AutoPanel obtain certificates through DNS
+   (DNS-01), and the panel says so under Certs.
+3. Set mail up (below). The records appear in Cloudflare within the first pass, a minute or two after
+   Stalwart is ready; **Sync** runs a pass at once.
+
+AutoPanel writes only the records it needs, and changes or deletes only those it wrote (it keeps
+their Cloudflare ids). A record of the same kind that was there before, such as another provider's
+MX or an existing DMARC record, is left alone and shown as `different` until you **Take over** it.
+The mail host's A record is never proxied: mail does not pass through Cloudflare.
+
+#### Without Cloudflare: you enter them
+
+With the DNS anywhere else (Namecheap, your registrar, your own server), there is no token to give
+and AutoPanel cannot write the zone. Mail works the same, but every record shows `manual`, and you
+enter each one at your DNS provider:
+
+1. Set mail up (below), and wait for **Mail → Server** to say `ready`.
+2. Open **Mail → Domains**. For each domain, and for the mail host's row at the bottom, copy each
+   record's name and value from the right side.
+3. Enter them at the provider. At **Namecheap**, that is **Domain List → Manage → Advanced DNS**:
+   - First, under **Mail Settings**, choose **Custom MX**: the MX records can only be added then.
+   - The **Host** field takes the name *without* the domain: `@` for `example.com` itself, `mail`
+     for `mail.example.com`, `_dmarc`, `ap202611e._domainkey`, and so on.
+   - Paste TXT values as they are, without quotes. The RSA DKIM value is long; paste it whole.
+   - An SRV record's fields are split up: Service `_imaps`, Protocol `_tcp`, Priority `0`, Weight
+     `1`, Port `993`, Target `mail.example.com`.
+   - Leave the TTL automatic.
+4. Check what the world sees, for instance `dig +short MX example.com` and
+   `dig +short TXT ap202611e._domainkey.example.com`.
+
+The records keep showing `manual`: AutoPanel does not watch a zone it cannot write. What it does
+watch is DKIM. A domain signs nothing until its DKIM records answer from public resolvers, and then
+switches to signing by itself; **Mail → Domains** shows each key's step move from `published` to
+`signing` once you have entered them.
+
+**Every 90 days** a new DKIM pair is made and shows under the domain's records with new names (the
+selector carries the month: `ap202702e`). The old pair keeps signing until you enter the new
+records; then the new pair takes over, and a week later the old records can be deleted. With the
+DNS by hand, look at **Mail → Domains** every few months for new DKIM rows, or move the domain's DNS
+to Cloudflare (its free plan is enough), which takes the work away.
+
+#### Setting it up
+
+**Mail → Set up mail** asks the mail host and the first domain, writes the mail stack, and opens
+its review; **Add and start** runs it. AutoPanel then sets Stalwart up through its API, by itself,
+within a minute or two: **Mail → Server** says `ready` when it is done, and from then on the gate
+forwards the mail ports.
+
+The mail host's certificate comes from AutoPanel's own certificate service, once the mail host's A
+record resolves to this server: **Mail → Server** shows it (`ok until …`), and **Sync** asks for it
+again after you have entered the record. A certificate from Let's Encrypt's staging service works
+but mail apps warn about it; switch to production (below) once mail runs.
+
+#### The panels
 
 **Domains** lists the domains that receive mail; the right side shows each record the selected one
 needs and its state:
@@ -387,7 +471,7 @@ needs and its state:
 | ok | the zone holds it as AutoPanel wrote it |
 | publishing | just published; resolvers will have it within minutes |
 | different | the zone holds a record of that kind AutoPanel did not write (another provider's MX, a DMARC record already there). Nothing is published beside it: **Take over** replaces it after showing it (an SPF record is merged instead) |
-| manual | no Cloudflare token: publish the value by hand |
+| manual | no Cloudflare token: enter the value at your DNS provider yourself (above) |
 | failed | Cloudflare refused it; the error says why |
 
 A domain's DKIM keys are listed under its records: a new pair is published, then signs once public

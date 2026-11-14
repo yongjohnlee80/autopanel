@@ -149,6 +149,8 @@ var tips = map[string]string{
 	"App.tipMailDomainRemove":    "autopanel.tip.mail.domainRemove",
 	"App.tipMailTakeover":        "autopanel.tip.mail.takeover",
 	"App.tipMailSync":            "autopanel.tip.mail.sync",
+	"App.tipMailDns":             "autopanel.tip.mail.dns",
+	"App.tipMailCopy":            "autopanel.tip.mail.copy",
 	"App.tipMailReload":          "autopanel.tip.mail.reload",
 	"App.tipMailAccountAdd":      "autopanel.tip.mail.accountAdd",
 	"App.tipMailAccountPassword": "autopanel.tip.mail.accountPassword",

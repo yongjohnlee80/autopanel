@@ -59,6 +59,14 @@
         <source>&amp;Add…</source>
         <translation>추가(&amp;a)…</translation>
     </message>
+    <message id="autopanel.button.mail.copy">
+        <source>&amp;Copy value</source>
+        <translation>값 복사(&amp;c)</translation>
+    </message>
+    <message id="autopanel.button.mail.dns">
+        <source>D&amp;NS records…</source>
+        <translation>DNS 레코드(&amp;n)…</translation>
+    </message>
     <message id="autopanel.button.mail.password">
         <source>&amp;Password…</source>
         <translation>비밀번호(&amp;p)…</translation>
@@ -691,6 +699,14 @@
         <source>DKIM keys</source>
         <translation>DKIM 키</translation>
     </message>
+    <message id="autopanel.label.mail.dnsAuto">
+        <source>AutoPanel publishes these records through Cloudflare by itself: this list is for checking them.</source>
+        <translation>AutoPanel이 Cloudflare를 통해 이 레코드를 직접 게시합니다: 이 목록은 확인용입니다.</translation>
+    </message>
+    <message id="autopanel.label.mail.dnsIntro">
+        <source>Enter each record at the DNS provider that hosts the zone (at Namecheap: Domain List → Manage → Advanced DNS, with Mail Settings set to Custom MX). Host is the name without the zone, @ for the zone itself. Paste values without quotes, and leave the TTL automatic.</source>
+        <translation>영역을 호스팅하는 DNS 제공자에 각 레코드를 입력하세요(Namecheap: Domain List → Manage → Advanced DNS, Mail Settings는 Custom MX). 호스트는 영역을 뺀 이름이며 영역 자체는 @입니다. 값은 따옴표 없이 붙여 넣고 TTL은 자동으로 두세요.</translation>
+    </message>
     <message id="autopanel.label.mail.domains">
         <source>Domains</source>
         <translation>도메인</translation>
@@ -711,13 +727,33 @@
         <source>Mail host</source>
         <translation>메일 호스트</translation>
     </message>
+    <message id="autopanel.label.mail.hostName">
+        <source>Host</source>
+        <translation>호스트</translation>
+    </message>
     <message id="autopanel.label.mail.loopback">
         <source>Loopback rule</source>
         <translation>루프백 규칙</translation>
     </message>
+    <message id="autopanel.label.mail.port">
+        <source>Port</source>
+        <translation>포트</translation>
+    </message>
+    <message id="autopanel.label.mail.priority">
+        <source>Priority</source>
+        <translation>우선순위</translation>
+    </message>
+    <message id="autopanel.label.mail.protocol">
+        <source>Protocol</source>
+        <translation>프로토콜</translation>
+    </message>
     <message id="autopanel.label.mail.quota">
         <source>Quota</source>
         <translation>할당량</translation>
+    </message>
+    <message id="autopanel.label.mail.service">
+        <source>Service</source>
+        <translation>서비스</translation>
     </message>
     <message id="autopanel.label.mail.stack">
         <source>Stack</source>
@@ -731,6 +767,14 @@
         <source>Last pass</source>
         <translation>마지막 동기화</translation>
     </message>
+    <message id="autopanel.label.mail.target">
+        <source>Target</source>
+        <translation>대상</translation>
+    </message>
+    <message id="autopanel.label.mail.type">
+        <source>Type</source>
+        <translation>유형</translation>
+    </message>
     <message id="autopanel.label.mail.used">
         <source>Used</source>
         <translation>사용량</translation>
@@ -739,9 +783,17 @@
         <source>Value</source>
         <translation>값</translation>
     </message>
+    <message id="autopanel.label.mail.weight">
+        <source>Weight</source>
+        <translation>가중치</translation>
+    </message>
     <message id="autopanel.label.mail.why">
         <source>For</source>
         <translation>용도</translation>
+    </message>
+    <message id="autopanel.label.mail.zone">
+        <source>Zone</source>
+        <translation>영역</translation>
     </message>
     <message id="autopanel.label.metrics.coreMemory">
         <source>Core memory</source>
@@ -1023,6 +1075,10 @@
         <source>&amp;Accounts…</source>
         <translation>계정(&amp;a)…</translation>
     </message>
+    <message id="autopanel.menu.mail.dns">
+        <source>D&amp;NS records…</source>
+        <translation>DNS 레코드(&amp;n)…</translation>
+    </message>
     <message id="autopanel.menu.mail.domains">
         <source>&amp;Domains…</source>
         <translation>도메인(&amp;d)…</translation>
@@ -1291,6 +1347,10 @@
         <source>the mail host is a name with a dot: mail.example.com</source>
         <translation>메일 호스트는 점이 있는 이름입니다: mail.example.com</translation>
     </message>
+    <message id="autopanel.notice.mail.copied">
+        <source>the value is on the clipboard</source>
+        <translation>값을 클립보드에 복사했습니다</translation>
+    </message>
     <message id="autopanel.notice.mail.domainAdded">
         <source>%1 receives mail; its records are being published</source>
         <translation>%1이(가) 메일을 받습니다. 레코드를 게시하는 중입니다</translation>
@@ -1298,6 +1358,14 @@
     <message id="autopanel.notice.mail.domainRemoved">
         <source>%1 no longer receives mail</source>
         <translation>%1은(는) 더 이상 메일을 받지 않습니다</translation>
+    </message>
+    <message id="autopanel.notice.mail.isHost">
+        <source>that row is the mail host's own records: it receives no mail, so there is nothing to remove</source>
+        <translation>그 행은 메일 호스트 자체의 레코드입니다: 메일을 받지 않으므로 제거할 것이 없습니다</translation>
+    </message>
+    <message id="autopanel.notice.mail.noClipboard">
+        <source>this terminal takes no clipboard copy: select the value with the mouse</source>
+        <translation>이 터미널은 클립보드 복사를 받지 않습니다: 마우스로 값을 선택하세요</translation>
     </message>
     <message id="autopanel.notice.mail.noRecord">
         <source>that record is held by no other: nothing to take over</source>
@@ -1587,6 +1655,14 @@
         <source>Delete the selected account and its mail</source>
         <translation>선택한 계정과 그 메일을 삭제합니다</translation>
     </message>
+    <message id="autopanel.tip.mail.copy">
+        <source>Copy the selected record's value to the clipboard</source>
+        <translation>선택한 레코드의 값을 클립보드에 복사합니다</translation>
+    </message>
+    <message id="autopanel.tip.mail.dns">
+        <source>Show every record to enter at your DNS provider</source>
+        <translation>DNS 제공자에 입력할 모든 레코드를 보여 줍니다</translation>
+    </message>
     <message id="autopanel.tip.mail.domainAdd">
         <source>Receive mail for a registered domain</source>
         <translation>등록된 도메인의 메일을 받습니다</translation>
@@ -1738,6 +1814,10 @@
     <message id="autopanel.title.dialog.login">
         <source>Sign in to AutoPanel</source>
         <translation>AutoPanel 로그인</translation>
+    </message>
+    <message id="autopanel.title.dialog.mailDns">
+        <source>Records to enter at your DNS provider</source>
+        <translation>DNS 제공자에 입력할 레코드</translation>
     </message>
     <message id="autopanel.title.form.add">
         <source>Add route</source>
@@ -2022,6 +2102,10 @@
     <message id="autopanel.value.logins.ok">
         <source>ok</source>
         <translation>성공</translation>
+    </message>
+    <message id="autopanel.value.mail.hostRow">
+        <source>%1 (mail host)</source>
+        <translation>%1 (메일 호스트)</translation>
     </message>
     <message id="autopanel.value.mail.never">
         <source>never</source>

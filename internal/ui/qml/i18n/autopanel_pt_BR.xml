@@ -59,6 +59,14 @@
         <source>&amp;Add…</source>
         <translation>&amp;Adicionar…</translation>
     </message>
+    <message id="autopanel.button.mail.copy">
+        <source>&amp;Copy value</source>
+        <translation>&amp;Copiar o valor</translation>
+    </message>
+    <message id="autopanel.button.mail.dns">
+        <source>D&amp;NS records…</source>
+        <translation>Registros D&amp;NS…</translation>
+    </message>
     <message id="autopanel.button.mail.password">
         <source>&amp;Password…</source>
         <translation>Senha (&amp;p)…</translation>
@@ -691,6 +699,14 @@
         <source>DKIM keys</source>
         <translation>Chaves DKIM</translation>
     </message>
+    <message id="autopanel.label.mail.dnsAuto">
+        <source>AutoPanel publishes these records through Cloudflare by itself: this list is for checking them.</source>
+        <translation>O AutoPanel publica estes registros sozinho pelo Cloudflare: esta lista serve para conferi-los.</translation>
+    </message>
+    <message id="autopanel.label.mail.dnsIntro">
+        <source>Enter each record at the DNS provider that hosts the zone (at Namecheap: Domain List → Manage → Advanced DNS, with Mail Settings set to Custom MX). Host is the name without the zone, @ for the zone itself. Paste values without quotes, and leave the TTL automatic.</source>
+        <translation>Insira cada registro no provedor de DNS que hospeda a zona (no Namecheap: Domain List → Manage → Advanced DNS, com Mail Settings em Custom MX). O host é o nome sem a zona, @ para a própria zona. Cole os valores sem aspas e deixe o TTL automático.</translation>
+    </message>
     <message id="autopanel.label.mail.domains">
         <source>Domains</source>
         <translation>Domínios</translation>
@@ -711,13 +727,33 @@
         <source>Mail host</source>
         <translation>Servidor</translation>
     </message>
+    <message id="autopanel.label.mail.hostName">
+        <source>Host</source>
+        <translation>Host</translation>
+    </message>
     <message id="autopanel.label.mail.loopback">
         <source>Loopback rule</source>
         <translation>Regra de loopback</translation>
     </message>
+    <message id="autopanel.label.mail.port">
+        <source>Port</source>
+        <translation>Porta</translation>
+    </message>
+    <message id="autopanel.label.mail.priority">
+        <source>Priority</source>
+        <translation>Prioridade</translation>
+    </message>
+    <message id="autopanel.label.mail.protocol">
+        <source>Protocol</source>
+        <translation>Protocolo</translation>
+    </message>
     <message id="autopanel.label.mail.quota">
         <source>Quota</source>
         <translation>Cota</translation>
+    </message>
+    <message id="autopanel.label.mail.service">
+        <source>Service</source>
+        <translation>Serviço</translation>
     </message>
     <message id="autopanel.label.mail.stack">
         <source>Stack</source>
@@ -731,6 +767,14 @@
         <source>Last pass</source>
         <translation>Última passada</translation>
     </message>
+    <message id="autopanel.label.mail.target">
+        <source>Target</source>
+        <translation>Destino</translation>
+    </message>
+    <message id="autopanel.label.mail.type">
+        <source>Type</source>
+        <translation>Tipo</translation>
+    </message>
     <message id="autopanel.label.mail.used">
         <source>Used</source>
         <translation>Usado</translation>
@@ -739,9 +783,17 @@
         <source>Value</source>
         <translation>Valor</translation>
     </message>
+    <message id="autopanel.label.mail.weight">
+        <source>Weight</source>
+        <translation>Peso</translation>
+    </message>
     <message id="autopanel.label.mail.why">
         <source>For</source>
         <translation>Para</translation>
+    </message>
+    <message id="autopanel.label.mail.zone">
+        <source>Zone</source>
+        <translation>Zona</translation>
     </message>
     <message id="autopanel.label.metrics.coreMemory">
         <source>Core memory</source>
@@ -1023,6 +1075,10 @@
         <source>&amp;Accounts…</source>
         <translation>Contas (&amp;a)…</translation>
     </message>
+    <message id="autopanel.menu.mail.dns">
+        <source>D&amp;NS records…</source>
+        <translation>Registros D&amp;NS…</translation>
+    </message>
     <message id="autopanel.menu.mail.domains">
         <source>&amp;Domains…</source>
         <translation>&amp;Domínios…</translation>
@@ -1291,6 +1347,10 @@
         <source>the mail host is a name with a dot: mail.example.com</source>
         <translation>o servidor de e-mail é um nome com ponto: mail.example.com</translation>
     </message>
+    <message id="autopanel.notice.mail.copied">
+        <source>the value is on the clipboard</source>
+        <translation>o valor está na área de transferência</translation>
+    </message>
     <message id="autopanel.notice.mail.domainAdded">
         <source>%1 receives mail; its records are being published</source>
         <translation>%1 recebe e-mail; seus registros estão sendo publicados</translation>
@@ -1298,6 +1358,14 @@
     <message id="autopanel.notice.mail.domainRemoved">
         <source>%1 no longer receives mail</source>
         <translation>%1 não recebe mais e-mail</translation>
+    </message>
+    <message id="autopanel.notice.mail.isHost">
+        <source>that row is the mail host's own records: it receives no mail, so there is nothing to remove</source>
+        <translation>essa linha são os registros do próprio servidor de e-mail: ele não recebe e-mail, então não há nada a remover</translation>
+    </message>
+    <message id="autopanel.notice.mail.noClipboard">
+        <source>this terminal takes no clipboard copy: select the value with the mouse</source>
+        <translation>este terminal não aceita cópia para a área de transferência: selecione o valor com o mouse</translation>
     </message>
     <message id="autopanel.notice.mail.noRecord">
         <source>that record is held by no other: nothing to take over</source>
@@ -1587,6 +1655,14 @@
         <source>Delete the selected account and its mail</source>
         <translation>Excluir a conta selecionada e seus e-mails</translation>
     </message>
+    <message id="autopanel.tip.mail.copy">
+        <source>Copy the selected record's value to the clipboard</source>
+        <translation>Copiar para a área de transferência o valor do registro selecionado</translation>
+    </message>
+    <message id="autopanel.tip.mail.dns">
+        <source>Show every record to enter at your DNS provider</source>
+        <translation>Mostrar todos os registros a inserir no seu provedor de DNS</translation>
+    </message>
     <message id="autopanel.tip.mail.domainAdd">
         <source>Receive mail for a registered domain</source>
         <translation>Receber e-mail para um domínio registrado</translation>
@@ -1738,6 +1814,10 @@
     <message id="autopanel.title.dialog.login">
         <source>Sign in to AutoPanel</source>
         <translation>Entrar no AutoPanel</translation>
+    </message>
+    <message id="autopanel.title.dialog.mailDns">
+        <source>Records to enter at your DNS provider</source>
+        <translation>Registros a inserir no seu provedor de DNS</translation>
     </message>
     <message id="autopanel.title.form.add">
         <source>Add route</source>
@@ -2022,6 +2102,10 @@
     <message id="autopanel.value.logins.ok">
         <source>ok</source>
         <translation>ok</translation>
+    </message>
+    <message id="autopanel.value.mail.hostRow">
+        <source>%1 (mail host)</source>
+        <translation>%1 (servidor de e-mail)</translation>
     </message>
     <message id="autopanel.value.mail.never">
         <source>never</source>

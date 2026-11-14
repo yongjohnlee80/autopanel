@@ -59,6 +59,14 @@
         <source>&amp;Add…</source>
         <translation>追加(&amp;a)…</translation>
     </message>
+    <message id="autopanel.button.mail.copy">
+        <source>&amp;Copy value</source>
+        <translation>値をコピー(&amp;c)</translation>
+    </message>
+    <message id="autopanel.button.mail.dns">
+        <source>D&amp;NS records…</source>
+        <translation>DNS レコード(&amp;n)…</translation>
+    </message>
     <message id="autopanel.button.mail.password">
         <source>&amp;Password…</source>
         <translation>パスワード(&amp;p)…</translation>
@@ -691,6 +699,14 @@
         <source>DKIM keys</source>
         <translation>DKIM 鍵</translation>
     </message>
+    <message id="autopanel.label.mail.dnsAuto">
+        <source>AutoPanel publishes these records through Cloudflare by itself: this list is for checking them.</source>
+        <translation>AutoPanel が Cloudflare を通じてこれらのレコードを自ら公開します: この一覧は確認用です。</translation>
+    </message>
+    <message id="autopanel.label.mail.dnsIntro">
+        <source>Enter each record at the DNS provider that hosts the zone (at Namecheap: Domain List → Manage → Advanced DNS, with Mail Settings set to Custom MX). Host is the name without the zone, @ for the zone itself. Paste values without quotes, and leave the TTL automatic.</source>
+        <translation>ゾーンをホストする DNS プロバイダーに各レコードを入力してください(Namecheap: Domain List → Manage → Advanced DNS、Mail Settings は Custom MX)。ホストはゾーンを除いた名前で、ゾーン自体は @ です。値は引用符なしで貼り付け、TTL は自動のままにします。</translation>
+    </message>
     <message id="autopanel.label.mail.domains">
         <source>Domains</source>
         <translation>ドメイン</translation>
@@ -711,13 +727,33 @@
         <source>Mail host</source>
         <translation>メールホスト</translation>
     </message>
+    <message id="autopanel.label.mail.hostName">
+        <source>Host</source>
+        <translation>ホスト</translation>
+    </message>
     <message id="autopanel.label.mail.loopback">
         <source>Loopback rule</source>
         <translation>ループバック規則</translation>
     </message>
+    <message id="autopanel.label.mail.port">
+        <source>Port</source>
+        <translation>ポート</translation>
+    </message>
+    <message id="autopanel.label.mail.priority">
+        <source>Priority</source>
+        <translation>優先度</translation>
+    </message>
+    <message id="autopanel.label.mail.protocol">
+        <source>Protocol</source>
+        <translation>プロトコル</translation>
+    </message>
     <message id="autopanel.label.mail.quota">
         <source>Quota</source>
         <translation>容量</translation>
+    </message>
+    <message id="autopanel.label.mail.service">
+        <source>Service</source>
+        <translation>サービス</translation>
     </message>
     <message id="autopanel.label.mail.stack">
         <source>Stack</source>
@@ -731,6 +767,14 @@
         <source>Last pass</source>
         <translation>最終同期</translation>
     </message>
+    <message id="autopanel.label.mail.target">
+        <source>Target</source>
+        <translation>ターゲット</translation>
+    </message>
+    <message id="autopanel.label.mail.type">
+        <source>Type</source>
+        <translation>種類</translation>
+    </message>
     <message id="autopanel.label.mail.used">
         <source>Used</source>
         <translation>使用量</translation>
@@ -739,9 +783,17 @@
         <source>Value</source>
         <translation>値</translation>
     </message>
+    <message id="autopanel.label.mail.weight">
+        <source>Weight</source>
+        <translation>重み</translation>
+    </message>
     <message id="autopanel.label.mail.why">
         <source>For</source>
         <translation>用途</translation>
+    </message>
+    <message id="autopanel.label.mail.zone">
+        <source>Zone</source>
+        <translation>ゾーン</translation>
     </message>
     <message id="autopanel.label.metrics.coreMemory">
         <source>Core memory</source>
@@ -1023,6 +1075,10 @@
         <source>&amp;Accounts…</source>
         <translation>アカウント(&amp;a)…</translation>
     </message>
+    <message id="autopanel.menu.mail.dns">
+        <source>D&amp;NS records…</source>
+        <translation>DNS レコード(&amp;n)…</translation>
+    </message>
     <message id="autopanel.menu.mail.domains">
         <source>&amp;Domains…</source>
         <translation>ドメイン(&amp;d)…</translation>
@@ -1291,6 +1347,10 @@
         <source>the mail host is a name with a dot: mail.example.com</source>
         <translation>メールホストはドットを含む名前です: mail.example.com</translation>
     </message>
+    <message id="autopanel.notice.mail.copied">
+        <source>the value is on the clipboard</source>
+        <translation>値をクリップボードにコピーしました</translation>
+    </message>
     <message id="autopanel.notice.mail.domainAdded">
         <source>%1 receives mail; its records are being published</source>
         <translation>%1 がメールを受信します。レコードを公開中です</translation>
@@ -1298,6 +1358,14 @@
     <message id="autopanel.notice.mail.domainRemoved">
         <source>%1 no longer receives mail</source>
         <translation>%1 はメールを受信しなくなりました</translation>
+    </message>
+    <message id="autopanel.notice.mail.isHost">
+        <source>that row is the mail host's own records: it receives no mail, so there is nothing to remove</source>
+        <translation>その行はメールホスト自身のレコードです: メールを受信しないため削除するものはありません</translation>
+    </message>
+    <message id="autopanel.notice.mail.noClipboard">
+        <source>this terminal takes no clipboard copy: select the value with the mouse</source>
+        <translation>この端末はクリップボードへのコピーに対応していません: マウスで値を選択してください</translation>
     </message>
     <message id="autopanel.notice.mail.noRecord">
         <source>that record is held by no other: nothing to take over</source>
@@ -1587,6 +1655,14 @@
         <source>Delete the selected account and its mail</source>
         <translation>選択したアカウントとそのメールを削除します</translation>
     </message>
+    <message id="autopanel.tip.mail.copy">
+        <source>Copy the selected record's value to the clipboard</source>
+        <translation>選択したレコードの値をクリップボードにコピーします</translation>
+    </message>
+    <message id="autopanel.tip.mail.dns">
+        <source>Show every record to enter at your DNS provider</source>
+        <translation>DNS プロバイダーに入力するすべてのレコードを表示します</translation>
+    </message>
     <message id="autopanel.tip.mail.domainAdd">
         <source>Receive mail for a registered domain</source>
         <translation>登録済みドメインのメールを受信します</translation>
@@ -1738,6 +1814,10 @@
     <message id="autopanel.title.dialog.login">
         <source>Sign in to AutoPanel</source>
         <translation>AutoPanel にサインイン</translation>
+    </message>
+    <message id="autopanel.title.dialog.mailDns">
+        <source>Records to enter at your DNS provider</source>
+        <translation>DNS プロバイダーに入力するレコード</translation>
     </message>
     <message id="autopanel.title.form.add">
         <source>Add route</source>
@@ -2022,6 +2102,10 @@
     <message id="autopanel.value.logins.ok">
         <source>ok</source>
         <translation>成功</translation>
+    </message>
+    <message id="autopanel.value.mail.hostRow">
+        <source>%1 (mail host)</source>
+        <translation>%1 (メールホスト)</translation>
     </message>
     <message id="autopanel.value.mail.never">
         <source>never</source>

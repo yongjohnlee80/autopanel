@@ -21,7 +21,7 @@
 import tui 1.0
 import autopanel 1.0              // App: the panel's state and commands
 import autopanel.theme.dark 1.0   // the Theme singleton; System › Theme switches it
-import autopanel.dialogs 1.0      // Login, RouteDialog, BrowseDialog, ReviewDialog, PromptDialog, SecretDialog, ConfirmDialog
+import autopanel.dialogs 1.0      // Login, RouteDialog, BrowseDialog, ReviewDialog, PromptDialog, SecretDialog, DnsDialog, ConfirmDialog
 import autopanel.views 1.0        // Keys, About
 import tui.panels 1.0             // Panel: the panels the menus open (golib)
 import tui.tiles 1.0              // TilePanel: the widgets of the main screen (golib)
@@ -135,6 +135,7 @@ Window {
             MenuItem { text: qsTrId("autopanel.menu.mail.domains"); onTriggered: App.openMailDomains() }
             MenuItem { text: qsTrId("autopanel.menu.mail.accounts"); onTriggered: App.openMailAccounts() }
             MenuItem { text: qsTrId("autopanel.menu.mail.server"); onTriggered: App.openMailServer() }
+            MenuItem { text: qsTrId("autopanel.menu.mail.dns"); onTriggered: App.openDnsRecords() }
         }
         Menu {
             title: qsTrId("autopanel.menu.users.title")
@@ -610,12 +611,13 @@ Window {
         Shortcut { sequence: "r"; onActivated: App.mailRemoveDomain(mailDomainsTable.currentIndex) }
         Shortcut { sequence: "t"; onActivated: App.mailTakeover(mailRecordsTable.currentIndex) }
         Shortcut { sequence: "s"; onActivated: App.mailSync() }
+        Shortcut { sequence: "n"; onActivated: App.openDnsRecords() }
         Flex {
             direction: Tui.Vertical
             Split {
                 Layout.fillHeight: true
                 orientation: Tui.Horizontal
-                ratio: 0.25
+                ratio: 0.32
                 Frame {
                     title: App.mailDomainsTitle
                     TableView {
@@ -659,6 +661,8 @@ Window {
                 Button { text: qsTrId("autopanel.button.mail.takeover"); toolTipText: App.tipMailTakeover; onClicked: App.mailTakeover(mailRecordsTable.currentIndex) }
                 Text { text: " " }
                 Button { text: qsTrId("autopanel.button.mail.sync"); toolTipText: App.tipMailSync; onClicked: App.mailSync() }
+                Text { text: " " }
+                Button { text: qsTrId("autopanel.button.mail.dns"); toolTipText: App.tipMailDns; onClicked: App.openDnsRecords() }
                 Text { text: " " }
                 Button { text: qsTrId("autopanel.button.panel.close"); toolTipText: App.tipPanelClose; onClicked: App.closePanel("mailDomains") }
                 Text { text: " "; Layout.fillWidth: true }
@@ -1033,6 +1037,7 @@ Window {
     ReviewDialog { id: reviewDialog }
     PromptDialog { id: promptDialog }
     SecretDialog { id: secretDialog }
+    DnsDialog { id: dnsDialog }
     ConfirmDialog { id: confirmDialog }
     Keys { id: keysDialog }
     About { id: aboutDialog }
