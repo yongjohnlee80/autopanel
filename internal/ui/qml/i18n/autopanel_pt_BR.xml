@@ -1008,8 +1008,8 @@
         <translation>Um nome para o token (o que vai usá-lo)</translation>
     </message>
     <message id="autopanel.label.prompt.totpOff">
-        <source>A code from the app (or a recovery code), to turn two-factor off</source>
-        <translation>Um código do app (ou de recuperação) para desativar os dois fatores</translation>
+        <source>A code from the app, to turn two-factor off</source>
+        <translation>Um código do app para desativar os dois fatores</translation>
     </message>
     <message id="autopanel.label.prompt.userName">
         <source>Name (a lower-case letter, then letters, digits, . _ -)</source>
@@ -1378,6 +1378,10 @@
     <message id="autopanel.menu.view.traffic">
         <source>T&amp;raffic</source>
         <translation>T&amp;ráfego</translation>
+    </message>
+    <message id="autopanel.note.account.adminNoTotp">
+        <source>an admin has no two-factor</source>
+        <translation>um administrador não tem dois fatores</translation>
     </message>
     <message id="autopanel.note.account.root">
         <source>Root is the first admin, made by --init: never removed, demoted or disabled.</source>
