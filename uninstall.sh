@@ -146,8 +146,15 @@ fi
 # --purge deletes the user and the directory.
 if [ "$KEEP_SERVICES" -eq 0 ]; then
   for n in $SERVICES; do
+    uid=$(id -u "ap-$n")
     loginctl disable-linger "ap-$n" >/dev/null 2>&1 || true
     loginctl terminate-user "ap-$n" >/dev/null 2>&1 || true
+    # terminate-user returns before the user's processes have ended, and
+    # Podman's clean-up still writes into the stack's storage as it exits:
+    # wait for the last of them, 30 seconds at most, then end the rest.
+    i=0
+    while pgrep -U "$uid" >/dev/null 2>&1 && [ "$i" -lt 30 ]; do sleep 1; i=$((i + 1)); done
+    pkill -KILL -U "$uid" >/dev/null 2>&1 || true
     if [ "$MODE" = purge ]; then
       userdel "ap-$n" >/dev/null 2>&1 || userdel --force "ap-$n" >/dev/null 2>&1 \
         || info "could not remove user ap-$n; remove it by hand"
