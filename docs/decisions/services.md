@@ -17,7 +17,7 @@ core died during it. An entry that still says `attempt` is an action the core di
 verb gets it by setting one field. A socket that offers a privileged verb and has no audit log
 refuses to start.
 
-**The subject** of an entry is the `name` the caller sent, with the `service` and the review
+**The subject** of an entry is the `name` the caller sent, with the `service`, the folder an import copies `from` and the review
 (`accept`) when the call names them, each quoted and cut short: it is recorded before the verb
 has validated any of it.
 

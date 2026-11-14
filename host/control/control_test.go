@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -446,5 +447,25 @@ func TestAPrivilegedVerbLeavesItsRecordFirst(t *testing.T) {
 	case <-done:
 	case <-time.After(5 * time.Second):
 		t.Fatal("the server did not stop")
+	}
+}
+
+// TestTheSubjectNamesWhatTheCallActsOn: an audit entry says which stack, which
+// service, which folder an import copied and which review was accepted.
+func TestTheSubjectNamesWhatTheCallActsOn(t *testing.T) {
+	long := "/home/admin/" + strings.Repeat("x", 300)
+	for _, c := range []struct {
+		param map[string]any
+		want  string
+	}{
+		{map[string]any{"name": "chat", "service": "web"}, `name "chat" service "web"`},
+		{map[string]any{"from": "/home/admin/services/chat"}, `from "/home/admin/services/chat"`},
+		{map[string]any{"from": "/srv/chat", "name": "chat", "accept": "abc"}, `name "chat" from "/srv/chat" accept "abc"`},
+		{map[string]any{"from": long}, `from "` + long[:160] + `"`},
+		{map[string]any{"other": "x"}, ``},
+	} {
+		if got := subject([]any{c.param}); got != c.want {
+			t.Errorf("subject(%v) = %q; want %q", c.param, got, c.want)
+		}
 	}
 }
