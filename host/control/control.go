@@ -189,8 +189,8 @@ func handler(v module.Verb, errs []module.PublicError, log *slog.Logger, aud Aud
 }
 
 // subject is what a privileged call names, for its audit entry: the "name" of
-// its one param, with the "service" of it and the review it accepts when the
-// call names them, as the caller sent them. It is recorded before the verb
+// its one param, with the "service", the folder an import copies "from" and
+// the review it accepts when the call names them, as the caller sent them. It is recorded before the verb
 // has validated any of it, so each is quoted and cut short.
 func subject(params []any) string {
 	if len(params) == 0 {
@@ -201,10 +201,14 @@ func subject(params []any) string {
 		return ""
 	}
 	out := ""
-	for _, k := range []string{"name", "service", "accept"} {
+	for _, k := range []string{"name", "service", "from", "accept"} {
 		if s, ok := m[k].(string); ok && s != "" {
-			if len(s) > 64 {
-				s = s[:64]
+			limit := 64
+			if k == "from" {
+				limit = 160 // a path is longer than a name
+			}
+			if len(s) > limit {
+				s = s[:limit]
 			}
 			if out != "" {
 				out += " "
