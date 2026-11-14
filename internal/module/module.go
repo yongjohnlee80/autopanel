@@ -43,6 +43,38 @@ type Contract struct {
 	// Right names what a caller must be allowed to do: "services.deploy". It is
 	// data for now: root is the only user, and holds every right.
 	Right string `json:"right,omitempty"`
+	// Area is what a role is allowed by (docs/decisions/auth.md): "sys",
+	// "sys.admin", "gate", "certs", "services", "mail", "mail.admin", "auth".
+	// Empty: the verb's first word.
+	Area string `json:"area,omitempty"`
+	// Discloses says what the verb's answer may hold. The zero value is
+	// Sensitive: a verb no one marked is kept from the read-only roles, so a
+	// new verb fails closed.
+	Discloses Disclosure `json:"discloses"`
+}
+
+// Disclosure is what a verb's answer may hold.
+type Disclosure uint8
+
+const (
+	// Sensitive is secrets, the host's files, logs, people's data: the
+	// default, for the admin and the operator only.
+	Sensitive Disclosure = iota
+	// Plain is state any role may read: lists, counts, states.
+	Plain
+)
+
+// AreaOf is the contract's area: its own, or its verb's first word.
+func (c Contract) AreaOf() string {
+	if c.Area != "" {
+		return c.Area
+	}
+	for i := 0; i < len(c.Verb); i++ {
+		if c.Verb[i] == '.' {
+			return c.Verb[:i]
+		}
+	}
+	return c.Verb
 }
 
 // Verb is a Contract and its handler. A verb takes zero or one param, an object.
@@ -133,4 +165,19 @@ func Public(err error, errs []PublicError) (PublicError, bool) {
 		}
 	}
 	return PublicError{}, false
+}
+
+type principalKey struct{}
+
+// WithPrincipal is ctx carrying the logged-in principal a verb runs for
+// ("user:7", "token:3"): the control socket sets it, so a verb on one's own
+// account knows whose.
+func WithPrincipal(ctx context.Context, principal string) context.Context {
+	return context.WithValue(ctx, principalKey{}, principal)
+}
+
+// Principal is the principal ctx carries, "" for none.
+func Principal(ctx context.Context) string {
+	p, _ := ctx.Value(principalKey{}).(string)
+	return p
 }

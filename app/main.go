@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/yongjohnlee80/autopanel/core/gate"
+	"github.com/yongjohnlee80/autopanel/core/mail"
 	"github.com/yongjohnlee80/autopanel/core/services"
 	hostcontrol "github.com/yongjohnlee80/autopanel/host/control"
 	hostgate "github.com/yongjohnlee80/autopanel/host/gate"
@@ -33,7 +34,10 @@ const usage = `usage:
   autopanel --core                  run the core: the store, certificates and the control socket
                                     (configured from AUTOPANEL_* environment variables). It starts the gate
   autopanel --gate                  run the gate: the two listeners, configured by the core
-  autopanel --call <verb> [json]    call one verb on the running core and print its JSON answer
+  autopanel --call <verb> [json]    call one verb on the running core and print its JSON answer; asks the user,
+                                    the passphrase and the two-factor code on the terminal
+  autopanel --call --token-file <file> <verb> [json]
+                                    the same, logged in with the API token the file holds (0600, the caller's own)
   autopanel --ui                    open the admin TUI on the running core
   autopanel --contracts             print every verb's contract (no daemon needed)
   autopanel --version
@@ -87,11 +91,15 @@ func Main(args []string, stdout, stderr io.Writer) int {
 		}
 		return 0
 	case "--call":
+		tokenFile := ""
+		if len(args) >= 3 && args[1] == "--token-file" {
+			tokenFile, args = args[2], append([]string{args[0]}, args[3:]...)
+		}
 		if len(args) < 2 || len(args) > 3 {
 			fmt.Fprint(stderr, usage)
 			return 2
 		}
-		return call(args[1], args[2:], stdout, stderr)
+		return call(args[1], args[2:], tokenFile, stdout, stderr)
 	case "--ui":
 		return runUI(stderr)
 	default:
@@ -103,7 +111,7 @@ func Main(args []string, stdout, stderr io.Writer) int {
 // contractModules are the modules whose verbs --contracts lists. Built with no
 // store: a contract is data, and listing one runs nothing.
 func contractModules() []module.Module {
-	return []module.Module{&auth.Module{}, gate.NewModule(nil, nil, nil), &certsModule{}, &sysModule{}, services.NewModule(nil, nil), &linkModule{}}
+	return []module.Module{&auth.Module{}, gate.NewModule(nil, nil, nil), &certsModule{}, &sysModule{}, services.NewModule(nil, nil), &mail.Module{}, &linkModule{}}
 }
 
 func printContracts(stdout io.Writer) int {
@@ -154,7 +162,7 @@ func LinkDialer(path string) hostgate.Dialer {
 	}
 }
 
-func call(verb string, rest []string, stdout, stderr io.Writer) int {
+func call(verb string, rest []string, tokenFile string, stdout, stderr io.Writer) int {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute) // the login prompt is inside it
 	defer cancel()
 	var param any
@@ -170,7 +178,12 @@ func call(verb string, rest []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 	defer c.Close()
-	if _, err := login(ctx, c); err != nil {
+	if tokenFile != "" {
+		if _, err := tokenLogin(ctx, c, tokenFile); err != nil {
+			fmt.Fprintln(stderr, "token login:", err)
+			return 1
+		}
+	} else if _, err := login(ctx, c); err != nil {
 		fmt.Fprintln(stderr, "login:", err)
 		return 1
 	}

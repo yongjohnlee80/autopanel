@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/yongjohnlee80/autopanel/internal/auth"
 	"github.com/yongjohnlee80/autopanel/internal/keyslot"
 	"github.com/yongjohnlee80/autopanel/store"
 )
@@ -34,6 +35,9 @@ func Init(ctx context.Context, cfg Config, user string, in io.Reader) error {
 	}
 	if user == "" {
 		user = "root"
+	}
+	if auth.Weak(user, pass) {
+		return errors.New("the master passphrase is too easy to guess: it holds the user's name, or is one of the most common passwords")
 	}
 	if err := os.MkdirAll(cfg.StateDir, 0o700); err != nil {
 		return err

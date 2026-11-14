@@ -311,9 +311,9 @@ func (m *Module) Verbs() []module.Verb {
 		return module.Contract{Verb: verb, Since: 4, Param: param, Result: viewShape, Mutates: true, Privileged: true, Right: deploy, Doc: doc}
 	}
 	return []module.Verb{
-		module.Handle(module.Contract{Verb: "services.available", Since: 4, Result: "[{name}]",
+		module.Handle(module.Contract{Verb: "services.available", Discloses: module.Plain, Since: 4, Result: "[{name}]",
 			Doc: "The folders under the stacks' directory that hold a compose.yaml and that no stack is registered for."}, m.available),
-		module.Handle(module.Contract{Verb: "services.check", Since: 4, Param: "{name}",
+		module.Handle(module.Contract{Verb: "services.check", Discloses: module.Plain, Since: 4, Param: "{name}",
 			Result: "{sha256, files: [{path, mode, size, sha256}], containers: [{service, image, user, network, ports, mounts, memory, read_only, restart, depends_on, cap_add, cap_drop}], findings: [{id, severity, service, detail}], removes}",
 			Doc:    "Reviews a stack's definition and changes nothing: every file that defines it, by hash; each container it would run; and what the policy refuses or warns of. Its sha256 is what an apply must be given."}, m.check),
 		module.Handle(change("services.prepare", "{name, accept}",
@@ -334,7 +334,7 @@ func (m *Module) Verbs() []module.Verb {
 		module.Handle(module.Contract{Verb: "services.reimport", Since: 5, Param: "{name}", Result: "{name, from, sha256, files: [{path, mode, size, sha256}]}",
 			Mutates: true, Privileged: true, Right: deploy,
 			Doc: "Copies a stack's definition from its source again. What runs does not change until services.apply, which reviews it first."}, m.reimport),
-		module.Handle(module.Contract{Verb: "services.list", Since: 3, Result: "[" + viewShape + "]",
+		module.Handle(module.Contract{Verb: "services.list", Discloses: module.Plain, Since: 3, Result: "[" + viewShape + "]",
 			Doc: "Every stack: what was applied, and what the host says of each container now."}, m.list),
 		module.Handle(change("services.start", "{name, service?}",
 			"Starts a stack's containers, or one of them. Refused for a service whose requirement is stopped."), m.start),

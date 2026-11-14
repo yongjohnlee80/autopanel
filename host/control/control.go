@@ -15,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 
 	"github.com/yongjohnlee80/golib/msgpack"
 	"github.com/yongjohnlee80/golib/server/rpc"
@@ -55,6 +56,18 @@ type Access struct {
 	// Audit records each privileged verb: its attempt before it runs, and its
 	// outcome after. A socket that offers a privileged verb must have one.
 	Audit Auditor
+	// Authorizer decides, on every call of a logged-in connection, whether its
+	// principal may call the verb (docs/decisions/auth.md). A socket with a
+	// verb that is neither Open nor reached by the gate alone must have one.
+	Authorizer Authorizer
+}
+
+// Authorizer re-reads a session's principal on every call (a demotion, a
+// disable, a revocation takes effect at the next one) and answers its name for
+// the audit log, or why it may not call c: an error the socket's modules
+// declare (forbidden, must change, expired).
+type Authorizer interface {
+	Authorize(ctx context.Context, principal string, since time.Time, c module.Contract) (actor string, err error)
 }
 
 // Auditor is where a privileged verb's record goes. AuditAttempt writes the
@@ -105,8 +118,8 @@ func Listen(path string, log *slog.Logger, acc Access, mods ...module.Module) (*
 	}
 	srv := rpc.New(msgpackrpc.New(msgpack.DefaultLimits()), opts...)
 	seen := map[string]bool{}
+	errs := allErrs(mods)
 	for _, m := range mods {
-		errs := m.Errors()
 		for _, v := range m.Verbs() {
 			if seen[v.Verb] {
 				_ = ln.Close()
@@ -117,14 +130,34 @@ func Listen(path string, log *slog.Logger, acc Access, mods ...module.Module) (*
 				_ = ln.Close()
 				return nil, fmt.Errorf("control: %s is privileged, and the socket has no audit log", v.Verb)
 			}
-			srv.Handle(v.Verb, handler(v, errs, log, acc.Audit))
+			if (v.Mutates || v.Privileged) && !v.Open && acc.Authorizer == nil {
+				_ = ln.Close()
+				return nil, fmt.Errorf("control: %s changes state, and the socket has no authorizer", v.Verb)
+			}
+			srv.Handle(v.Verb, handler(v, errs, log, acc))
 		}
 	}
 	return &Server{rpc: srv, path: path}, nil
 }
 
-// sessionUser is the session value a successful login sets.
-const sessionUser = "autopanel.user"
+// The session values a successful login sets: the principal ("user:7",
+// "token:3"), its name for the audit log, and when it logged in. A login on a
+// connection already logged in replaces all three (M4).
+const (
+	sessionUser  = "autopanel.user"
+	sessionActor = "autopanel.actor"
+	sessionSince = "autopanel.since"
+)
+
+// allErrs are every module's declared errors: a verb may answer an error its
+// authorizer declares (forbidden, must change).
+func allErrs(mods []module.Module) []module.PublicError {
+	var out []module.PublicError
+	for _, m := range mods {
+		out = append(out, m.Errors()...)
+	}
+	return out
+}
 
 // handler adapts a verb to the wire. Every verb but an open one needs a
 // logged-in connection; the caller is named for the audit log, by the user the
@@ -135,16 +168,36 @@ const sessionUser = "autopanel.user"
 // A privileged verb leaves its record first: the entry is written before the
 // verb runs, a verb whose entry can't be written is refused with nothing done,
 // and the outcome is set on the entry afterwards, on failure too.
-func handler(v module.Verb, errs []module.PublicError, log *slog.Logger, aud Auditor) rpc.Handler {
+func handler(v module.Verb, errs []module.PublicError, log *slog.Logger, acc Access) rpc.Handler {
+	aud := acc.Audit
 	return func(ctx context.Context, req *rpc.Request) (any, error) {
 		local, _ := req.Session.Attachment().(string)
 		actor := local
-		user, _ := req.Session.Value(sessionUser).(string)
+		principal, _ := req.Session.Value(sessionUser).(string)
 		switch {
-		case user != "":
-			actor = user + " (" + local + ")"
+		case principal != "":
+			name, _ := req.Session.Value(sessionActor).(string)
+			actor = name + " (" + local + ")"
 		case !v.Open:
 			return nil, &rpc.Error{Code: rpc.CodeAccessDenied, Message: "log in first (auth.login)"}
+		}
+		if principal != "" && !v.Open && acc.Authorizer != nil {
+			since, _ := req.Session.Value(sessionSince).(time.Time)
+			name, err := acc.Authorizer.Authorize(ctx, principal, since, v.Contract)
+			if name != "" {
+				actor = name + " (" + local + ")"
+			}
+			if err != nil {
+				if aud != nil { // a refusal is on record too
+					if id, aerr := aud.AuditAttempt(ctx, actor, v.Verb, subject(req.Params)); aerr == nil {
+						_ = aud.AuditResult(context.WithoutCancel(ctx), id, outcome(err, errs))
+					}
+				}
+				if pe, ok := module.Public(err, errs); ok {
+					return nil, &rpc.Error{Code: pe.Code, Message: pe.Message}
+				}
+				return nil, &rpc.Error{Code: rpc.CodeAccessDenied, Message: "log in again (auth.login)"}
+			}
 		}
 		var attempt int64
 		if v.Privileged {
@@ -155,7 +208,7 @@ func handler(v module.Verb, errs []module.PublicError, log *slog.Logger, aud Aud
 			}
 			attempt = id
 		}
-		res, err := v.Call(audit.WithActor(ctx, actor), req.Params)
+		res, err := v.Call(module.WithPrincipal(audit.WithActor(ctx, actor), principal), req.Params)
 		if v.Privileged {
 			// The caller may be gone by now: the outcome is recorded regardless.
 			if aerr := aud.AuditResult(context.WithoutCancel(ctx), attempt, outcome(err, errs)); aerr != nil {
@@ -165,8 +218,15 @@ func handler(v module.Verb, errs []module.PublicError, log *slog.Logger, aud Aud
 		if err == nil {
 			if v.Login {
 				if m, ok := res.(map[string]any); ok {
-					if u, ok := m["user"].(string); ok && u != "" {
-						req.Session.SetValue(sessionUser, u)
+					p, _ := m["principal"].(string)
+					u, _ := m["user"].(string)
+					if p == "" && u != "" { // a module of the first kind: the user is its principal
+						p = u
+					}
+					if p != "" {
+						req.Session.SetValue(sessionUser, p)
+						req.Session.SetValue(sessionActor, u)
+						req.Session.SetValue(sessionSince, time.Now())
 					}
 				}
 			}
