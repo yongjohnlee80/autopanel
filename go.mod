@@ -1,13 +1,14 @@
 module github.com/yongjohnlee80/autopanel
 
-go 1.26.10
+go 1.26.11
 
 toolchain go1.27.4
 
 require (
 	github.com/caddyserver/certmagic v0.25.6
 	github.com/libdns/cloudflare v0.2.2
-	github.com/yongjohnlee80/golib v0.8.46
+	github.com/yongjohnlee80/golib v0.8.58
+	go.yaml.in/yaml/v3 v3.0.4
 	golang.org/x/crypto v0.57.0
 	golang.org/x/sys v0.49.0
 	golang.org/x/term v0.46.0
@@ -28,11 +29,11 @@ require (
 	github.com/miekg/dns v1.1.73 // indirect
 	github.com/ncruces/go-strftime v1.1.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
+	github.com/rogpeppe/go-internal v1.16.0 // indirect
 	github.com/zeebo/blake3 v0.2.4 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.28.0 // indirect
 	go.uber.org/zap/exp v0.3.0 // indirect
-	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/net v0.60.0 // indirect
 	golang.org/x/sync v0.24.0 // indirect
 	golang.org/x/text v0.42.0 // indirect
