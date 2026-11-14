@@ -7,6 +7,7 @@ import (
 
 	"github.com/yongjohnlee80/golib/tui/decl/decltest"
 
+	"github.com/yongjohnlee80/autopanel/core/gate"
 	"github.com/yongjohnlee80/autopanel/core/mail"
 	"github.com/yongjohnlee80/autopanel/core/services"
 )
@@ -120,7 +121,10 @@ func withMail() *fakeClient {
 	f.mail.records = map[string]mail.RecordsAnswer{"example.com": {At: 1, Records: []mail.RecordView{
 		{Record: mail.Record{Name: "example.com", Type: "MX", Value: "10 mail.example.com"}, State: "different", Found: "10 mx.other.example", Why: "receives mail"},
 		{Record: mail.Record{Name: "_dmarc.example.com", Type: "TXT", Value: "v=DMARC1; p=quarantine"}, State: "ok", Why: "says what to do with mail that fails (DMARC)"},
-	}, DKIM: []mail.DKIMRow{{Selector: "ap202611e", Step: "published", Since: 1}}}}
+	}, DKIM: []mail.DKIMRow{{Selector: "ap202611e", Step: "published", Since: 1}}},
+		"mail.example.com": {At: 1, Records: []mail.RecordView{
+			{Record: mail.Record{Name: "mail.example.com", Type: "A", Value: "192.0.2.10"}, State: "manual", Why: "the mail host's address"},
+		}}}
 	f.mail.accounts = []mail.AccountView{{Address: "ana@example.com", Quota: 5 << 30, Used: 3 << 20, Aliases: []string{}}}
 	return f
 }
@@ -182,6 +186,13 @@ func TestTheMailDomainsPanel(t *testing.T) {
 	})
 	run(t, h, func() error { return h.mailTakeover(1) }) // an ok record: nothing to take over
 	s.WaitForText(t, "nothing to take over")
+
+	// The mail host's own records are the last row; it is no domain to remove.
+	s.WaitForText(t, "mail.example.com (mail")
+	run(t, h, func() error { return h.mailDomainMoved(1) })
+	s.WaitForText(t, "192.0.2.10")
+	run(t, h, func() error { return h.mailRemoveDomain(1) })
+	s.WaitForText(t, "nothing to remove")
 }
 
 // TestAMailPasswordIsNeverShown: Accounts › Add asks the address, then the
@@ -222,4 +233,45 @@ func TestAMailPasswordIsNeverShown(t *testing.T) {
 	if strings.Contains(s.String(), pw) {
 		t.Fatal("the password is on the screen after it was taken")
 	}
+}
+
+func TestRelHostAndZone(t *testing.T) {
+	for _, c := range []struct{ name, zone, want string }{
+		{"example.com", "example.com", "@"},
+		{"_dmarc.example.com", "example.com", "_dmarc"},
+		{"ap202611e._domainkey.example.com", "example.com", "ap202611e._domainkey"},
+		{"mail.example.com", "example.com", "mail"},
+	} {
+		if got := relHost(c.name, c.zone); got != c.want {
+			t.Errorf("relHost(%s, %s) = %q, want %q", c.name, c.zone, got, c.want)
+		}
+	}
+	if z := zoneOf("mail.lists.example.com", []string{"example.com"}, []gate.DomainView{{Name: "lists.example.com"}}); z != "lists.example.com" {
+		t.Errorf("the longest domain a name is under: %s", z)
+	}
+	if z := zoneOf("mail.example.org", nil, nil); z != "example.org" {
+		t.Errorf("under no known domain, the parent: %s", z)
+	}
+}
+
+// TestTheDNSRecordsDialog: every record of every mail domain and of the mail
+// host, each host as a DNS provider's form takes it, an MX split into its
+// fields; with records to enter by hand, the intro says how.
+func TestTheDNSRecordsDialog(t *testing.T) {
+	f := withMail()
+	h, s := startHost(t, f)
+	s.WaitForText(t, "CA LE staging")
+	run(t, h, h.openMailDomains)
+	s.WaitForText(t, "example.com")
+	run(t, h, h.openDNSRecords)
+	for _, part := range []string{"Records to enter at your DNS provider", "Custom MX", "_dmarc", "192.0.2.10"} {
+		s.WaitForText(t, part)
+	}
+	waitFact(t, s, "Host", "@") // the first: the MX, at the zone itself
+	waitFact(t, s, "Priority", "10")
+	waitFact(t, s, "Target", "mail.example.com")
+	run(t, h, func() error { return h.dnsMoved(2) }) // the mail host's A
+	waitFact(t, s, "Host", "mail")
+	run(t, h, func() error { return h.dnsCopy(2) })
+	s.WaitForText(t, "clipboard")
 }

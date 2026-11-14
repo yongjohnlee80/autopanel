@@ -72,6 +72,9 @@ func (h *host) commands() map[string]decl.HandlerFunc {
 		"App.mailAccountPassword": oneRow("App.mailAccountPassword", h.mailAccountPassword),
 		"App.mailRemoveAccount":   oneRow("App.mailRemoveAccount", h.mailRemoveAccount),
 		"App.secretEntered":       oneString("App.secretEntered", h.secretEntered),
+		"App.openDnsRecords":      none(h.openDNSRecords),
+		"App.dnsMoved":            oneRow("App.dnsMoved", h.dnsMoved),
+		"App.dnsCopy":             oneRow("App.dnsCopy", h.dnsCopy),
 
 		// the dialogs' answers
 		"App.confirmed":      none(h.confirm),
