@@ -1,0 +1,5 @@
+-- 000005, undone.
+DROP TABLE IF EXISTS mail_dkim;
+DROP TABLE IF EXISTS mail_record;
+DROP TABLE IF EXISTS mail_domain;
+DROP TABLE IF EXISTS mail;

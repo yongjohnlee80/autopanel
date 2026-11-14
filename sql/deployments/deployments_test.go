@@ -180,6 +180,40 @@ func applyAndCheck(t *testing.T, db dao.DataConn) {
 	if err := exec("INSERT INTO stack_source(name, path, imported_at, sha256) VALUES ('blog', '/x', 0, 'bb')"); err == nil {
 		t.Error("the store accepted a second source of one stack")
 	}
+	// 000005: one mail server; its host and its domains are lower case; a
+	// record and a DKIM key are kept once per name.
+	if err := exec("INSERT INTO mail(id, host, created_at) VALUES (1, 'mail.example.org', 0)"); err != nil {
+		t.Fatal(err)
+	}
+	for what, q := range map[string]string{ // checked here: the tables are emptied by the revert below
+		"a second mail server":               "INSERT INTO mail(id, host, created_at) VALUES (2, 'mx.example.org', 0)",
+		"a mail host that is not lower case": "UPDATE mail SET host = 'Mail.example.org'",
+	} {
+		if err := exec(q); err == nil {
+			t.Errorf("the store accepted %s", what)
+		}
+	}
+	if err := exec("INSERT INTO mail_domain(name, created_at) VALUES ('example.org', 0)"); err != nil {
+		t.Fatal(err)
+	}
+	if err := exec("INSERT INTO mail_domain(name, created_at) VALUES ('example.org', 0)"); err == nil {
+		t.Error("the store accepted a mail domain twice")
+	}
+	if err := exec("INSERT INTO mail_record(domain, name, type, value, remote_id, updated_at) VALUES ('example.org', 'example.org', 'MX', '10 mail.example.org.', 'r1', 0)"); err != nil {
+		t.Fatal(err)
+	}
+	if err := exec("INSERT INTO mail_record(domain, name, type, value, remote_id, updated_at) VALUES ('example.org', 'example.org', 'MX', 'x', 'r2', 0)"); err == nil {
+		t.Error("the store accepted a record twice")
+	}
+	if err := exec("INSERT INTO mail_dkim(domain, selector, step, since) VALUES ('example.org', 'ap202611e', 'created', 0)"); err != nil {
+		t.Fatal(err)
+	}
+	if name, err := deployments.Runner().Revert(ctx, db, 5); err != nil {
+		t.Fatalf("reverting 000005 = %q, %v", name, err)
+	}
+	if err := exec("SELECT host FROM mail"); err == nil {
+		t.Fatal("the mail table outlived its revert")
+	}
 	// Undone in order: 000004, then 000003, then 000002; a row an older
 	// AutoPanel wrote is whole after each.
 	if name, err := deployments.Runner().Revert(ctx, db, 4); err != nil {

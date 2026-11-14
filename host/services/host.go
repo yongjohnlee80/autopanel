@@ -80,6 +80,10 @@ func parseVersion(out string) (major, minor int, ok bool) {
 
 func (h *Host) home(name string) string { return filepath.Join(h.root, name) }
 
+// StackDir is where a stack's definition and data live inside its home, under
+// the stacks' root: its compose file's folder, as the containers see it.
+func StackDir(root, name string) string { return filepath.Join(root, name, "stack") }
+
 // staging is where a stack's definition is copied for a review and an apply:
 // root's alone, outside the stack user's home, so that user cannot change a
 // file after its hash was taken.

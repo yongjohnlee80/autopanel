@@ -33,7 +33,17 @@ var (
 	ErrDomainInUse = errors.New("gate: a route would be left under no domain")
 	// ErrNoSuchDomain is a domain the store doesn't hold.
 	ErrNoSuchDomain = errors.New("gate: no such domain")
+	// ErrDomainHasMail is a domain whose removal would strand its mail.
+	ErrDomainHasMail = errors.New("gate: the domain receives mail")
 )
+
+// DomainUsers is another module that holds a registry domain by its exact
+// name: mail, for a domain that receives mail. The gate asks it before it
+// removes a domain, and imports nothing of it.
+type DomainUsers interface {
+	// Uses reports whether name is in use, and how.
+	Uses(ctx context.Context, name string) (how string, used bool)
+}
 
 // Under reports whether host is domain or a name under it.
 func Under(host, domain string) bool {
@@ -126,6 +136,11 @@ func (m *Module) domainRemove(ctx context.Context, ref DomainRef) (struct{}, err
 	if !found {
 		return struct{}{}, ErrNoSuchDomain
 	}
+	if m.users != nil {
+		if how, used := m.users.Uses(ctx, name); used {
+			return struct{}{}, &usedBy{how: how}
+		}
+	}
 	rs, err := m.routes.All(ctx)
 	if err != nil {
 		return struct{}{}, err
@@ -150,3 +165,14 @@ func (m *Module) underADomain(ctx context.Context, host string) error {
 	}
 	return nil
 }
+
+// SetDomainUsers names the module that holds registry domains of its own. It
+// is set once, before the verbs are served.
+func (m *Module) SetDomainUsers(u DomainUsers) { m.users = u }
+
+// usedBy is ErrDomainHasMail, saying how.
+type usedBy struct{ how string }
+
+func (e *usedBy) Error() string        { return ErrDomainHasMail.Error() + ": " + e.how }
+func (e *usedBy) Unwrap() error        { return ErrDomainHasMail }
+func (e *usedBy) PublicDetail() string { return e.how }

@@ -66,3 +66,75 @@ publishes another loopback port between them is not caught by it.
 
 **In the code:** `host/mail/loopback.go` (`Rules`, `Unit`, `DropIn`, `Install`, `Check`,
 `Ensure`, `Remove`), `internal/hostcmd` (`Nft`).
+
+## The mail stack is AutoPanel's
+
+**Decided:** the stack named `mail` is written by AutoPanel (`mail.setup`), from a definition
+compiled into it: Stalwart pinned by digest, as user 2000 under keep-id, a read-only root, its
+`etc`, `data` and `log` folders as data, every port on loopback only, a 250 MB memory limit, and one
+capability. It is then reviewed and applied as any stack. No other stack may be named `mail` or
+publish its loopback ports, and an import of that name is refused (`services.reserved`). A mail
+definition edited by hand is reviewed with a warning, since Mail may no longer manage it.
+
+**Why AutoPanel writes it:** Mail's panels depend on the stack's shape: its ports, its management
+port, its folders. A definition the administrator wrote could move any of them.
+
+**The one capability:** Stalwart's binary carries `NET_BIND_SERVICE` as a file capability, and
+with every capability dropped the kernel refuses to run it. It is kept; in a rootless container it
+reaches only the container's own namespaces, and Stalwart binds no port below 1024 (it listens on
+2525, 4465, 5587 and 9993 inside its container).
+
+**How the services module knows:** the mail module is its `Guard`: it names the stack it owns,
+adds its findings to that stack's review, reserves its ports, and masks what its logs must not show.
+`core/services` imports nothing of mail's.
+
+**In the code:** `core/mail/stack.go` (`Compose`, `Ports`), `core/mail/module.go` (`Owns`,
+`Review`, `Reserved`, `Mask`), `core/services/module.go` (`Guard`).
+
+## Setting Stalwart up
+
+**Decided:** once the mail stack runs, the core sets Stalwart up through its API, with no secret in
+a file:
+
+1. It reads the one-time password Stalwart printed at its first start from the stack user's
+   journal, and sets Stalwart up with it (the `Bootstrap` object: the host name, the first domain,
+   no certificate of Stalwart's own, no DKIM key yet).
+2. Stalwart answers with its permanent administrator, which the core seals at once. A restart ends
+   the one-time password.
+3. As the administrator, the core moves the listeners to their ports, has the four forwarded ones
+   trust PROXY headers from the mail stack's network, drops the listeners mail does not use (POP3,
+   ManageSieve, Stalwart's own HTTPS), and makes an API key for itself, sealed. A restart applies
+   the listeners.
+4. Only then is mail marked set up, and the gate starts forwarding.
+
+Each step checks what the one before left, so a bootstrap interrupted anywhere carries on from
+there.
+
+**The trusted source is read from Podman:** with netavark, rootless forwarding delivers every
+connection to Stalwart from inside the stack's own network (from its container's address). The
+network holds the mail container alone, so its subnet, as Podman reports it, is what Stalwart
+trusts. It is never written into the code: another network backend (pasta) forwards from elsewhere.
+
+**Sealed under the master key:** mail's settings, Stalwart's administrator and the core's API key,
+in the store's secret table, as the Cloudflare token is. With the vault locked, set-up and the
+verbs that need Stalwart wait for root's login.
+
+**The one-time password in the logs:** it is in the stack's journal while it is valid (root, the
+stack's user and the journal's groups can read that). `services.logs` shows it as `[hidden]`, and
+only the core can reach the management port it works on.
+
+**Stalwart's administrator is not a mailbox:** it is how AutoPanel manages Stalwart. Mail's account
+verbs leave it out, and refuse to change or remove it (`mail.admin_account`).
+
+**In the code:** `core/mail/module.go` (`Run`, `bootstrap`), `core/mail/jmap.go`,
+`host/mail/host.go` (`FirstPassword`, `Forwarder`), `store/mail.go`,
+`sql/deployments/*/000005_update_mail.sql`.
+
+## Mail domains are registry domains
+
+**Decided:** a domain receives mail only if the registry holds it by its exact name. Removing a
+registry domain that receives mail is refused (`gate.domain_has_mail`): the gate asks the mail
+module through `DomainUsers`, and imports nothing of it. A mail domain with accounts is not removed.
+
+**In the code:** `core/gate/domain.go` (`DomainUsers`), `core/mail/module.go` (`Uses`,
+`domainRemove`).

@@ -31,6 +31,7 @@ type Module struct {
 	routes  Routes
 	domains Domains
 	reload  func(ctx context.Context) error
+	users   DomainUsers // nil: no other module holds a domain
 	// mu orders write-then-reload pairs: without it, an older reload could swap
 	// its snapshot in after a newer one.
 	mu sync.Mutex
@@ -98,6 +99,7 @@ func (m *Module) Errors() []module.PublicError {
 		{Err: ErrNoDomain, Code: -32155, Name: "gate.no_domain", Message: "the host is under no registered domain; add the domain first"},
 		{Err: ErrDomainExists, Code: -32156, Name: "gate.domain_exists", Message: "the domain is registered already"},
 		{Err: ErrDomainInUse, Code: -32157, Name: "gate.domain_in_use", Message: "a route would be left under no domain; remove or move it first"},
+		{Err: ErrDomainHasMail, Code: -32159, Name: "gate.domain_has_mail", Message: "the domain receives mail; stop that under Mail → Domains first"},
 		{Err: ErrNoSuchDomain, Code: -32158, Name: "gate.no_such_domain", Message: "no such domain"},
 	}
 }

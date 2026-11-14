@@ -98,6 +98,14 @@ func (m *Module) review(ctx context.Context, name string, svc Service) (reviewed
 	if facts.Listening, err = m.host.Listening(ctx, name); err != nil {
 		return reviewed{}, err
 	}
+	if m.guard != nil {
+		for _, c := range m.guard.Reserved() {
+			if c.Stack != name {
+				facts.Taken = append(facts.Taken, c)
+			}
+		}
+		findings = append(findings, m.guard.Review(ctx, name, compose)...)
+	}
 	findings = append(findings, check(st, facts)...)
 	sort.SliceStable(findings, func(i, j int) bool { return findings[i].Severity < findings[j].Severity })
 	return reviewed{stack: st, manifest: NewManifest(files), findings: findings}, nil

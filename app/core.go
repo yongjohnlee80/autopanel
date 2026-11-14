@@ -16,9 +16,11 @@ import (
 	"time"
 
 	"github.com/yongjohnlee80/autopanel/core/gate"
+	"github.com/yongjohnlee80/autopanel/core/mail"
 	"github.com/yongjohnlee80/autopanel/core/services"
 	hostcontrol "github.com/yongjohnlee80/autopanel/host/control"
 	hostgate "github.com/yongjohnlee80/autopanel/host/gate"
+	hostmail "github.com/yongjohnlee80/autopanel/host/mail"
 	hostservices "github.com/yongjohnlee80/autopanel/host/services"
 	"github.com/yongjohnlee80/autopanel/internal/auth"
 	"github.com/yongjohnlee80/autopanel/internal/hostcmd"
@@ -257,6 +259,10 @@ func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateContr
 	counts := &counters{}
 	gm := gate.NewModule(st.Routes(), st.Domains(), reload)
 	svcs := services.NewModule(st.Services(), serviceHost(cfg))
+	mailMod := mail.NewModule(st.Mail(), mailVault{st: st, vault: vault}, st.Domains(), svcs,
+		hostmail.New(cfg.Stacks, cfg.Services, cfg.GateUser), switchStreams(streams), log)
+	svcs.SetGuard(mailMod) // the stack named mail is AutoPanel's, and so are its loopback ports
+	gm.SetDomainUsers(mailMod)
 	sys := &sysModule{cfg: cfg, sampler: sysinfo.NewSampler(), table: table, engine: st.Engine(), started: time.Now(), challenge: sw.Challenge, ca: sw.CA,
 		st: st, log: log, counts: counts, listeners: readListeners, sshLogins: readSSHLogins, gate: gc, serviceUsers: svcs.Users}
 	am, err := auth.New(st, st, vault, func(ctx context.Context) {
@@ -269,7 +275,7 @@ func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateContr
 	}
 	// The control socket: this user's processes only, so root's under the unit.
 	// A privileged verb's entry goes to the store's audit log before it runs.
-	ctl, err := hostcontrol.Listen(cfg.Socket, log, hostcontrol.Access{Audit: st}, am, gm, &certsModule{sw: sw}, sys, servicesModule{svcs})
+	ctl, err := hostcontrol.Listen(cfg.Socket, log, hostcontrol.Access{Audit: st}, am, gm, &certsModule{sw: sw}, sys, servicesModule{svcs}, mailMod)
 	if err != nil {
 		return err
 	}
@@ -300,7 +306,7 @@ func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateContr
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	var wg sync.WaitGroup
-	errs := make(chan error, 4)
+	errs := make(chan error, 5)
 	run := func(name string, fn func(context.Context) error) {
 		wg.Add(1)
 		go func() {
@@ -314,6 +320,9 @@ func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateContr
 	run("control", ctl.Run)
 	run("link", lnk.Run)
 	run("lease", func(ctx context.Context) error { return renewLease(ctx, st, holder) })
+	if os.Getuid() == 0 { // mail runs a stack and loads a kernel rule: root's work
+		run("mail", mailMod.Run)
+	}
 	log.Info("autopanel core serving", "socket", cfg.Socket, "link", cfg.LinkSocket,
 		"store", st.Engine(), "ca", sw.CA(), "challenge", sw.Challenge(), "routes", len(table.Routes()))
 	if gc != nil {
