@@ -79,6 +79,32 @@ memory limit and loopback ports; the examples are written that way.
 **In the code:** `core/services/check.go` (`check`, `defaultCaps`); `TestThePolicyRefuses`,
 `TestThePolicyAccepts`.
 
+## A stack is imported from anywhere
+
+**Decided:** the panel's file browser reads the host, and choosing a folder that holds a
+`compose.yaml` **imports** it: its definition (`compose.yaml`, `.env`, every `env_file`, every file
+under a read-only mount) is copied into `/etc/autopanel/stacks/<name>/`, root's alone, and the stack
+records where it came from: the path, when, and the hash of what was copied. Its data folders are
+not copied. `services.reimport` copies it again from the same place.
+
+**Why a copy, not the path:** the core is root. A stack that pointed at a folder would let whoever
+can write that folder (for a folder in a home directory, an ordinary user) decide what root runs at
+the next apply, and a moved or deleted folder would break the stack. The copy is root's, the review's
+hash still binds it, and the stack runs on if its source goes away.
+
+**The source can change:** a stack's view says whether its source is the same as what was imported,
+changed, or missing. A reimport changes nothing that runs: the next apply shows the review first.
+
+**What the browser may read:** a listing of any folder (a link is listed, never followed), and the
+text of a file inside a stack's folder (one of its parents holds a `compose.yaml`), 64 KB at most.
+A preview hides every value of a `.env` file and the value of each line whose key names a secret
+(`secret`, `password`, `token`, `api_key` and the like), commented-out lines included. Only the
+import copies a file, and it refuses a source that is, or holds, a link out of it.
+
+**In the code:** `core/services/source.go` (`importFrom`, `Mask`, `sourceView`),
+`host/services/source.go` (`Browse`, `Preview`, `Import`); `TestAStackIsImportedFromAnywhere`,
+`TestAPreviewMasksSecrets`.
+
 ## A review comes first, and an apply names it
 
 **Decided:** `services.check` answers a review: every file that defines the stack, by its hash;
