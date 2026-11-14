@@ -8,4 +8,5 @@ the code disagree, the code is right and the page is fixed.
 | Page | What it covers |
 | --- | --- |
 | [Processes](processes.md) | the gate and the core, the link between them, host commands, who may open the control socket |
+| [Routes and domains](routes.md) | a route's host is under a registered domain; removing a domain never strands a route |
 | [Services](services.md) | stacks: the compose subset, the review and the apply, a stack's data, the user and the units each runs as, the audit entry that comes first |
