@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"net/netip"
 	"os"
 	"os/user"
@@ -216,4 +217,59 @@ func (h *Host) EnsureLoopback(ctx context.Context, stackUID int) (bool, error) {
 	}
 	_, reloaded, err := l.Ensure(ctx)
 	return reloaded, err
+}
+
+// PublicIPv4 is the host's one global IPv4 address, for the mail host's A
+// record: "" when it has none (behind NAT) or several (which one mail leaves
+// from is then not known), so the record is left to the administrator.
+func (h *Host) PublicIPv4(context.Context) (string, error) {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return "", err
+	}
+	var found []string
+	for _, a := range addrs {
+		ipn, ok := a.(*net.IPNet)
+		if !ok {
+			continue
+		}
+		ip, ok := netip.AddrFromSlice(ipn.IP)
+		if !ok {
+			continue
+		}
+		ip = ip.Unmap()
+		if ip.Is4() && ip.IsGlobalUnicast() && !ip.IsPrivate() && !ip.IsLoopback() && !cgnat.Contains(ip) {
+			found = append(found, ip.String())
+		}
+	}
+	if len(found) != 1 {
+		return "", nil
+	}
+	return found[0], nil
+}
+
+// cgnat is the shared address space (RFC 6598): never a public address.
+var cgnat = netip.MustParsePrefix("100.64.0.0/10")
+
+// publicResolvers answer what the world sees of a zone, not this host's cache.
+var publicResolvers = []string{"1.1.1.1:53", "8.8.8.8:53"}
+
+// ResolveTXT asks public resolvers for a name's TXT records: each in turn,
+// the first that answers.
+func (h *Host) ResolveTXT(ctx context.Context, name string) ([]string, error) {
+	var last error
+	for _, server := range publicResolvers {
+		r := &net.Resolver{PreferGo: true, Dial: func(ctx context.Context, network, _ string) (net.Conn, error) {
+			d := net.Dialer{Timeout: 5 * time.Second}
+			return d.DialContext(ctx, network, server)
+		}}
+		cctx, cancel := context.WithTimeout(ctx, 8*time.Second)
+		txt, err := r.LookupTXT(cctx, name)
+		cancel()
+		if err == nil {
+			return txt, nil
+		}
+		last = err
+	}
+	return nil, last
 }

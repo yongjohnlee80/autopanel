@@ -263,6 +263,9 @@ func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateContr
 		hostmail.New(cfg.Stacks, cfg.Services, cfg.GateUser), switchStreams(streams), log)
 	svcs.SetGuard(mailMod) // the stack named mail is AutoPanel's, and so are its loopback ports
 	gm.SetDomainUsers(mailMod)
+	mailMod.SetDNS(mailDNS{st: st, vault: vault})
+	mailMod.SetCerts(mailCerts{sw: sw})
+	sw.also = mailMod.IsHost // the mail host has a certificate, though no route names it
 	sys := &sysModule{cfg: cfg, sampler: sysinfo.NewSampler(), table: table, engine: st.Engine(), started: time.Now(), challenge: sw.Challenge, ca: sw.CA,
 		st: st, log: log, counts: counts, listeners: readListeners, sshLogins: readSSHLogins, gate: gc, serviceUsers: svcs.Users}
 	am, err := auth.New(st, st, vault, func(ctx context.Context) {

@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/yongjohnlee80/autopanel/core/gate"
@@ -32,6 +33,15 @@ type Store interface {
 	Domains(ctx context.Context) ([]string, error)
 	AddDomain(ctx context.Context, name string) error
 	RemoveDomain(ctx context.Context, name string) error
+
+	// The DNS records AutoPanel published, by owner (a domain, or the mail
+	// host), and each DKIM key's place in its rotation.
+	Owned(ctx context.Context, owner string) ([]Owned, error)
+	PutOwned(ctx context.Context, owner string, o Owned) error
+	DeleteOwned(ctx context.Context, owner, name, typ string) error
+	DKIM(ctx context.Context, domain string) ([]DKIMRow, error)
+	PutDKIM(ctx context.Context, domain string, r DKIMRow) error
+	DeleteDKIM(ctx context.Context, domain, selector string) error
 }
 
 // Vault keeps mail's keys and settings, sealed under the master key. Get
@@ -75,6 +85,11 @@ type Host interface {
 	// kernel lost it, reporting whether it had to.
 	InstallLoopback(ctx context.Context, stackUID int) error
 	EnsureLoopback(ctx context.Context, stackUID int) (reloaded bool, err error)
+	// PublicIPv4 is the host's one global IPv4 address, for the mail host's A
+	// record; "" when it has none or several.
+	PublicIPv4(ctx context.Context) (string, error)
+	// ResolveTXT asks public resolvers for a name's TXT records.
+	ResolveTXT(ctx context.Context, name string) ([]string, error)
 }
 
 // Sealed names: every key and setting of mail is in the vault.
@@ -113,6 +128,7 @@ var (
 	ErrWeakPassword      = errors.New("mail: the password is too short")
 	ErrStalwart          = errors.New("mail: Stalwart refused")
 	ErrAdminAccount      = errors.New("mail: that is Stalwart's administrator")
+	ErrNoRecord          = errors.New("mail: no record of that name and type is held by another")
 )
 
 // Streams switches the gate's forwarding of mail's ports on or off.
@@ -130,6 +146,10 @@ type Module struct {
 	log      *slog.Logger
 	now      func() time.Time
 	base     string // Stalwart's management API: ManageURL()
+	dns      DNS    // nil: records are shown, never published
+	certs    Certs  // nil: no certificate is handed over
+	sync     syncState
+	hostName atomic.Value // string: the mail host, for IsHost
 
 	mu       sync.Mutex
 	progress Progress
@@ -146,7 +166,24 @@ type Progress struct {
 
 // NewModule is the mail verbs and loop.
 func NewModule(store Store, vault Vault, registry Registry, stacks Stacks, host Host, streams Streams, log *slog.Logger) *Module {
-	return &Module{store: store, vault: vault, registry: registry, stacks: stacks, host: host, streams: streams, log: log, now: time.Now, base: ManageURL()}
+	return &Module{store: store, vault: vault, registry: registry, stacks: stacks, host: host, streams: streams, log: log, now: time.Now,
+		base: ManageURL(), sync: syncState{kick: make(chan struct{}, 1)}}
+}
+
+// SetDNS names the DNS provider records are published with. Set once, before
+// Run.
+func (m *Module) SetDNS(d DNS) { m.dns = d }
+
+// SetCerts names AutoPanel's certificate manager. Set once, before Run.
+func (m *Module) SetCerts(c Certs) { m.certs = c }
+
+func jsonUnmarshal(b []byte, v any) error { return json.Unmarshal(b, v) }
+
+// IsHost reports whether name is the mail host: the certificate manager admits
+// it, though no route names it.
+func (m *Module) IsHost(name string) bool {
+	h, _ := m.hostName.Load().(string)
+	return h != "" && h == name
 }
 
 func (m *Module) Name() string { return "mail" }
@@ -168,6 +205,8 @@ func (m *Module) Errors() []module.PublicError {
 		{Err: ErrAccountExists, Code: -32142, Name: "mail.account_exists", Message: "that account exists"},
 		{Err: ErrWeakPassword, Code: -32143, Name: "mail.weak_password", Message: "a password is 12 characters at least, 256 at most, with no control characters"},
 		{Err: ErrStalwart, Code: -32144, Name: "mail.refused", Message: "Stalwart refused the change"},
+		{Err: ErrNoRecord, Code: -32146, Name: "mail.no_record", Message: "no needed record of that name and type is held by one AutoPanel did not write"},
+		{Err: ErrNoDNS, Code: -32147, Name: "mail.no_dns", Message: "no DNS token: set one (certs.cloudflare.set) for AutoPanel to publish records"},
 		{Err: ErrAdminAccount, Code: -32145, Name: "mail.admin_account", Message: "that address is Stalwart's administrator, which AutoPanel manages Stalwart with; it is not a mailbox"},
 	}
 }
@@ -191,6 +230,11 @@ func (m *Module) Verbs() []module.Verb {
 		module.Handle(change("mail.account.password", "{address, password}", "Sets an account's password."), m.accountPassword),
 		module.Handle(change("mail.account.quota", "{address, quota}", "Sets an account's quota, in bytes."), m.accountQuota),
 		module.Handle(change("mail.account.remove", "{address}", "Deletes a mail account and its mail."), m.accountRemove),
+		module.Handle(module.Contract{Verb: "mail.records", Since: 6, Param: "{domain}", Result: "{at, records: [{name, type, value, found, state, why, error?}], dkim: [{selector, step, since}]}",
+			Doc: "The records a mail domain (or the mail host) needs, and each one's state as the last pass found it: ok, publishing, different (a record AutoPanel did not write holds its place), manual (no DNS token), failed."}, m.records),
+		module.Handle(change("mail.records.takeover", "{domain, name, type}",
+			"Replaces the records AutoPanel did not write that hold a needed record's place, after the panel showed them: an SPF record is merged, any other is deleted. The next pass publishes the record."), m.recordsTakeover),
+		module.Handle(change("mail.sync", "", "Starts the DNS, DKIM and certificate pass now, in the background, and answers the last one's result: mail.records and mail.status show the new one when it ends."), m.syncNow),
 	}
 }
 
@@ -257,6 +301,9 @@ type Status struct {
 	Bootstrapped int64    `json:"bootstrapped"`
 	Stack        string   `json:"stack"`
 	Domains      []string `json:"domains"`
+	Certificate  string   `json:"certificate"` // the mail host's, as Stalwart serves it
+	SyncedAt     int64    `json:"synced_at"`   // the last DNS and certificate pass
+	SyncErrors   []string `json:"sync_errors"`
 	Progress
 }
 
@@ -277,6 +324,11 @@ func (m *Module) status(ctx context.Context, _ struct{}) (Status, error) {
 	}
 	if out.Domains, err = m.store.Domains(ctx); err != nil {
 		return Status{}, err
+	}
+	last := m.lastSync()
+	out.Certificate, out.SyncedAt, out.SyncErrors = last.Certificate, last.At, last.Errors
+	if out.SyncErrors == nil {
+		out.SyncErrors = []string{}
 	}
 	return out, nil
 }
@@ -376,11 +428,14 @@ var loopbackEvery = time.Hour
 // a rule that failed to load at boot leaves the mail ports open to every
 // local process, so it is checked before anything else of mail's.
 func (m *Module) Run(ctx context.Context) error {
-	lastLoopback := time.Time{}
+	lastLoopback, lastSync, kicked := time.Time{}, time.Time{}, false
 	t := time.NewTicker(tick)
 	defer t.Stop()
 	for {
 		st, ok, err := m.store.State(ctx)
+		if ok {
+			m.hostName.Store(st.Host)
+		}
 		switch {
 		case err != nil:
 			m.log.Warn("mail: reading its state", "err", err)
@@ -397,12 +452,21 @@ func (m *Module) Run(ctx context.Context) error {
 			} else {
 				m.note("ready", m.progressError("ready"))
 				m.streams(true)
+				if time.Since(lastSync) >= syncEvery || kicked {
+					if _, err := m.vault.Get(ctx, sealedKey); err == nil { // the pass needs the vault open
+						m.syncAll(ctx, st)
+						lastSync = time.Now()
+					}
+				}
 			}
 		}
+		kicked = false
 		select {
 		case <-ctx.Done():
 			return nil
 		case <-t.C:
+		case <-m.sync.kick:
+			kicked = true
 		}
 	}
 }
@@ -663,6 +727,7 @@ func (m *Module) domainAdd(ctx context.Context, p Name) (DomainView, error) {
 	if err := m.store.AddDomain(ctx, name); err != nil {
 		return DomainView{}, err
 	}
+	m.kickSync()
 	return DomainView{Name: name}, nil
 }
 
@@ -700,7 +765,20 @@ func (m *Module) domainRemove(ctx context.Context, p Name) (struct{}, error) {
 			return struct{}{}, stalwartErr(err)
 		}
 	}
-	return struct{}{}, m.store.RemoveDomain(ctx, name)
+	if err := m.store.RemoveDomain(ctx, name); err != nil {
+		return struct{}{}, err
+	}
+	// Its records go with it: only the ones AutoPanel published.
+	if _, err := m.keep(ctx, name, nil); err != nil && !errors.Is(err, ErrNoDNS) {
+		m.log.Warn("mail: removing a domain's records", "domain", name, "err", err)
+	}
+	if rows, err := m.store.DKIM(ctx, name); err == nil {
+		for _, r := range rows {
+			_ = m.store.DeleteDKIM(ctx, name, r.Selector)
+		}
+	}
+	m.kickSync()
+	return struct{}{}, nil
 }
 
 // Uses reports whether a registry domain receives mail, for the gate's check
@@ -917,4 +995,87 @@ func (m *Module) accountRemove(ctx context.Context, p AccountAsk) (struct{}, err
 		return struct{}{}, err
 	}
 	return struct{}{}, stalwartErr(c.RemoveAccount(ctx, a.ID))
+}
+
+// --- records ------------------------------------------------------------------
+
+// RecordsAnswer is mail.records' answer.
+type RecordsAnswer struct {
+	At      int64        `json:"at"`
+	Records []RecordView `json:"records"`
+	DKIM    []DKIMRow    `json:"dkim"`
+}
+
+func (m *Module) records(ctx context.Context, p DomainAsk) (RecordsAnswer, error) {
+	st, ok, err := m.store.State(ctx)
+	if err != nil {
+		return RecordsAnswer{}, err
+	}
+	if !ok {
+		return RecordsAnswer{}, ErrNotSetUp
+	}
+	owner := strings.ToLower(strings.TrimSuffix(p.Domain, "."))
+	if owner != st.Host {
+		have, err := m.store.Domains(ctx)
+		if err != nil {
+			return RecordsAnswer{}, err
+		}
+		if !slices.Contains(have, owner) {
+			return RecordsAnswer{}, ErrNoDomain
+		}
+	}
+	last := m.lastSync()
+	out := RecordsAnswer{At: last.At, Records: last.Records[owner], DKIM: last.DKIM[owner]}
+	if out.Records == nil {
+		out.Records = []RecordView{}
+	}
+	if out.DKIM == nil {
+		out.DKIM = []DKIMRow{}
+	}
+	return out, nil
+}
+
+// TakeoverAsk names the record to take over.
+type TakeoverAsk struct {
+	Domain string `json:"domain"`
+	Name   string `json:"name"`
+	Type   string `json:"type"`
+}
+
+func (m *Module) recordsTakeover(ctx context.Context, p TakeoverAsk) (struct{}, error) {
+	st, ok, err := m.store.State(ctx)
+	if err != nil {
+		return struct{}{}, err
+	}
+	if !ok {
+		return struct{}{}, ErrNotSetUp
+	}
+	owner := strings.ToLower(p.Domain)
+	for _, v := range m.lastSync().Records[owner] {
+		if v.Name == strings.ToLower(p.Name) && v.Type == strings.ToUpper(p.Type) && v.State == "different" {
+			if err := m.takeover(ctx, owner, st.Host, v.Record); err != nil {
+				return struct{}{}, with(ErrStalwart, err.Error())
+			}
+			m.kickSync()
+			return struct{}{}, nil
+		}
+	}
+	return struct{}{}, ErrNoRecord
+}
+
+func (m *Module) syncNow(ctx context.Context, _ struct{}) (Sync, error) {
+	st, ok, err := m.store.State(ctx)
+	switch {
+	case err != nil:
+		return Sync{}, err
+	case !ok:
+		return Sync{}, ErrNotSetUp
+	case st.Bootstrapped == 0:
+		return Sync{}, ErrNotReady
+	}
+	if _, err := m.vault.Get(ctx, sealedKey); err != nil {
+		return Sync{}, err
+	}
+	m.kickSync()
+	return m.lastSync(), nil
 }

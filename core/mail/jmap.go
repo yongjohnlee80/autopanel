@@ -494,3 +494,91 @@ func (c *Client) ReloadTLS(ctx context.Context) error {
 	_, err := c.set(ctx, "Action", map[string]any{"create": map[string]any{"a": map[string]any{"@type": "ReloadTlsCertificates"}}})
 	return err
 }
+
+// --- DKIM keys ---------------------------------------------------------------
+
+// DKIMKey is one of Stalwart's DKIM keys.
+type DKIMKey struct {
+	ID       string `json:"id"`
+	Selector string `json:"selector"`
+	DomainID string `json:"domainId"`
+	Stage    string `json:"stage"`
+	Kind     string `json:"@type"`
+}
+
+// DKIMKeys are every DKIM key Stalwart holds.
+func (c *Client) DKIMKeys(ctx context.Context) ([]DKIMKey, error) {
+	var got struct {
+		List []DKIMKey `json:"list"`
+	}
+	err := c.call(ctx, "x:DkimSignature/get", map[string]any{"ids": nil, "properties": []string{"@type", "selector", "domainId", "stage"}}, &got)
+	return got.List, err
+}
+
+// AddDKIM gives Stalwart a key AutoPanel made, not yet signing.
+func (c *Client) AddDKIM(ctx context.Context, domainID, selector, kind, pemKey string) (string, error) {
+	a, err := c.set(ctx, "DkimSignature", map[string]any{"create": map[string]any{"k": map[string]any{
+		"@type": kind, "domainId": domainID, "selector": selector, "stage": "pending",
+		"privateKey": map[string]any{"@type": "Text", "secret": pemKey}}}})
+	if err != nil {
+		return "", err
+	}
+	var made struct{ ID string }
+	if raw, ok := a.Created["k"]; ok {
+		_ = json.Unmarshal(raw, &made)
+	}
+	return made.ID, nil
+}
+
+// SetDKIMStage moves a key: "active" signs, "retiring" stops signing.
+func (c *Client) SetDKIMStage(ctx context.Context, id, stage string) error {
+	if id == "" {
+		return errors.New("mail: Stalwart holds no key of that selector")
+	}
+	_, err := c.set(ctx, "DkimSignature", map[string]any{"update": map[string]any{id: map[string]any{"stage": stage}}})
+	return err
+}
+
+// RemoveDKIM deletes a key.
+func (c *Client) RemoveDKIM(ctx context.Context, id string) error {
+	_, err := c.set(ctx, "DkimSignature", map[string]any{"destroy": []string{id}})
+	return err
+}
+
+// --- certificates -------------------------------------------------------------
+
+// Certificate is one of Stalwart's TLS certificates.
+type Certificate struct {
+	ID       string          `json:"id"`
+	SANs     map[string]bool `json:"subjectAlternativeNames"`
+	NotAfter time.Time       `json:"notValidAfter"`
+}
+
+// Certificates are Stalwart's certificates.
+func (c *Client) Certificates(ctx context.Context) ([]Certificate, error) {
+	var got struct {
+		List []Certificate `json:"list"`
+	}
+	err := c.call(ctx, "x:Certificate/get", map[string]any{"ids": nil, "properties": []string{"subjectAlternativeNames", "notValidAfter"}}, &got)
+	return got.List, err
+}
+
+// PutCertificate replaces certificate id with a chain and key (PEM), or makes
+// one when id is empty, answering its id.
+func (c *Client) PutCertificate(ctx context.Context, id, chainPEM, keyPEM string) (string, error) {
+	obj := map[string]any{"certificate": map[string]any{"@type": "Text", "value": chainPEM},
+		"privateKey": map[string]any{"@type": "Text", "secret": keyPEM}}
+	if id != "" {
+		_, err := c.set(ctx, "Certificate", map[string]any{"update": map[string]any{id: obj}})
+		return id, err
+	}
+	a, err := c.set(ctx, "Certificate", map[string]any{"create": map[string]any{"c": obj}})
+	if err != nil {
+		return "", err
+	}
+	var made struct{ ID string }
+	if raw, ok := a.Created["c"]; ok {
+		_ = json.Unmarshal(raw, &made)
+	}
+	return made.ID, nil
+}
