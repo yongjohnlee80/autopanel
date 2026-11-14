@@ -25,17 +25,11 @@ func startTerminalHost(t *testing.T) (*host, *decltest.Screen) {
 	t.Cleanup(cancel)
 	h := newHost(ctx, newFakeClient(), "v0.1.0")
 	h.ownShell, h.rootShell = shell{label: "tester"}, nil
+	h.brw.start = "/home/ada"
 	s := decltest.RunWith(t, 120, 30, func(p *tuidecl.Program) error { h.attach(p); return nil }, h.options(nil)...)
 	signIn(t, s)
 	s.WaitForText(t, "CA LE staging")
 	return h, s
-}
-
-// onLoop runs fn on the UI loop and returns its answer.
-func onLoop[T any](h *host, fn func() T) T {
-	ch := make(chan T, 1)
-	h.p.Post(func() { ch <- fn() })
-	return <-ch
 }
 
 // shellTabs are the terminal's tabs, read on the loop.
@@ -63,13 +57,6 @@ func labels(tabs []terminal.TerminalTab) string {
 func waitTabs(t *testing.T, h *host, s *decltest.Screen, want string) {
 	t.Helper()
 	s.WaitFor(t, "the tabs to be "+want, func(string) bool { return labels(shellTabs(t, h)) == want })
-}
-
-func run(t *testing.T, h *host, fn func() error) {
-	t.Helper()
-	if err := onLoop(h, fn); err != nil {
-		t.Fatal(err)
-	}
 }
 
 // TestTheTerminalRunsShellsInTabs: Go › Terminal opens a shell that takes the

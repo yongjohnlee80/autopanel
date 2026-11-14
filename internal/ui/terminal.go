@@ -12,7 +12,7 @@ import (
 	"github.com/yongjohnlee80/golib/tui/widget/terminal"
 )
 
-// THE TERMINAL — Go › Terminal: a floating panel of shells, a tab each, on
+// THE TERMINAL — Go › Terminal: a panel of shells, a tab each, on
 // golib's TerminalTabs. The shells run in the panel's own process, on this
 // host, as children of it: they are not the daemon's, and no verb starts one.
 //
@@ -100,7 +100,7 @@ func (h *host) toggleTerminal() error {
 // openTerminal shows the panel and gives a shell the keyboard: the one that
 // had it, or a new one when none is left.
 func (h *host) openTerminal() error {
-	if err := h.openPanel("terminal", "terminalPanel", "terminalView"); err != nil {
+	if err := h.openPanel("terminal"); err != nil {
 		return err
 	}
 	tabs, err := h.terminalTabs()
@@ -122,10 +122,14 @@ func (h *host) openTerminal() error {
 }
 
 // terminalOpened and terminalClosed follow the panel: Go › Terminal is
-// checked while it is open. Closed, the keyboard goes back to the overview.
+// checked while it is open, and the dock lists it. Closed, the keyboard goes
+// back to the screen.
 func (h *host) terminalOpened() error {
 	h.terminalShown = true
-	return h.p.Set("App.terminalShown", true)
+	if err := h.p.Set("App.terminalShown", true); err != nil {
+		return err
+	}
+	return h.panelOpened("terminal")
 }
 
 func (h *host) terminalClosed() error {
@@ -133,7 +137,7 @@ func (h *host) terminalClosed() error {
 	if err := h.p.Set("App.terminalShown", false); err != nil {
 		return err
 	}
-	return h.panelLeft()
+	return h.panelClosed("terminal")
 }
 
 // tabLabel names a new tab after its user: "root", then "root 2", the first
@@ -159,18 +163,18 @@ func tabLabel(tabs *terminal.TerminalTabs, name string) string {
 func (h *host) startShell(sh shell) {
 	tabs, err := h.terminalTabs()
 	if err != nil {
-		h.say(h.trf("autopanel.notice.shellFailed", err.Error()))
+		h.say(h.trf("autopanel.notice.terminal.shellFailed", err.Error()))
 		return
 	}
 	var id terminal.TerminalTabID
 	opts := []terminal.TerminalOption{terminal.WithCommand(sh.path, sh.args...), terminal.WithDir(sh.dir),
 		terminal.WithEnv(sh.env...), terminal.WithOnExit(func(code int) { h.shellExited(id, code) })}
 	if id, err = tabs.Add(tabLabel(tabs, sh.label), opts...); err != nil {
-		h.say(h.trf("autopanel.notice.shellFailed", err.Error()))
+		h.say(h.trf("autopanel.notice.terminal.shellFailed", err.Error()))
 		return
 	}
 	if err := tabs.Start(id); err != nil {
-		h.say(h.trf("autopanel.notice.shellFailed", err.Error()))
+		h.say(h.trf("autopanel.notice.terminal.shellFailed", err.Error()))
 	}
 	_ = tabs.Select(id)
 }
@@ -216,7 +220,7 @@ func (h *host) afterShell(tabs *terminal.TerminalTabs) {
 // status that is not 0 is said, since it may be an error.
 func (h *host) shellExited(id terminal.TerminalTabID, code int) {
 	if code != 0 {
-		h.say(h.trf("autopanel.notice.shellExited", code))
+		h.say(h.trf("autopanel.notice.terminal.shellExited", code))
 	}
 	tabs, err := h.terminalTabs()
 	if err != nil {
@@ -235,7 +239,7 @@ func (h *host) closeShell(id terminal.TerminalTabID) {
 		return
 	}
 	if _, err := tabs.Remove(id); err != nil {
-		h.say(h.trf("autopanel.notice.error", err.Error()))
+		h.say(h.trf("autopanel.notice.app.error", err.Error()))
 		return
 	}
 	h.afterShell(tabs)
@@ -257,7 +261,7 @@ func (h *host) stopShells() error {
 	if running == 0 {
 		return h.stopShellsNow()
 	}
-	return h.ask("autopanel.terminal.confirmTitle", h.trf("autopanel.terminal.confirmStop", running), h.stopShellsNow)
+	return h.ask("autopanel.title.confirm.stopShells", h.trf("autopanel.question.terminal.stop", running), h.stopShellsNow)
 }
 
 func (h *host) stopShellsNow() error {
@@ -320,13 +324,13 @@ func (h *host) shellMenu(id terminal.TerminalTabID) []core.MenuItemModel {
 	if len(rows) > 0 {
 		rows = append(rows, core.NewSeparator("terminal.shells"))
 	}
-	rows = append(rows, row("terminal.new", "autopanel.terminal.menu.new", func(terminal.TerminalTabID) { h.startShell(h.ownShell) }))
+	rows = append(rows, row("terminal.new", "autopanel.menu.terminal.new", func(terminal.TerminalTabID) { h.startShell(h.ownShell) }))
 	if h.rootShell != nil {
-		rows = append(rows, row("terminal.newRoot", "autopanel.terminal.menu.newRoot", func(terminal.TerminalTabID) { h.startShell(*h.rootShell) }))
+		rows = append(rows, row("terminal.newRoot", "autopanel.menu.terminal.newRoot", func(terminal.TerminalTabID) { h.startShell(*h.rootShell) }))
 	}
-	closing := row("terminal.close", "autopanel.terminal.menu.close", h.closeShell)
+	closing := row("terminal.close", "autopanel.menu.terminal.close", h.closeShell)
 	closing.Enabled = id != ""
 	return append(rows, closing, core.NewSeparator("terminal.panel"),
-		row("terminal.maximize", "autopanel.terminal.menu.maximize", func(terminal.TerminalTabID) { _ = h.p.Call("terminalPanel", "toggleMaximize") }),
-		row("terminal.hide", "autopanel.terminal.menu.hide", func(terminal.TerminalTabID) { _ = h.p.Call("terminalPanel", "close") }))
+		row("terminal.maximize", "autopanel.menu.terminal.maximize", func(terminal.TerminalTabID) { _ = h.p.Call("terminalPanel", "toggleMaximize") }),
+		row("terminal.hide", "autopanel.menu.terminal.hide", func(terminal.TerminalTabID) { _ = h.p.Call("terminalPanel", "close") }))
 }

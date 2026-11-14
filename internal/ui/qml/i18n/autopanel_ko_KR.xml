@@ -3,313 +3,869 @@
 <TS version="2.1" language="ko_KR">
 <context>
     <name>autopanel</name>
-    <message id="autopanel.about.daemon">
-        <source>Daemon</source>
-        <translation>데몬</translation>
+    <message id="autopanel.button.browse.import">
+        <source>&amp;Import…</source>
+        <translation>가져오기(&amp;i)…</translation>
     </message>
-    <message id="autopanel.about.daemonLine">
-        <source>%1 · up %2</source>
-        <translation>%1 · 가동 %2</translation>
+    <message id="autopanel.button.browse.up">
+        <source>&amp;Up</source>
+        <translation>위로(&amp;u)</translation>
     </message>
-    <message id="autopanel.about.licence">
-        <source>Licence</source>
-        <translation>라이선스</translation>
+    <message id="autopanel.button.confirm.no">
+        <source>&amp;No</source>
+        <translation>아니요(&amp;n)</translation>
     </message>
-    <message id="autopanel.about.panel">
-        <source>Panel</source>
-        <translation>패널</translation>
+    <message id="autopanel.button.confirm.purge">
+        <source>Remove with its &amp;directory</source>
+        <translation>디렉터리까지 제거(&amp;d)</translation>
     </message>
-    <message id="autopanel.about.source">
-        <source>Source</source>
-        <translation>소스</translation>
+    <message id="autopanel.button.confirm.yes">
+        <source>&amp;Yes</source>
+        <translation>예(&amp;y)</translation>
     </message>
-    <message id="autopanel.about.title">
-        <source>About AutoPanel</source>
-        <translation>AutoPanel 정보</translation>
-    </message>
-    <message id="autopanel.about.what">
-        <source>A lightweight control plane for self-hosted web services.</source>
-        <translation>셀프 호스팅 웹 서비스를 위한 가벼운 컨트롤 플레인입니다.</translation>
-    </message>
-    <message id="autopanel.audit.title">
-        <source>Audit log</source>
-        <translation>감사 로그</translation>
-    </message>
-    <message id="autopanel.ca.name.production">
-        <source>Let's Encrypt production</source>
-        <translation>Let's Encrypt 프로덕션</translation>
-    </message>
-    <message id="autopanel.ca.name.staging">
-        <source>Let's Encrypt staging</source>
-        <translation>Let's Encrypt 스테이징</translation>
-    </message>
-    <message id="autopanel.ca.note.production">
-        <source>Let's Encrypt production: real certificates, trusted by browsers.</source>
-        <translation>Let's Encrypt 프로덕션: 브라우저가 신뢰하는 실제 인증서입니다.</translation>
-    </message>
-    <message id="autopanel.ca.note.staging">
-        <source>Let's Encrypt staging: test certificates, which browsers do not trust. Switch in Certs → Type.</source>
-        <translation>Let's Encrypt 스테이징: 브라우저가 신뢰하지 않는 테스트 인증서입니다. 인증서 → 유형에서 바꿉니다.</translation>
-    </message>
-    <message id="autopanel.ca.short.production">
-        <source>LE production</source>
-        <translation>LE 프로덕션</translation>
-    </message>
-    <message id="autopanel.ca.short.staging">
-        <source>LE staging</source>
-        <translation>LE 스테이징</translation>
-    </message>
-    <message id="autopanel.confirm.remove">
-        <source>Remove route %1?</source>
-        <translation>라우트 %1을(를) 제거할까요?</translation>
-    </message>
-    <message id="autopanel.confirm.title">
-        <source>Remove route</source>
-        <translation>라우트 제거</translation>
-    </message>
-    <message id="autopanel.finding.absolute-path">
-        <source>A path must be inside the stack's folder, not absolute</source>
-        <translation>경로는 절대 경로가 아니라 스택 폴더 안이어야 합니다</translation>
-    </message>
-    <message id="autopanel.finding.bad-env-line">
-        <source>A line of .env is not valid</source>
-        <translation>.env의 줄이 올바르지 않습니다</translation>
-    </message>
-    <message id="autopanel.finding.bad-port">
-        <source>A port is not valid</source>
-        <translation>포트가 올바르지 않습니다</translation>
-    </message>
-    <message id="autopanel.finding.bad-service-name">
-        <source>A service's name is not allowed</source>
-        <translation>서비스 이름을 쓸 수 없습니다</translation>
-    </message>
-    <message id="autopanel.finding.bad-value">
-        <source>A value is not what its key takes</source>
-        <translation>값이 키에 맞지 않습니다</translation>
-    </message>
-    <message id="autopanel.finding.bad-volume-name">
-        <source>A volume's name is not allowed</source>
-        <translation>볼륨 이름을 쓸 수 없습니다</translation>
-    </message>
-    <message id="autopanel.finding.bad-yaml">
-        <source>The compose file is not valid YAML</source>
-        <translation>compose 파일이 올바른 YAML이 아닙니다</translation>
-    </message>
-    <message id="autopanel.finding.capability">
-        <source>This capability is not allowed</source>
-        <translation>이 capability는 허용되지 않습니다</translation>
-    </message>
-    <message id="autopanel.finding.capability-added">
-        <source>It is given a capability</source>
-        <translation>capability가 추가되었습니다</translation>
-    </message>
-    <message id="autopanel.finding.data-overlap">
-        <source>A mount overlaps the stack's data</source>
-        <translation>마운트가 스택의 데이터와 겹칩니다</translation>
-    </message>
-    <message id="autopanel.finding.dependency-cycle">
-        <source>The services depend on each other in a circle</source>
-        <translation>서비스들이 서로 순환하여 의존합니다</translation>
-    </message>
-    <message id="autopanel.finding.env-no-value">
-        <source>An environment variable has no value</source>
-        <translation>환경 변수에 값이 없습니다</translation>
-    </message>
-    <message id="autopanel.finding.host-network">
-        <source>It shares the host's network: it can reach every service on the host, and what it listens on is the host's</source>
-        <translation>호스트의 네트워크를 공유합니다. 호스트의 모든 서비스에 접근할 수 있고, 수신하는 포트는 호스트의 포트입니다</translation>
-    </message>
-    <message id="autopanel.finding.host-network-no-ports">
-        <source>Its ports are not known to AutoPanel</source>
-        <translation>AutoPanel은 이 서비스의 포트를 알지 못합니다</translation>
-    </message>
-    <message id="autopanel.finding.host-network-port">
-        <source>On the host's network a port cannot be given another number or one address</source>
-        <translation>호스트 네트워크에서는 포트에 다른 번호나 특정 주소를 지정할 수 없습니다</translation>
-    </message>
-    <message id="autopanel.finding.image-by-tag">
-        <source>The image is named by a tag: it can change under its tag between pulls</source>
-        <translation>이미지가 태그로 지정되었습니다. 가져올 때마다 같은 태그라도 내용이 바뀔 수 있습니다</translation>
-    </message>
-    <message id="autopanel.finding.image-user">
-        <source>It runs as the image's own user; when that is root, it is root inside its own user namespace</source>
-        <translation>이미지의 기본 사용자로 실행됩니다. 그것이 root이면, 자체 사용자 네임스페이스 안의 root입니다</translation>
-    </message>
-    <message id="autopanel.finding.missing-file">
-        <source>A file that the definition names is missing</source>
-        <translation>정의가 가리키는 파일이 없습니다</translation>
-    </message>
-    <message id="autopanel.finding.no-image">
-        <source>The service names no image</source>
-        <translation>서비스에 이미지가 지정되지 않았습니다</translation>
-    </message>
-    <message id="autopanel.finding.no-memory-limit">
-        <source>It has no memory limit</source>
-        <translation>메모리 한도가 없습니다</translation>
-    </message>
-    <message id="autopanel.finding.no-services">
-        <source>The compose file defines no service</source>
-        <translation>compose 파일에 서비스가 없습니다</translation>
-    </message>
-    <message id="autopanel.finding.path-leaves-folder">
-        <source>A path leaves the stack's folder</source>
-        <translation>경로가 스택 폴더를 벗어납니다</translation>
-    </message>
-    <message id="autopanel.finding.port-in-use">
-        <source>Something on the host listens on this port already</source>
-        <translation>호스트에서 이미 이 포트를 수신하고 있습니다</translation>
-    </message>
-    <message id="autopanel.finding.port-taken">
-        <source>Another stack has this port</source>
-        <translation>다른 스택이 이 포트를 쓰고 있습니다</translation>
-    </message>
-    <message id="autopanel.finding.port-twice">
-        <source>The stack publishes this port twice</source>
-        <translation>스택이 이 포트를 두 번 게시합니다</translation>
-    </message>
-    <message id="autopanel.finding.privileged-port">
-        <source>A port below 1024 is not allowed</source>
-        <translation>1024 미만의 포트는 쓸 수 없습니다</translation>
-    </message>
-    <message id="autopanel.finding.public-port">
-        <source>A port is published on every address: it is reachable from outside if the firewall allows it</source>
-        <translation>포트가 모든 주소에 게시됩니다. 방화벽이 허용하면 외부에서 접근할 수 있습니다</translation>
-    </message>
-    <message id="autopanel.finding.reach">
-        <source>Containers can reach what the host and other stacks publish; the private network keeps other stacks out of this one, not this one out of the host</source>
-        <translation>컨테이너는 호스트와 다른 스택이 게시한 것에 접근할 수 있습니다. 사설 네트워크는 다른 스택이 이 스택에 들어오지 못하게 할 뿐, 이 스택이 호스트에 접근하는 것은 막지 않습니다</translation>
-    </message>
-    <message id="autopanel.finding.reserved-path">
-        <source>This path is reserved for AutoPanel</source>
-        <translation>이 경로는 AutoPanel용으로 예약되어 있습니다</translation>
-    </message>
-    <message id="autopanel.finding.symlink">
-        <source>A symbolic link is not allowed in the definition</source>
-        <translation>정의에는 심볼릭 링크를 쓸 수 없습니다</translation>
-    </message>
-    <message id="autopanel.finding.too-many-services">
-        <source>The stack has too many services</source>
-        <translation>스택에 서비스가 너무 많습니다</translation>
-    </message>
-    <message id="autopanel.finding.undeclared-volume">
-        <source>A named volume is not declared under volumes</source>
-        <translation>이름 있는 볼륨이 volumes에 선언되지 않았습니다</translation>
-    </message>
-    <message id="autopanel.finding.unit-name-taken">
-        <source>Two units of the stack would have the same name</source>
-        <translation>스택의 두 유닛이 같은 이름을 갖게 됩니다</translation>
-    </message>
-    <message id="autopanel.finding.unit-text">
-        <source>A value holds a character that a unit file cannot take</source>
-        <translation>값에 유닛 파일에 쓸 수 없는 문자가 있습니다</translation>
-    </message>
-    <message id="autopanel.finding.unknown-dependency">
-        <source>It depends on a service that the stack does not have</source>
-        <translation>스택에 없는 서비스에 의존합니다</translation>
-    </message>
-    <message id="autopanel.finding.unset-variable">
-        <source>A variable is not set in .env</source>
-        <translation>변수가 .env에 설정되어 있지 않습니다</translation>
-    </message>
-    <message id="autopanel.finding.unsupported-dependency">
-        <source>AutoPanel does not support this depends_on condition</source>
-        <translation>AutoPanel은 이 depends_on 조건을 지원하지 않습니다</translation>
-    </message>
-    <message id="autopanel.finding.unsupported-key">
-        <source>AutoPanel does not support this key</source>
-        <translation>AutoPanel은 이 키를 지원하지 않습니다</translation>
-    </message>
-    <message id="autopanel.finding.unsupported-value">
-        <source>AutoPanel does not support this value</source>
-        <translation>AutoPanel은 이 값을 지원하지 않습니다</translation>
-    </message>
-    <message id="autopanel.finding.user-not-numeric">
-        <source>The user must be given as numbers</source>
-        <translation>사용자는 숫자로 지정해야 합니다</translation>
-    </message>
-    <message id="autopanel.finding.whole-folder">
-        <source>The stack's whole folder cannot be mounted</source>
-        <translation>스택 폴더 전체는 마운트할 수 없습니다</translation>
-    </message>
-    <message id="autopanel.finding.writable-root">
-        <source>The container's root file system is writable</source>
-        <translation>컨테이너의 루트 파일 시스템에 쓸 수 있습니다</translation>
-    </message>
-    <message id="autopanel.form.add">
-        <source>Add route</source>
-        <translation>라우트 추가</translation>
-    </message>
-    <message id="autopanel.form.cancel">
+    <message id="autopanel.button.dialog.cancel">
         <source>&amp;Cancel</source>
         <translation>취소(&amp;c)</translation>
     </message>
-    <message id="autopanel.form.edit">
-        <source>Edit route #%1</source>
-        <translation>라우트 #%1 편집</translation>
+    <message id="autopanel.button.dialog.close">
+        <source>Close (&amp;q)</source>
+        <translation>닫기(&amp;q)</translation>
     </message>
-    <message id="autopanel.form.hint">
-        <source>Tab: next field · Enter: OK · Esc: cancel</source>
-        <translation>Tab: 다음 필드 · Enter: 확인 · Esc: 취소</translation>
-    </message>
-    <message id="autopanel.form.host">
-        <source>Host</source>
-        <translation>호스트</translation>
-    </message>
-    <message id="autopanel.form.ok">
+    <message id="autopanel.button.dialog.ok">
         <source>&amp;OK</source>
         <translation>확인(&amp;o)</translation>
     </message>
-    <message id="autopanel.form.path">
+    <message id="autopanel.button.domains.add">
+        <source>&amp;Add…</source>
+        <translation>추가(&amp;a)…</translation>
+    </message>
+    <message id="autopanel.button.domains.remove">
+        <source>&amp;Remove…</source>
+        <translation>제거(&amp;r)…</translation>
+    </message>
+    <message id="autopanel.button.form.save">
+        <source>&amp;Save</source>
+        <translation>저장(&amp;s)</translation>
+    </message>
+    <message id="autopanel.button.login.quit">
+        <source>&amp;Quit</source>
+        <translation>종료(&amp;q)</translation>
+    </message>
+    <message id="autopanel.button.login.signIn">
+        <source>&amp;Sign in</source>
+        <translation>로그인(&amp;s)</translation>
+    </message>
+    <message id="autopanel.button.panel.close">
+        <source>Close (&amp;q)</source>
+        <translation>닫기(&amp;q)</translation>
+    </message>
+    <message id="autopanel.button.panel.reload">
+        <source>&amp;Reload</source>
+        <translation>다시 읽기(&amp;r)</translation>
+    </message>
+    <message id="autopanel.button.review.add">
+        <source>&amp;Add and start</source>
+        <translation>추가하고 시작(&amp;a)</translation>
+    </message>
+    <message id="autopanel.button.review.apply">
+        <source>&amp;Apply</source>
+        <translation>적용(&amp;a)</translation>
+    </message>
+    <message id="autopanel.button.review.prepare">
+        <source>&amp;Prepare only</source>
+        <translation>준비만(&amp;p)</translation>
+    </message>
+    <message id="autopanel.button.review.start">
+        <source>&amp;Start</source>
+        <translation>시작(&amp;s)</translation>
+    </message>
+    <message id="autopanel.button.routes.add">
+        <source>&amp;Add…</source>
+        <translation>추가(&amp;a)…</translation>
+    </message>
+    <message id="autopanel.button.routes.domains">
+        <source>Do&amp;mains…</source>
+        <translation>도메인(&amp;m)…</translation>
+    </message>
+    <message id="autopanel.button.routes.edit">
+        <source>&amp;Edit…</source>
+        <translation>편집(&amp;e)…</translation>
+    </message>
+    <message id="autopanel.button.routes.remove">
+        <source>&amp;Remove…</source>
+        <translation>제거(&amp;r)…</translation>
+    </message>
+    <message id="autopanel.button.stacks.add">
+        <source>&amp;Add…</source>
+        <translation>추가(&amp;a)…</translation>
+    </message>
+    <message id="autopanel.button.stacks.apply">
+        <source>A&amp;pply…</source>
+        <translation>적용(&amp;p)…</translation>
+    </message>
+    <message id="autopanel.button.stacks.logs">
+        <source>L&amp;ogs</source>
+        <translation>로그(&amp;o)</translation>
+    </message>
+    <message id="autopanel.button.stacks.pull">
+        <source>P&amp;ull images</source>
+        <translation>이미지 가져오기(&amp;u)</translation>
+    </message>
+    <message id="autopanel.button.stacks.remove">
+        <source>&amp;Remove…</source>
+        <translation>제거(&amp;r)…</translation>
+    </message>
+    <message id="autopanel.button.stacks.restart">
+        <source>R&amp;estart</source>
+        <translation>재시작(&amp;e)</translation>
+    </message>
+    <message id="autopanel.button.stacks.start">
+        <source>S&amp;tart</source>
+        <translation>시작(&amp;t)</translation>
+    </message>
+    <message id="autopanel.button.stacks.stop">
+        <source>Stop (&amp;x)</source>
+        <translation>중지(&amp;x)</translation>
+    </message>
+    <message id="autopanel.button.stacks.update">
+        <source>Update from &amp;source</source>
+        <translation>소스에서 업데이트(&amp;s)</translation>
+    </message>
+    <message id="autopanel.finding.review.absolute-path">
+        <source>A path must be inside the stack's folder, not absolute</source>
+        <translation>경로는 절대 경로가 아니라 스택 폴더 안이어야 합니다</translation>
+    </message>
+    <message id="autopanel.finding.review.bad-env-line">
+        <source>A line of .env is not valid</source>
+        <translation>.env의 줄이 올바르지 않습니다</translation>
+    </message>
+    <message id="autopanel.finding.review.bad-port">
+        <source>A port is not valid</source>
+        <translation>포트가 올바르지 않습니다</translation>
+    </message>
+    <message id="autopanel.finding.review.bad-service-name">
+        <source>A service's name is not allowed</source>
+        <translation>서비스 이름을 쓸 수 없습니다</translation>
+    </message>
+    <message id="autopanel.finding.review.bad-value">
+        <source>A value is not what its key takes</source>
+        <translation>값이 키에 맞지 않습니다</translation>
+    </message>
+    <message id="autopanel.finding.review.bad-volume-name">
+        <source>A volume's name is not allowed</source>
+        <translation>볼륨 이름을 쓸 수 없습니다</translation>
+    </message>
+    <message id="autopanel.finding.review.bad-yaml">
+        <source>The compose file is not valid YAML</source>
+        <translation>compose 파일이 올바른 YAML이 아닙니다</translation>
+    </message>
+    <message id="autopanel.finding.review.capability">
+        <source>This capability is not allowed</source>
+        <translation>이 capability는 허용되지 않습니다</translation>
+    </message>
+    <message id="autopanel.finding.review.capability-added">
+        <source>It is given a capability</source>
+        <translation>capability가 추가되었습니다</translation>
+    </message>
+    <message id="autopanel.finding.review.data-overlap">
+        <source>A mount overlaps the stack's data</source>
+        <translation>마운트가 스택의 데이터와 겹칩니다</translation>
+    </message>
+    <message id="autopanel.finding.review.dependency-cycle">
+        <source>The services depend on each other in a circle</source>
+        <translation>서비스들이 서로 순환하여 의존합니다</translation>
+    </message>
+    <message id="autopanel.finding.review.env-no-value">
+        <source>An environment variable has no value</source>
+        <translation>환경 변수에 값이 없습니다</translation>
+    </message>
+    <message id="autopanel.finding.review.host-network">
+        <source>It shares the host's network: it can reach every service on the host, and what it listens on is the host's</source>
+        <translation>호스트의 네트워크를 공유합니다. 호스트의 모든 서비스에 접근할 수 있고, 수신하는 포트는 호스트의 포트입니다</translation>
+    </message>
+    <message id="autopanel.finding.review.host-network-no-ports">
+        <source>Its ports are not known to AutoPanel</source>
+        <translation>AutoPanel은 이 서비스의 포트를 알지 못합니다</translation>
+    </message>
+    <message id="autopanel.finding.review.host-network-port">
+        <source>On the host's network a port cannot be given another number or one address</source>
+        <translation>호스트 네트워크에서는 포트에 다른 번호나 특정 주소를 지정할 수 없습니다</translation>
+    </message>
+    <message id="autopanel.finding.review.image-by-tag">
+        <source>The image is named by a tag: it can change under its tag between pulls</source>
+        <translation>이미지가 태그로 지정되었습니다. 가져올 때마다 같은 태그라도 내용이 바뀔 수 있습니다</translation>
+    </message>
+    <message id="autopanel.finding.review.image-user">
+        <source>It runs as the image's own user; when that is root, it is root inside its own user namespace</source>
+        <translation>이미지의 기본 사용자로 실행됩니다. 그것이 root이면, 자체 사용자 네임스페이스 안의 root입니다</translation>
+    </message>
+    <message id="autopanel.finding.review.missing-file">
+        <source>A file that the definition names is missing</source>
+        <translation>정의가 가리키는 파일이 없습니다</translation>
+    </message>
+    <message id="autopanel.finding.review.no-image">
+        <source>The service names no image</source>
+        <translation>서비스에 이미지가 지정되지 않았습니다</translation>
+    </message>
+    <message id="autopanel.finding.review.no-memory-limit">
+        <source>It has no memory limit</source>
+        <translation>메모리 한도가 없습니다</translation>
+    </message>
+    <message id="autopanel.finding.review.no-services">
+        <source>The compose file defines no service</source>
+        <translation>compose 파일에 서비스가 없습니다</translation>
+    </message>
+    <message id="autopanel.finding.review.path-leaves-folder">
+        <source>A path leaves the stack's folder</source>
+        <translation>경로가 스택 폴더를 벗어납니다</translation>
+    </message>
+    <message id="autopanel.finding.review.port-in-use">
+        <source>Something on the host listens on this port already</source>
+        <translation>호스트에서 이미 이 포트를 수신하고 있습니다</translation>
+    </message>
+    <message id="autopanel.finding.review.port-taken">
+        <source>Another stack has this port</source>
+        <translation>다른 스택이 이 포트를 쓰고 있습니다</translation>
+    </message>
+    <message id="autopanel.finding.review.port-twice">
+        <source>The stack publishes this port twice</source>
+        <translation>스택이 이 포트를 두 번 게시합니다</translation>
+    </message>
+    <message id="autopanel.finding.review.privileged-port">
+        <source>A port below 1024 is not allowed</source>
+        <translation>1024 미만의 포트는 쓸 수 없습니다</translation>
+    </message>
+    <message id="autopanel.finding.review.public-port">
+        <source>A port is published on every address: it is reachable from outside if the firewall allows it</source>
+        <translation>포트가 모든 주소에 게시됩니다. 방화벽이 허용하면 외부에서 접근할 수 있습니다</translation>
+    </message>
+    <message id="autopanel.finding.review.reach">
+        <source>Containers can reach what the host and other stacks publish; the private network keeps other stacks out of this one, not this one out of the host</source>
+        <translation>컨테이너는 호스트와 다른 스택이 게시한 것에 접근할 수 있습니다. 사설 네트워크는 다른 스택이 이 스택에 들어오지 못하게 할 뿐, 이 스택이 호스트에 접근하는 것은 막지 않습니다</translation>
+    </message>
+    <message id="autopanel.finding.review.reserved-path">
+        <source>This path is reserved for AutoPanel</source>
+        <translation>이 경로는 AutoPanel용으로 예약되어 있습니다</translation>
+    </message>
+    <message id="autopanel.finding.review.symlink">
+        <source>A symbolic link is not allowed in the definition</source>
+        <translation>정의에는 심볼릭 링크를 쓸 수 없습니다</translation>
+    </message>
+    <message id="autopanel.finding.review.too-many-services">
+        <source>The stack has too many services</source>
+        <translation>스택에 서비스가 너무 많습니다</translation>
+    </message>
+    <message id="autopanel.finding.review.undeclared-volume">
+        <source>A named volume is not declared under volumes</source>
+        <translation>이름 있는 볼륨이 volumes에 선언되지 않았습니다</translation>
+    </message>
+    <message id="autopanel.finding.review.unit-name-taken">
+        <source>Two units of the stack would have the same name</source>
+        <translation>스택의 두 유닛이 같은 이름을 갖게 됩니다</translation>
+    </message>
+    <message id="autopanel.finding.review.unit-text">
+        <source>A value holds a character that a unit file cannot take</source>
+        <translation>값에 유닛 파일에 쓸 수 없는 문자가 있습니다</translation>
+    </message>
+    <message id="autopanel.finding.review.unknown-dependency">
+        <source>It depends on a service that the stack does not have</source>
+        <translation>스택에 없는 서비스에 의존합니다</translation>
+    </message>
+    <message id="autopanel.finding.review.unset-variable">
+        <source>A variable is not set in .env</source>
+        <translation>변수가 .env에 설정되어 있지 않습니다</translation>
+    </message>
+    <message id="autopanel.finding.review.unsupported-dependency">
+        <source>AutoPanel does not support this depends_on condition</source>
+        <translation>AutoPanel은 이 depends_on 조건을 지원하지 않습니다</translation>
+    </message>
+    <message id="autopanel.finding.review.unsupported-key">
+        <source>AutoPanel does not support this key</source>
+        <translation>AutoPanel은 이 키를 지원하지 않습니다</translation>
+    </message>
+    <message id="autopanel.finding.review.unsupported-value">
+        <source>AutoPanel does not support this value</source>
+        <translation>AutoPanel은 이 값을 지원하지 않습니다</translation>
+    </message>
+    <message id="autopanel.finding.review.user-not-numeric">
+        <source>The user must be given as numbers</source>
+        <translation>사용자는 숫자로 지정해야 합니다</translation>
+    </message>
+    <message id="autopanel.finding.review.whole-folder">
+        <source>The stack's whole folder cannot be mounted</source>
+        <translation>스택 폴더 전체는 마운트할 수 없습니다</translation>
+    </message>
+    <message id="autopanel.finding.review.writable-root">
+        <source>The container's root file system is writable</source>
+        <translation>컨테이너의 루트 파일 시스템에 쓸 수 있습니다</translation>
+    </message>
+    <message id="autopanel.key.browser.enter">
+        <source>go into a folder; on .. go up</source>
+        <translation>폴더로 들어가기, .. 에서는 위로</translation>
+    </message>
+    <message id="autopanel.key.browser.import">
+        <source>import the folder that holds a compose.yaml</source>
+        <translation>compose.yaml이 든 폴더 가져오기</translation>
+    </message>
+    <message id="autopanel.key.browser.up">
+        <source>go to the parent folder</source>
+        <translation>상위 폴더로 이동</translation>
+    </message>
+    <message id="autopanel.key.dialogs.answer">
+        <source>answer yes or no</source>
+        <translation>예 또는 아니요로 답하기</translation>
+    </message>
+    <message id="autopanel.key.dialogs.cancel">
+        <source>close without an answer</source>
+        <translation>답하지 않고 닫기</translation>
+    </message>
+    <message id="autopanel.key.dialogs.enter">
+        <source>press the focused button, or take the field</source>
+        <translation>포커스된 버튼 누르기, 또는 필드 값 확정</translation>
+    </message>
+    <message id="autopanel.key.domains.add">
+        <source>add a domain</source>
+        <translation>도메인 추가</translation>
+    </message>
+    <message id="autopanel.key.domains.remove">
+        <source>remove the selected domain, after asking</source>
+        <translation>선택한 도메인 제거 (확인 후)</translation>
+    </message>
+    <message id="autopanel.key.everywhere.focus">
+        <source>move to the next control, or the one before</source>
+        <translation>다음 또는 이전 컨트롤로 이동</translation>
+    </message>
+    <message id="autopanel.key.everywhere.keys">
+        <source>show these keys</source>
+        <translation>이 키 목록 표시</translation>
+    </message>
+    <message id="autopanel.key.everywhere.menus">
+        <source>open the menus: F10, or Alt and a menu's marked letter</source>
+        <translation>메뉴 열기: F10, 또는 Alt와 메뉴의 표시된 글자</translation>
+    </message>
+    <message id="autopanel.key.everywhere.quit">
+        <source>quit, from the main screen</source>
+        <translation>종료 (메인 화면에서)</translation>
+    </message>
+    <message id="autopanel.key.everywhere.refresh">
+        <source>read the screen again now</source>
+        <translation>지금 화면을 다시 읽기</translation>
+    </message>
+    <message id="autopanel.key.monitors.reload">
+        <source>read it again</source>
+        <translation>다시 읽기</translation>
+    </message>
+    <message id="autopanel.key.panels.close">
+        <source>close the panel</source>
+        <translation>패널 닫기</translation>
+    </message>
+    <message id="autopanel.key.panels.drag">
+        <source>move the panel</source>
+        <translation>패널 이동</translation>
+    </message>
+    <message id="autopanel.key.panels.move">
+        <source>move in a list</source>
+        <translation>목록에서 이동</translation>
+    </message>
+    <message id="autopanel.key.panels.resize">
+        <source>resize the panel</source>
+        <translation>패널 크기 조절</translation>
+    </message>
+    <message id="autopanel.key.review.close">
+        <source>close it; nothing changes</source>
+        <translation>닫기. 아무것도 바뀌지 않음</translation>
+    </message>
+    <message id="autopanel.key.review.go">
+        <source>add and start, apply, or start, as its first button says</source>
+        <translation>첫 번째 버튼대로 추가 후 시작, 적용 또는 시작</translation>
+    </message>
+    <message id="autopanel.key.review.prepare">
+        <source>prepare a new stack, and start nothing</source>
+        <translation>새 스택을 준비만 하고 아무것도 시작하지 않음</translation>
+    </message>
+    <message id="autopanel.key.routes.add">
+        <source>add a route</source>
+        <translation>라우트 추가</translation>
+    </message>
+    <message id="autopanel.key.routes.domains">
+        <source>open the domains</source>
+        <translation>도메인 열기</translation>
+    </message>
+    <message id="autopanel.key.routes.edit">
+        <source>edit the selected route</source>
+        <translation>선택한 라우트 편집</translation>
+    </message>
+    <message id="autopanel.key.routes.remove">
+        <source>remove it, after asking</source>
+        <translation>제거 (확인 후)</translation>
+    </message>
+    <message id="autopanel.key.section.browser">
+        <source>ADD A STACK: THE FILE BROWSER</source>
+        <translation>스택 추가: 파일 브라우저</translation>
+    </message>
+    <message id="autopanel.key.section.dialogs">
+        <source>DIALOGS</source>
+        <translation>대화 상자</translation>
+    </message>
+    <message id="autopanel.key.section.domains">
+        <source>DOMAINS</source>
+        <translation>도메인</translation>
+    </message>
+    <message id="autopanel.key.section.everywhere">
+        <source>EVERYWHERE</source>
+        <translation>어디서나</translation>
+    </message>
+    <message id="autopanel.key.section.monitors">
+        <source>METRICS, AUDIT LOG, LOGIN ATTEMPTS, OPEN PORTS</source>
+        <translation>지표, 감사 로그, 로그인 시도, 열린 포트</translation>
+    </message>
+    <message id="autopanel.key.section.panels">
+        <source>PANELS</source>
+        <translation>패널</translation>
+    </message>
+    <message id="autopanel.key.section.review">
+        <source>A STACK'S REVIEW</source>
+        <translation>스택 검토</translation>
+    </message>
+    <message id="autopanel.key.section.routes">
+        <source>PROXY ROUTES</source>
+        <translation>프록시 라우트</translation>
+    </message>
+    <message id="autopanel.key.section.stacks">
+        <source>STACKS</source>
+        <translation>스택</translation>
+    </message>
+    <message id="autopanel.key.section.terminal">
+        <source>TERMINAL</source>
+        <translation>터미널</translation>
+    </message>
+    <message id="autopanel.key.section.widgets">
+        <source>THE WIDGETS OF THE MAIN SCREEN</source>
+        <translation>메인 화면의 위젯</translation>
+    </message>
+    <message id="autopanel.key.stacks.add">
+        <source>add a stack from a folder</source>
+        <translation>폴더에서 스택 추가</translation>
+    </message>
+    <message id="autopanel.key.stacks.apply">
+        <source>review the selected stack, then apply it</source>
+        <translation>선택한 스택을 검토한 뒤 적용</translation>
+    </message>
+    <message id="autopanel.key.stacks.logs">
+        <source>read its journal</source>
+        <translation>저널 읽기</translation>
+    </message>
+    <message id="autopanel.key.stacks.pull">
+        <source>pull its images again</source>
+        <translation>이미지 다시 가져오기</translation>
+    </message>
+    <message id="autopanel.key.stacks.remove">
+        <source>remove the stack, after asking</source>
+        <translation>스택 제거 (확인 후)</translation>
+    </message>
+    <message id="autopanel.key.stacks.restart">
+        <source>restart it</source>
+        <translation>재시작</translation>
+    </message>
+    <message id="autopanel.key.stacks.start">
+        <source>start the selected container, or the whole stack on its row</source>
+        <translation>선택한 컨테이너 시작, 스택 행에서는 스택 전체 시작</translation>
+    </message>
+    <message id="autopanel.key.stacks.stop">
+        <source>stop it, after asking</source>
+        <translation>중지 (확인 후)</translation>
+    </message>
+    <message id="autopanel.key.stacks.update">
+        <source>copy the stack's definition from its source again, then review it</source>
+        <translation>스택 정의를 소스에서 다시 복사한 뒤 검토</translation>
+    </message>
+    <message id="autopanel.key.terminal.maximize">
+        <source>maximize or restore the terminal</source>
+        <translation>터미널 최대화 또는 복원</translation>
+    </message>
+    <message id="autopanel.key.terminal.mode">
+        <source>leave the program for the scrollback, and back</source>
+        <translation>프로그램에서 스크롤백으로 나가기, 다시 돌아오기</translation>
+    </message>
+    <message id="autopanel.key.terminal.next">
+        <source>the next shell</source>
+        <translation>다음 셸</translation>
+    </message>
+    <message id="autopanel.key.terminal.previous">
+        <source>the shell before</source>
+        <translation>이전 셸</translation>
+    </message>
+    <message id="autopanel.key.widgets.dock">
+        <source>the dock, at the menu bar's right: hide or show a widget or a panel</source>
+        <translation>메뉴 표시줄 오른쪽의 독: 위젯이나 패널 숨기기 또는 표시</translation>
+    </message>
+    <message id="autopanel.key.widgets.move">
+        <source>re-dock a widget, or swap it with another</source>
+        <translation>위젯을 다시 도킹하거나 다른 위젯과 맞바꾸기</translation>
+    </message>
+    <message id="autopanel.key.widgets.open">
+        <source>open the panel of the row under the cursor</source>
+        <translation>커서 아래 행의 패널 열기</translation>
+    </message>
+    <message id="autopanel.key.widgets.resize">
+        <source>move the border between two widgets</source>
+        <translation>두 위젯 사이의 경계 이동</translation>
+    </message>
+    <message id="autopanel.label.about.daemon">
+        <source>Daemon</source>
+        <translation>데몬</translation>
+    </message>
+    <message id="autopanel.label.about.licence">
+        <source>Licence</source>
+        <translation>라이선스</translation>
+    </message>
+    <message id="autopanel.label.about.panel">
+        <source>Panel</source>
+        <translation>패널</translation>
+    </message>
+    <message id="autopanel.label.about.source">
+        <source>Source</source>
+        <translation>소스</translation>
+    </message>
+    <message id="autopanel.label.audit.action">
+        <source>Action</source>
+        <translation>작업</translation>
+    </message>
+    <message id="autopanel.label.audit.actor">
+        <source>Who</source>
+        <translation>수행자</translation>
+    </message>
+    <message id="autopanel.label.audit.detail">
+        <source>Detail</source>
+        <translation>상세</translation>
+    </message>
+    <message id="autopanel.label.audit.entry">
+        <source>Entry</source>
+        <translation>항목</translation>
+    </message>
+    <message id="autopanel.label.audit.outcome">
+        <source>Outcome</source>
+        <translation>결과</translation>
+    </message>
+    <message id="autopanel.label.audit.subject">
+        <source>Subject</source>
+        <translation>대상</translation>
+    </message>
+    <message id="autopanel.label.audit.time">
+        <source>Time</source>
+        <translation>시간</translation>
+    </message>
+    <message id="autopanel.label.browse.folder">
+        <source>Folder</source>
+        <translation>폴더</translation>
+    </message>
+    <message id="autopanel.label.browse.kind">
+        <source>Kind</source>
+        <translation>종류</translation>
+    </message>
+    <message id="autopanel.label.browse.path">
+        <source>Path</source>
+        <translation>경로</translation>
+    </message>
+    <message id="autopanel.label.domain.name">
+        <source>Domain</source>
+        <translation>도메인</translation>
+    </message>
+    <message id="autopanel.label.domain.routes">
+        <source>Routes</source>
+        <translation>라우트</translation>
+    </message>
+    <message id="autopanel.label.domain.under">
+        <source>The routes under it:</source>
+        <translation>이 도메인의 라우트:</translation>
+    </message>
+    <message id="autopanel.label.form.host">
+        <source>Host: a subdomain, and the domain it is under</source>
+        <translation>호스트: 하위 도메인과 그 상위 도메인</translation>
+    </message>
+    <message id="autopanel.label.form.path">
         <source>Path prefix</source>
         <translation>경로 접두사</translation>
     </message>
-    <message id="autopanel.form.upstream">
+    <message id="autopanel.label.form.stackPort">
+        <source>From a stack's port:</source>
+        <translation>스택의 포트에서:</translation>
+    </message>
+    <message id="autopanel.label.form.upstream">
         <source>Upstream URL</source>
         <translation>업스트림 URL</translation>
     </message>
-    <message id="autopanel.hints">
-        <source>Menus: Alt and a menu's letter, or F10 · r refresh · q quit</source>
-        <translation>메뉴: Alt와 메뉴의 글자, 또는 F10 · r 새로 고침 · q 종료</translation>
+    <message id="autopanel.label.host.cpu">
+        <source>CPU</source>
+        <translation>CPU</translation>
     </message>
-    <message id="autopanel.login.passphrase">
+    <message id="autopanel.label.host.disk">
+        <source>Disk</source>
+        <translation>디스크</translation>
+    </message>
+    <message id="autopanel.label.host.load">
+        <source>Load</source>
+        <translation>부하</translation>
+    </message>
+    <message id="autopanel.label.host.memory">
+        <source>Memory</source>
+        <translation>메모리</translation>
+    </message>
+    <message id="autopanel.label.host.swap">
+        <source>Swap</source>
+        <translation>스왑</translation>
+    </message>
+    <message id="autopanel.label.host.uptime">
+        <source>Uptime</source>
+        <translation>가동 시간</translation>
+    </message>
+    <message id="autopanel.label.login.passphrase">
         <source>Passphrase</source>
         <translation>암호 문구</translation>
     </message>
-    <message id="autopanel.login.running">
-        <source>another sign-in is still running; try again in a moment</source>
-        <translation>다른 로그인이 아직 진행 중입니다. 잠시 후 다시 시도하세요</translation>
-    </message>
-    <message id="autopanel.login.signedIn">
-        <source>signed in as %1</source>
-        <translation>%1(으)로 로그인했습니다</translation>
-    </message>
-    <message id="autopanel.login.title">
-        <source>Sign in to AutoPanel</source>
-        <translation>AutoPanel 로그인</translation>
-    </message>
-    <message id="autopanel.login.user">
+    <message id="autopanel.label.login.user">
         <source>User</source>
         <translation>사용자</translation>
     </message>
-    <message id="autopanel.logins.result.closed">
-        <source>closed</source>
-        <translation>끊김</translation>
+    <message id="autopanel.label.logins.detail">
+        <source>Detail</source>
+        <translation>상세</translation>
     </message>
-    <message id="autopanel.logins.result.failed">
-        <source>failed</source>
-        <translation>실패</translation>
+    <message id="autopanel.label.logins.from">
+        <source>From</source>
+        <translation>출발지</translation>
     </message>
-    <message id="autopanel.logins.result.ok">
-        <source>ok</source>
-        <translation>성공</translation>
+    <message id="autopanel.label.logins.result">
+        <source>Result</source>
+        <translation>결과</translation>
     </message>
-    <message id="autopanel.logins.title">
-        <source>Login attempts</source>
-        <translation>로그인 시도</translation>
+    <message id="autopanel.label.logins.time">
+        <source>Time</source>
+        <translation>시간</translation>
     </message>
-    <message id="autopanel.menu.certs">
-        <source>&amp;Certs</source>
-        <translation>인증서(&amp;c)</translation>
+    <message id="autopanel.label.logins.to">
+        <source>To</source>
+        <translation>도착지</translation>
+    </message>
+    <message id="autopanel.label.logins.user">
+        <source>User</source>
+        <translation>사용자</translation>
+    </message>
+    <message id="autopanel.label.metrics.coreMemory">
+        <source>Core memory</source>
+        <translation>코어 메모리</translation>
+    </message>
+    <message id="autopanel.label.metrics.disk">
+        <source>Disk (the store's)</source>
+        <translation>디스크 (저장소)</translation>
+    </message>
+    <message id="autopanel.label.metrics.gateMemory">
+        <source>Gate memory</source>
+        <translation>게이트 메모리</translation>
+    </message>
+    <message id="autopanel.label.metrics.goroutines">
+        <source>Goroutines</source>
+        <translation>고루틴</translation>
+    </message>
+    <message id="autopanel.label.metrics.hostMemory">
+        <source>Host memory</source>
+        <translation>호스트 메모리</translation>
+    </message>
+    <message id="autopanel.label.metrics.httpRequests">
+        <source>HTTP requests</source>
+        <translation>HTTP 요청</translation>
+    </message>
+    <message id="autopanel.label.metrics.httpsRequests">
+        <source>HTTPS requests</source>
+        <translation>HTTPS 요청</translation>
+    </message>
+    <message id="autopanel.label.metrics.load">
+        <source>Host load</source>
+        <translation>호스트 부하</translation>
+    </message>
+    <message id="autopanel.label.metrics.routes">
+        <source>Routes</source>
+        <translation>라우트</translation>
+    </message>
+    <message id="autopanel.label.metrics.uptime">
+        <source>Service uptime</source>
+        <translation>서비스 가동 시간</translation>
+    </message>
+    <message id="autopanel.label.ports.address">
+        <source>Listens on</source>
+        <translation>수신 주소</translation>
+    </message>
+    <message id="autopanel.label.ports.port">
+        <source>Port</source>
+        <translation>포트</translation>
+    </message>
+    <message id="autopanel.label.ports.process">
+        <source>Process</source>
+        <translation>프로세스</translation>
+    </message>
+    <message id="autopanel.label.ports.protocol">
+        <source>Protocol</source>
+        <translation>프로토콜</translation>
+    </message>
+    <message id="autopanel.label.ports.use">
+        <source>For</source>
+        <translation>용도</translation>
+    </message>
+    <message id="autopanel.label.ports.user">
+        <source>User</source>
+        <translation>사용자</translation>
+    </message>
+    <message id="autopanel.label.prompt.domain">
+        <source>The domain's name, a name and a suffix:</source>
+        <translation>도메인 이름 (이름과 접미사):</translation>
+    </message>
+    <message id="autopanel.label.prompt.stackName">
+        <source>The stack's name: a lower-case letter, then letters, digits and hyphens.</source>
+        <translation>스택 이름: 소문자로 시작하고, 문자·숫자·하이픈을 씁니다.</translation>
+    </message>
+    <message id="autopanel.label.review.capAdd">
+        <source>Capabilities added</source>
+        <translation>추가된 capability</translation>
+    </message>
+    <message id="autopanel.label.review.capDrop">
+        <source>Capabilities dropped</source>
+        <translation>제거된 capability</translation>
+    </message>
+    <message id="autopanel.label.review.dependsOn">
+        <source>Depends on</source>
+        <translation>의존 대상</translation>
+    </message>
+    <message id="autopanel.label.review.image">
+        <source>Image</source>
+        <translation>이미지</translation>
+    </message>
+    <message id="autopanel.label.review.level">
+        <source>Level</source>
+        <translation>수준</translation>
+    </message>
+    <message id="autopanel.label.review.memory">
+        <source>Memory limit</source>
+        <translation>메모리 한도</translation>
+    </message>
+    <message id="autopanel.label.review.mounts">
+        <source>Mounts</source>
+        <translation>마운트</translation>
+    </message>
+    <message id="autopanel.label.review.network">
+        <source>Network</source>
+        <translation>네트워크</translation>
+    </message>
+    <message id="autopanel.label.review.ports">
+        <source>Ports</source>
+        <translation>포트</translation>
+    </message>
+    <message id="autopanel.label.review.readOnly">
+        <source>Read-only root</source>
+        <translation>읽기 전용 루트</translation>
+    </message>
+    <message id="autopanel.label.review.restart">
+        <source>Restart</source>
+        <translation>재시작</translation>
+    </message>
+    <message id="autopanel.label.review.service">
+        <source>Service</source>
+        <translation>서비스</translation>
+    </message>
+    <message id="autopanel.label.review.user">
+        <source>User</source>
+        <translation>사용자</translation>
+    </message>
+    <message id="autopanel.label.route.domain">
+        <source>Domain</source>
+        <translation>도메인</translation>
+    </message>
+    <message id="autopanel.label.route.host">
+        <source>Host</source>
+        <translation>호스트</translation>
+    </message>
+    <message id="autopanel.label.route.id">
+        <source>Route</source>
+        <translation>라우트</translation>
+    </message>
+    <message id="autopanel.label.route.path">
+        <source>Path prefix</source>
+        <translation>경로 접두사</translation>
+    </message>
+    <message id="autopanel.label.route.stack">
+        <source>Stack</source>
+        <translation>스택</translation>
+    </message>
+    <message id="autopanel.label.route.upstream">
+        <source>Upstream</source>
+        <translation>업스트림</translation>
+    </message>
+    <message id="autopanel.label.stack.containers">
+        <source>Containers</source>
+        <translation>컨테이너</translation>
+    </message>
+    <message id="autopanel.label.stack.cpu">
+        <source>CPU time</source>
+        <translation>CPU 시간</translation>
+    </message>
+    <message id="autopanel.label.stack.definition">
+        <source>Definition</source>
+        <translation>정의</translation>
+    </message>
+    <message id="autopanel.label.stack.digest">
+        <source>Digest</source>
+        <translation>다이제스트</translation>
+    </message>
+    <message id="autopanel.label.stack.health">
+        <source>Health</source>
+        <translation>헬스</translation>
+    </message>
+    <message id="autopanel.label.stack.image">
+        <source>Image</source>
+        <translation>이미지</translation>
+    </message>
+    <message id="autopanel.label.stack.imported">
+        <source>Imported</source>
+        <translation>가져옴</translation>
+    </message>
+    <message id="autopanel.label.stack.memory">
+        <source>Memory</source>
+        <translation>메모리</translation>
+    </message>
+    <message id="autopanel.label.stack.name">
+        <source>Stack</source>
+        <translation>스택</translation>
+    </message>
+    <message id="autopanel.label.stack.ports">
+        <source>Ports</source>
+        <translation>포트</translation>
+    </message>
+    <message id="autopanel.label.stack.restarts">
+        <source>Restarts</source>
+        <translation>재시작 횟수</translation>
+    </message>
+    <message id="autopanel.label.stack.service">
+        <source>Service</source>
+        <translation>서비스</translation>
+    </message>
+    <message id="autopanel.label.stack.since">
+        <source>Since</source>
+        <translation>시작 시각</translation>
+    </message>
+    <message id="autopanel.label.stack.source">
+        <source>Source</source>
+        <translation>소스</translation>
+    </message>
+    <message id="autopanel.label.stack.sourceState">
+        <source>Source state</source>
+        <translation>소스 상태</translation>
+    </message>
+    <message id="autopanel.label.stack.state">
+        <source>State</source>
+        <translation>상태</translation>
+    </message>
+    <message id="autopanel.label.stack.user">
+        <source>User</source>
+        <translation>사용자</translation>
     </message>
     <message id="autopanel.menu.certs.cloudflare">
         <source>&amp;Cloudflare token…</source>
@@ -323,37 +879,45 @@
         <source>&amp;Staging (test certificates)</source>
         <translation>스테이징 (테스트 인증서)(&amp;s)</translation>
     </message>
+    <message id="autopanel.menu.certs.title">
+        <source>&amp;Certs</source>
+        <translation>인증서(&amp;c)</translation>
+    </message>
     <message id="autopanel.menu.certs.type">
         <source>&amp;Type</source>
         <translation>유형(&amp;t)</translation>
-    </message>
-    <message id="autopanel.menu.go">
-        <source>&amp;Go</source>
-        <translation>이동(&amp;g)</translation>
     </message>
     <message id="autopanel.menu.go.terminal">
         <source>&amp;Terminal</source>
         <translation>터미널(&amp;t)</translation>
     </message>
-    <message id="autopanel.menu.help">
-        <source>&amp;Help</source>
-        <translation>도움말(&amp;h)</translation>
+    <message id="autopanel.menu.go.title">
+        <source>&amp;Go</source>
+        <translation>이동(&amp;g)</translation>
     </message>
     <message id="autopanel.menu.help.about">
         <source>&amp;About AutoPanel</source>
         <translation>AutoPanel 정보(&amp;a)</translation>
     </message>
-    <message id="autopanel.menu.mail">
-        <source>&amp;Mail</source>
-        <translation>메일(&amp;m)</translation>
+    <message id="autopanel.menu.help.keys">
+        <source>&amp;Keys</source>
+        <translation>키(&amp;k)</translation>
+    </message>
+    <message id="autopanel.menu.help.title">
+        <source>&amp;Help</source>
+        <translation>도움말(&amp;h)</translation>
     </message>
     <message id="autopanel.menu.mail.none">
         <source>Mail is &amp;not set up yet</source>
         <translation>메일은 아직 설정되지 않았습니다(&amp;n)</translation>
     </message>
-    <message id="autopanel.menu.routes">
-        <source>&amp;Routes</source>
-        <translation>라우트(&amp;r)</translation>
+    <message id="autopanel.menu.mail.title">
+        <source>&amp;Mail</source>
+        <translation>메일(&amp;m)</translation>
+    </message>
+    <message id="autopanel.menu.routes.domains">
+        <source>&amp;Domains…</source>
+        <translation>도메인(&amp;d)…</translation>
     </message>
     <message id="autopanel.menu.routes.forwarding">
         <source>Port &amp;forwarding…</source>
@@ -363,9 +927,9 @@
         <source>&amp;Proxy routes…</source>
         <translation>프록시 라우트(&amp;p)…</translation>
     </message>
-    <message id="autopanel.menu.services">
-        <source>&amp;Services</source>
-        <translation>서비스(&amp;s)</translation>
+    <message id="autopanel.menu.routes.title">
+        <source>&amp;Routes</source>
+        <translation>라우트(&amp;r)</translation>
     </message>
     <message id="autopanel.menu.services.add">
         <source>&amp;Add a stack…</source>
@@ -375,9 +939,9 @@
         <source>&amp;Stacks…</source>
         <translation>스택(&amp;s)…</translation>
     </message>
-    <message id="autopanel.menu.system">
-        <source>S&amp;ystem</source>
-        <translation>시스템(&amp;y)</translation>
+    <message id="autopanel.menu.services.title">
+        <source>&amp;Services</source>
+        <translation>서비스(&amp;s)</translation>
     </message>
     <message id="autopanel.menu.system.audit">
         <source>&amp;Audit log…</source>
@@ -400,504 +964,892 @@
         <translation>열린 포트(&amp;p)…</translation>
     </message>
     <message id="autopanel.menu.system.quit">
-        <source>&amp;Quit (q)</source>
-        <translation>종료 (&amp;q)</translation>
+        <source>&amp;Quit</source>
+        <translation>종료(&amp;q)</translation>
     </message>
     <message id="autopanel.menu.system.refresh">
-        <source>&amp;Refresh (r)</source>
-        <translation>새로 고침 (&amp;r)</translation>
+        <source>&amp;Refresh</source>
+        <translation>새로 고침(&amp;r)</translation>
     </message>
     <message id="autopanel.menu.system.theme">
         <source>&amp;Theme</source>
         <translation>테마(&amp;t)</translation>
     </message>
-    <message id="autopanel.menu.users">
-        <source>&amp;Users</source>
-        <translation>사용자(&amp;u)</translation>
+    <message id="autopanel.menu.system.title">
+        <source>S&amp;ystem</source>
+        <translation>시스템(&amp;y)</translation>
+    </message>
+    <message id="autopanel.menu.terminal.close">
+        <source>&amp;Close this shell</source>
+        <translation>이 셸 닫기(&amp;c)</translation>
+    </message>
+    <message id="autopanel.menu.terminal.hide">
+        <source>Hi&amp;de</source>
+        <translation>숨기기(&amp;d)</translation>
+    </message>
+    <message id="autopanel.menu.terminal.maximize">
+        <source>&amp;Maximize or restore</source>
+        <translation>최대화 또는 복원(&amp;m)</translation>
+    </message>
+    <message id="autopanel.menu.terminal.new">
+        <source>&amp;New shell</source>
+        <translation>새 셸(&amp;n)</translation>
+    </message>
+    <message id="autopanel.menu.terminal.newRoot">
+        <source>New &amp;root shell</source>
+        <translation>새 root 셸(&amp;r)</translation>
     </message>
     <message id="autopanel.menu.users.manage">
         <source>&amp;Manage users…</source>
         <translation>사용자 관리(&amp;m)…</translation>
     </message>
-    <message id="autopanel.metrics.availableOf">
-        <source>%1 available of %2</source>
-        <translation>%2 중 %1 사용 가능</translation>
-    </message>
-    <message id="autopanel.metrics.disk">
-        <source>Disk (the store's)</source>
-        <translation>디스크 (저장소)</translation>
-    </message>
-    <message id="autopanel.metrics.freeOf">
-        <source>%1 free of %2</source>
-        <translation>%2 중 %1 남음</translation>
-    </message>
-    <message id="autopanel.metrics.gateMemory">
-        <source>Gate memory</source>
-        <translation>게이트 메모리</translation>
-    </message>
-    <message id="autopanel.metrics.gateMemoryValue">
-        <source>%1 · process %2</source>
-        <translation>%1 · 프로세스 %2</translation>
-    </message>
-    <message id="autopanel.metrics.gateSilent">
-        <source>not reporting</source>
-        <translation>보고 없음</translation>
-    </message>
-    <message id="autopanel.metrics.goroutines">
-        <source>Goroutines</source>
-        <translation>고루틴</translation>
-    </message>
-    <message id="autopanel.metrics.hostMemory">
-        <source>Host memory</source>
-        <translation>호스트 메모리</translation>
-    </message>
-    <message id="autopanel.metrics.httpRequests">
-        <source>HTTP requests</source>
-        <translation>HTTP 요청</translation>
-    </message>
-    <message id="autopanel.metrics.httpsRequests">
-        <source>HTTPS requests</source>
-        <translation>HTTPS 요청</translation>
-    </message>
-    <message id="autopanel.metrics.load">
-        <source>Host load</source>
-        <translation>호스트 부하</translation>
-    </message>
-    <message id="autopanel.metrics.loadValue">
-        <source>%1 · %2 · %3 (1, 5 and 15 minutes)</source>
-        <translation>%1 · %2 · %3 (1분, 5분, 15분)</translation>
-    </message>
-    <message id="autopanel.metrics.routes">
-        <source>Routes</source>
-        <translation>라우트</translation>
-    </message>
-    <message id="autopanel.metrics.serviceMemory">
-        <source>Core memory</source>
-        <translation>코어 메모리</translation>
-    </message>
-    <message id="autopanel.metrics.serviceMemoryValue">
-        <source>%1 in use · %2 held</source>
-        <translation>%1 사용 중 · %2 확보</translation>
-    </message>
-    <message id="autopanel.metrics.title">
-        <source>Metrics</source>
-        <translation>지표</translation>
-    </message>
-    <message id="autopanel.metrics.uptime">
-        <source>Service uptime</source>
-        <translation>서비스 가동 시간</translation>
-    </message>
-    <message id="autopanel.monitor.help">
-        <source>r read again · q close · Alt+drag moves, Alt+right-drag resizes</source>
-        <translation>r 다시 읽기 · q 닫기 · Alt+드래그 이동, Alt+오른쪽 드래그 크기 조절</translation>
-    </message>
-    <message id="autopanel.monitor.readAt">
-        <source>%1 rows, read at %2</source>
-        <translation>%1행, %2에 읽음</translation>
-    </message>
-    <message id="autopanel.monitor.readAtOnly">
-        <source>read at %1</source>
-        <translation>%1에 읽음</translation>
-    </message>
-    <message id="autopanel.notice.added">
-        <source>added %1</source>
-        <translation>%1 추가됨</translation>
-    </message>
-    <message id="autopanel.notice.busy">
-        <source>busy: a change is in flight</source>
-        <translation>작업 중: 변경이 진행 중입니다</translation>
-    </message>
-    <message id="autopanel.notice.caNow">
-        <source>certificates now come from %1</source>
-        <translation>이제 인증서는 %1에서 발급됩니다</translation>
-    </message>
-    <message id="autopanel.notice.error">
-        <source>error: %1</source>
-        <translation>오류: %1</translation>
-    </message>
-    <message id="autopanel.notice.noLanguage">
-        <source>no language %1</source>
-        <translation>%1 언어가 없습니다</translation>
-    </message>
-    <message id="autopanel.notice.noRoute">
-        <source>no route selected</source>
-        <translation>선택한 라우트가 없습니다</translation>
-    </message>
-    <message id="autopanel.notice.noTheme">
-        <source>no theme named %1</source>
-        <translation>%1(이)라는 테마가 없습니다</translation>
-    </message>
-    <message id="autopanel.notice.notKept">
-        <source>the choice is shown but was not kept: %1</source>
-        <translation>선택이 표시되었지만 저장되지 않았습니다: %1</translation>
-    </message>
-    <message id="autopanel.notice.removed">
-        <source>removed #%1</source>
-        <translation>#%1 제거됨</translation>
-    </message>
-    <message id="autopanel.notice.routesError">
-        <source>routes: %1</source>
-        <translation>라우트: %1</translation>
-    </message>
-    <message id="autopanel.notice.shellExited">
-        <source>The shell exited with status %1</source>
-        <translation>셸이 상태 %1(으)로 종료되었습니다</translation>
-    </message>
-    <message id="autopanel.notice.shellFailed">
-        <source>The shell could not start: %1</source>
-        <translation>셸을 시작할 수 없습니다: %1</translation>
-    </message>
-    <message id="autopanel.notice.theme">
-        <source>theme: %1</source>
-        <translation>테마: %1</translation>
-    </message>
-    <message id="autopanel.notice.updated">
-        <source>updated %1</source>
-        <translation>%1 업데이트됨</translation>
-    </message>
-    <message id="autopanel.overview.certificates">
-        <source>Certificates</source>
-        <translation>인증서</translation>
-    </message>
-    <message id="autopanel.overview.challenge">
-        <source>Challenge</source>
-        <translation>챌린지</translation>
-    </message>
-    <message id="autopanel.overview.http">
-        <source>HTTP</source>
-        <translation>HTTP</translation>
-    </message>
-    <message id="autopanel.overview.httpNote">
-        <source>%1 (certificate checks, and the redirect to HTTPS)</source>
-        <translation>%1 (인증서 확인 및 HTTPS로 리디렉션)</translation>
-    </message>
-    <message id="autopanel.overview.https">
-        <source>HTTPS</source>
-        <translation>HTTPS</translation>
-    </message>
-    <message id="autopanel.overview.routes">
-        <source>Routes</source>
-        <translation>라우트</translation>
-    </message>
-    <message id="autopanel.overview.store">
-        <source>Store</source>
-        <translation>저장소</translation>
-    </message>
-    <message id="autopanel.overview.title">
-        <source>Overview</source>
-        <translation>개요</translation>
-    </message>
-    <message id="autopanel.overview.uptime">
-        <source>Uptime</source>
-        <translation>가동 시간</translation>
-    </message>
-    <message id="autopanel.overview.version">
-        <source>Version</source>
-        <translation>버전</translation>
-    </message>
-    <message id="autopanel.ports.title">
-        <source>Open ports</source>
-        <translation>열린 포트</translation>
-    </message>
-    <message id="autopanel.review.go.add">
-        <source>&amp;Add and start</source>
-        <translation>추가하고 시작(&amp;a)</translation>
-    </message>
-    <message id="autopanel.review.go.apply">
-        <source>&amp;Apply</source>
-        <translation>적용(&amp;a)</translation>
-    </message>
-    <message id="autopanel.review.go.start">
-        <source>&amp;Start</source>
-        <translation>시작(&amp;s)</translation>
-    </message>
-    <message id="autopanel.review.help">
-        <source>Nothing changes until you confirm. Confirming accepts the warnings.</source>
-        <translation>확인하기 전에는 아무것도 바뀌지 않습니다. 확인하면 경고를 수락하는 것입니다.</translation>
-    </message>
-    <message id="autopanel.review.help.changed">
-        <source>The definition changed since it was shown. This is its new review.</source>
-        <translation>표시한 뒤 정의가 바뀌었습니다. 이것이 새 검토입니다.</translation>
-    </message>
-    <message id="autopanel.review.help.refused">
-        <source>The stack was refused. Fix its definition, then review it again.</source>
-        <translation>스택이 거부되었습니다. 정의를 고친 뒤 다시 검토하세요.</translation>
-    </message>
-    <message id="autopanel.review.level.refused">
-        <source>refused</source>
-        <translation>거부</translation>
-    </message>
-    <message id="autopanel.review.level.warning">
-        <source>warning</source>
-        <translation>경고</translation>
-    </message>
-    <message id="autopanel.review.memory.none">
-        <source>none</source>
-        <translation>없음</translation>
-    </message>
-    <message id="autopanel.review.prepare">
-        <source>&amp;Prepare only</source>
-        <translation>준비만(&amp;p)</translation>
-    </message>
-    <message id="autopanel.review.removes">
-        <source>Applying stops and removes: %1</source>
-        <translation>적용하면 중지되고 제거되는 서비스: %1</translation>
-    </message>
-    <message id="autopanel.review.summary">
-        <source>Definition %1 · %2 files</source>
-        <translation>정의 %1 · 파일 %2개</translation>
-    </message>
-    <message id="autopanel.review.title.add">
-        <source>Add stack %1: review</source>
-        <translation>스택 %1 추가: 검토</translation>
-    </message>
-    <message id="autopanel.review.title.apply">
-        <source>Apply stack %1: review</source>
-        <translation>스택 %1 적용: 검토</translation>
-    </message>
-    <message id="autopanel.review.title.start">
-        <source>Start stack %1: review</source>
-        <translation>스택 %1 시작: 검토</translation>
-    </message>
-    <message id="autopanel.review.user.image">
-        <source>image's own</source>
-        <translation>이미지 기본값</translation>
-    </message>
-    <message id="autopanel.routes.add">
-        <source>Add</source>
-        <translation>추가</translation>
-    </message>
-    <message id="autopanel.routes.delete">
-        <source>Delete</source>
-        <translation>삭제</translation>
-    </message>
-    <message id="autopanel.routes.edit">
-        <source>Edit</source>
-        <translation>편집</translation>
-    </message>
-    <message id="autopanel.routes.help">
-        <source>a add · e/Enter edit · d delete · q close</source>
-        <translation>a 추가 · e/Enter 편집 · d 삭제 · q 닫기</translation>
-    </message>
-    <message id="autopanel.routes.title">
-        <source>Proxy routes</source>
-        <translation>프록시 라우트</translation>
-    </message>
-    <message id="autopanel.stacks.add">
-        <source>Add</source>
-        <translation>추가</translation>
-    </message>
-    <message id="autopanel.stacks.apply">
-        <source>Apply</source>
-        <translation>적용</translation>
-    </message>
-    <message id="autopanel.stacks.available.hint">
-        <source>Enter reviews the selected folder. Nothing changes until you confirm the review.</source>
-        <translation>Enter로 선택한 폴더를 검토합니다. 검토를 확인하기 전에는 아무것도 바뀌지 않습니다.</translation>
-    </message>
-    <message id="autopanel.stacks.available.none">
-        <source>No folder holds a new stack. Write a compose file to /etc/autopanel/stacks/&lt;name&gt;/compose.yaml, then open this again.</source>
-        <translation>새 스택이 든 폴더가 없습니다. compose 파일을 /etc/autopanel/stacks/&lt;name&gt;/compose.yaml 에 쓴 뒤 다시 여세요.</translation>
-    </message>
-    <message id="autopanel.stacks.available.review">
-        <source>&amp;Review</source>
-        <translation>검토(&amp;r)</translation>
-    </message>
-    <message id="autopanel.stacks.available.title">
-        <source>Add a stack</source>
-        <translation>스택 추가</translation>
-    </message>
-    <message id="autopanel.stacks.confirm.purge">
-        <source>Remove %1 and delete its directory? Its containers stop, and its units, its user %2 and its data are deleted. Its definition folder is not touched.</source>
-        <translation>%1을(를) 제거하고 디렉터리도 삭제할까요? 컨테이너가 중지되고, 유닛, 사용자 %2, 데이터가 삭제됩니다. 정의 폴더는 건드리지 않습니다.</translation>
-    </message>
-    <message id="autopanel.stacks.confirm.remove">
-        <source>Remove %1? Its containers stop, and its units and its user %2 are deleted. Its directory, with its data, is kept, owned by root. Its definition folder is not touched.</source>
-        <translation>%1을(를) 제거할까요? 컨테이너가 중지되고, 유닛과 사용자 %2이(가) 삭제됩니다. 데이터가 든 디렉터리는 root 소유로 남습니다. 정의 폴더는 건드리지 않습니다.</translation>
-    </message>
-    <message id="autopanel.stacks.confirm.stopService">
-        <source>Stop %2 of %1, and every service that depends on it? They stay stopped across a boot, until they are started.</source>
-        <translation>%1의 %2와(과) 이에 의존하는 모든 서비스를 중지할까요? 시작할 때까지, 호스트를 다시 부팅해도 중지된 상태로 남습니다.</translation>
-    </message>
-    <message id="autopanel.stacks.confirm.stopStack">
-        <source>Stop every service of %1? They stay stopped across a boot, until they are started.</source>
-        <translation>%1의 모든 서비스를 중지할까요? 시작할 때까지, 호스트를 다시 부팅해도 중지된 상태로 남습니다.</translation>
-    </message>
-    <message id="autopanel.stacks.confirm.stopTitle">
-        <source>Stop</source>
-        <translation>중지</translation>
-    </message>
-    <message id="autopanel.stacks.confirm.title">
-        <source>Remove stack</source>
-        <translation>스택 제거</translation>
-    </message>
-    <message id="autopanel.stacks.done.add">
-        <source>%1 is added and started</source>
-        <translation>%1을(를) 추가하고 시작했습니다</translation>
-    </message>
-    <message id="autopanel.stacks.done.apply">
-        <source>%1 is applied</source>
-        <translation>%1을(를) 적용했습니다</translation>
-    </message>
-    <message id="autopanel.stacks.done.prepare">
-        <source>%1 is prepared and not started. Put its data in place, then apply it (p) to start it.</source>
-        <translation>%1을(를) 준비했고 시작하지 않았습니다. 데이터를 넣은 뒤 적용(p)하여 시작하세요.</translation>
-    </message>
-    <message id="autopanel.stacks.done.pull">
-        <source>the images of %1 are pulled; a container whose image changed was restarted</source>
-        <translation>%1의 이미지를 가져왔습니다. 이미지가 바뀐 컨테이너는 재시작되었습니다</translation>
-    </message>
-    <message id="autopanel.stacks.done.purge">
-        <source>%1 removed, with its directory</source>
-        <translation>%1을(를) 디렉터리까지 제거했습니다</translation>
-    </message>
-    <message id="autopanel.stacks.done.remove">
-        <source>%1 removed; its directory is kept</source>
-        <translation>%1 제거됨. 디렉터리는 남아 있습니다</translation>
-    </message>
-    <message id="autopanel.stacks.done.restart">
-        <source>%1 restarted</source>
-        <translation>%1 재시작됨</translation>
-    </message>
-    <message id="autopanel.stacks.done.start">
-        <source>%1 started</source>
-        <translation>%1 시작됨</translation>
-    </message>
-    <message id="autopanel.stacks.done.stop">
-        <source>%1 stopped</source>
-        <translation>%1 중지됨</translation>
-    </message>
-    <message id="autopanel.stacks.help">
-        <source>a add · p review and apply · u pull images · s start, x stop, t restart the service · with Shift, the whole stack · o log · d remove · Shift+D remove with its directory · r read again · q close · * after a name: its definition changed: apply to review it</source>
-        <translation>a 추가 · p 검토 후 적용 · u 이미지 가져오기 · s 시작, x 중지, t 재시작(서비스) · Shift와 함께: 스택 전체 · o 로그 · d 제거 · Shift+D 디렉터리까지 제거 · r 다시 읽기 · q 닫기 · 이름 뒤의 *: 정의가 바뀌었습니다. 적용하여 검토하세요</translation>
-    </message>
-    <message id="autopanel.stacks.legacy">
-        <source>%1 was deployed from a template by an older AutoPanel. Remove it, then add it again as a stack.</source>
-        <translation>%1은(는) 이전 AutoPanel이 템플릿으로 배포했습니다. 제거한 뒤 스택으로 다시 추가하세요.</translation>
-    </message>
-    <message id="autopanel.stacks.logs">
-        <source>Log</source>
-        <translation>로그</translation>
-    </message>
-    <message id="autopanel.stacks.logs.note">
-        <source>%1: %2 lines, read at %3</source>
-        <translation>%1: %2줄, %3에 읽음</translation>
-    </message>
-    <message id="autopanel.stacks.logs.title">
-        <source>Stack log</source>
-        <translation>스택 로그</translation>
-    </message>
-    <message id="autopanel.stacks.noService">
-        <source>%1 has no service at this row. Apply the stack first.</source>
-        <translation>%1의 이 행에는 서비스가 없습니다. 먼저 스택을 적용하세요.</translation>
-    </message>
-    <message id="autopanel.stacks.none">
-        <source>No stack at this row.</source>
-        <translation>이 행에 스택이 없습니다.</translation>
-    </message>
-    <message id="autopanel.stacks.remove">
-        <source>Remove</source>
-        <translation>제거</translation>
-    </message>
-    <message id="autopanel.stacks.restart">
-        <source>Restart</source>
-        <translation>재시작</translation>
-    </message>
-    <message id="autopanel.stacks.start">
-        <source>Start</source>
-        <translation>시작</translation>
-    </message>
-    <message id="autopanel.stacks.state.deploying">
-        <source>being applied</source>
-        <translation>적용 중</translation>
-    </message>
-    <message id="autopanel.stacks.state.incomplete">
-        <source>apply stopped at: %1</source>
-        <translation>적용이 멈춘 단계: %1</translation>
-    </message>
-    <message id="autopanel.stacks.state.legacy">
-        <source>from a template</source>
-        <translation>템플릿에서 배포됨</translation>
-    </message>
-    <message id="autopanel.stacks.state.prepared">
-        <source>prepared, not started</source>
-        <translation>준비됨, 시작 안 됨</translation>
-    </message>
-    <message id="autopanel.stacks.state.removing">
-        <source>being removed</source>
-        <translation>제거 중</translation>
-    </message>
-    <message id="autopanel.stacks.state.stopped">
-        <source>stopped</source>
-        <translation>중지됨</translation>
-    </message>
-    <message id="autopanel.stacks.stop">
-        <source>Stop</source>
-        <translation>중지</translation>
-    </message>
-    <message id="autopanel.stacks.title">
-        <source>Stacks</source>
-        <translation>스택</translation>
-    </message>
-    <message id="autopanel.stacks.working">
-        <source>%1: working. Pulling images can take a while.</source>
-        <translation>%1: 작업 중. 이미지를 가져오는 데 시간이 걸릴 수 있습니다.</translation>
-    </message>
-    <message id="autopanel.status.error">
-        <source>status: %1</source>
-        <translation>상태: %1</translation>
-    </message>
-    <message id="autopanel.status.line">
-        <source>%1 · CA %2 · %3 routes · up %4</source>
-        <translation>%1 · CA %2 · 라우트 %3개 · 가동 %4</translation>
-    </message>
-    <message id="autopanel.status.loading">
-        <source>loading…</source>
-        <translation>불러오는 중…</translation>
-    </message>
-    <message id="autopanel.status.signedOut">
-        <source>not signed in</source>
-        <translation>로그인하지 않음</translation>
-    </message>
-    <message id="autopanel.terminal.confirmStop">
-        <source>Stop the running shells (%1) and close the terminal?</source>
-        <translation>실행 중인 셸(%1개)을 중지하고 터미널을 닫을까요?</translation>
-    </message>
-    <message id="autopanel.terminal.confirmTitle">
-        <source>Close the terminal</source>
-        <translation>터미널 닫기</translation>
-    </message>
-    <message id="autopanel.terminal.empty">
+    <message id="autopanel.menu.users.title">
+        <source>&amp;Users</source>
+        <translation>사용자(&amp;u)</translation>
+    </message>
+    <message id="autopanel.menu.view.activity">
+        <source>&amp;Activity</source>
+        <translation>활동(&amp;a)</translation>
+    </message>
+    <message id="autopanel.menu.view.certs">
+        <source>&amp;Certificates</source>
+        <translation>인증서(&amp;c)</translation>
+    </message>
+    <message id="autopanel.menu.view.host">
+        <source>&amp;Host</source>
+        <translation>호스트(&amp;h)</translation>
+    </message>
+    <message id="autopanel.menu.view.network">
+        <source>&amp;Network</source>
+        <translation>네트워크(&amp;n)</translation>
+    </message>
+    <message id="autopanel.menu.view.ports">
+        <source>&amp;Ports</source>
+        <translation>포트(&amp;p)</translation>
+    </message>
+    <message id="autopanel.menu.view.reset">
+        <source>Reset the &amp;layout</source>
+        <translation>레이아웃 초기화(&amp;l)</translation>
+    </message>
+    <message id="autopanel.menu.view.stacks">
+        <source>S&amp;tacks</source>
+        <translation>스택(&amp;t)</translation>
+    </message>
+    <message id="autopanel.menu.view.statusBar">
+        <source>&amp;Status bar</source>
+        <translation>상태 표시줄(&amp;s)</translation>
+    </message>
+    <message id="autopanel.menu.view.title">
+        <source>&amp;View</source>
+        <translation>보기(&amp;v)</translation>
+    </message>
+    <message id="autopanel.menu.view.traffic">
+        <source>T&amp;raffic</source>
+        <translation>트래픽(&amp;r)</translation>
+    </message>
+    <message id="autopanel.note.browse.cut">
+        <source>Only the start of the file is shown.</source>
+        <translation>파일의 앞부분만 표시합니다.</translation>
+    </message>
+    <message id="autopanel.note.browse.masked">
+        <source>%1 secret values are hidden.</source>
+        <translation>비밀 값 %1개를 숨겼습니다.</translation>
+    </message>
+    <message id="autopanel.note.browse.notInStack">
+        <source>Only a file inside a stack's folder (one that holds a compose.yaml) is previewed.</source>
+        <translation>스택 폴더(compose.yaml이 든 폴더) 안의 파일만 미리 봅니다.</translation>
+    </message>
+    <message id="autopanel.note.browse.notText">
+        <source>The file is not text.</source>
+        <translation>텍스트 파일이 아닙니다.</translation>
+    </message>
+    <message id="autopanel.note.terminal.empty">
         <source>No shell running. Press + to start one.</source>
         <translation>실행 중인 셸이 없습니다. +를 눌러 시작하세요.</translation>
     </message>
-    <message id="autopanel.terminal.help">
-        <source>Ctrl+T scroll and copy (i to type again) · F11 maximize · ≡ shells · a hidden terminal keeps its shells</source>
-        <translation>Ctrl+T 스크롤 및 복사 (i로 다시 입력) · F11 최대화 · ≡ 셸 · 숨긴 터미널의 셸은 계속 실행됩니다</translation>
+    <message id="autopanel.notice.app.busy">
+        <source>busy: a change is in flight</source>
+        <translation>작업 중: 변경이 진행 중입니다</translation>
     </message>
-    <message id="autopanel.terminal.menu.close">
-        <source>&amp;Close this shell</source>
-        <translation>이 셸 닫기(&amp;c)</translation>
+    <message id="autopanel.notice.app.error">
+        <source>error: %1</source>
+        <translation>오류: %1</translation>
     </message>
-    <message id="autopanel.terminal.menu.hide">
-        <source>Hi&amp;de</source>
-        <translation>숨기기(&amp;d)</translation>
+    <message id="autopanel.notice.browse.cannotRead">
+        <source>Cannot read %1: %2</source>
+        <translation>%1을(를) 읽을 수 없습니다: %2</translation>
     </message>
-    <message id="autopanel.terminal.menu.maximize">
-        <source>&amp;Maximize or restore</source>
-        <translation>최대화 또는 복원(&amp;m)</translation>
+    <message id="autopanel.notice.browse.noStack">
+        <source>No folder here holds a compose.yaml to import.</source>
+        <translation>여기에는 가져올 compose.yaml이 든 폴더가 없습니다.</translation>
     </message>
-    <message id="autopanel.terminal.menu.new">
-        <source>&amp;New shell</source>
-        <translation>새 셸(&amp;n)</translation>
+    <message id="autopanel.notice.certs.caNow">
+        <source>certificates now come from %1</source>
+        <translation>이제 인증서는 %1에서 발급됩니다</translation>
     </message>
-    <message id="autopanel.terminal.menu.newRoot">
-        <source>New &amp;root shell</source>
-        <translation>새 root 셸(&amp;r)</translation>
+    <message id="autopanel.notice.domains.added">
+        <source>domain %1 added</source>
+        <translation>도메인 %1 추가됨</translation>
     </message>
-    <message id="autopanel.terminal.title">
+    <message id="autopanel.notice.domains.badName">
+        <source>%1 is not a domain name: a name and a suffix, as example.com.</source>
+        <translation>%1은(는) 도메인 이름이 아닙니다. example.com처럼 이름과 접미사로 씁니다.</translation>
+    </message>
+    <message id="autopanel.notice.domains.exists">
+        <source>%1 is registered already.</source>
+        <translation>%1은(는) 이미 등록되어 있습니다.</translation>
+    </message>
+    <message id="autopanel.notice.domains.gone">
+        <source>%1 was removed already.</source>
+        <translation>%1은(는) 이미 제거되었습니다.</translation>
+    </message>
+    <message id="autopanel.notice.domains.inUse">
+        <source>%1 cannot be removed: a route would be left under no domain. Remove or move that route first.</source>
+        <translation>%1을(를) 제거할 수 없습니다. 도메인이 없는 라우트가 남게 됩니다. 먼저 그 라우트를 제거하거나 옮기세요.</translation>
+    </message>
+    <message id="autopanel.notice.domains.noName">
+        <source>Type the domain's name.</source>
+        <translation>도메인 이름을 입력하세요.</translation>
+    </message>
+    <message id="autopanel.notice.domains.none">
+        <source>No domain is selected.</source>
+        <translation>선택한 도메인이 없습니다.</translation>
+    </message>
+    <message id="autopanel.notice.domains.removed">
+        <source>domain %1 removed</source>
+        <translation>도메인 %1 제거됨</translation>
+    </message>
+    <message id="autopanel.notice.form.noDomain">
+        <source>The host is under no registered domain. Add the domain in Routes › Domains first.</source>
+        <translation>호스트가 등록된 도메인에 속하지 않습니다. 먼저 라우트 › 도메인에서 도메인을 추가하세요.</translation>
+    </message>
+    <message id="autopanel.notice.form.noHost">
+        <source>Type a subdomain, or choose a domain.</source>
+        <translation>하위 도메인을 입력하거나 도메인을 선택하세요.</translation>
+    </message>
+    <message id="autopanel.notice.import.badName">
+        <source>%1 is not a stack's name: a lower-case letter, then letters, digits and hyphens, 29 characters at most.</source>
+        <translation>%1은(는) 스택 이름으로 쓸 수 없습니다. 소문자로 시작하고 문자·숫자·하이픈으로 최대 29자입니다.</translation>
+    </message>
+    <message id="autopanel.notice.import.done">
+        <source>%1 is imported: %2 files. Review it to add it.</source>
+        <translation>%1을(를) 가져왔습니다: 파일 %2개. 검토하여 추가하세요.</translation>
+    </message>
+    <message id="autopanel.notice.import.exists">
+        <source>A stack named %1 exists. Choose another name.</source>
+        <translation>%1(이)라는 스택이 이미 있습니다. 다른 이름을 고르세요.</translation>
+    </message>
+    <message id="autopanel.notice.language.unknown">
+        <source>no language %1</source>
+        <translation>%1 언어가 없습니다</translation>
+    </message>
+    <message id="autopanel.notice.login.running">
+        <source>another sign-in is still running; try again in a moment</source>
+        <translation>다른 로그인이 아직 진행 중입니다. 잠시 후 다시 시도하세요</translation>
+    </message>
+    <message id="autopanel.notice.login.signedIn">
+        <source>signed in as %1</source>
+        <translation>%1(으)로 로그인했습니다</translation>
+    </message>
+    <message id="autopanel.notice.prefs.notKept">
+        <source>the choice is shown but was not kept: %1</source>
+        <translation>선택이 표시되었지만 저장되지 않았습니다: %1</translation>
+    </message>
+    <message id="autopanel.notice.review.changed">
+        <source>The definition changed since it was shown. This is its new review.</source>
+        <translation>표시한 뒤 정의가 바뀌었습니다. 이것이 새 검토입니다.</translation>
+    </message>
+    <message id="autopanel.notice.review.refused">
+        <source>The stack was refused. Fix its definition, then review it again.</source>
+        <translation>스택이 거부되었습니다. 정의를 고친 뒤 다시 검토하세요.</translation>
+    </message>
+    <message id="autopanel.notice.routes.added">
+        <source>added %1</source>
+        <translation>%1 추가됨</translation>
+    </message>
+    <message id="autopanel.notice.routes.none">
+        <source>no route selected</source>
+        <translation>선택한 라우트가 없습니다</translation>
+    </message>
+    <message id="autopanel.notice.routes.readFailed">
+        <source>routes: %1</source>
+        <translation>라우트: %1</translation>
+    </message>
+    <message id="autopanel.notice.routes.removed">
+        <source>removed #%1</source>
+        <translation>#%1 제거됨</translation>
+    </message>
+    <message id="autopanel.notice.routes.updated">
+        <source>updated %1</source>
+        <translation>%1 업데이트됨</translation>
+    </message>
+    <message id="autopanel.notice.stacks.addDone">
+        <source>%1 is added and started</source>
+        <translation>%1을(를) 추가하고 시작했습니다</translation>
+    </message>
+    <message id="autopanel.notice.stacks.applyDone">
+        <source>%1 is applied</source>
+        <translation>%1을(를) 적용했습니다</translation>
+    </message>
+    <message id="autopanel.notice.stacks.legacy">
+        <source>%1 was deployed from a template by an older AutoPanel. Remove it, then add it again as a stack.</source>
+        <translation>%1은(는) 이전 AutoPanel이 템플릿으로 배포했습니다. 제거한 뒤 스택으로 다시 추가하세요.</translation>
+    </message>
+    <message id="autopanel.notice.stacks.noSource">
+        <source>%1 was not imported from a folder.</source>
+        <translation>%1은(는) 폴더에서 가져온 것이 아닙니다.</translation>
+    </message>
+    <message id="autopanel.notice.stacks.none">
+        <source>No stack at this row.</source>
+        <translation>이 행에 스택이 없습니다.</translation>
+    </message>
+    <message id="autopanel.notice.stacks.prepareDone">
+        <source>%1 is prepared and not started. Put its data in place, then apply it to start it.</source>
+        <translation>%1을(를) 준비했고 시작하지 않았습니다. 데이터를 넣은 뒤 적용하여 시작하세요.</translation>
+    </message>
+    <message id="autopanel.notice.stacks.pullDone">
+        <source>the images of %1 are pulled; a container whose image changed was restarted</source>
+        <translation>%1의 이미지를 가져왔습니다. 이미지가 바뀐 컨테이너는 재시작되었습니다</translation>
+    </message>
+    <message id="autopanel.notice.stacks.purgeDone">
+        <source>%1 removed, with its directory</source>
+        <translation>%1을(를) 디렉터리까지 제거했습니다</translation>
+    </message>
+    <message id="autopanel.notice.stacks.reimported">
+        <source>%1: its definition is copied again from its source. Review it to apply it.</source>
+        <translation>%1: 소스에서 정의를 다시 복사했습니다. 검토하여 적용하세요.</translation>
+    </message>
+    <message id="autopanel.notice.stacks.removeDone">
+        <source>%1 removed; its directory is kept</source>
+        <translation>%1 제거됨. 디렉터리는 남아 있습니다</translation>
+    </message>
+    <message id="autopanel.notice.stacks.restartDone">
+        <source>%1 restarted</source>
+        <translation>%1 재시작됨</translation>
+    </message>
+    <message id="autopanel.notice.stacks.sourceMissing">
+        <source>The source folder of %1 is gone: %2</source>
+        <translation>%1의 소스 폴더가 없어졌습니다: %2</translation>
+    </message>
+    <message id="autopanel.notice.stacks.sourceSame">
+        <source>The source of %1 has not changed since it was imported.</source>
+        <translation>%1의 소스는 가져온 뒤 바뀌지 않았습니다.</translation>
+    </message>
+    <message id="autopanel.notice.stacks.startDone">
+        <source>%1 started</source>
+        <translation>%1 시작됨</translation>
+    </message>
+    <message id="autopanel.notice.stacks.stopDone">
+        <source>%1 stopped</source>
+        <translation>%1 중지됨</translation>
+    </message>
+    <message id="autopanel.notice.stacks.working">
+        <source>%1: working. Pulling images can take a while.</source>
+        <translation>%1: 작업 중. 이미지를 가져오는 데 시간이 걸릴 수 있습니다.</translation>
+    </message>
+    <message id="autopanel.notice.terminal.shellExited">
+        <source>The shell exited with status %1</source>
+        <translation>셸이 상태 %1(으)로 종료되었습니다</translation>
+    </message>
+    <message id="autopanel.notice.terminal.shellFailed">
+        <source>The shell could not start: %1</source>
+        <translation>셸을 시작할 수 없습니다: %1</translation>
+    </message>
+    <message id="autopanel.notice.theme.shown">
+        <source>theme: %1</source>
+        <translation>테마: %1</translation>
+    </message>
+    <message id="autopanel.notice.theme.unknown">
+        <source>no theme named %1</source>
+        <translation>%1(이)라는 테마가 없습니다</translation>
+    </message>
+    <message id="autopanel.notice.widget.readFailed">
+        <source>read failed: %1</source>
+        <translation>읽기 실패: %1</translation>
+    </message>
+    <message id="autopanel.question.domains.remove">
+        <source>Remove the domain %1? Its routes stay; the removal is refused while a route would be left under no domain.</source>
+        <translation>도메인 %1을(를) 제거할까요? 라우트는 남습니다. 도메인이 없는 라우트가 남게 되면 제거가 거부됩니다.</translation>
+    </message>
+    <message id="autopanel.question.routes.remove">
+        <source>Remove route %1?</source>
+        <translation>라우트 %1을(를) 제거할까요?</translation>
+    </message>
+    <message id="autopanel.question.stacks.remove">
+        <source>Remove %1? Its containers stop, and its units and its user %2 are deleted. Remove keeps its directory, with its data, owned by root; Remove with its directory deletes that too. The folder it was imported from is not touched.</source>
+        <translation>%1을(를) 제거할까요? 컨테이너가 중지되고, 유닛과 사용자 %2이(가) 삭제됩니다. 제거는 데이터가 든 디렉터리를 root 소유로 남기고, 디렉터리까지 제거는 그것도 삭제합니다. 가져온 원본 폴더는 건드리지 않습니다.</translation>
+    </message>
+    <message id="autopanel.question.stacks.stopService">
+        <source>Stop %2 of %1, and every service that depends on it? They stay stopped across a boot, until they are started.</source>
+        <translation>%1의 %2와(과) 이에 의존하는 모든 서비스를 중지할까요? 시작할 때까지, 호스트를 다시 부팅해도 중지된 상태로 남습니다.</translation>
+    </message>
+    <message id="autopanel.question.stacks.stopStack">
+        <source>Stop every service of %1? They stay stopped across a boot, until they are started.</source>
+        <translation>%1의 모든 서비스를 중지할까요? 시작할 때까지, 호스트를 다시 부팅해도 중지된 상태로 남습니다.</translation>
+    </message>
+    <message id="autopanel.question.terminal.stop">
+        <source>Stop the running shells (%1) and close the terminal?</source>
+        <translation>실행 중인 셸(%1개)을 중지하고 터미널을 닫을까요?</translation>
+    </message>
+    <message id="autopanel.status.bar.error">
+        <source>status: %1</source>
+        <translation>상태: %1</translation>
+    </message>
+    <message id="autopanel.status.bar.line">
+        <source>%1 · CA %2 · %3 routes · up %4</source>
+        <translation>%1 · CA %2 · 라우트 %3개 · 가동 %4</translation>
+    </message>
+    <message id="autopanel.status.bar.loading">
+        <source>loading…</source>
+        <translation>불러오는 중…</translation>
+    </message>
+    <message id="autopanel.status.bar.readAt">
+        <source>read at %1</source>
+        <translation>%1에 읽음</translation>
+    </message>
+    <message id="autopanel.status.bar.signedOut">
+        <source>not signed in</source>
+        <translation>로그인하지 않음</translation>
+    </message>
+    <message id="autopanel.tip.browse.import">
+        <source>Copy the folder's stack definition in, then review it</source>
+        <translation>폴더의 스택 정의를 복사해 온 뒤 검토합니다</translation>
+    </message>
+    <message id="autopanel.tip.browse.up">
+        <source>Go to the parent folder</source>
+        <translation>상위 폴더로 이동합니다</translation>
+    </message>
+    <message id="autopanel.tip.confirm.no">
+        <source>Leave it as it is</source>
+        <translation>그대로 둡니다</translation>
+    </message>
+    <message id="autopanel.tip.confirm.other">
+        <source>Do it, and delete the stack's directory with its data</source>
+        <translation>실행하고, 스택의 디렉터리와 데이터도 삭제합니다</translation>
+    </message>
+    <message id="autopanel.tip.confirm.yes">
+        <source>Do it</source>
+        <translation>실행합니다</translation>
+    </message>
+    <message id="autopanel.tip.dialog.cancel">
+        <source>Close without changing anything</source>
+        <translation>아무것도 바꾸지 않고 닫습니다</translation>
+    </message>
+    <message id="autopanel.tip.dialog.close">
+        <source>Close it</source>
+        <translation>닫습니다</translation>
+    </message>
+    <message id="autopanel.tip.domains.add">
+        <source>Register a domain you own</source>
+        <translation>소유한 도메인을 등록합니다</translation>
+    </message>
+    <message id="autopanel.tip.domains.remove">
+        <source>Remove the selected domain</source>
+        <translation>선택한 도메인을 제거합니다</translation>
+    </message>
+    <message id="autopanel.tip.form.domain">
+        <source>The registered domain the host is under</source>
+        <translation>호스트가 속한 등록된 도메인</translation>
+    </message>
+    <message id="autopanel.tip.form.port">
+        <source>Fill the upstream with a port a stack publishes</source>
+        <translation>스택이 게시하는 포트로 업스트림을 채웁니다</translation>
+    </message>
+    <message id="autopanel.tip.form.save">
+        <source>Save the route</source>
+        <translation>라우트를 저장합니다</translation>
+    </message>
+    <message id="autopanel.tip.login.quit">
+        <source>Quit the panel</source>
+        <translation>패널을 종료합니다</translation>
+    </message>
+    <message id="autopanel.tip.login.signIn">
+        <source>Sign in with this user and passphrase</source>
+        <translation>이 사용자와 암호 문구로 로그인합니다</translation>
+    </message>
+    <message id="autopanel.tip.logs.reload">
+        <source>Read the journal again</source>
+        <translation>저널을 다시 읽습니다</translation>
+    </message>
+    <message id="autopanel.tip.panel.close">
+        <source>Close the panel</source>
+        <translation>패널을 닫습니다</translation>
+    </message>
+    <message id="autopanel.tip.panel.reload">
+        <source>Read it again now</source>
+        <translation>지금 다시 읽습니다</translation>
+    </message>
+    <message id="autopanel.tip.prompt.ok">
+        <source>Take this answer</source>
+        <translation>이 답을 사용합니다</translation>
+    </message>
+    <message id="autopanel.tip.review.go">
+        <source>Do what the review shows; nothing changes before</source>
+        <translation>검토에 표시된 대로 실행합니다. 그 전에는 아무것도 바뀌지 않습니다</translation>
+    </message>
+    <message id="autopanel.tip.review.prepare">
+        <source>Put the user, the files and the images in place, and start nothing</source>
+        <translation>사용자, 파일, 이미지를 준비하고 아무것도 시작하지 않습니다</translation>
+    </message>
+    <message id="autopanel.tip.routes.add">
+        <source>Add a route</source>
+        <translation>라우트를 추가합니다</translation>
+    </message>
+    <message id="autopanel.tip.routes.domains">
+        <source>Open the domains</source>
+        <translation>도메인을 엽니다</translation>
+    </message>
+    <message id="autopanel.tip.routes.edit">
+        <source>Edit the selected route</source>
+        <translation>선택한 라우트를 편집합니다</translation>
+    </message>
+    <message id="autopanel.tip.routes.remove">
+        <source>Remove the selected route</source>
+        <translation>선택한 라우트를 제거합니다</translation>
+    </message>
+    <message id="autopanel.tip.stacks.add">
+        <source>Choose a folder that holds a compose.yaml, and import it</source>
+        <translation>compose.yaml이 든 폴더를 골라 가져옵니다</translation>
+    </message>
+    <message id="autopanel.tip.stacks.apply">
+        <source>Review the selected stack's definition, then apply it</source>
+        <translation>선택한 스택의 정의를 검토한 뒤 적용합니다</translation>
+    </message>
+    <message id="autopanel.tip.stacks.logs">
+        <source>Read the journal of the selected container, or of the stack</source>
+        <translation>선택한 컨테이너 또는 스택의 저널을 읽습니다</translation>
+    </message>
+    <message id="autopanel.tip.stacks.pull">
+        <source>Pull the images again</source>
+        <translation>이미지를 다시 가져옵니다</translation>
+    </message>
+    <message id="autopanel.tip.stacks.remove">
+        <source>Remove the selected stack</source>
+        <translation>선택한 스택을 제거합니다</translation>
+    </message>
+    <message id="autopanel.tip.stacks.restart">
+        <source>Restart the selected container, or the whole stack on its row</source>
+        <translation>선택한 컨테이너를, 스택 행에서는 스택 전체를 재시작합니다</translation>
+    </message>
+    <message id="autopanel.tip.stacks.start">
+        <source>Start the selected container, or the whole stack on its row</source>
+        <translation>선택한 컨테이너를, 스택 행에서는 스택 전체를 시작합니다</translation>
+    </message>
+    <message id="autopanel.tip.stacks.stop">
+        <source>Stop the selected container, or the whole stack on its row</source>
+        <translation>선택한 컨테이너를, 스택 행에서는 스택 전체를 중지합니다</translation>
+    </message>
+    <message id="autopanel.tip.stacks.update">
+        <source>Copy the stack's definition from its source again, then review it</source>
+        <translation>스택 정의를 소스에서 다시 복사한 뒤 검토합니다</translation>
+    </message>
+    <message id="autopanel.title.browse.entries">
+        <source>Entries: %1</source>
+        <translation>항목 %1개</translation>
+    </message>
+    <message id="autopanel.title.browse.stackEntries">
+        <source>Entries: %1 · holds a compose.yaml</source>
+        <translation>항목 %1개 · compose.yaml 있음</translation>
+    </message>
+    <message id="autopanel.title.browse.truncated">
+        <source>%1 · more than shown</source>
+        <translation>%1 · 표시된 것보다 많음</translation>
+    </message>
+    <message id="autopanel.title.confirm.removeDomain">
+        <source>Remove domain</source>
+        <translation>도메인 제거</translation>
+    </message>
+    <message id="autopanel.title.confirm.removeRoute">
+        <source>Remove route</source>
+        <translation>라우트 제거</translation>
+    </message>
+    <message id="autopanel.title.confirm.removeStack">
+        <source>Remove stack</source>
+        <translation>스택 제거</translation>
+    </message>
+    <message id="autopanel.title.confirm.stop">
+        <source>Stop</source>
+        <translation>중지</translation>
+    </message>
+    <message id="autopanel.title.confirm.stopShells">
+        <source>Close the terminal</source>
+        <translation>터미널 닫기</translation>
+    </message>
+    <message id="autopanel.title.dialog.about">
+        <source>About AutoPanel</source>
+        <translation>AutoPanel 정보</translation>
+    </message>
+    <message id="autopanel.title.dialog.browse">
+        <source>Add a stack: choose its folder</source>
+        <translation>스택 추가: 폴더 선택</translation>
+    </message>
+    <message id="autopanel.title.dialog.keys">
+        <source>Keys</source>
+        <translation>키</translation>
+    </message>
+    <message id="autopanel.title.dialog.login">
+        <source>Sign in to AutoPanel</source>
+        <translation>AutoPanel 로그인</translation>
+    </message>
+    <message id="autopanel.title.form.add">
+        <source>Add route</source>
+        <translation>라우트 추가</translation>
+    </message>
+    <message id="autopanel.title.form.edit">
+        <source>Edit route #%1</source>
+        <translation>라우트 #%1 편집</translation>
+    </message>
+    <message id="autopanel.title.list.audit">
+        <source>Entries</source>
+        <translation>항목</translation>
+    </message>
+    <message id="autopanel.title.list.count">
+        <source>%1 · %2 · read at %3</source>
+        <translation>%1 · %2 · %3에 읽음</translation>
+    </message>
+    <message id="autopanel.title.list.domains">
+        <source>Domains</source>
+        <translation>도메인</translation>
+    </message>
+    <message id="autopanel.title.list.failed">
+        <source>%1 · the read failed: %2</source>
+        <translation>%1 · 읽기 실패: %2</translation>
+    </message>
+    <message id="autopanel.title.list.journal">
+        <source>%1 · %2 lines · read at %3</source>
+        <translation>%1 · %2줄 · %3에 읽음</translation>
+    </message>
+    <message id="autopanel.title.list.logins">
+        <source>Attempts</source>
+        <translation>시도</translation>
+    </message>
+    <message id="autopanel.title.list.metrics">
+        <source>Metrics</source>
+        <translation>지표</translation>
+    </message>
+    <message id="autopanel.title.list.ports">
+        <source>Sockets</source>
+        <translation>소켓</translation>
+    </message>
+    <message id="autopanel.title.list.readAt">
+        <source>%1 · %2 · read at %3</source>
+        <translation>%1 · %2 · %3에 읽음</translation>
+    </message>
+    <message id="autopanel.title.list.routes">
+        <source>Routes</source>
+        <translation>라우트</translation>
+    </message>
+    <message id="autopanel.title.list.stacks">
+        <source>Stacks</source>
+        <translation>스택</translation>
+    </message>
+    <message id="autopanel.title.pane.details">
+        <source>Details</source>
+        <translation>상세 정보</translation>
+    </message>
+    <message id="autopanel.title.pane.entry">
+        <source>Entry</source>
+        <translation>항목</translation>
+    </message>
+    <message id="autopanel.title.pane.review">
+        <source>Containers and findings</source>
+        <translation>컨테이너와 검토 결과</translation>
+    </message>
+    <message id="autopanel.title.pane.socket">
+        <source>Socket</source>
+        <translation>소켓</translation>
+    </message>
+    <message id="autopanel.title.panel.audit">
+        <source>Audit log</source>
+        <translation>감사 로그</translation>
+    </message>
+    <message id="autopanel.title.panel.domains">
+        <source>Domains</source>
+        <translation>도메인</translation>
+    </message>
+    <message id="autopanel.title.panel.logins">
+        <source>Login attempts</source>
+        <translation>로그인 시도</translation>
+    </message>
+    <message id="autopanel.title.panel.metrics">
+        <source>Metrics</source>
+        <translation>지표</translation>
+    </message>
+    <message id="autopanel.title.panel.ports">
+        <source>Open ports</source>
+        <translation>열린 포트</translation>
+    </message>
+    <message id="autopanel.title.panel.routes">
+        <source>Proxy routes</source>
+        <translation>프록시 라우트</translation>
+    </message>
+    <message id="autopanel.title.panel.stackLog">
+        <source>Stack log</source>
+        <translation>스택 로그</translation>
+    </message>
+    <message id="autopanel.title.panel.stacks">
+        <source>Stacks</source>
+        <translation>스택</translation>
+    </message>
+    <message id="autopanel.title.panel.terminal">
         <source>Terminal</source>
         <translation>터미널</translation>
+    </message>
+    <message id="autopanel.title.prompt.addDomain">
+        <source>Add a domain</source>
+        <translation>도메인 추가</translation>
+    </message>
+    <message id="autopanel.title.prompt.import">
+        <source>Import a stack</source>
+        <translation>스택 가져오기</translation>
+    </message>
+    <message id="autopanel.title.review.add">
+        <source>Add stack %1: review</source>
+        <translation>스택 %1 추가: 검토</translation>
+    </message>
+    <message id="autopanel.title.review.apply">
+        <source>Apply stack %1: review</source>
+        <translation>스택 %1 적용: 검토</translation>
+    </message>
+    <message id="autopanel.title.review.start">
+        <source>Start stack %1: review</source>
+        <translation>스택 %1 시작: 검토</translation>
+    </message>
+    <message id="autopanel.title.widget.activity">
+        <source>Activity</source>
+        <translation>활동</translation>
+    </message>
+    <message id="autopanel.title.widget.certs">
+        <source>Certificates</source>
+        <translation>인증서</translation>
+    </message>
+    <message id="autopanel.title.widget.host">
+        <source>Host</source>
+        <translation>호스트</translation>
+    </message>
+    <message id="autopanel.title.widget.network">
+        <source>Network</source>
+        <translation>네트워크</translation>
+    </message>
+    <message id="autopanel.title.widget.ports">
+        <source>Ports</source>
+        <translation>포트</translation>
+    </message>
+    <message id="autopanel.title.widget.stacks">
+        <source>Stacks</source>
+        <translation>스택</translation>
+    </message>
+    <message id="autopanel.title.widget.traffic">
+        <source>Traffic</source>
+        <translation>트래픽</translation>
+    </message>
+    <message id="autopanel.value.about.daemon">
+        <source>%1 · up %2</source>
+        <translation>%1 · 가동 %2</translation>
+    </message>
+    <message id="autopanel.value.about.what">
+        <source>A lightweight control plane for self-hosted web services.</source>
+        <translation>셀프 호스팅 웹 서비스를 위한 가벼운 컨트롤 플레인입니다.</translation>
+    </message>
+    <message id="autopanel.value.browse.folder">
+        <source>Folder</source>
+        <translation>폴더</translation>
+    </message>
+    <message id="autopanel.value.browse.other">
+        <source>Not a file or a folder: it is not previewed</source>
+        <translation>파일이나 폴더가 아니므로 미리 보지 않습니다</translation>
+    </message>
+    <message id="autopanel.value.browse.parent">
+        <source>The parent folder: %1</source>
+        <translation>상위 폴더: %1</translation>
+    </message>
+    <message id="autopanel.value.browse.stackFolder">
+        <source>Folder that holds a compose.yaml: Import takes it</source>
+        <translation>compose.yaml이 든 폴더: 가져오기로 가져올 수 있습니다</translation>
+    </message>
+    <message id="autopanel.value.ca.nameProduction">
+        <source>Let's Encrypt production</source>
+        <translation>Let's Encrypt 프로덕션</translation>
+    </message>
+    <message id="autopanel.value.ca.nameStaging">
+        <source>Let's Encrypt staging</source>
+        <translation>Let's Encrypt 스테이징</translation>
+    </message>
+    <message id="autopanel.value.ca.shortProduction">
+        <source>LE production</source>
+        <translation>LE 프로덕션</translation>
+    </message>
+    <message id="autopanel.value.ca.shortStaging">
+        <source>LE staging</source>
+        <translation>LE 스테이징</translation>
+    </message>
+    <message id="autopanel.value.certs.challenge">
+        <source>Challenge: %1</source>
+        <translation>챌린지: %1</translation>
+    </message>
+    <message id="autopanel.value.certs.issuer">
+        <source>Issuer: %1</source>
+        <translation>발급자: %1</translation>
+    </message>
+    <message id="autopanel.value.domain.noRoutes">
+        <source>No route is under it.</source>
+        <translation>속한 라우트가 없습니다.</translation>
+    </message>
+    <message id="autopanel.value.host.cpu">
+        <source>%1% of %2 CPUs</source>
+        <translation>CPU %2개 중 %1%</translation>
+    </message>
+    <message id="autopanel.value.host.measuring">
+        <source>measuring…</source>
+        <translation>측정 중…</translation>
+    </message>
+    <message id="autopanel.value.host.noSwap">
+        <source>no swap</source>
+        <translation>스왑 없음</translation>
+    </message>
+    <message id="autopanel.value.host.uptimeDays">
+        <source>%1 d %2 h</source>
+        <translation>%1일 %2시간</translation>
+    </message>
+    <message id="autopanel.value.host.uptimeHours">
+        <source>%1 h %2 min</source>
+        <translation>%1시간 %2분</translation>
+    </message>
+    <message id="autopanel.value.host.usedOf">
+        <source>%1 of %2</source>
+        <translation>%2 중 %1</translation>
+    </message>
+    <message id="autopanel.value.logins.closed">
+        <source>closed</source>
+        <translation>끊김</translation>
+    </message>
+    <message id="autopanel.value.logins.failed">
+        <source>failed</source>
+        <translation>실패</translation>
+    </message>
+    <message id="autopanel.value.logins.ok">
+        <source>ok</source>
+        <translation>성공</translation>
+    </message>
+    <message id="autopanel.value.metrics.availableOf">
+        <source>%1 available of %2</source>
+        <translation>%2 중 %1 사용 가능</translation>
+    </message>
+    <message id="autopanel.value.metrics.coreMemory">
+        <source>%1 in use · %2 held</source>
+        <translation>%1 사용 중 · %2 확보</translation>
+    </message>
+    <message id="autopanel.value.metrics.freeOf">
+        <source>%1 free of %2</source>
+        <translation>%2 중 %1 남음</translation>
+    </message>
+    <message id="autopanel.value.metrics.gateMemory">
+        <source>%1 · process %2</source>
+        <translation>%1 · 프로세스 %2</translation>
+    </message>
+    <message id="autopanel.value.metrics.gateSilent">
+        <source>not reporting</source>
+        <translation>보고 없음</translation>
+    </message>
+    <message id="autopanel.value.metrics.load">
+        <source>%1 · %2 · %3 (1, 5 and 15 minutes)</source>
+        <translation>%1 · %2 · %3 (1분, 5분, 15분)</translation>
+    </message>
+    <message id="autopanel.value.review.container">
+        <source>container</source>
+        <translation>컨테이너</translation>
+    </message>
+    <message id="autopanel.value.review.imageUser">
+        <source>image's own</source>
+        <translation>이미지 기본값</translation>
+    </message>
+    <message id="autopanel.value.review.no">
+        <source>no</source>
+        <translation>아니요</translation>
+    </message>
+    <message id="autopanel.value.review.noMemoryLimit">
+        <source>none</source>
+        <translation>없음</translation>
+    </message>
+    <message id="autopanel.value.review.refused">
+        <source>refused</source>
+        <translation>거부</translation>
+    </message>
+    <message id="autopanel.value.review.removes">
+        <source>Applying stops and removes: %1</source>
+        <translation>적용하면 중지되고 제거되는 서비스: %1</translation>
+    </message>
+    <message id="autopanel.value.review.summary">
+        <source>Definition %1 · files: %2 · containers: %3</source>
+        <translation>정의 %1 · 파일 %2개 · 컨테이너 %3개</translation>
+    </message>
+    <message id="autopanel.value.review.warning">
+        <source>warning</source>
+        <translation>경고</translation>
+    </message>
+    <message id="autopanel.value.review.yes">
+        <source>yes</source>
+        <translation>예</translation>
+    </message>
+    <message id="autopanel.value.routes.noDomain">
+        <source>under no registered domain</source>
+        <translation>등록된 도메인에 속하지 않음</translation>
+    </message>
+    <message id="autopanel.value.source.changed">
+        <source>source changed</source>
+        <translation>소스 변경됨</translation>
+    </message>
+    <message id="autopanel.value.source.missing">
+        <source>source missing</source>
+        <translation>소스 없음</translation>
+    </message>
+    <message id="autopanel.value.source.none">
+        <source>not imported from a folder</source>
+        <translation>폴더에서 가져오지 않음</translation>
+    </message>
+    <message id="autopanel.value.source.same">
+        <source>as imported</source>
+        <translation>가져온 그대로</translation>
+    </message>
+    <message id="autopanel.value.stacks.changedSince">
+        <source>%1 · changed since it was applied</source>
+        <translation>%1 · 적용 후 변경됨</translation>
+    </message>
+    <message id="autopanel.value.stacks.deployed">
+        <source>deployed</source>
+        <translation>배포됨</translation>
+    </message>
+    <message id="autopanel.value.stacks.deploying">
+        <source>being applied</source>
+        <translation>적용 중</translation>
+    </message>
+    <message id="autopanel.value.stacks.incomplete">
+        <source>apply stopped at: %1</source>
+        <translation>적용이 멈춘 단계: %1</translation>
+    </message>
+    <message id="autopanel.value.stacks.legacy">
+        <source>from a template</source>
+        <translation>템플릿에서 배포됨</translation>
+    </message>
+    <message id="autopanel.value.stacks.prepared">
+        <source>prepared, not started</source>
+        <translation>준비됨, 시작 안 됨</translation>
+    </message>
+    <message id="autopanel.value.stacks.removing">
+        <source>being removed</source>
+        <translation>제거 중</translation>
+    </message>
+    <message id="autopanel.value.stacks.serviceOf">
+        <source>%1 of stack %2</source>
+        <translation>스택 %2의 %1</translation>
+    </message>
+    <message id="autopanel.value.stacks.stopped">
+        <source>stopped</source>
+        <translation>중지됨</translation>
+    </message>
+    <message id="autopanel.value.traffic.requests">
+        <source>Since the gate started: %1 HTTPS and %2 HTTP requests. They are not counted by domain yet.</source>
+        <translation>게이트 시작 이후: HTTPS 요청 %1건, HTTP 요청 %2건. 아직 도메인별로 집계하지 않습니다.</translation>
     </message>
 </context>
 </TS>

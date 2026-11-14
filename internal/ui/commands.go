@@ -8,28 +8,59 @@ import (
 
 	"github.com/yongjohnlee80/golib/decl"
 	"github.com/yongjohnlee80/golib/parse/qml"
-
-	"github.com/yongjohnlee80/autopanel/core/gate"
 )
 
 // THE APP SINGLETON'S COMMANDS — what the document invokes, and nothing else
 // of this package is reachable from it.
 func (h *host) commands() map[string]decl.HandlerFunc {
 	return map[string]decl.HandlerFunc{
-		"App.login":          twoStrings("App.login", h.login),
-		"App.loginDeclined":  none(h.loginDeclined),
-		"App.openRoutes":     none(func() error { return h.openPanel("routes", "routesPanel", "routesTable") }),
-		"App.setCA":          oneString("App.setCA", h.setCA),
-		"App.panelLeft":      none(h.panelLeft),
-		"App.panelChanged":   oneString("App.panelChanged", h.panelChanged),
-		"App.openMonitor":    oneString("App.openMonitor", h.openMonitor),
-		"App.reloadMonitor":  oneString("App.reloadMonitor", h.reloadMonitor),
-		"App.useTheme":       oneString("App.useTheme", h.useTheme),
-		"App.setLanguage":    oneString("App.setLanguage", h.setLanguage),
-		"App.add":            none(h.add),
-		"App.edit":           oneRow("App.edit", h.edit),
-		"App.remove":         oneRow("App.remove", h.remove),
+		"App.login":         twoStrings("App.login", h.login),
+		"App.loginDeclined": none(h.loginDeclined),
+		"App.refresh":       none(func() error { h.poll(); return nil }),
+		"App.quit":          none(func() error { h.p.Quit(); return nil }),
+		"App.nothing":       none(func() error { return nil }),
+		"App.openKeys":      none(h.openKeys),
+
+		// the screen: the dock, the widgets, the panels, the status bar
+		"App.goDock":          oneString("App.goDock", h.goDock),
+		"App.toggleWidget":    oneString("App.toggleWidget", h.toggleWidgetNamed),
+		"App.widgetChanged":   none(func() error { h.refreshDock(); return nil }),
+		"App.widgetDocked":    twoStrings("App.widgetDocked", h.widgetDocked),
+		"App.widgetResized":   stringAndNumber("App.widgetResized", h.widgetResized),
+		"App.resetLayout":     none(h.resetLayout),
+		"App.toggleStatusBar": none(h.toggleStatusBar),
+		"App.panelOpened":     oneString("App.panelOpened", h.panelOpened),
+		"App.panelClosed":     oneString("App.panelClosed", h.panelClosed),
+		"App.panelChanged":    twoStrings("App.panelChanged", h.panelChanged),
+		"App.closePanel":      oneString("App.closePanel", h.closePanel),
+
+		// System, and the preferences
+		"App.setCA":         oneString("App.setCA", h.setCA),
+		"App.openMonitor":   oneString("App.openMonitor", h.openMonitor),
+		"App.reloadMonitor": oneString("App.reloadMonitor", h.reloadMonitor),
+		"App.monitorMoved":  stringAndRow("App.monitorMoved", h.monitorMoved),
+		"App.useTheme":      oneString("App.useTheme", h.useTheme),
+		"App.setLanguage":   oneString("App.setLanguage", h.setLanguage),
+
+		// Routes: the routes, the domains, the form
+		"App.openRoutes":   none(h.openRoutes),
+		"App.openDomains":  none(h.openDomains),
+		"App.routeMoved":   oneRow("App.routeMoved", h.routeMoved),
+		"App.domainMoved":  oneRow("App.domainMoved", h.domainMoved),
+		"App.add":          none(h.add),
+		"App.edit":         oneRow("App.edit", h.edit),
+		"App.remove":       oneRow("App.remove", h.remove),
+		"App.submit":       formFields("App.submit", h.submit),
+		"App.pickUpstream": oneRow("App.pickUpstream", h.pickUpstream),
+		"App.addDomain":    none(h.addDomain),
+		"App.removeDomain": oneRow("App.removeDomain", h.removeDomain),
+
+		// the dialogs' answers
 		"App.confirmed":      none(h.confirm),
+		"App.confirmedOther": none(h.confirmOther),
+		"App.promptAnswered": oneString("App.promptAnswered", h.promptAnswered),
+
+		// the terminal
 		"App.toggleTerminal": none(h.toggleTerminal),
 		"App.terminalOpened": none(h.terminalOpened),
 		"App.terminalClosed": none(h.terminalClosed),
@@ -37,36 +68,35 @@ func (h *host) commands() map[string]decl.HandlerFunc {
 		"App.stopShells":     none(h.stopShells),
 		"App.nextShell":      none(func() error { return h.cycleShell(1) }),
 		"App.previousShell":  none(func() error { return h.cycleShell(-1) }),
-		"App.openStacks":     none(h.openStacks),
-		"App.reloadStacks":   none(h.reloadStacks),
-		"App.stacksClosed":   none(h.stacksClosed),
-		"App.addStack":       none(h.addStack),
-		"App.pickStack":      oneRow("App.pickStack", h.pickStack),
-		"App.applyStack":     oneRow("App.applyStack", h.applyStack),
-		"App.showFinding":    oneRow("App.showFinding", h.showFinding),
-		"App.reviewAccept":   none(h.reviewAccept),
-		"App.reviewPrepare":  none(h.reviewPrepare),
-		"App.pullStack":      oneRow("App.pullStack", h.pullStack),
-		"App.startService":   oneRow("App.startService", func(row int) error { return h.stackUnit("start", row, false) }),
-		"App.stopService":    oneRow("App.stopService", func(row int) error { return h.stackUnit("stop", row, false) }),
-		"App.restartService": oneRow("App.restartService", func(row int) error { return h.stackUnit("restart", row, false) }),
-		"App.startStack":     oneRow("App.startStack", func(row int) error { return h.stackUnit("start", row, true) }),
-		"App.stopStack":      oneRow("App.stopStack", func(row int) error { return h.stackUnit("stop", row, true) }),
-		"App.restartStack":   oneRow("App.restartStack", func(row int) error { return h.stackUnit("restart", row, true) }),
-		"App.removeStack":    oneRow("App.removeStack", func(row int) error { return h.removeStack(row, false) }),
-		"App.purgeStack":     oneRow("App.purgeStack", func(row int) error { return h.removeStack(row, true) }),
-		"App.logsOf":         oneRow("App.logsOf", h.openLogs),
-		"App.reloadLogs":     none(h.reloadLogs),
-		"App.nothing":        none(func() error { return nil }),
-		"App.submit":         threeStrings("App.submit", h.submit),
-		"App.refresh":        none(func() error { h.refresh(); return nil }),
-		"App.quit":           none(func() error { h.p.Quit(); return nil }),
+
+		// Services: the stacks, the browser, the review
+		"App.openStacks":       none(h.openStacks),
+		"App.openStackAt":      oneRow("App.openStackAt", h.openStackAt),
+		"App.stackMoved":       oneRow("App.stackMoved", h.stackMoved),
+		"App.addStack":         none(h.addStack),
+		"App.applyStack":       oneRow("App.applyStack", h.applyStack),
+		"App.updateFromSource": oneRow("App.updateFromSource", h.updateFromSource),
+		"App.pullStack":        oneRow("App.pullStack", h.pullStack),
+		"App.startService":     oneRow("App.startService", func(row int) error { return h.stackUnit("start", row) }),
+		"App.stopService":      oneRow("App.stopService", func(row int) error { return h.stackUnit("stop", row) }),
+		"App.restartService":   oneRow("App.restartService", func(row int) error { return h.stackUnit("restart", row) }),
+		"App.removeStack":      oneRow("App.removeStack", h.removeStack),
+		"App.logsOf":           oneRow("App.logsOf", h.openLogs),
+		"App.reloadLogs":       none(h.reloadLogs),
+		"App.reviewMoved":      oneRow("App.reviewMoved", h.reviewMoved),
+		"App.reviewAccept":     none(h.reviewAccept),
+		"App.reviewPrepare":    none(h.reviewPrepare),
+		"App.browseMove":       oneRow("App.browseMove", h.browseMove),
+		"App.browseEnter":      oneRow("App.browseEnter", h.browseEnter),
+		"App.browseUp":         none(h.browseUp),
+		"App.browseGo":         oneString("App.browseGo", h.browseGo),
+		"App.browseImport":     none(h.browseImport),
 	}
 }
 
 // caNames are the certificate services the Certs menu offers: the message
 // that names each.
-var caNames = map[string]string{"staging": "autopanel.ca.name.staging", "production": "autopanel.ca.name.production"}
+var caNames = map[string]string{"staging": "autopanel.value.ca.nameStaging", "production": "autopanel.value.ca.nameProduction"}
 
 // setCA chooses the certificate service, off the loop, then reads the status
 // again: the Certs menu checks what the daemon reports, so a refused change
@@ -77,7 +107,7 @@ func (h *host) setCA(ca string) error {
 		return fmt.Errorf("App.setCA takes staging or production, not %q", ca)
 	}
 	if h.busy {
-		h.say(h.tr("autopanel.notice.busy"))
+		h.say(h.tr("autopanel.notice.app.busy"))
 		h.refresh()
 		return nil
 	}
@@ -85,104 +115,22 @@ func (h *host) setCA(ca string) error {
 	h.background(func(ctx context.Context) error { return h.client.SetCA(ctx, ca) }, func(err error) {
 		h.busy = false
 		if err != nil {
-			h.say(h.trf("autopanel.notice.error", err.Error()))
+			h.failed(err)
 		} else {
-			h.say(h.trf("autopanel.notice.caNow", h.tr(nameID)))
+			h.say(h.trf("autopanel.notice.certs.caNow", h.tr(nameID)))
 		}
 		h.refresh()
 	})
 	return nil
 }
 
-// add opens the route form, empty.
-func (h *host) add() error {
-	h.editID = 0
-	return h.openForm(h.tr("autopanel.form.add"), gate.RouteView{})
-}
-
-// edit opens the route form on the route at row.
-func (h *host) edit(row int) error {
-	r, ok := h.route(row)
+// closePanel is a panel's Close button: q and Escape do the same.
+func (h *host) closePanel(key string) error {
+	s, ok := panelOf(key)
 	if !ok {
-		h.say(h.tr("autopanel.notice.noRoute"))
-		return nil
+		return fmt.Errorf("no panel %q", key)
 	}
-	h.editID = r.ID
-	return h.openForm(h.trf("autopanel.form.edit", r.ID), r)
-}
-
-// openForm fills the route form with r and opens it.
-func (h *host) openForm(title string, r gate.RouteView) error {
-	prefix := r.PathPrefix
-	if prefix == "" {
-		prefix = "/"
-	}
-	if err := h.fill(map[string]any{"App.formHost": r.Host, "App.formPath": prefix, "App.formUpstream": r.Upstream}); err != nil {
-		return err
-	}
-	if err := h.p.SetMany(map[string]any{"App.formTitle": title, "App.formHelp": h.tr("autopanel.form.hint")}); err != nil {
-		return err
-	}
-	return h.p.Call("routeDialog", "open")
-}
-
-// submit adds or updates the route the form describes, off the loop. On
-// success the form closes and the routes are read again; on failure it stays
-// open, as typed, with the reason in its help line and the status bar.
-func (h *host) submit(host, prefix, upstream string) error {
-	if h.busy {
-		h.say(h.tr("autopanel.notice.busy"))
-		return nil
-	}
-	s := formSpec(h.editID, host, prefix, upstream)
-	done, call := "autopanel.notice.added", h.client.Add
-	if s.ID != 0 {
-		done, call = "autopanel.notice.updated", h.client.Update
-	}
-	h.busy = true
-	h.background(func(ctx context.Context) error { return call(ctx, s) }, func(err error) {
-		h.busy = false
-		if err != nil {
-			h.say(h.trf("autopanel.notice.error", err.Error()))
-			_ = h.p.Set("App.formHelp", h.trf("autopanel.notice.error", err.Error()))
-			return
-		}
-		_ = h.p.Call("routeDialog", "close")
-		h.say(h.trf(done, s.Host+s.PathPrefix))
-		h.refresh()
-	})
-	return nil
-}
-
-// remove asks before removing the route at row.
-func (h *host) remove(row int) error {
-	r, ok := h.route(row)
-	if !ok {
-		h.say(h.tr("autopanel.notice.noRoute"))
-		return nil
-	}
-	h.removeID = r.ID
-	return h.ask("autopanel.confirm.title", h.trf("autopanel.confirm.remove", describe(r)), h.removeConfirmed)
-}
-
-// removeConfirmed removes the route the confirmation named, off the loop.
-func (h *host) removeConfirmed() error {
-	if h.busy {
-		h.say(h.tr("autopanel.notice.busy"))
-		return nil
-	}
-	id := h.removeID
-	h.busy = true
-	h.background(func(ctx context.Context) error { return h.client.Remove(ctx, id) }, func(err error) {
-		h.busy = false
-		if err != nil {
-			h.say(h.trf("autopanel.notice.error", err.Error()))
-			return
-		}
-		h.say(h.trf("autopanel.notice.removed", id))
-		h.refresh()
-	})
-	return nil
+	return h.p.Call(s.id, "close")
 }
 
 // none is a command that takes no arguments, and refuses any it is given.
@@ -195,17 +143,29 @@ func none(fn func() error) decl.HandlerFunc {
 	}
 }
 
-// oneRow is a command that takes a view's row: currentIndex, or a signal's index.
+// rowOf reads a row number: a view's currentIndex, or a signal's index.
+func rowOf(name string, v qml.SpecValue) (int, error) {
+	if v.Kind != qml.SpecValueNumber {
+		return 0, fmt.Errorf("%s takes a row number", name)
+	}
+	f, err := strconv.ParseFloat(v.Raw, 64)
+	if err != nil || f != math.Trunc(f) {
+		return 0, fmt.Errorf("%s takes a row number, not %q", name, v.Raw)
+	}
+	return int(f), nil
+}
+
+// oneRow is a command that takes a view's row.
 func oneRow(name string, fn func(int) error) decl.HandlerFunc {
 	return func(args []qml.SpecValue) error {
-		if len(args) != 1 || args[0].Kind != qml.SpecValueNumber {
+		if len(args) != 1 {
 			return fmt.Errorf("%s takes a row number", name)
 		}
-		f, err := strconv.ParseFloat(args[0].Raw, 64)
-		if err != nil || f != math.Trunc(f) {
-			return fmt.Errorf("%s takes a row number, not %q", name, args[0].Raw)
+		row, err := rowOf(name, args[0])
+		if err != nil {
+			return err
 		}
-		return fn(int(f))
+		return fn(row)
 	}
 }
 
@@ -219,7 +179,7 @@ func oneString(name string, fn func(string) error) decl.HandlerFunc {
 	}
 }
 
-// twoStrings is a command that takes two strings: the login's fields.
+// twoStrings is a command that takes two strings.
 func twoStrings(name string, fn func(a, b string) error) decl.HandlerFunc {
 	return func(args []qml.SpecValue) error {
 		if len(args) != 2 || args[0].Kind != qml.SpecValueString || args[1].Kind != qml.SpecValueString {
@@ -229,24 +189,47 @@ func twoStrings(name string, fn func(a, b string) error) decl.HandlerFunc {
 	}
 }
 
-// stringsOf is a command that takes n strings: a form's fields.
-func stringsOf(name string, n int, fn func(args []string) error) decl.HandlerFunc {
+// stringAndRow is a command that takes a string and a row: a list's name and
+// its cursor.
+func stringAndRow(name string, fn func(string, int) error) decl.HandlerFunc {
 	return func(args []qml.SpecValue) error {
-		if len(args) != n {
-			return fmt.Errorf("%s takes %d strings, and was given %d arguments", name, n, len(args))
+		if len(args) != 2 || args[0].Kind != qml.SpecValueString {
+			return fmt.Errorf("%s takes a string and a row number", name)
 		}
-		raw := make([]string, n)
-		for i, a := range args {
-			if a.Kind != qml.SpecValueString {
-				return fmt.Errorf("%s takes %d strings", name, n)
-			}
-			raw[i] = a.Raw
+		row, err := rowOf(name, args[1])
+		if err != nil {
+			return err
 		}
-		return fn(raw)
+		return fn(args[0].Raw, row)
 	}
 }
 
-// threeStrings is a command that takes three strings: the route form's fields.
-func threeStrings(name string, fn func(a, b, c string) error) decl.HandlerFunc {
-	return stringsOf(name, 3, func(a []string) error { return fn(a[0], a[1], a[2]) })
+// stringAndNumber is a command that takes a string and a number: a tile's id
+// and its size.
+func stringAndNumber(name string, fn func(string, float64) error) decl.HandlerFunc {
+	return func(args []qml.SpecValue) error {
+		if len(args) != 2 || args[0].Kind != qml.SpecValueString || args[1].Kind != qml.SpecValueNumber {
+			return fmt.Errorf("%s takes a string and a number", name)
+		}
+		n, err := strconv.ParseFloat(args[1].Raw, 64)
+		if err != nil || math.IsNaN(n) || math.IsInf(n, 0) {
+			return fmt.Errorf("%s takes a number, not %q", name, args[1].Raw)
+		}
+		return fn(args[0].Raw, n)
+	}
+}
+
+// formFields is the route form's submit: the subdomain, the domain box's
+// row, the path prefix and the upstream.
+func formFields(name string, fn func(sub string, domain int, prefix, upstream string) error) decl.HandlerFunc {
+	return func(args []qml.SpecValue) error {
+		if len(args) != 4 || args[0].Kind != qml.SpecValueString || args[2].Kind != qml.SpecValueString || args[3].Kind != qml.SpecValueString {
+			return fmt.Errorf("%s takes a string, a row number and two strings", name)
+		}
+		row, err := rowOf(name, args[1])
+		if err != nil {
+			return err
+		}
+		return fn(args[0].Raw, row, args[2].Raw, args[3].Raw)
+	}
 }
