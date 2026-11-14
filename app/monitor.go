@@ -39,6 +39,10 @@ type counters struct {
 	https, http atomic.Int64
 	pid, seen   atomic.Int64
 	memory      atomic.Uint64
+
+	// The gate's streams (mail's ports): connections now, forwarded and
+	// refused by a limit since the gate started.
+	streamsOpen, streamsServed, streamsRefused atomic.Int64
 }
 
 // gateQuiet is how long after its last report the gate still counts as
