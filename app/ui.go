@@ -5,10 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 
 	"github.com/yongjohnlee80/golib/server/rpc"
 
 	"github.com/yongjohnlee80/autopanel/core/gate"
+	"github.com/yongjohnlee80/autopanel/core/mail"
 	"github.com/yongjohnlee80/autopanel/core/services"
 	hostcontrol "github.com/yongjohnlee80/autopanel/host/control"
 	"github.com/yongjohnlee80/autopanel/internal/auth"
@@ -21,8 +23,8 @@ import (
 type uiClient struct{ c *hostcontrol.Client }
 
 // publicErrors are the errors the panel tells apart by their wire codes: the
-// stacks' and the routes'.
-var publicErrors = append((&services.Module{}).Errors(), (&gate.Module{}).Errors()...)
+// stacks', the routes' and mail's.
+var publicErrors = slices.Concat((&services.Module{}).Errors(), (&gate.Module{}).Errors(), (&mail.Module{}).Errors())
 
 // known is err with the error its wire code names wrapped in, so the panel
 // can tell it apart (errors.Is); the daemon's message is kept beside it.
@@ -192,4 +194,54 @@ func init() {
 		}
 		return 0
 	}
+}
+
+// --- Mail ---------------------------------------------------------------------
+
+func (u uiClient) MailStatus(ctx context.Context) (mail.Status, error) {
+	var s mail.Status
+	return s, u.call(ctx, "mail.status", nil, &s)
+}
+
+func (u uiClient) MailSetup(ctx context.Context, host, domain string) (mail.Setup, error) {
+	var s mail.Setup
+	return s, u.call(ctx, "mail.setup", mail.SetupAsk{Host: host, Domain: domain}, &s)
+}
+
+func (u uiClient) MailAddDomain(ctx context.Context, name string) error {
+	return u.call(ctx, "mail.domain.add", mail.Name{Name: name}, nil)
+}
+
+func (u uiClient) MailRemoveDomain(ctx context.Context, name string) error {
+	return u.call(ctx, "mail.domain.remove", mail.Name{Name: name}, nil)
+}
+
+func (u uiClient) MailRecords(ctx context.Context, domain string) (mail.RecordsAnswer, error) {
+	var r mail.RecordsAnswer
+	return r, u.call(ctx, "mail.records", mail.DomainAsk{Domain: domain}, &r)
+}
+
+func (u uiClient) MailTakeover(ctx context.Context, domain, name, typ string) error {
+	return u.call(ctx, "mail.records.takeover", mail.TakeoverAsk{Domain: domain, Name: name, Type: typ}, nil)
+}
+
+func (u uiClient) MailSync(ctx context.Context) error {
+	return u.call(ctx, "mail.sync", nil, nil)
+}
+
+func (u uiClient) MailAccounts(ctx context.Context, domain string) ([]mail.AccountView, error) {
+	var as []mail.AccountView
+	return as, u.call(ctx, "mail.account.list", mail.DomainAsk{Domain: domain}, &as)
+}
+
+func (u uiClient) MailAddAccount(ctx context.Context, address, password string, quota int64) error {
+	return u.call(ctx, "mail.account.add", mail.AccountAsk{Address: address, Password: password, Quota: quota}, nil)
+}
+
+func (u uiClient) MailSetPassword(ctx context.Context, address, password string) error {
+	return u.call(ctx, "mail.account.password", mail.AccountAsk{Address: address, Password: password}, nil)
+}
+
+func (u uiClient) MailRemoveAccount(ctx context.Context, address string) error {
+	return u.call(ctx, "mail.account.remove", mail.AccountAsk{Address: address}, nil)
 }

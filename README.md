@@ -4,7 +4,8 @@ A lightweight control plane for self-hosted web services, written in Go: a rever
 automatic TLS certificates first, with mail, storage and container deploys planned to follow.
 
 **Status: early.** The first slice runs: the proxy gate, automatic certificates, the control socket,
-an admin TUI and an installer. It has not been released, and its interfaces will change. Decisions
+an admin TUI and an installer, stacks under rootless Podman, and mail with Stalwart. Its interfaces
+will change before the beta. Decisions
 are recorded under [docs/decisions](docs/decisions/README.md) as they are made.
 
 ## Install
@@ -120,7 +121,8 @@ every key. `r` reads the screen again and `q` quits.
 | Routes | **Proxy routes**: the names AutoPanel serves and where each goes; **Domains**: the domains you own |
 | Certs | **Type**: which Let's Encrypt service issues the certificates, staging or production |
 | Services | **Stacks** and **Add a stack**: your services, below |
-| Mail, Users | not built yet; their rows are greyed out |
+| Mail | **Set up mail**, **Domains**, **Accounts**, **Server**: mail with Stalwart, below |
+| Users | not built yet; its row is greyed out |
 | Go | **Terminal**: shells on the server, a tab each |
 | View | the widgets, the status bar, and the layout |
 | Help | **Keys** and **About** |
@@ -351,6 +353,53 @@ and its user. Its directory, with its data, is kept as root's, under a name no l
 The TURN template and its form are gone, with `services.templates`, `services.deploy`,
 `services.update` and `services.secret`. A relay deployed from the template is still listed, and
 can only be removed: remove it, then add the example stack above with the same settings.
+
+### Run mail
+
+AutoPanel runs [Stalwart](https://stalw.art) as a stack of its own, behind the gate: the gate binds
+25, 465, 587 and 993 and forwards each connection to Stalwart with a PROXY header, so Stalwart sees
+each client's real address. Every key and setting of mail is sealed under the master key, DNS
+records are published and kept for you through the Cloudflare token, and DKIM keys rotate by
+themselves. See [docs/decisions/mail.md](docs/decisions/mail.md).
+
+**Before you start:**
+
+- The host's processor must run Stalwart's build: x86-64-v2 (on a virtual machine, a CPU type of
+  `host` or `x86-64-v2`), or arm64. Setting mail up refuses otherwise.
+- Port 25 must reach out from the host: many providers block it until asked. And the provider sets
+  the host address's reverse name (PTR): point it at the mail host, or receivers will distrust it.
+- For records to be published for you, set the Cloudflare token first
+  (`sudo autopanel --call certs.cloudflare.set '{"token":"…"}'`), with DNS edit rights on each mail
+  domain's zone. Without it every record is shown with its value, to publish by hand.
+- The domain is in **Routes → Domains** by its exact name, and the mail host (say
+  `mail.example.com`) has an A record pointing at this host, not proxied.
+
+**Setting it up:** **Mail → Set up mail** asks the mail host and the first domain, writes the mail
+stack, and opens its review; **Add and start** runs it. AutoPanel then sets Stalwart up through its
+API, by itself, within a minute or two: **Mail → Server** says `ready` when it is done, and from then
+on the gate forwards the mail ports.
+
+**Domains** lists the domains that receive mail; the right side shows each record the selected one
+needs and its state:
+
+| State | Means |
+| --- | --- |
+| ok | the zone holds it as AutoPanel wrote it |
+| publishing | just published; resolvers will have it within minutes |
+| different | the zone holds a record of that kind AutoPanel did not write (another provider's MX, a DMARC record already there). Nothing is published beside it: **Take over** replaces it after showing it (an SPF record is merged instead) |
+| manual | no Cloudflare token: publish the value by hand |
+| failed | Cloudflare refused it; the error says why |
+
+A domain's DKIM keys are listed under its records: a new pair is published, then signs once public
+resolvers answer its records; every 90 days the next pair takes over.
+
+**Accounts** makes mailboxes (`name@domain`, 5 GB by default), sets their passwords and deletes
+them. A password is typed unseen, goes to Stalwart, and is kept nowhere else. Mail apps connect to
+the mail host on 993 (IMAP, TLS) and 465 (submission, TLS) or 587 (STARTTLS).
+
+**Not yet:** webmail (a stack of its own, later), forwarding mail to an outside address, and aliases
+from the panel; Stalwart's own web interface (through an SSH tunnel to its management port, as
+root) does them meanwhile.
 
 ### Themes and languages
 

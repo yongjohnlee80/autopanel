@@ -55,6 +55,30 @@
         <source>&amp;Sign in</source>
         <translation>Iniciar &amp;sesión</translation>
     </message>
+    <message id="autopanel.button.mail.add">
+        <source>&amp;Add…</source>
+        <translation>&amp;Añadir…</translation>
+    </message>
+    <message id="autopanel.button.mail.password">
+        <source>&amp;Password…</source>
+        <translation>Contraseña (&amp;p)…</translation>
+    </message>
+    <message id="autopanel.button.mail.reload">
+        <source>&amp;Reload</source>
+        <translation>&amp;Recargar</translation>
+    </message>
+    <message id="autopanel.button.mail.remove">
+        <source>&amp;Remove…</source>
+        <translation>Quitar (&amp;r)…</translation>
+    </message>
+    <message id="autopanel.button.mail.sync">
+        <source>&amp;Sync</source>
+        <translation>&amp;Sincronizar</translation>
+    </message>
+    <message id="autopanel.button.mail.takeover">
+        <source>&amp;Take over…</source>
+        <translation>&amp;Tomar…</translation>
+    </message>
     <message id="autopanel.button.panel.close">
         <source>Close (&amp;q)</source>
         <translation>Cerrar (&amp;q)</translation>
@@ -651,6 +675,74 @@
         <source>User</source>
         <translation>Usuario</translation>
     </message>
+    <message id="autopanel.label.mail.address">
+        <source>Address</source>
+        <translation>Dirección</translation>
+    </message>
+    <message id="autopanel.label.mail.aliases">
+        <source>Aliases</source>
+        <translation>Alias</translation>
+    </message>
+    <message id="autopanel.label.mail.certificate">
+        <source>Certificate</source>
+        <translation>Certificado</translation>
+    </message>
+    <message id="autopanel.label.mail.dkim">
+        <source>DKIM keys</source>
+        <translation>Claves DKIM</translation>
+    </message>
+    <message id="autopanel.label.mail.domains">
+        <source>Domains</source>
+        <translation>Dominios</translation>
+    </message>
+    <message id="autopanel.label.mail.error">
+        <source>Error</source>
+        <translation>Error</translation>
+    </message>
+    <message id="autopanel.label.mail.errors">
+        <source>Problems</source>
+        <translation>Problemas</translation>
+    </message>
+    <message id="autopanel.label.mail.found">
+        <source>In the zone now</source>
+        <translation>En la zona ahora</translation>
+    </message>
+    <message id="autopanel.label.mail.host">
+        <source>Mail host</source>
+        <translation>Servidor</translation>
+    </message>
+    <message id="autopanel.label.mail.loopback">
+        <source>Loopback rule</source>
+        <translation>Regla de loopback</translation>
+    </message>
+    <message id="autopanel.label.mail.quota">
+        <source>Quota</source>
+        <translation>Cuota</translation>
+    </message>
+    <message id="autopanel.label.mail.stack">
+        <source>Stack</source>
+        <translation>Pila</translation>
+    </message>
+    <message id="autopanel.label.mail.state">
+        <source>State</source>
+        <translation>Estado</translation>
+    </message>
+    <message id="autopanel.label.mail.synced">
+        <source>Last pass</source>
+        <translation>Última pasada</translation>
+    </message>
+    <message id="autopanel.label.mail.used">
+        <source>Used</source>
+        <translation>Usado</translation>
+    </message>
+    <message id="autopanel.label.mail.value">
+        <source>Value</source>
+        <translation>Valor</translation>
+    </message>
+    <message id="autopanel.label.mail.why">
+        <source>For</source>
+        <translation>Para</translation>
+    </message>
     <message id="autopanel.label.metrics.coreMemory">
         <source>Core memory</source>
         <translation>Memoria del núcleo</translation>
@@ -718,6 +810,26 @@
     <message id="autopanel.label.prompt.domain">
         <source>The domain's name, a name and a suffix:</source>
         <translation>El nombre del dominio, un nombre y un sufijo:</translation>
+    </message>
+    <message id="autopanel.label.prompt.mailAccount">
+        <source>Its address (name@domain):</source>
+        <translation>Su dirección (nombre@dominio):</translation>
+    </message>
+    <message id="autopanel.label.prompt.mailAddDomain">
+        <source>A registered domain to receive mail for:</source>
+        <translation>Un dominio registrado para el que recibir correo:</translation>
+    </message>
+    <message id="autopanel.label.prompt.mailDomain">
+        <source>The first domain that receives mail, a registered one:</source>
+        <translation>El primer dominio que recibe correo (uno registrado):</translation>
+    </message>
+    <message id="autopanel.label.prompt.mailHost">
+        <source>The mail host's name, under one of your domains. Its certificate and the domains' MX point at it:</source>
+        <translation>El nombre del servidor de correo, bajo uno de sus dominios. Su certificado y el MX de los dominios apuntan a él:</translation>
+    </message>
+    <message id="autopanel.label.prompt.mailPassword">
+        <source>The password for %1, 12 characters at least. It goes to the mail server and is kept nowhere else:</source>
+        <translation>La contraseña de %1, de 12 caracteres como mínimo. Va al servidor de correo y no se guarda en otro sitio:</translation>
     </message>
     <message id="autopanel.label.prompt.stackName">
         <source>The stack's name: a lower-case letter, then letters, digits and hyphens.</source>
@@ -907,9 +1019,21 @@
         <source>&amp;Help</source>
         <translation>Ayuda(&amp;h)</translation>
     </message>
-    <message id="autopanel.menu.mail.none">
-        <source>Mail is &amp;not set up yet</source>
-        <translation>El correo aún no está configurado(&amp;n)</translation>
+    <message id="autopanel.menu.mail.accounts">
+        <source>&amp;Accounts…</source>
+        <translation>Cuentas (&amp;a)…</translation>
+    </message>
+    <message id="autopanel.menu.mail.domains">
+        <source>&amp;Domains…</source>
+        <translation>&amp;Dominios…</translation>
+    </message>
+    <message id="autopanel.menu.mail.server">
+        <source>Se&amp;rver…</source>
+        <translation>Se&amp;rvidor…</translation>
+    </message>
+    <message id="autopanel.menu.mail.setup">
+        <source>&amp;Set up mail…</source>
+        <translation>Configurar el correo (&amp;s)…</translation>
     </message>
     <message id="autopanel.menu.mail.title">
         <source>&amp;Mail</source>
@@ -1151,6 +1275,74 @@
         <source>signed in as %1</source>
         <translation>sesión iniciada como %1</translation>
     </message>
+    <message id="autopanel.notice.mail.accountAdded">
+        <source>%1 made</source>
+        <translation>se creó %1</translation>
+    </message>
+    <message id="autopanel.notice.mail.accountRemoved">
+        <source>%1 deleted</source>
+        <translation>se borró %1</translation>
+    </message>
+    <message id="autopanel.notice.mail.badAddress">
+        <source>an address is name@domain, of a domain that receives mail</source>
+        <translation>una dirección es nombre@dominio, de un dominio que recibe correo</translation>
+    </message>
+    <message id="autopanel.notice.mail.badHost">
+        <source>the mail host is a name with a dot: mail.example.com</source>
+        <translation>el servidor de correo es un nombre con punto: mail.example.com</translation>
+    </message>
+    <message id="autopanel.notice.mail.domainAdded">
+        <source>%1 receives mail; its records are being published</source>
+        <translation>%1 recibe correo; se están publicando sus registros</translation>
+    </message>
+    <message id="autopanel.notice.mail.domainRemoved">
+        <source>%1 no longer receives mail</source>
+        <translation>%1 ya no recibe correo</translation>
+    </message>
+    <message id="autopanel.notice.mail.noRecord">
+        <source>that record is held by no other: nothing to take over</source>
+        <translation>ese registro no lo ocupa otro: no hay nada que tomar</translation>
+    </message>
+    <message id="autopanel.notice.mail.none">
+        <source>choose one first</source>
+        <translation>elija uno primero</translation>
+    </message>
+    <message id="autopanel.notice.mail.notReady">
+        <source>Stalwart is still being set up: see Mail › Server</source>
+        <translation>Stalwart aún se está configurando: vea Correo › Servidor</translation>
+    </message>
+    <message id="autopanel.notice.mail.notRegistered">
+        <source>%1 is not a registered domain: add it under Routes › Domains first</source>
+        <translation>%1 no es un dominio registrado: añádalo antes en Rutas › Dominios</translation>
+    </message>
+    <message id="autopanel.notice.mail.notSetUp">
+        <source>Mail is not set up: Mail › Set up mail</source>
+        <translation>El correo no está configurado: Correo › Configurar el correo</translation>
+    </message>
+    <message id="autopanel.notice.mail.passwordSet">
+        <source>%1's password set</source>
+        <translation>se fijó la contraseña de %1</translation>
+    </message>
+    <message id="autopanel.notice.mail.setUp">
+        <source>mail is set up already</source>
+        <translation>el correo ya está configurado</translation>
+    </message>
+    <message id="autopanel.notice.mail.syncing">
+        <source>the DNS, DKIM and certificate pass has started</source>
+        <translation>comenzó la pasada de DNS, DKIM y certificado</translation>
+    </message>
+    <message id="autopanel.notice.mail.takenOver">
+        <source>%1 taken over: the next pass publishes AutoPanel's</source>
+        <translation>se tomó %1: la próxima pasada publica el de AutoPanel</translation>
+    </message>
+    <message id="autopanel.notice.mail.weakPassword">
+        <source>a password is 12 characters at least, 256 at most</source>
+        <translation>una contraseña tiene 12 caracteres como mínimo y 256 como máximo</translation>
+    </message>
+    <message id="autopanel.notice.mail.written">
+        <source>the mail stack is written: review it, and confirm to run it</source>
+        <translation>la pila de correo está escrita: revísela y confirme para ejecutarla</translation>
+    </message>
     <message id="autopanel.notice.prefs.notKept">
         <source>the choice is shown but was not kept: %1</source>
         <translation>la elección se muestra, pero no se guardó: %1</translation>
@@ -1271,6 +1463,18 @@
         <source>Remove the domain %1? Its routes stay; the removal is refused while a route would be left under no domain.</source>
         <translation>¿Quitar el dominio %1? Sus rutas se mantienen; no se permite quitarlo mientras una ruta fuera a quedar sin dominio.</translation>
     </message>
+    <message id="autopanel.question.mail.removeAccount">
+        <source>Delete %1 and all its mail? This cannot be undone.</source>
+        <translation>¿Borrar %1 y todo su correo? No se puede deshacer.</translation>
+    </message>
+    <message id="autopanel.question.mail.removeDomain">
+        <source>Stop receiving mail for %1? AutoPanel removes the records it published there, and only those.</source>
+        <translation>¿Dejar de recibir correo para %1? AutoPanel quita los registros que publicó allí, y solo esos.</translation>
+    </message>
+    <message id="autopanel.question.mail.takeover">
+        <source>Replace %1 %2, which AutoPanel did not write? Now: %3 · Wanted: %4 · An SPF record is merged (AutoPanel adds itself to it); any other is deleted and AutoPanel's published.</source>
+        <translation>¿Reemplazar %1 %2, que AutoPanel no escribió? Ahora: %3 · Se necesita: %4 · Un registro SPF se fusiona (AutoPanel se añade); cualquier otro se borra y se publica el de AutoPanel.</translation>
+    </message>
     <message id="autopanel.question.routes.remove">
         <source>Remove route %1?</source>
         <translation>¿Eliminar la ruta %1?</translation>
@@ -1371,6 +1575,38 @@
         <source>Read the journal again</source>
         <translation>Leer el diario de nuevo</translation>
     </message>
+    <message id="autopanel.tip.mail.accountAdd">
+        <source>Make a mail account</source>
+        <translation>Crear una cuenta de correo</translation>
+    </message>
+    <message id="autopanel.tip.mail.accountPassword">
+        <source>Set the selected account's password</source>
+        <translation>Fijar la contraseña de la cuenta elegida</translation>
+    </message>
+    <message id="autopanel.tip.mail.accountRemove">
+        <source>Delete the selected account and its mail</source>
+        <translation>Borrar la cuenta elegida y su correo</translation>
+    </message>
+    <message id="autopanel.tip.mail.domainAdd">
+        <source>Receive mail for a registered domain</source>
+        <translation>Recibir correo para un dominio registrado</translation>
+    </message>
+    <message id="autopanel.tip.mail.domainRemove">
+        <source>Stop receiving mail for the selected domain</source>
+        <translation>Dejar de recibir correo para el dominio elegido</translation>
+    </message>
+    <message id="autopanel.tip.mail.reload">
+        <source>Read mail's state again</source>
+        <translation>Volver a leer el estado del correo</translation>
+    </message>
+    <message id="autopanel.tip.mail.sync">
+        <source>Publish the records, move DKIM along and hand the certificate over now</source>
+        <translation>Publicar los registros, avanzar DKIM y entregar el certificado ahora</translation>
+    </message>
+    <message id="autopanel.tip.mail.takeover">
+        <source>Replace the record another wrote that holds the selected record's place</source>
+        <translation>Reemplazar el registro ajeno que ocupa el lugar del elegido</translation>
+    </message>
     <message id="autopanel.tip.panel.close">
         <source>Close the panel</source>
         <translation>Cerrar el panel</translation>
@@ -1455,6 +1691,18 @@
         <source>%1 · more than shown</source>
         <translation>%1 · hay más de lo mostrado</translation>
     </message>
+    <message id="autopanel.title.confirm.mailRemoveAccount">
+        <source>Delete a mail account</source>
+        <translation>Borrar una cuenta de correo</translation>
+    </message>
+    <message id="autopanel.title.confirm.mailRemoveDomain">
+        <source>Stop receiving mail</source>
+        <translation>Dejar de recibir correo</translation>
+    </message>
+    <message id="autopanel.title.confirm.mailTakeover">
+        <source>Take a record over</source>
+        <translation>Tomar un registro</translation>
+    </message>
     <message id="autopanel.title.confirm.removeDomain">
         <source>Remove domain</source>
         <translation>Quitar dominio</translation>
@@ -1523,6 +1771,18 @@
         <source>Attempts</source>
         <translation>Intentos</translation>
     </message>
+    <message id="autopanel.title.list.mailAccounts">
+        <source>Accounts</source>
+        <translation>Cuentas</translation>
+    </message>
+    <message id="autopanel.title.list.mailDomains">
+        <source>Domains</source>
+        <translation>Dominios</translation>
+    </message>
+    <message id="autopanel.title.list.mailRecords">
+        <source>Records</source>
+        <translation>Registros</translation>
+    </message>
     <message id="autopanel.title.list.metrics">
         <source>Metrics</source>
         <translation>Métricas</translation>
@@ -1571,6 +1831,18 @@
         <source>Login attempts</source>
         <translation>Intentos de inicio de sesión</translation>
     </message>
+    <message id="autopanel.title.panel.mailAccounts">
+        <source>Mail accounts</source>
+        <translation>Cuentas de correo</translation>
+    </message>
+    <message id="autopanel.title.panel.mailDomains">
+        <source>Mail domains</source>
+        <translation>Dominios de correo</translation>
+    </message>
+    <message id="autopanel.title.panel.mailServer">
+        <source>Mail server</source>
+        <translation>Servidor de correo</translation>
+    </message>
     <message id="autopanel.title.panel.metrics">
         <source>Metrics</source>
         <translation>Métricas</translation>
@@ -1602,6 +1874,26 @@
     <message id="autopanel.title.prompt.import">
         <source>Import a stack</source>
         <translation>Importar un stack</translation>
+    </message>
+    <message id="autopanel.title.prompt.mailAccount">
+        <source>New mail account</source>
+        <translation>Nueva cuenta de correo</translation>
+    </message>
+    <message id="autopanel.title.prompt.mailAddDomain">
+        <source>Receive mail for a domain</source>
+        <translation>Recibir correo para un dominio</translation>
+    </message>
+    <message id="autopanel.title.prompt.mailDomain">
+        <source>Set up mail: the first domain</source>
+        <translation>Configurar el correo: el primer dominio</translation>
+    </message>
+    <message id="autopanel.title.prompt.mailHost">
+        <source>Set up mail: the mail host</source>
+        <translation>Configurar el correo: el servidor</translation>
+    </message>
+    <message id="autopanel.title.prompt.mailPassword">
+        <source>Mail account password</source>
+        <translation>Contraseña de la cuenta de correo</translation>
     </message>
     <message id="autopanel.title.review.add">
         <source>Add stack %1: review</source>
@@ -1730,6 +2022,14 @@
     <message id="autopanel.value.logins.ok">
         <source>ok</source>
         <translation>correcto</translation>
+    </message>
+    <message id="autopanel.value.mail.never">
+        <source>never</source>
+        <translation>nunca</translation>
+    </message>
+    <message id="autopanel.value.mail.none">
+        <source>none</source>
+        <translation>ninguno</translation>
     </message>
     <message id="autopanel.value.metrics.availableOf">
         <source>%1 available of %2</source>

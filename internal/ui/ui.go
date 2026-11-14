@@ -33,6 +33,7 @@ import (
 	"github.com/yongjohnlee80/golib/tui/term"
 
 	"github.com/yongjohnlee80/autopanel/core/gate"
+	"github.com/yongjohnlee80/autopanel/core/mail"
 	"github.com/yongjohnlee80/autopanel/core/services"
 	"github.com/yongjohnlee80/autopanel/internal/sysinfo"
 )
@@ -184,6 +185,21 @@ type Client interface {
 	RemoveStack(ctx context.Context, name string, purge bool) error
 	// StackLogs are the newest journal lines of a stack, or of one service.
 	StackLogs(ctx context.Context, name, service string) ([]string, error)
+
+	// The Mail menu. Each is a verb of the daemon's (mail.*).
+	MailStatus(ctx context.Context) (mail.Status, error)
+	MailSetup(ctx context.Context, host, domain string) (mail.Setup, error)
+	MailAddDomain(ctx context.Context, name string) error
+	MailRemoveDomain(ctx context.Context, name string) error
+	MailRecords(ctx context.Context, domain string) (mail.RecordsAnswer, error)
+	MailTakeover(ctx context.Context, domain, name, typ string) error
+	MailSync(ctx context.Context) error
+	MailAccounts(ctx context.Context, domain string) ([]mail.AccountView, error)
+	// MailAddAccount and MailSetPassword carry the password to the daemon,
+	// which hands it to Stalwart and keeps it nowhere.
+	MailAddAccount(ctx context.Context, address, password string, quota int64) error
+	MailSetPassword(ctx context.Context, address, password string) error
+	MailRemoveAccount(ctx context.Context, address string) error
 
 	// The panel's preferences, kept by the daemon.
 	Prefs(ctx context.Context) (Prefs, error)

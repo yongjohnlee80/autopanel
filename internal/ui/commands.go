@@ -55,6 +55,24 @@ func (h *host) commands() map[string]decl.HandlerFunc {
 		"App.addDomain":    none(h.addDomain),
 		"App.removeDomain": oneRow("App.removeDomain", h.removeDomain),
 
+		// Mail (mail.go)
+		"App.mailSetup":           none(h.mailSetup),
+		"App.openMailDomains":     none(h.openMailDomains),
+		"App.openMailAccounts":    none(h.openMailAccounts),
+		"App.openMailServer":      none(h.openMailServer),
+		"App.mailDomainMoved":     oneRow("App.mailDomainMoved", h.mailDomainMoved),
+		"App.mailRecordMoved":     oneRow("App.mailRecordMoved", h.mailRecordMoved),
+		"App.mailAccountMoved":    oneRow("App.mailAccountMoved", h.mailAccountMoved),
+		"App.mailAddDomain":       none(h.mailAddDomain),
+		"App.mailRemoveDomain":    oneRow("App.mailRemoveDomain", h.mailRemoveDomain),
+		"App.mailTakeover":        oneRow("App.mailTakeover", h.mailTakeover),
+		"App.mailSync":            none(h.mailSync),
+		"App.mailReload":          none(h.mailReload),
+		"App.mailAddAccount":      none(h.mailAddAccount),
+		"App.mailAccountPassword": oneRow("App.mailAccountPassword", h.mailAccountPassword),
+		"App.mailRemoveAccount":   oneRow("App.mailRemoveAccount", h.mailRemoveAccount),
+		"App.secretEntered":       oneString("App.secretEntered", h.secretEntered),
+
 		// the dialogs' answers
 		"App.confirmed":      none(h.confirm),
 		"App.confirmedOther": none(h.confirmOther),
