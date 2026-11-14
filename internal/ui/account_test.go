@@ -201,6 +201,9 @@ func TestTheUsersPanel(t *testing.T) {
 	for _, part := range []string{"Users", "ana", "operator", "2FA", "zed", "locked", "Last login"} {
 		s.WaitForText(t, part)
 	}
+	if strings.Contains(s.String(), "an admin has no two-factor") {
+		t.Fatal("every admin has two-factor, and the panel says one has none")
+	}
 	run(t, h, func() error { return h.userMoved(1) })
 	s.WaitForText(t, "Root is the first admin")
 
@@ -233,6 +236,11 @@ func TestTheUsersPanel(t *testing.T) {
 		t.Fatalf("what reached the daemon: %d passphrases", len(passes))
 	}
 
+	f.mu.Lock()
+	f.acct.users = append(f.acct.users, auth.UserView{Name: "eve", Role: auth.RoleAdmin})
+	f.mu.Unlock()
+	run(t, h, func() error { h.loadUsers(); return nil })
+	s.WaitForText(t, "an admin has no two-factor")
 	run(t, h, func() error { return h.userUnlock(2) })
 	waitAsked(t, s, f, "unlock zed")
 	run(t, h, func() error { return h.userRemove(0) })

@@ -91,8 +91,9 @@ Open the admin TUI on the server:
 sudo autopanel --ui
 ```
 
-It opens on a sign-in dialog. The user is `root`; type the master passphrase and press Enter.
-Quit or Esc leaves.
+It opens on a sign-in dialog. The user is `root`; type the master passphrase, press Enter, leave
+the two-factor code empty until you have enrolled one (below), and press Enter again. Quit or Esc
+leaves.
 
 **The main screen** is a set of tiled widgets that read the server every five seconds:
 
@@ -485,6 +486,61 @@ the mail host on 993 (IMAP, TLS) and 465 (submission, TLS) or 587 (STARTTLS).
 from the panel; Stalwart's own web interface (through an SSH tunnel to its management port, as
 root) does them meanwhile.
 
+### Users, two-factor and API tokens
+
+Root is the first admin. Under **Users** you can give other people their own login, turn on a
+second factor, and make tokens for scripts.
+
+**Roles.** Every user has one:
+
+| Role | May |
+| --- | --- |
+| admin | everything, including users, the gate's settings and setting mail up; holds the master key |
+| operator | run routes, stacks and mail, read their logs and the host's files; not users, certificates' settings or the gate's settings |
+| mail | manage mail domains and accounts; read routes, domains and the server's status; not stacks or certificates |
+| viewer | read what the screen shows, change nothing; never logs, files or who logged in |
+
+Everyone may change their own passphrase, two-factor and tokens. Menus a role cannot use are greyed
+out, and the daemon refuses them regardless. Only admins hold a copy of the master key, so only an
+admin's login unlocks the vault after a restart; until an admin has signed in, the sign-in dialog
+says the vault is locked, and users with two-factor cannot sign in yet.
+
+**Users → Manage users…** (admins) lists everyone with role, two-factor and state. **Add** asks a
+name, a role (viewer unless you change it) and a first passphrase; **Reset** sets a new passphrase;
+**Role** changes the role (with a new passphrase, since an admin's login holds the key and anyone
+else's does not). In every case the user must choose their own passphrase at their next login, and
+can do nothing else first. **Disable**, **Unlock** (after ten failed logins an account is locked for
+15 minutes) and **Remove** do what they say. Root and the last admin cannot be demoted, disabled or
+removed. A passphrase is at least 12 characters, does not contain the user's name, and is not one
+of the 10,000 most common passwords.
+
+**Users → Two-factor…** shows a secret and an `otpauth://` link for any authenticator app (Aegis,
+Google Authenticator, 1Password and the like), then asks a code from it, then shows ten recovery
+codes once: each signs you in once in place of a code if you lose the app. From then on, type the
+code in the sign-in dialog's second field. Turning it off takes a code. If someone loses both their
+phone and their codes, an admin turns it off for them:
+
+```sh
+sudo autopanel --call auth.totp.disable '{"name": "ana"}'
+```
+
+**Users → API tokens…** makes a token for a script: a name, a role (viewer unless you ask for
+more, and never above your own) and how many days it lasts (90 by default, 365 at most). It is
+shown once; put it in a file only root can read and pass the file:
+
+```sh
+sudo install -m 0600 /dev/null /root/backup.token   # then paste the token into it
+sudo autopanel --call --token-file /root/backup.token services.list
+```
+
+The file must be root's and mode 0600, or it is refused; a token is never read from the command line
+or the environment. A token never manages users, tokens or passphrases, follows its owner (a
+demoted owner's tokens are demoted, a removed owner's stop), and is named on the audit log as
+`token <name> of <user>`. **Revoke** ends one at once.
+
+**Sessions.** The panel asks for the login again after 30 minutes without a key, and the daemon
+ends any login after 12 hours.
+
 ### Themes and languages
 
 **System → Theme** offers ten themes, and **System → Language** six languages: English, Korean,
@@ -551,8 +607,9 @@ A deployed service is stopped by `--apply`, and its user and directory are delet
 
 1. **A proxy gate:** a reverse proxy whose routes can change without dropping requests in flight.
 2. **Certificates:** ACME (Let's Encrypt, ZeroSSL), including DNS-01 for wildcard certificates.
-3. **Authentication** for the panel and its API: hashed passwords, sessions, a second factor, and
-   scoped API tokens.
+3. **Authentication** for the panel and its API: users with roles, a second factor, login limits
+   and scoped API tokens (done for the console; the HTTPS surface brings cookie sessions and
+   passkeys).
 4. **An internal store:** SQLite by default, with PostgreSQL as an option.
 
 ## Design principles

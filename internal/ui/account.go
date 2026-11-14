@@ -23,11 +23,12 @@ type accountPanes struct {
 	users  *tuidecl.ListModel // App.users
 	tokens *tuidecl.ListModel // App.tokens
 
-	userList  []auth.UserView
-	tokenList []auth.TokenView
-	userAt    int
-	tokenAt   int
-	newPass   string // the new passphrase between its two typings, cleared after
+	userList    []auth.UserView
+	tokenList   []auth.TokenView
+	userAt      int
+	tokenAt     int
+	adminNoTOTP bool   // an enabled admin has no two-factor: said above the details (D2)
+	newPass     string // the new passphrase between its two typings, cleared after
 }
 
 func newAccountPanes() accountPanes {
@@ -90,6 +91,12 @@ func (h *host) loadUsers() {
 			rows = append(rows, tuidecl.Row{"key": u.Name, "name": u.Name, "role": string(u.Role), "factor": factor, "state": state})
 		}
 		a.users.Reset(rows)
+		a.adminNoTOTP = false
+		for _, u := range us {
+			if u.Role == auth.RoleAdmin && !u.TOTP && !u.Disabled { // D2: said while any admin has none
+				a.adminNoTOTP = true
+			}
+		}
 		_ = h.p.SetMany(map[string]any{
 			"App.usersTitle": h.trf("autopanel.title.list.count", h.tr("autopanel.title.list.users"), len(us), time.Now().Format("15:04:05")),
 			"App.userDetail": h.userDetail(),
@@ -111,6 +118,9 @@ func (h *host) userDetail() string {
 		[2]string{"autopanel.label.account.lockedUntil", map[bool]string{true: time.Unix(u.LockedUntil, 0).Format("15:04"), false: "-"}[u.LockedUntil > time.Now().Unix()]})
 	if u.Root {
 		text += "\n\n" + h.tr("autopanel.note.account.root")
+	}
+	if a.adminNoTOTP {
+		text = "⚠ " + h.tr("autopanel.note.account.adminNoTotp") + "\n\n" + text
 	}
 	return text
 }
