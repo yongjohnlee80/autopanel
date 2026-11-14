@@ -48,6 +48,11 @@ type Store interface {
 	SetApplied(ctx context.Context, name string, a Applied) error
 	SetStopped(ctx context.Context, name string, services []string) error
 	Remove(ctx context.Context, name string) error
+	// Source is where a stack's definition was imported from; ok is false for
+	// one written into the stacks' directory by hand. It outlives the stack, as
+	// the definition does.
+	Source(ctx context.Context, name string) (src Source, ok bool, err error)
+	SetSource(ctx context.Context, name string, src Source) error
 }
 
 // Unit is what the host writes into a stack's home: its unit files.
@@ -121,6 +126,19 @@ type Host interface {
 	// Listening are the host's listening sockets that the stack's own user,
 	// and the ids under it, do not hold.
 	Listening(ctx context.Context, name string) ([]PortUse, error)
+
+	// Browse lists a folder of the host; a link is listed, never followed.
+	Browse(ctx context.Context, dir string) (Listing, error)
+	// Preview reads a file inside a stack's folder, as text, bounded.
+	Preview(ctx context.Context, file string) (text []byte, cut bool, err error)
+	// ReadSource reads a source folder's compose.yaml and .env.
+	ReadSource(ctx context.Context, from string) (compose, env []byte, err error)
+	// SourceManifest hashes a source folder's definition files as an import
+	// would copy them: compose.yaml, .env and paths.
+	SourceManifest(ctx context.Context, from string, paths []string) (files []Input, missing, links []string, err error)
+	// Import copies a source folder's definition into the stacks' directory
+	// as name; with replace, over the one there.
+	Import(ctx context.Context, from, name string, paths []string, replace bool) (files []Input, missing, links []string, err error)
 }
 
 var (
@@ -174,6 +192,10 @@ func (m *Module) Name() string { return "services" }
 
 func (m *Module) Errors() []module.PublicError {
 	return []module.PublicError{
+		{Err: ErrBadPath, Code: -32179, Name: "services.bad_path", Message: "the browser cannot read that path"},
+		{Err: ErrNotInStack, Code: -32180, Name: "services.not_in_stack", Message: "only a file in a stack's folder (one that holds a compose.yaml) can be previewed"},
+		{Err: ErrNotText, Code: -32181, Name: "services.not_text", Message: "the file is not text"},
+		{Err: ErrNoSource, Code: -32182, Name: "services.no_source", Message: "the stack was not imported from a folder"},
 		{Err: ErrIncomplete, Code: -32183, Name: "services.incomplete", Message: "the apply did not finish; fix the cause and apply again to finish it"},
 		{Err: ErrTooLarge, Code: -32184, Name: "services.too_large", Message: "the stack's definition is too large: 1,000 files and 64 MB at most"},
 		{Err: ErrNotApplied, Code: -32185, Name: "services.not_applied", Message: "the stack has not been applied yet"},
@@ -205,8 +227,9 @@ type View struct {
 	State      string      `json:"state"`
 	Step       string      `json:"step"` // for Incomplete: the step the apply stopped at
 	User       string      `json:"user"`
-	SHA256     string      `json:"sha256"`  // of the manifest last applied
-	Changed    bool        `json:"changed"` // the definition differs from the one applied
+	SHA256     string      `json:"sha256"`           // of the manifest last applied
+	Changed    bool        `json:"changed"`          // the definition differs from the one applied
+	Source     *SourceView `json:"source,omitempty"` // where it was imported from, and whether that changed since
 	Containers []Container `json:"containers"`
 }
 
@@ -257,7 +280,7 @@ type Folder struct {
 }
 
 const (
-	viewShape = "{name, state, step, user, sha256, changed, containers: [{service, image, digest, ports: [{proto, from, to}], stopped, health, active, sub, memory_bytes, restarts, since, cpu_nanos}]}"
+	viewShape = "{name, state, step, user, sha256, changed, source?: {path, imported_at, state}, containers: [{service, image, digest, ports: [{proto, from, to}], stopped, health, active, sub, memory_bytes, restarts, since, cpu_nanos}]}"
 	deploy    = "services.deploy"
 )
 
@@ -279,6 +302,16 @@ func (m *Module) Verbs() []module.Verb {
 			"Applies a registered stack's definition as it is now: stops and removes what it no longer has, replaces its configuration, restarts what changed. Also finishes an apply that did not end. A stack's data is never written."), m.applyVerb),
 		module.Handle(change("services.pull", "{name, service?}",
 			"Pulls a stack's images again, records the digests they resolve to now, and restarts the containers whose image changed."), m.pull),
+		module.Handle(module.Contract{Verb: "services.browse", Since: 5, Param: "{path}", Result: "{path, stack, entries: [{name, kind, size, stack}], truncated}",
+			Doc: "A folder of the host, for the file browser: its entries, folders first, each folder saying whether it holds a compose.yaml. A link is listed, never followed."}, m.browse),
+		module.Handle(module.Contract{Verb: "services.preview", Since: 5, Param: "{path}", Result: "{path, text, masked, cut}",
+			Doc: "A file inside a stack's folder, as text, for the browser's preview: 64 KB at most, every value of a .env and each secret's value masked."}, m.preview),
+		module.Handle(module.Contract{Verb: "services.import", Since: 5, Param: "{from, name?}", Result: "{name, from, sha256, files: [{path, mode, size, sha256}]}",
+			Mutates: true, Privileged: true, Right: deploy,
+			Doc: "Copies a folder's stack definition (compose.yaml, .env, its env_files and read-only mounts; not its data) into the stacks' directory, root's alone, and records where it came from. Runs nothing: services.check reviews it, services.add starts it."}, m.importVerb),
+		module.Handle(module.Contract{Verb: "services.reimport", Since: 5, Param: "{name}", Result: "{name, from, sha256, files: [{path, mode, size, sha256}]}",
+			Mutates: true, Privileged: true, Right: deploy,
+			Doc: "Copies a stack's definition from its source again. What runs does not change until services.apply, which reviews it first."}, m.reimport),
 		module.Handle(module.Contract{Verb: "services.list", Since: 3, Result: "[" + viewShape + "]",
 			Doc: "Every stack: what was applied, and what the host says of each container now."}, m.list),
 		module.Handle(change("services.start", "{name, service?}",
@@ -359,6 +392,9 @@ func (m *Module) view(ctx context.Context, s Service) View {
 		v.State = Prepared
 	case s.Pending != nil:
 		v.State, v.Step = Incomplete, s.Pending.Step
+	}
+	if src, ok, err := m.store.Source(ctx, s.Name); err == nil && ok {
+		v.Source = m.sourceView(ctx, src)
 	}
 	var units []string
 	for _, u := range s.Applied.Units {

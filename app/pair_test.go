@@ -241,6 +241,13 @@ func TestTheCoreAndTheGateEndToEnd(t *testing.T) {
 	}
 
 	var added gate.RouteView
+	// A route's host must be under a registered domain.
+	if err := c.Call(ctx, "gate.route.add", gate.RouteSpec{Host: "app.example.com", Upstream: up.URL}, nil); wireCode(err) != -32155 {
+		t.Fatalf("a route under no domain = %v; want gate.no_domain", err)
+	}
+	if err := c.Call(ctx, "gate.domain.add", gate.DomainRef{Name: "Example.COM."}, nil); err != nil {
+		t.Fatal(err)
+	}
 	if err := c.Call(ctx, "gate.route.add", gate.RouteSpec{Host: "app.example.com", Upstream: up.URL}, &added); err != nil {
 		t.Fatal(err)
 	}

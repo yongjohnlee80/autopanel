@@ -28,16 +28,18 @@ var (
 // runs after every committed change, so a rolled-back change never reaches the
 // table (rationale §R9).
 type Module struct {
-	routes Routes
-	reload func(ctx context.Context) error
+	routes  Routes
+	domains Domains
+	reload  func(ctx context.Context) error
 	// mu orders write-then-reload pairs: without it, an older reload could swap
 	// its snapshot in after a newer one.
 	mu sync.Mutex
 }
 
-// NewModule returns the gate's verbs over routes; reload swaps a new table in.
-func NewModule(routes Routes, reload func(ctx context.Context) error) *Module {
-	return &Module{routes: routes, reload: reload}
+// NewModule returns the gate's verbs over routes and domains; reload swaps a
+// new table in.
+func NewModule(routes Routes, domains Domains, reload func(ctx context.Context) error) *Module {
+	return &Module{routes: routes, domains: domains, reload: reload}
 }
 
 func (m *Module) Name() string { return "gate" }
@@ -77,6 +79,12 @@ func (m *Module) Verbs() []module.Verb {
 			Doc: "Replaces a route's host, prefix and upstream.", Mutates: true}, m.update),
 		module.Handle(module.Contract{Verb: "gate.route.remove", Since: 1, Param: "{id}", Result: "{id, host, path_prefix, upstream}",
 			Doc: "Removes a route; its host stops being served once no route names it.", Mutates: true}, m.remove),
+		module.Handle(module.Contract{Verb: "gate.domain.list", Since: 5, Result: "[{name, routes}]",
+			Doc: "Every registered domain, by name, with the number of routes under it."}, m.domainList),
+		module.Handle(module.Contract{Verb: "gate.domain.add", Since: 5, Param: "{name}", Result: "{name, routes}",
+			Doc: "Registers a domain the administrator owns: example.com. A route's host must be a domain or a name under one.", Mutates: true}, m.domainAdd),
+		module.Handle(module.Contract{Verb: "gate.domain.remove", Since: 5, Param: "{name}",
+			Doc: "Removes a domain. Refused while a route would be left under no domain.", Mutates: true}, m.domainRemove),
 	}
 }
 
@@ -87,6 +95,10 @@ func (m *Module) Errors() []module.PublicError {
 		{Err: ErrBadHost, Code: -32152, Name: "gate.bad_host", Message: "not a valid host name (use punycode for an internationalised name)"},
 		{Err: ErrBadPrefix, Code: -32153, Name: "gate.bad_prefix", Message: "a path prefix must be \"/\" or an absolute path without a trailing slash"},
 		{Err: ErrBadUpstream, Code: -32154, Name: "gate.bad_upstream", Message: "an upstream must be an http or https URL with a host and no credentials"},
+		{Err: ErrNoDomain, Code: -32155, Name: "gate.no_domain", Message: "the host is under no registered domain; add the domain first"},
+		{Err: ErrDomainExists, Code: -32156, Name: "gate.domain_exists", Message: "the domain is registered already"},
+		{Err: ErrDomainInUse, Code: -32157, Name: "gate.domain_in_use", Message: "a route would be left under no domain; remove or move it first"},
+		{Err: ErrNoSuchDomain, Code: -32158, Name: "gate.no_such_domain", Message: "no such domain"},
 	}
 }
 
@@ -117,7 +129,12 @@ func (m *Module) add(ctx context.Context, s RouteSpec) (RouteView, error) {
 	if err != nil {
 		return RouteView{}, err
 	}
-	return m.write(ctx, func() (Route, error) { return m.routes.Add(ctx, r) })
+	return m.write(ctx, func() (Route, error) {
+		if err := m.underADomain(ctx, r.Host); err != nil {
+			return Route{}, err
+		}
+		return m.routes.Add(ctx, r)
+	})
 }
 
 func (m *Module) update(ctx context.Context, s RouteSpec) (RouteView, error) {
@@ -125,7 +142,12 @@ func (m *Module) update(ctx context.Context, s RouteSpec) (RouteView, error) {
 	if err != nil {
 		return RouteView{}, err
 	}
-	return m.write(ctx, func() (Route, error) { return m.routes.Update(ctx, r) })
+	return m.write(ctx, func() (Route, error) {
+		if err := m.underADomain(ctx, r.Host); err != nil {
+			return Route{}, err
+		}
+		return m.routes.Update(ctx, r)
+	})
 }
 
 func (m *Module) remove(ctx context.Context, ref RouteRef) (RouteView, error) {

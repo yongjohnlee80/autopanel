@@ -24,6 +24,7 @@ import (
 	"github.com/yongjohnlee80/autopanel/internal/hostcmd"
 	"github.com/yongjohnlee80/autopanel/internal/keyslot"
 	"github.com/yongjohnlee80/autopanel/internal/module"
+	"github.com/yongjohnlee80/autopanel/internal/sysinfo"
 	"github.com/yongjohnlee80/autopanel/store"
 )
 
@@ -117,6 +118,19 @@ func (notRoot) Uninstall(context.Context, string, bool) error                   
 func (notRoot) Logs(context.Context, string, string, int) ([]string, error)        { return nil, errNotRoot }
 func (notRoot) Health(context.Context, string) (map[string]string, error)          { return nil, nil }
 func (notRoot) Listening(context.Context, string) ([]services.PortUse, error)      { return nil, nil }
+func (notRoot) Browse(context.Context, string) (services.Listing, error) {
+	return services.Listing{}, errNotRoot
+}
+func (notRoot) Preview(context.Context, string) ([]byte, bool, error) { return nil, false, errNotRoot }
+func (notRoot) ReadSource(context.Context, string) ([]byte, []byte, error) {
+	return nil, nil, errNotRoot
+}
+func (notRoot) SourceManifest(context.Context, string, []string) ([]services.Input, []string, []string, error) {
+	return nil, nil, nil, errNotRoot
+}
+func (notRoot) Import(context.Context, string, string, []string, bool) ([]services.Input, []string, []string, error) {
+	return nil, nil, nil, errNotRoot
+}
 func (notRoot) Running(_ context.Context, _ string, units []string) (map[string]services.Running, error) {
 	out := map[string]services.Running{}
 	for _, u := range units {
@@ -240,9 +254,9 @@ func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateContr
 	}
 
 	counts := &counters{}
-	gm := gate.NewModule(st.Routes(), reload)
+	gm := gate.NewModule(st.Routes(), st.Domains(), reload)
 	svcs := services.NewModule(st.Services(), serviceHost(cfg))
-	sys := &sysModule{cfg: cfg, table: table, engine: st.Engine(), started: time.Now(), challenge: sw.Challenge, ca: sw.CA,
+	sys := &sysModule{cfg: cfg, sampler: sysinfo.NewSampler(), table: table, engine: st.Engine(), started: time.Now(), challenge: sw.Challenge, ca: sw.CA,
 		st: st, log: log, counts: counts, listeners: readListeners, sshLogins: readSSHLogins, gate: gc, serviceUsers: svcs.Users}
 	am, err := auth.New(st, st, vault, func(ctx context.Context) {
 		if err := sw.rebuild(ctx); err != nil {

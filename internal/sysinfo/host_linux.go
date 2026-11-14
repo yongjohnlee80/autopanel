@@ -145,3 +145,32 @@ func ReadHost(path string) Host {
 	}
 	return h
 }
+
+// NewSampler reads the host's /proc.
+func NewSampler() *Sampler {
+	return &Sampler{now: time.Now, read: func() (CPUTime, int, []Iface, uint64, uint64, int64) {
+		var cpu CPUTime
+		var cpus int
+		var ifaces []Iface
+		var swapTotal, swapFree uint64
+		var uptime int64
+		if f, err := os.Open("/proc/stat"); err == nil {
+			cpu, cpus = ParseCPUStat(f)
+			_ = f.Close()
+		}
+		if f, err := os.Open("/proc/net/dev"); err == nil {
+			ifaces = ParseNetDev(f)
+			_ = f.Close()
+		}
+		if f, err := os.Open("/proc/meminfo"); err == nil {
+			swapTotal, swapFree = ParseSwap(f)
+			_ = f.Close()
+		}
+		if b, err := os.ReadFile("/proc/uptime"); err == nil {
+			if s, _, ok := strings.Cut(string(b), "."); ok {
+				uptime, _ = strconv.ParseInt(s, 10, 64)
+			}
+		}
+		return cpu, cpus, ifaces, swapTotal, swapFree, uptime
+	}}
+}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path"
 	"reflect"
 	"sort"
 	"strings"
@@ -30,14 +31,15 @@ type machine struct {
 	offline  bool
 	listen   []PortUse
 	changed  bool
-	fail     map[string]error // a method's name → the error its next call answers
+	src      map[string]map[string]string // the host's folders, for the browser and the import
+	fail     map[string]error             // a method's name → the error its next call answers
 	log      []string
 }
 
 func newMachine() *machine {
 	return &machine{podman: [2]int{4, 9}, defs: map[string]map[string]string{}, staged: map[string]map[string]string{},
 		folder: map[string]map[string]string{}, units: map[string]map[string]string{}, users: map[string]bool{},
-		registry: map[string]string{}, held: map[string]map[string]bool{}, fail: map[string]error{}}
+		registry: map[string]string{}, held: map[string]map[string]bool{}, fail: map[string]error{}, src: map[string]map[string]string{}}
 }
 
 // failing answers the error set for method, once.
@@ -285,10 +287,93 @@ func (h *machine) Logs(_ context.Context, name, container string, limit int) ([]
 
 func (h *machine) Listening(context.Context, string) ([]PortUse, error) { return h.listen, nil }
 
+// The browser and the import read h.src: a folder of the host by its path,
+// each holding its files.
+func (h *machine) Browse(_ context.Context, dir string) (Listing, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	files, ok := h.src[dir]
+	if !ok {
+		return Listing{}, ErrBadPath
+	}
+	l := Listing{Path: dir, Entries: []Entry{}}
+	for f := range files {
+		l.Entries = append(l.Entries, Entry{Name: f, Kind: "file"})
+		l.Stack = l.Stack || f == "compose.yaml"
+	}
+	return l, nil
+}
+
+func (h *machine) Preview(_ context.Context, file string) ([]byte, bool, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	dir, name := path.Split(file)
+	text, ok := h.src[strings.TrimSuffix(dir, "/")][name]
+	if !ok {
+		return nil, false, ErrBadPath
+	}
+	return []byte(text), false, nil
+}
+
+func (h *machine) ReadSource(_ context.Context, from string) ([]byte, []byte, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	files, ok := h.src[from]
+	if !ok || files["compose.yaml"] == "" {
+		return nil, nil, ErrNoDefinition
+	}
+	return []byte(files["compose.yaml"]), []byte(files[".env"]), nil
+}
+
+func (h *machine) sourceFiles(from string, paths []string) ([]Input, []string, map[string]string) {
+	files := h.src[from]
+	picked := map[string]string{}
+	var missing []string
+	for _, p := range append([]string{"compose.yaml", ".env"}, paths...) {
+		found := false
+		for f, text := range files {
+			if within(f, p) {
+				picked[f], found = text, true
+			}
+		}
+		if !found && p != ".env" {
+			missing = append(missing, p)
+		}
+	}
+	var in []Input
+	for f, text := range picked {
+		in = append(in, Input{Path: f, Mode: 0o400, Size: int64(len(text)), SHA256: hash([]byte(text))})
+	}
+	return in, missing, picked
+}
+
+func (h *machine) SourceManifest(_ context.Context, from string, paths []string) ([]Input, []string, []string, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	in, missing, _ := h.sourceFiles(from, paths)
+	return in, missing, nil, nil
+}
+
+func (h *machine) Import(_ context.Context, from, name string, paths []string, replace bool) ([]Input, []string, []string, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if _, has := h.defs[name]; has && !replace {
+		return nil, nil, nil, ErrDuplicate
+	}
+	in, missing, picked := h.sourceFiles(from, paths)
+	if len(missing) > 0 {
+		return in, missing, nil, nil
+	}
+	h.defs[name] = picked
+	h.said("import %s %s", from, name)
+	return in, nil, nil, nil
+}
+
 // rows is a Store in memory.
 type rows struct {
-	mu  sync.Mutex
-	all map[string]Service
+	mu      sync.Mutex
+	all     map[string]Service
+	sources map[string]Source
 }
 
 func (r *rows) All(context.Context) ([]Service, error) {
@@ -348,6 +433,23 @@ func (r *rows) SetApplied(_ context.Context, name string, a Applied) error {
 
 func (r *rows) SetStopped(_ context.Context, name string, stopped []string) error {
 	return r.set(name, func(s *Service) { s.Stopped = stopped })
+}
+
+func (r *rows) Source(_ context.Context, name string) (Source, bool, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	s, ok := r.sources[name]
+	return s, ok, nil
+}
+
+func (r *rows) SetSource(_ context.Context, name string, s Source) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.sources == nil {
+		r.sources = map[string]Source{}
+	}
+	r.sources[name] = s
+	return nil
 }
 
 func (r *rows) Remove(_ context.Context, name string) error {
@@ -955,6 +1057,91 @@ func TestEveryDeclaredErrorHasItsOwnCode(t *testing.T) {
 		seen[e.Code] = e.Name
 		if e.Err == nil || e.Message == "" || !strings.HasPrefix(e.Name, "services.") {
 			t.Errorf("%+v is not a whole public error", e)
+		}
+	}
+}
+
+// TestAStackIsImportedFromAnywhere: its definition is copied into the stacks'
+// directory with its source recorded; the source changing is seen, and a
+// reimport copies it again without changing what runs.
+func TestAStackIsImportedFromAnywhere(t *testing.T) {
+	f := setup(t)
+	ctx := context.Background()
+	delete(f.h.defs, "site")
+	f.h.src["/home/admin/services/site"] = map[string]string{"compose.yaml": site, ".env": "TOKEN=t0ken\n", "web.conf": "listen 8080\n", "notes.txt": "not part of it"}
+
+	l, err := f.m.browse(ctx, Browse{Path: "/home/admin/services/site"})
+	if err != nil || !l.Stack {
+		t.Fatalf("browse = %+v, %v; want a stack's folder", l, err)
+	}
+	p, err := f.m.preview(ctx, Browse{Path: "/home/admin/services/site/.env"})
+	if err != nil || strings.Contains(p.Text, "t0ken") || p.Masked != 1 {
+		t.Fatalf("the preview of .env = %+v, %v; want its value masked", p, err)
+	}
+
+	imp, err := f.m.importVerb(ctx, Import{From: "/home/admin/services/site"})
+	if err != nil || imp.Name != "site" || len(imp.Files) != 3 {
+		t.Fatalf("import = %+v, %v; want compose.yaml, .env and web.conf, named for the folder", imp, err)
+	}
+	if _, has := f.h.defs["site"]["notes.txt"]; has {
+		t.Error("a file the compose file does not name was copied")
+	}
+	if got := f.accept("site"); got != imp.SHA256 {
+		t.Errorf("the review's hash %s is not the import's %s: an unchanged import must review the same", got, imp.SHA256)
+	}
+	if _, err := f.m.importVerb(ctx, Import{From: "/home/admin/services/site"}); !errors.Is(err, ErrDuplicate) {
+		t.Errorf("a second import of the name = %v; want ErrDuplicate", err)
+	}
+	if _, err := f.m.importVerb(ctx, Import{From: "/home/admin/services/site", Name: "Bad Name"}); !errors.Is(err, ErrBadName) {
+		t.Errorf("an import under a bad name = %v", err)
+	}
+
+	v := f.add("site")
+	if v.Source == nil || v.Source.Path != "/home/admin/services/site" || v.Source.State != "same" {
+		t.Fatalf("the stack's source = %+v; want its folder, the same as imported", v.Source)
+	}
+	f.h.src["/home/admin/services/site"]["web.conf"] = "listen 9090\n"
+	list, _ := f.m.list(ctx, struct{}{})
+	if list[0].Source.State != "changed" {
+		t.Fatalf("after the source changed, its state = %q", list[0].Source.State)
+	}
+	if _, err := f.m.reimport(ctx, Ref{Name: "site"}); err != nil {
+		t.Fatal(err)
+	}
+	if f.h.defs["site"]["web.conf"] != "listen 9090\n" || len(f.h.calls("restart")) != 0 {
+		t.Fatal("a reimport did not copy the change, or it changed what runs")
+	}
+	if _, err := f.apply("site"); err != nil {
+		t.Fatal(err)
+	}
+	if got := f.h.calls("restart"); !reflect.DeepEqual(got, []string{"restart site site-web.service"}) {
+		t.Errorf("the apply after the reimport restarted %v", got)
+	}
+	delete(f.h.src, "/home/admin/services/site")
+	list, _ = f.m.list(ctx, struct{}{})
+	if list[0].Source.State != "missing" || list[0].Containers[0].Active != "active" {
+		t.Errorf("with its source gone, the stack = %+v; want it running, the source missing", list[0])
+	}
+	if _, err := f.m.reimport(ctx, Ref{Name: "nothing"}); !errors.Is(err, ErrNoSource) {
+		t.Errorf("a reimport of a stack never imported = %v", err)
+	}
+}
+
+func TestAPreviewMasksSecrets(t *testing.T) {
+	for _, c := range []struct {
+		name, in, want string
+		n              int
+	}{
+		{".env", "A=1\nexport B = two\n# a comment\nEMPTY=\n", "A=••••••\nexport B = ••••••\n# a comment\nEMPTY=\n", 2},
+		{"web.env", "TOKEN=x\n", "TOKEN=••••••\n", 1},
+		{"turnserver.conf", "static-auth-secret=abc\nlistening-port=3478\n", "static-auth-secret=••••••\nlistening-port=3478\n", 1},
+		{"homeserver.yaml", "server_name: x\nmacaroon_secret_key: \"k\"\n  client_secret: s\n#  client_secret: \"old\"\n", "server_name: x\nmacaroon_secret_key: ••••••\n  client_secret: ••••••\n# client_secret: ••••••\n", 3},
+		{"compose.yaml", "    environment: {TOKEN: \"${TOKEN}\"}\n    image: x\n", "    environment: {TOKEN: \"${TOKEN}\"}\n    image: x\n", 0},
+		{"app.json", "{\n  \"api_key\": \"abc\",\n  \"name\": \"x\"\n}\n", "{\n  \"api_key\": ••••••\n  \"name\": \"x\"\n}\n", 1},
+	} {
+		got, n := Mask(c.name, c.in)
+		if got != c.want || n != c.n {
+			t.Errorf("Mask(%s) =\n%q, %d\nwant\n%q, %d", c.name, got, n, c.want, c.n)
 		}
 	}
 }

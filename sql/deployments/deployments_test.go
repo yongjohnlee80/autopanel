@@ -163,8 +163,27 @@ func applyAndCheck(t *testing.T, db dao.DataConn) {
 		t.Fatalf("a new stack's row = %q, %d, %q, %q, %v; want nothing applied, stopped or pending", applied, at, stopped, pending, err)
 	}
 	_ = rows.Close()
-	// The newest script can be undone and applied again: a row an older
-	// AutoPanel wrote is whole after the revert.
+	// 000004: every route's host became a domain; a domain is lower case and
+	// unique; a stack's source is kept by its name.
+	if err := exec("INSERT INTO domain(name, created_at) VALUES ('example.org', 0)"); err != nil {
+		t.Fatal(err)
+	}
+	refused["a second domain of one name"] = "INSERT INTO domain(name, created_at) VALUES ('example.com', 0)" // after the re-apply, the route's host
+	refused["a domain that is not lower case"] = "INSERT INTO domain(name, created_at) VALUES ('Example.net', 0)"
+	if err := exec("INSERT INTO stack_source(name, path, imported_at, sha256) VALUES ('blog', '/home/admin/blog', 0, 'aa')"); err != nil {
+		t.Fatal(err)
+	}
+	if err := exec("INSERT INTO stack_source(name, path, imported_at, sha256) VALUES ('blog', '/x', 0, 'bb')"); err == nil {
+		t.Error("the store accepted a second source of one stack")
+	}
+	// Undone in order: 000004, then 000003, then 000002; a row an older
+	// AutoPanel wrote is whole after each.
+	if name, err := deployments.Runner().Revert(ctx, db, 4); err != nil {
+		t.Fatalf("reverting 000004 = %q, %v", name, err)
+	}
+	if err := exec("SELECT name FROM domain"); err == nil {
+		t.Fatal("the domain table outlived its revert")
+	}
 	if name, err := deployments.Runner().Revert(ctx, db, 3); err != nil {
 		t.Fatalf("reverting 000003 = %q, %v", name, err)
 	}
@@ -182,6 +201,23 @@ func applyAndCheck(t *testing.T, db dao.DataConn) {
 	}
 	if _, err := deployments.Runner().Apply(ctx, db); err != nil {
 		t.Fatal(err)
+	}
+	// Applied again over a store with a route: its host is now a domain.
+	rows, err = db.QueryContext(ctx, "SELECT name FROM domain")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for rows.Next() {
+		var n string
+		if err := rows.Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		names = append(names, n)
+	}
+	_ = rows.Close()
+	if len(names) != 1 || names[0] != "example.com" {
+		t.Fatalf("the domains after 000004 = %v; want the route's host", names)
 	}
 	if err := exec("INSERT INTO service(name, template, options, state, created_at, updated_at) VALUES ('turn', 'turn', '{}', 'deploying', 0, 0)"); err != nil {
 		t.Fatal(err)
@@ -210,7 +246,7 @@ func TestTheScriptsApplyOnPostgres(t *testing.T) {
 		t.Fatal(err)
 	}
 	clear := func() {
-		for _, table := range []string{"route", "audit", "cert_blob", "store_lease", "secret", "keyslot", "app_user", "service"} {
+		for _, table := range []string{"route", "audit", "cert_blob", "store_lease", "secret", "keyslot", "app_user", "service", "domain", "stack_source"} {
 			_, _ = db.ExecContext(context.Background(), "DELETE FROM "+table) // before Apply, the tables may not exist yet
 		}
 	}
