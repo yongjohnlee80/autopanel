@@ -201,7 +201,9 @@ func subject(params []any) string {
 		return ""
 	}
 	out := ""
-	for _, k := range []string{"name", "service", "from", "accept"} {
+	// An allowlist: a key that holds a secret (mail's password) never reaches
+	// the audit log.
+	for _, k := range []string{"name", "service", "from", "accept", "host", "domain", "address"} {
 		if s, ok := m[k].(string); ok && s != "" {
 			limit := 64
 			if k == "from" {

@@ -463,6 +463,9 @@ func TestTheSubjectNamesWhatTheCallActsOn(t *testing.T) {
 		{map[string]any{"from": "/srv/chat", "name": "chat", "accept": "abc"}, `name "chat" from "/srv/chat" accept "abc"`},
 		{map[string]any{"from": long}, `from "` + long[:160] + `"`},
 		{map[string]any{"other": "x"}, ``},
+		// Mail: the account and the domain, never the password.
+		{map[string]any{"address": "ana@example.com", "password": "hunter2-long-password"}, `address "ana@example.com"`},
+		{map[string]any{"host": "mail.example.com", "domain": "example.com"}, `host "mail.example.com" domain "example.com"`},
 	} {
 		if got := subject([]any{c.param}); got != c.want {
 			t.Errorf("subject(%v) = %q; want %q", c.param, got, c.want)

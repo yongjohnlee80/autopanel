@@ -156,7 +156,23 @@ var (
 	ErrTooLarge     = errors.New("services: the definition is too large")
 	ErrNotApplied   = errors.New("services: the stack has not been applied")
 	ErrIncomplete   = errors.New("services: the apply did not finish")
+	ErrReserved     = errors.New("services: the name is AutoPanel's own")
 )
+
+// Guard is a module that owns a stack: mail owns the stack named mail, whose
+// definition AutoPanel writes, and the loopback ports it publishes. The
+// services module asks it about every review and import.
+type Guard interface {
+	// Owns reports whether name is a stack only its owner may write.
+	Owns(name string) bool
+	// Review adds the owner's findings about a stack's staged compose file.
+	Review(ctx context.Context, name string, compose []byte) []Finding
+	// Reserved are ports no stack but their owner may publish.
+	Reserved() []Claim
+	// Mask hides what an owned stack's log lines must not show (a credential
+	// its service prints), before services.logs answers them.
+	Mask(name string, lines []string) []string
+}
 
 // detailed is a declared error that names what it is about.
 type detailed struct {
@@ -181,7 +197,12 @@ type Module struct {
 	locks map[string]*sync.Mutex
 	busy  map[string]bool
 	ports sync.Mutex
+	guard Guard // nil: no stack is anyone's
 }
+
+// SetGuard names the module that owns stacks of its own. It is set once,
+// before the verbs are served.
+func (m *Module) SetGuard(g Guard) { m.guard = g }
 
 // NewModule returns the verbs.
 func NewModule(store Store, host Host) *Module {
@@ -201,6 +222,7 @@ func (m *Module) Errors() []module.PublicError {
 		{Err: ErrNotApplied, Code: -32185, Name: "services.not_applied", Message: "the stack has not been applied yet"},
 		{Err: ErrLegacy, Code: -32186, Name: "services.legacy", Message: "the stack was deployed from a template by an older AutoPanel; remove it, and add it again as a stack"},
 		{Err: ErrNoService, Code: -32187, Name: "services.no_service", Message: "the stack has no such service"},
+		{Err: ErrReserved, Code: -32188, Name: "services.reserved", Message: "that stack is AutoPanel's own: it is written and changed from its menu (Mail), never imported"},
 		{Err: ErrNoDefinition, Code: -32190, Name: "services.no_definition", Message: "no folder of that name with a compose.yaml in it"},
 		{Err: ErrNotFound, Code: -32191, Name: "services.not_found", Message: "no such stack"},
 		{Err: ErrDuplicate, Code: -32192, Name: "services.duplicate", Message: "a stack of this name exists"},
@@ -686,8 +708,52 @@ func (m *Module) logs(ctx context.Context, p LogsAsk) (Logs, error) {
 	if err != nil {
 		return Logs{}, err
 	}
+	if m.guard != nil {
+		lines = m.guard.Mask(svc.Name, lines)
+	}
 	if lines == nil {
 		lines = []string{}
 	}
 	return Logs{Lines: lines}, nil
+}
+
+// Owned is what the module that owns a stack (mail) may ask of it. It goes
+// past the verbs' review: the owner wrote the definition itself.
+
+// Up is a stack's state, and when every container of it became active (0
+// while one is not). ErrNotFound for a stack never added.
+func (m *Module) Up(ctx context.Context, name string) (state string, since int64, err error) {
+	svc, err := m.known(ctx, name)
+	if err != nil {
+		return "", 0, err
+	}
+	v := m.view(ctx, svc)
+	if len(v.Containers) == 0 {
+		return v.State, 0, nil
+	}
+	for _, c := range v.Containers {
+		if c.Active != "active" {
+			return v.State, 0, nil
+		}
+		if c.Since > since {
+			since = c.Since
+		}
+	}
+	return v.State, since, nil
+}
+
+// Restart restarts every running service of a stack, for its owner.
+func (m *Module) Restart(ctx context.Context, name string) error {
+	_, err := m.restart(ctx, Ref{Name: name})
+	return err
+}
+
+// EnsureUser makes a stack's user before its first apply, for an owner that
+// must know its id first (mail orders its loopback rule before that user's
+// systemd).
+func (m *Module) EnsureUser(ctx context.Context, name string) error {
+	if !ValidName(name) {
+		return ErrBadName
+	}
+	return m.host.EnsureUser(ctx, name)
 }

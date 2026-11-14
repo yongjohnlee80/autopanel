@@ -154,8 +154,15 @@ func (l Loopback) WriteFiles() error {
 		if err := os.WriteFile(tmp, []byte(f.text), f.mode); err != nil {
 			return err
 		}
+		if err := os.Chmod(tmp, f.mode); err != nil { // the core's umask is 077; systemd's files are 0644
+			_ = os.Remove(tmp)
+			return err
+		}
 		if err := os.Rename(tmp, p); err != nil {
 			_ = os.Remove(tmp)
+			return err
+		}
+		if err := os.Chmod(filepath.Dir(p), 0o755); err != nil && filepath.Dir(p) != l.path("etc/autopanel") {
 			return err
 		}
 	}

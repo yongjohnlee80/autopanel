@@ -154,6 +154,9 @@ func (m *Module) sourceFiles(ctx context.Context, from string) ([]string, error)
 
 // importFrom copies from into the stacks' directory as name, and records it.
 func (m *Module) importFrom(ctx context.Context, from, name string, replace bool) (Imported, error) {
+	if m.guard != nil && m.guard.Owns(name) {
+		return Imported{}, ErrReserved
+	}
 	paths, err := m.sourceFiles(ctx, from)
 	if err != nil {
 		return Imported{}, err
