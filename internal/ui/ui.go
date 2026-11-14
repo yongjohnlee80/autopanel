@@ -35,6 +35,7 @@ import (
 	"github.com/yongjohnlee80/autopanel/core/gate"
 	"github.com/yongjohnlee80/autopanel/core/mail"
 	"github.com/yongjohnlee80/autopanel/core/services"
+	"github.com/yongjohnlee80/autopanel/internal/auth"
 	"github.com/yongjohnlee80/autopanel/internal/sysinfo"
 )
 
@@ -129,9 +130,29 @@ type Prefs struct {
 
 // Client is everything the TUI may do.
 type Client interface {
-	// Login logs the connection in as a panel user. Every other call is
-	// refused until one has succeeded.
-	Login(ctx context.Context, user, passphrase string) error
+	// Login logs the connection in as a panel user, with its two-factor code
+	// ("" without one). Every other call is refused until one has succeeded.
+	Login(ctx context.Context, user, passphrase, code string) (auth.LoggedIn, error)
+	// VaultLocked says, before anyone logs in, whether the vault is locked:
+	// then a non-admin with two-factor cannot log in yet.
+	VaultLocked(ctx context.Context) (bool, error)
+	Whoami(ctx context.Context) (auth.Whoami, error)
+
+	// Users (admins) and one's own account.
+	Users(ctx context.Context) ([]auth.UserView, error)
+	UserAdd(ctx context.Context, name, role, passphrase string) error
+	UserRole(ctx context.Context, name, role, passphrase string) error
+	UserReset(ctx context.Context, name, passphrase string) error
+	UserDisable(ctx context.Context, name string, disabled bool) error
+	UserUnlock(ctx context.Context, name string) error
+	UserRemove(ctx context.Context, name string) error
+	PassphraseChange(ctx context.Context, old, new string) error
+	TOTPBegin(ctx context.Context) (auth.Enrol, error)
+	TOTPConfirm(ctx context.Context, code string) (auth.Recovery, error)
+	TOTPDisable(ctx context.Context, code string) error
+	Tokens(ctx context.Context) ([]auth.TokenView, error)
+	TokenCreate(ctx context.Context, name, role string, days int) (auth.NewToken, error)
+	TokenRevoke(ctx context.Context, id int64) error
 
 	Routes(ctx context.Context) ([]gate.RouteView, error)
 	Status(ctx context.Context) (Status, error)

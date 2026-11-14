@@ -35,6 +35,8 @@ var panelSpecs = []panelSpec{
 	{"stacks", "stacksPanel", "stacksTable", "▥", "autopanel.title.panel.stacks"},
 	{"routes", "routesPanel", "routesTable", "⇄", "autopanel.title.panel.routes"},
 	{"domains", "domainsPanel", "domainsTable", "◎", "autopanel.title.panel.domains"},
+	{"users", "usersPanel", "usersTable", "☻", "autopanel.title.panel.users"},
+	{"tokens", "tokensPanel", "tokensTable", "⚿", "autopanel.title.panel.tokens"},
 	{"mailDomains", "mailDomainsPanel", "mailDomainsTable", "✉", "autopanel.title.panel.mailDomains"},
 	{"mailAccounts", "mailAccountsPanel", "mailAccountsTable", "☺", "autopanel.title.panel.mailAccounts"},
 	{"mailServer", "mailServerPanel", "mailServerTable", "⚙", "autopanel.title.panel.mailServer"},

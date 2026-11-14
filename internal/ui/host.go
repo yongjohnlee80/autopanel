@@ -17,6 +17,7 @@ import (
 	"github.com/yongjohnlee80/golib/tui/widget/core"
 
 	"github.com/yongjohnlee80/autopanel/core/gate"
+	"github.com/yongjohnlee80/autopanel/internal/auth"
 )
 
 // THE QML THIS PACKAGE SHIPS, and the modules a document imports it through.
@@ -106,6 +107,10 @@ type host struct {
 	prompted  func(string) error // what OK in the prompt runs, with the text
 	secreted  func(string)       // what OK in the password dialog runs, with the password
 	busy      bool               // a change is in flight
+
+	me         auth.Whoami // who is logged in
+	lastAction time.Time   // the person's last command, for the idle limit
+	acct       accountPanes
 }
 
 func newHost(ctx context.Context, c Client, version string) *host {
@@ -127,6 +132,7 @@ func newHost(ctx context.Context, c Client, version string) *host {
 		brw:         newBrowser(),
 		form:        newRouteForm(),
 		mail:        newMailPanes(),
+		acct:        newAccountPanes(),
 		statusShown: true,
 		pollEvery:   pollEvery,
 	}
@@ -208,6 +214,11 @@ func (h *host) state() map[string]any {
 		"App.promptText":       "",
 		"App.promptError":      "",
 		"App.promptErrorShown": false,
+		"App.loginVaultLocked": false,
+		"App.isAdmin":          false,
+		"App.canChange":        false,
+		"App.canMail":          false,
+		"App.canReadAll":       false,
 		"App.terminalShown":    false,
 		"App.terminalEmpty":    englishText("autopanel.note.terminal.empty"),
 		"App.keysText":         "",
@@ -216,7 +227,7 @@ func (h *host) state() map[string]any {
 		s[name] = v
 	}
 	for _, part := range []map[string]any{h.mon.state(), h.stk.state(), h.wid.state(), h.brw.state(), h.form.state(),
-		h.mail.state(), h.layoutState(), tipState(inEnglish{})} {
+		h.mail.state(), h.acct.state(), h.layoutState(), tipState(inEnglish{})} {
 		for name, v := range part {
 			s[name] = v
 		}
@@ -349,7 +360,13 @@ func (h *host) say(msg string) {
 
 // failed says err on the status bar, as the error line of every action that
 // changes nothing on screen when it fails.
-func (h *host) failed(err error) { h.say(h.trf("autopanel.notice.app.error", err.Error())) }
+func (h *host) failed(err error) {
+	if expired(err) { // the daemon ended the login (12 hours at most): ask again
+		h.signOut(h.tr("autopanel.notice.login.expired"))
+		return
+	}
+	h.say(h.trf("autopanel.notice.app.error", err.Error()))
+}
 
 // fill sets a form's sources to vals. Each goes through a different value
 // first, so a field the user typed in since the last fill takes the value

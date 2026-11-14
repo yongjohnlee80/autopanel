@@ -21,7 +21,7 @@
 import tui 1.0
 import autopanel 1.0              // App: the panel's state and commands
 import autopanel.theme.dark 1.0   // the Theme singleton; System › Theme switches it
-import autopanel.dialogs 1.0      // Login, RouteDialog, BrowseDialog, ReviewDialog, PromptDialog, SecretDialog, DnsDialog, ConfirmDialog
+import autopanel.dialogs 1.0      // Login, RouteDialog, BrowseDialog, ReviewDialog, PromptDialog, SecretDialog, DnsDialog, TotpDialog, OnceDialog, ConfirmDialog
 import autopanel.views 1.0        // Keys, About
 import tui.panels 1.0             // Panel: the panels the menus open (golib)
 import tui.tiles 1.0              // TilePanel: the widgets of the main screen (golib)
@@ -127,7 +127,7 @@ Window {
         Menu {
             title: qsTrId("autopanel.menu.services.title")
             MenuItem { text: qsTrId("autopanel.menu.services.stacks"); onTriggered: App.openStacks() }
-            MenuItem { text: qsTrId("autopanel.menu.services.add"); onTriggered: App.addStack() }
+            MenuItem { text: qsTrId("autopanel.menu.services.add"); enabled: App.canChange; onTriggered: App.addStack() }
         }
         Menu {
             title: qsTrId("autopanel.menu.mail.title")
@@ -139,7 +139,11 @@ Window {
         }
         Menu {
             title: qsTrId("autopanel.menu.users.title")
-            MenuItem { text: qsTrId("autopanel.menu.users.manage"); enabled: false }
+            MenuItem { text: qsTrId("autopanel.menu.users.manage"); enabled: App.isAdmin; onTriggered: App.openUsers() }
+            MenuSeparator {}
+            MenuItem { text: qsTrId("autopanel.menu.users.passphrase"); onTriggered: App.changePassphrase() }
+            MenuItem { text: qsTrId("autopanel.menu.users.totp"); onTriggered: App.openTwoFactor() }
+            MenuItem { text: qsTrId("autopanel.menu.users.tokens"); onTriggered: App.openTokens() }
         }
         Menu {
             title: qsTrId("autopanel.menu.go.title")
@@ -596,6 +600,119 @@ Window {
         }
     }
 
+    // Users › Users: the panel's users on the left, the selected one on the
+    // right (account.go). Admins only; the daemon refuses anyone else.
+    Panel {
+        id: usersPanel
+        key: "users"
+        heading: qsTrId("autopanel.title.panel.users")
+        edge: Tui.Center; size: 90; length: 75
+        closeOnQ: true; maximizable: true; closable: true
+        onOpened: App.panelOpened("users")
+        onClosed: App.panelClosed("users")
+        onChanged: App.panelChanged("users", operation)
+        Shortcut { sequence: "a"; onActivated: App.userAdd() }
+        Shortcut { sequence: "o"; onActivated: App.userRole(usersTable.currentIndex) }
+        Shortcut { sequence: "e"; onActivated: App.userReset(usersTable.currentIndex) }
+        Shortcut { sequence: "d"; onActivated: App.userDisable(usersTable.currentIndex) }
+        Shortcut { sequence: "u"; onActivated: App.userUnlock(usersTable.currentIndex) }
+        Shortcut { sequence: "r"; onActivated: App.userRemove(usersTable.currentIndex) }
+        Flex {
+            direction: Tui.Vertical
+            Split {
+                Layout.fillHeight: true
+                orientation: Tui.Horizontal
+                ratio: 0.55
+                Frame {
+                    title: App.usersTitle
+                    TableView {
+                        id: usersTable
+                        palette.highlight: Theme.document.highlight
+                        palette.highlightedText: Theme.document.highlightedText
+                        model: App.users
+                        onCurrentIndexChanged: App.userMoved(index)
+                        TableViewColumn { role: "name"; title: "USER"; width: 0 }
+                        TableViewColumn { role: "role"; title: "ROLE"; width: 9 }
+                        TableViewColumn { role: "factor"; title: "2FA"; width: 4 }
+                        TableViewColumn { role: "state"; title: "STATE"; width: 14 }
+                    }
+                }
+                Frame {
+                    title: qsTrId("autopanel.title.pane.details")
+                    Text { text: App.userDetail; wrapMode: Tui.WordWrap }
+                }
+            }
+            Flex {
+                direction: Tui.Horizontal
+                Text { text: " "; Layout.fillWidth: true }
+                Button { text: qsTrId("autopanel.button.users.add"); toolTipText: App.tipUsersAdd; onClicked: App.userAdd() }
+                Text { text: " " }
+                Button { text: qsTrId("autopanel.button.users.role"); toolTipText: App.tipUsersRole; onClicked: App.userRole(usersTable.currentIndex) }
+                Text { text: " " }
+                Button { text: qsTrId("autopanel.button.users.reset"); toolTipText: App.tipUsersReset; onClicked: App.userReset(usersTable.currentIndex) }
+                Text { text: " " }
+                Button { text: qsTrId("autopanel.button.users.disable"); toolTipText: App.tipUsersDisable; onClicked: App.userDisable(usersTable.currentIndex) }
+                Text { text: " " }
+                Button { text: qsTrId("autopanel.button.users.unlock"); toolTipText: App.tipUsersUnlock; onClicked: App.userUnlock(usersTable.currentIndex) }
+                Text { text: " " }
+                Button { text: qsTrId("autopanel.button.users.remove"); toolTipText: App.tipUsersRemove; onClicked: App.userRemove(usersTable.currentIndex) }
+                Text { text: " " }
+                Button { text: qsTrId("autopanel.button.panel.close"); toolTipText: App.tipPanelClose; onClicked: App.closePanel("users") }
+                Text { text: " "; Layout.fillWidth: true }
+            }
+        }
+    }
+
+    // Users › API tokens: one's own tokens (an admin's: everyone's)
+    Panel {
+        id: tokensPanel
+        key: "tokens"
+        heading: qsTrId("autopanel.title.panel.tokens")
+        edge: Tui.Center; size: 80; length: 70
+        closeOnQ: true; maximizable: true; closable: true
+        onOpened: App.panelOpened("tokens")
+        onClosed: App.panelClosed("tokens")
+        onChanged: App.panelChanged("tokens", operation)
+        Shortcut { sequence: "n"; onActivated: App.tokenCreate() }
+        Shortcut { sequence: "r"; onActivated: App.tokenRevoke(tokensTable.currentIndex) }
+        Flex {
+            direction: Tui.Vertical
+            Split {
+                Layout.fillHeight: true
+                orientation: Tui.Horizontal
+                ratio: 0.6
+                Frame {
+                    title: App.tokensTitle
+                    TableView {
+                        id: tokensTable
+                        palette.highlight: Theme.document.highlight
+                        palette.highlightedText: Theme.document.highlightedText
+                        model: App.tokens
+                        onCurrentIndexChanged: App.tokenMoved(index)
+                        TableViewColumn { role: "id"; title: "ID"; width: 4 }
+                        TableViewColumn { role: "name"; title: "NAME"; width: 0 }
+                        TableViewColumn { role: "role"; title: "ROLE"; width: 9 }
+                        TableViewColumn { role: "expires"; title: "EXPIRES"; width: 11 }
+                    }
+                }
+                Frame {
+                    title: qsTrId("autopanel.title.pane.details")
+                    Text { text: App.tokenDetail; wrapMode: Tui.WordWrap }
+                }
+            }
+            Flex {
+                direction: Tui.Horizontal
+                Text { text: " "; Layout.fillWidth: true }
+                Button { text: qsTrId("autopanel.button.tokens.new"); toolTipText: App.tipTokensNew; onClicked: App.tokenCreate() }
+                Text { text: " " }
+                Button { text: qsTrId("autopanel.button.tokens.revoke"); toolTipText: App.tipTokensRevoke; onClicked: App.tokenRevoke(tokensTable.currentIndex) }
+                Text { text: " " }
+                Button { text: qsTrId("autopanel.button.panel.close"); toolTipText: App.tipPanelClose; onClicked: App.closePanel("tokens") }
+                Text { text: " "; Layout.fillWidth: true }
+            }
+        }
+    }
+
     // Mail › Domains: the domains that receive mail on the left; the selected
     // one's records, each with its state, and its DKIM keys on the right (mail.go)
     Panel {
@@ -1037,6 +1154,8 @@ Window {
     ReviewDialog { id: reviewDialog }
     PromptDialog { id: promptDialog }
     SecretDialog { id: secretDialog }
+    TotpDialog { id: totpDialog }
+    OnceDialog { id: onceDialog }
     DnsDialog { id: dnsDialog }
     ConfirmDialog { id: confirmDialog }
     Keys { id: keysDialog }

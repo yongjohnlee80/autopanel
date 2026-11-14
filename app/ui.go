@@ -24,7 +24,7 @@ type uiClient struct{ c *hostcontrol.Client }
 
 // publicErrors are the errors the panel tells apart by their wire codes: the
 // stacks', the routes' and mail's.
-var publicErrors = slices.Concat((&services.Module{}).Errors(), (&gate.Module{}).Errors(), (&mail.Module{}).Errors())
+var publicErrors = slices.Concat((&services.Module{}).Errors(), (&gate.Module{}).Errors(), (&mail.Module{}).Errors(), (&auth.Module{}).Errors())
 
 // known is err with the error its wire code names wrapped in, so the panel
 // can tell it apart (errors.Is); the daemon's message is kept beside it.
@@ -46,8 +46,81 @@ func (u uiClient) call(ctx context.Context, verb string, param, result any) erro
 	return known(u.c.Call(ctx, verb, param, result))
 }
 
-func (u uiClient) Login(ctx context.Context, user, passphrase string) error {
-	return u.call(ctx, "auth.login", auth.Login{User: user, Passphrase: passphrase}, nil)
+func (u uiClient) Login(ctx context.Context, user, passphrase, code string) (auth.LoggedIn, error) {
+	var in auth.LoggedIn
+	return in, u.call(ctx, "auth.login", auth.Login{User: user, Passphrase: passphrase, Code: code}, &in)
+}
+
+func (u uiClient) VaultLocked(ctx context.Context) (bool, error) {
+	var s auth.Status
+	err := u.call(ctx, "auth.status", nil, &s)
+	return s.VaultLocked, err
+}
+
+func (u uiClient) Whoami(ctx context.Context) (auth.Whoami, error) {
+	var w auth.Whoami
+	return w, u.call(ctx, "auth.whoami", nil, &w)
+}
+
+func (u uiClient) Users(ctx context.Context) ([]auth.UserView, error) {
+	var us []auth.UserView
+	return us, u.call(ctx, "auth.user.list", nil, &us)
+}
+
+func (u uiClient) UserAdd(ctx context.Context, name, role, pass string) error {
+	return u.call(ctx, "auth.user.add", auth.UserAsk{Name: name, Role: auth.Role(role), Passphrase: pass}, nil)
+}
+
+func (u uiClient) UserRole(ctx context.Context, name, role, pass string) error {
+	return u.call(ctx, "auth.user.role", auth.UserAsk{Name: name, Role: auth.Role(role), Passphrase: pass}, nil)
+}
+
+func (u uiClient) UserReset(ctx context.Context, name, pass string) error {
+	return u.call(ctx, "auth.user.reset", auth.UserAsk{Name: name, Passphrase: pass}, nil)
+}
+
+func (u uiClient) UserDisable(ctx context.Context, name string, disabled bool) error {
+	return u.call(ctx, "auth.user.disable", auth.UserAsk{Name: name, Disabled: disabled}, nil)
+}
+
+func (u uiClient) UserUnlock(ctx context.Context, name string) error {
+	return u.call(ctx, "auth.user.unlock", auth.UserAsk{Name: name}, nil)
+}
+
+func (u uiClient) UserRemove(ctx context.Context, name string) error {
+	return u.call(ctx, "auth.user.remove", auth.UserAsk{Name: name}, nil)
+}
+
+func (u uiClient) PassphraseChange(ctx context.Context, old, new string) error {
+	return u.call(ctx, "auth.passphrase.change", auth.PassphraseAsk{Old: old, New: new}, nil)
+}
+
+func (u uiClient) TOTPBegin(ctx context.Context) (auth.Enrol, error) {
+	var e auth.Enrol
+	return e, u.call(ctx, "auth.totp.begin", nil, &e)
+}
+
+func (u uiClient) TOTPConfirm(ctx context.Context, code string) (auth.Recovery, error) {
+	var r auth.Recovery
+	return r, u.call(ctx, "auth.totp.confirm", auth.CodeAsk{Code: code}, &r)
+}
+
+func (u uiClient) TOTPDisable(ctx context.Context, code string) error {
+	return u.call(ctx, "auth.totp.disable", auth.CodeAsk{Code: code}, nil)
+}
+
+func (u uiClient) Tokens(ctx context.Context) ([]auth.TokenView, error) {
+	var ts []auth.TokenView
+	return ts, u.call(ctx, "auth.token.list", nil, &ts)
+}
+
+func (u uiClient) TokenCreate(ctx context.Context, name, role string, days int) (auth.NewToken, error) {
+	var t auth.NewToken
+	return t, u.call(ctx, "auth.token.create", auth.TokenAsk{Name: name, Role: auth.Role(role), Days: days}, &t)
+}
+
+func (u uiClient) TokenRevoke(ctx context.Context, id int64) error {
+	return u.call(ctx, "auth.token.revoke", auth.TokenAsk{ID: id}, nil)
 }
 
 func (u uiClient) Routes(ctx context.Context) ([]gate.RouteView, error) {

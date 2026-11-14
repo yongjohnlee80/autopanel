@@ -13,8 +13,16 @@ import (
 // THE APP SINGLETON'S COMMANDS — what the document invokes, and nothing else
 // of this package is reachable from it.
 func (h *host) commands() map[string]decl.HandlerFunc {
+	cmds := h.commandTable()
+	for name, fn := range cmds { // every command the screen sends is its person's action (D6)
+		cmds[name] = func(args []qml.SpecValue) error { h.touch(); return fn(args) }
+	}
+	return cmds
+}
+
+func (h *host) commandTable() map[string]decl.HandlerFunc {
 	return map[string]decl.HandlerFunc{
-		"App.login":         twoStrings("App.login", h.login),
+		"App.login":         threeStrings("App.login", h.login),
 		"App.loginDeclined": none(h.loginDeclined),
 		"App.refresh":       none(func() error { h.poll(); return nil }),
 		"App.quit":          none(func() error { h.p.Quit(); return nil }),
@@ -73,8 +81,27 @@ func (h *host) commands() map[string]decl.HandlerFunc {
 		"App.mailRemoveAccount":   oneRow("App.mailRemoveAccount", h.mailRemoveAccount),
 		"App.secretEntered":       oneString("App.secretEntered", h.secretEntered),
 		"App.openDnsRecords":      none(h.openDNSRecords),
-		"App.dnsMoved":            oneRow("App.dnsMoved", h.dnsMoved),
-		"App.dnsCopy":             oneRow("App.dnsCopy", h.dnsCopy),
+
+		// Users, and one's own account (account.go)
+		"App.openUsers":        none(h.openUsers),
+		"App.userMoved":        oneRow("App.userMoved", h.userMoved),
+		"App.userAdd":          none(h.userAdd),
+		"App.userRole":         oneRow("App.userRole", h.userRole),
+		"App.userReset":        oneRow("App.userReset", h.userReset),
+		"App.userDisable":      oneRow("App.userDisable", h.userDisable),
+		"App.userUnlock":       oneRow("App.userUnlock", h.userUnlock),
+		"App.userRemove":       oneRow("App.userRemove", h.userRemove),
+		"App.changePassphrase": none(h.changePassphrase),
+		"App.openTwoFactor":    none(h.openTwoFactor),
+		"App.totpConfirmed":    oneString("App.totpConfirmed", h.totpConfirmed),
+		"App.totpClosed":       none(h.totpClosed),
+		"App.onceClosed":       none(h.onceClosed),
+		"App.openTokens":       none(h.openTokens),
+		"App.tokenMoved":       oneRow("App.tokenMoved", h.tokenMoved),
+		"App.tokenCreate":      none(h.tokenCreate),
+		"App.tokenRevoke":      oneRow("App.tokenRevoke", h.tokenRevoke),
+		"App.dnsMoved":         oneRow("App.dnsMoved", h.dnsMoved),
+		"App.dnsCopy":          oneRow("App.dnsCopy", h.dnsCopy),
 
 		// the dialogs' answers
 		"App.confirmed":      none(h.confirm),
@@ -197,6 +224,16 @@ func oneString(name string, fn func(string) error) decl.HandlerFunc {
 			return fmt.Errorf("%s takes one string", name)
 		}
 		return fn(args[0].Raw)
+	}
+}
+
+// threeStrings is a command that takes three strings.
+func threeStrings(name string, fn func(a, b, c string) error) decl.HandlerFunc {
+	return func(args []qml.SpecValue) error {
+		if len(args) != 3 || args[0].Kind != qml.SpecValueString || args[1].Kind != qml.SpecValueString || args[2].Kind != qml.SpecValueString {
+			return fmt.Errorf("%s takes three strings", name)
+		}
+		return fn(args[0].Raw, args[1].Raw, args[2].Raw)
 	}
 }
 

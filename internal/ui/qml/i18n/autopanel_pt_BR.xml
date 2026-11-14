@@ -3,6 +3,10 @@
 <TS version="2.1" language="pt_BR">
 <context>
     <name>autopanel</name>
+    <message id="autopanel.button.account.confirm">
+        <source>&amp;Turn on</source>
+        <translation>Ativar(&amp;t)</translation>
+    </message>
     <message id="autopanel.button.browse.import">
         <source>&amp;Import…</source>
         <translation>&amp;Importar…</translation>
@@ -162,6 +166,38 @@
     <message id="autopanel.button.stacks.update">
         <source>Update from &amp;source</source>
         <translation>Atualizar da origem (&amp;s)</translation>
+    </message>
+    <message id="autopanel.button.tokens.new">
+        <source>&amp;New token…</source>
+        <translation>Novo token(&amp;n)…</translation>
+    </message>
+    <message id="autopanel.button.tokens.revoke">
+        <source>&amp;Revoke…</source>
+        <translation>Revogar(&amp;r)…</translation>
+    </message>
+    <message id="autopanel.button.users.add">
+        <source>&amp;Add…</source>
+        <translation>Adicionar(&amp;a)…</translation>
+    </message>
+    <message id="autopanel.button.users.disable">
+        <source>&amp;Disable</source>
+        <translation>Desativar(&amp;d)</translation>
+    </message>
+    <message id="autopanel.button.users.remove">
+        <source>&amp;Remove…</source>
+        <translation>Remover(&amp;r)…</translation>
+    </message>
+    <message id="autopanel.button.users.reset">
+        <source>R&amp;eset…</source>
+        <translation>Redefinir(&amp;e)…</translation>
+    </message>
+    <message id="autopanel.button.users.role">
+        <source>R&amp;ole…</source>
+        <translation>Papel(&amp;o)…</translation>
+    </message>
+    <message id="autopanel.button.users.unlock">
+        <source>&amp;Unlock</source>
+        <translation>Desbloquear(&amp;u)</translation>
     </message>
     <message id="autopanel.finding.review.absolute-path">
         <source>A path must be inside the stack's folder, not absolute</source>
@@ -559,6 +595,66 @@
         <source>Source</source>
         <translation>Código</translation>
     </message>
+    <message id="autopanel.label.account.created">
+        <source>Created</source>
+        <translation>Criado</translation>
+    </message>
+    <message id="autopanel.label.account.expires">
+        <source>Expires</source>
+        <translation>Expira</translation>
+    </message>
+    <message id="autopanel.label.account.factor">
+        <source>Two-factor</source>
+        <translation>Dois fatores</translation>
+    </message>
+    <message id="autopanel.label.account.lastLogin">
+        <source>Last login</source>
+        <translation>Último acesso</translation>
+    </message>
+    <message id="autopanel.label.account.lastUsed">
+        <source>Last used</source>
+        <translation>Último uso</translation>
+    </message>
+    <message id="autopanel.label.account.lockedUntil">
+        <source>Locked until</source>
+        <translation>Bloqueado até</translation>
+    </message>
+    <message id="autopanel.label.account.name">
+        <source>Name</source>
+        <translation>Nome</translation>
+    </message>
+    <message id="autopanel.label.account.once">
+        <source>This is shown once: copy it now. Once this closes, AutoPanel cannot show it again.</source>
+        <translation>Isto aparece uma única vez: copie agora. Ao fechar, o AutoPanel não pode mostrá-lo de novo.</translation>
+    </message>
+    <message id="autopanel.label.account.owner">
+        <source>Owner</source>
+        <translation>Dono</translation>
+    </message>
+    <message id="autopanel.label.account.recovery">
+        <source>Recovery codes: each signs you in once in place of a code, should you lose the app. Keep them somewhere safe.</source>
+        <translation>Códigos de recuperação: cada um vale uma vez no lugar de um código, se você perder o app. Guarde-os em local seguro.</translation>
+    </message>
+    <message id="autopanel.label.account.role">
+        <source>Role</source>
+        <translation>Papel</translation>
+    </message>
+    <message id="autopanel.label.account.token">
+        <source>API token %1, until %2. Give it to a script in a file only you can read (mode 0600): autopanel --call --token-file &lt;file&gt; &lt;verb&gt;</source>
+        <translation>Token de API %1, até %2. Entregue-o a um script num arquivo que só você possa ler (modo 0600): autopanel --call --token-file &lt;arquivo&gt; &lt;verbo&gt;</translation>
+    </message>
+    <message id="autopanel.label.account.totpCode">
+        <source>Code from the app</source>
+        <translation>Código do app</translation>
+    </message>
+    <message id="autopanel.label.account.totpSecret">
+        <source>Add this secret to an authenticator app (any TOTP app):</source>
+        <translation>Adicione este segredo a um app autenticador (qualquer app TOTP):</translation>
+    </message>
+    <message id="autopanel.label.account.totpURI">
+        <source>Or, where the app takes a link, this one:</source>
+        <translation>Ou, se o app aceitar um link, este:</translation>
+    </message>
     <message id="autopanel.label.audit.action">
         <source>Action</source>
         <translation>Ação</translation>
@@ -650,6 +746,10 @@
     <message id="autopanel.label.host.uptime">
         <source>Uptime</source>
         <translation>Tempo ativo</translation>
+    </message>
+    <message id="autopanel.label.login.code">
+        <source>Two-factor code (empty without two-factor)</source>
+        <translation>Código de dois fatores (vazio se não usar)</translation>
     </message>
     <message id="autopanel.label.login.passphrase">
         <source>Passphrase</source>
@@ -883,9 +983,49 @@
         <source>The password for %1, 12 characters at least. It goes to the mail server and is kept nowhere else:</source>
         <translation>A senha de %1, com 12 caracteres no mínimo. Vai para o servidor de e-mail e não é guardada em outro lugar:</translation>
     </message>
+    <message id="autopanel.label.prompt.passphraseAgain">
+        <source>The new passphrase again</source>
+        <translation>A nova frase de novo</translation>
+    </message>
+    <message id="autopanel.label.prompt.passphraseNew">
+        <source>A new passphrase (12 characters at least)</source>
+        <translation>Uma nova frase (12 caracteres no mínimo)</translation>
+    </message>
+    <message id="autopanel.label.prompt.passphraseOld">
+        <source>Your passphrase now</source>
+        <translation>Sua frase atual</translation>
+    </message>
     <message id="autopanel.label.prompt.stackName">
         <source>The stack's name: a lower-case letter, then letters, digits and hyphens.</source>
         <translation>O nome do stack: uma letra minúscula, depois letras, dígitos e hífens.</translation>
+    </message>
+    <message id="autopanel.label.prompt.tokenDays">
+        <source>Days it lasts (1 to 365)</source>
+        <translation>Dias de validade (1 a 365)</translation>
+    </message>
+    <message id="autopanel.label.prompt.tokenName">
+        <source>A name for the token (what will use it)</source>
+        <translation>Um nome para o token (o que vai usá-lo)</translation>
+    </message>
+    <message id="autopanel.label.prompt.totpOff">
+        <source>A code from the app (or a recovery code), to turn two-factor off</source>
+        <translation>Um código do app (ou de recuperação) para desativar os dois fatores</translation>
+    </message>
+    <message id="autopanel.label.prompt.userName">
+        <source>Name (a lower-case letter, then letters, digits, . _ -)</source>
+        <translation>Nome (uma minúscula, depois letras, dígitos, . _ -)</translation>
+    </message>
+    <message id="autopanel.label.prompt.userPassphrase">
+        <source>A first passphrase for %1 (they change it at their first login)</source>
+        <translation>Uma primeira frase para %1 (troca no primeiro acesso)</translation>
+    </message>
+    <message id="autopanel.label.prompt.userReset">
+        <source>A new passphrase for %1 (they change it at their next login)</source>
+        <translation>Uma nova frase para %1 (troca no próximo acesso)</translation>
+    </message>
+    <message id="autopanel.label.prompt.userRole">
+        <source>Role: admin, operator, mail or viewer</source>
+        <translation>Papel: admin, operator, mail ou viewer</translation>
     </message>
     <message id="autopanel.label.review.capAdd">
         <source>Capabilities added</source>
@@ -1183,9 +1323,21 @@
         <source>&amp;Manage users…</source>
         <translation>Gerenciar usuários(&amp;m)…</translation>
     </message>
+    <message id="autopanel.menu.users.passphrase">
+        <source>&amp;Passphrase…</source>
+        <translation>Frase secreta(&amp;p)…</translation>
+    </message>
     <message id="autopanel.menu.users.title">
         <source>&amp;Users</source>
         <translation>Usuários(&amp;u)</translation>
+    </message>
+    <message id="autopanel.menu.users.tokens">
+        <source>API &amp;tokens…</source>
+        <translation>Tokens de API(&amp;t)…</translation>
+    </message>
+    <message id="autopanel.menu.users.totp">
+        <source>Two-&amp;factor…</source>
+        <translation>Dois fatores(&amp;f)…</translation>
     </message>
     <message id="autopanel.menu.view.activity">
         <source>&amp;Activity</source>
@@ -1227,6 +1379,14 @@
         <source>T&amp;raffic</source>
         <translation>T&amp;ráfego</translation>
     </message>
+    <message id="autopanel.note.account.root">
+        <source>Root is the first admin, made by --init: never removed, demoted or disabled.</source>
+        <translation>Root é o primeiro administrador, criado por --init: nunca é removido, rebaixado ou desativado.</translation>
+    </message>
+    <message id="autopanel.note.account.tokens">
+        <source>A token is for scripts. It never manages users, tokens or passphrases, and its role is no higher than its owner's.</source>
+        <translation>Um token é para scripts. Nunca gerencia usuários, tokens ou frases, e seu papel não passa do de seu dono.</translation>
+    </message>
     <message id="autopanel.note.browse.cut">
         <source>Only the start of the file is shown.</source>
         <translation>Só o início do arquivo é mostrado.</translation>
@@ -1243,9 +1403,89 @@
         <source>The file is not text.</source>
         <translation>O arquivo não é texto.</translation>
     </message>
+    <message id="autopanel.note.login.vaultLocked">
+        <source>The vault is locked: until an admin signs in, users with two-factor cannot sign in.</source>
+        <translation>O cofre está trancado: até um administrador entrar, usuários com dois fatores não podem entrar.</translation>
+    </message>
     <message id="autopanel.note.terminal.empty">
         <source>No shell running. Press + to start one.</source>
         <translation>Nenhum shell em execução. Pressione + para iniciar um.</translation>
+    </message>
+    <message id="autopanel.notice.account.added">
+        <source>%1 added</source>
+        <translation>%1 adicionado</translation>
+    </message>
+    <message id="autopanel.notice.account.adminOnly">
+        <source>only an admin manages users</source>
+        <translation>só um administrador gerencia usuários</translation>
+    </message>
+    <message id="autopanel.notice.account.badCode">
+        <source>that code is not right; type the newest one the app shows</source>
+        <translation>esse código não está certo; digite o mais recente do app</translation>
+    </message>
+    <message id="autopanel.notice.account.badDays">
+        <source>a token lasts 1 to 365 days</source>
+        <translation>um token dura de 1 a 365 dias</translation>
+    </message>
+    <message id="autopanel.notice.account.badName">
+        <source>a name is a lower-case letter, then letters, digits, . _ -, 32 at most</source>
+        <translation>um nome começa com minúscula, depois letras, dígitos, . _ -, 32 no máximo</translation>
+    </message>
+    <message id="autopanel.notice.account.badRole">
+        <source>a role is admin, operator, mail or viewer</source>
+        <translation>um papel é admin, operator, mail ou viewer</translation>
+    </message>
+    <message id="autopanel.notice.account.disabled">
+        <source>%1 disabled</source>
+        <translation>%1 desativado</translation>
+    </message>
+    <message id="autopanel.notice.account.enabled">
+        <source>%1 enabled</source>
+        <translation>%1 ativado</translation>
+    </message>
+    <message id="autopanel.notice.account.mismatch">
+        <source>not the same passphrase; type the new one again</source>
+        <translation>não é a mesma frase; digite a nova de novo</translation>
+    </message>
+    <message id="autopanel.notice.account.mustChange">
+        <source>change your passphrase before anything else</source>
+        <translation>troque sua frase antes de tudo</translation>
+    </message>
+    <message id="autopanel.notice.account.noName">
+        <source>give the token a name</source>
+        <translation>dê um nome ao token</translation>
+    </message>
+    <message id="autopanel.notice.account.passphraseChanged">
+        <source>passphrase changed</source>
+        <translation>frase trocada</translation>
+    </message>
+    <message id="autopanel.notice.account.removed">
+        <source>%1 removed</source>
+        <translation>%1 removido</translation>
+    </message>
+    <message id="autopanel.notice.account.reset">
+        <source>%1's passphrase reset; they change it at their next login</source>
+        <translation>frase de %1 redefinida; troca no próximo acesso</translation>
+    </message>
+    <message id="autopanel.notice.account.revoked">
+        <source>token %1 revoked</source>
+        <translation>token %1 revogado</translation>
+    </message>
+    <message id="autopanel.notice.account.roleSet">
+        <source>%1 is now %2</source>
+        <translation>%1 agora é %2</translation>
+    </message>
+    <message id="autopanel.notice.account.totpOff">
+        <source>two-factor is off</source>
+        <translation>dois fatores desativados</translation>
+    </message>
+    <message id="autopanel.notice.account.unlocked">
+        <source>%1 unlocked</source>
+        <translation>%1 desbloqueado</translation>
+    </message>
+    <message id="autopanel.notice.account.weak">
+        <source>a passphrase is 12 characters at least, holds no user name, and is no common password</source>
+        <translation>uma frase tem 12 caracteres no mínimo, não contém o nome do usuário e não é uma senha comum</translation>
     </message>
     <message id="autopanel.notice.app.busy">
         <source>busy: a change is in flight</source>
@@ -1322,6 +1562,14 @@
     <message id="autopanel.notice.language.unknown">
         <source>no language %1</source>
         <translation>não há o idioma %1</translation>
+    </message>
+    <message id="autopanel.notice.login.expired">
+        <source>the session has ended; sign in again</source>
+        <translation>a sessão terminou; entre de novo</translation>
+    </message>
+    <message id="autopanel.notice.login.idle">
+        <source>signed out after 30 minutes idle; sign in again</source>
+        <translation>sessão encerrada após 30 minutos parada; entre de novo</translation>
     </message>
     <message id="autopanel.notice.login.running">
         <source>another sign-in is still running; try again in a moment</source>
@@ -1526,6 +1774,14 @@
     <message id="autopanel.notice.widget.readFailed">
         <source>read failed: %1</source>
         <translation>a leitura falhou: %1</translation>
+    </message>
+    <message id="autopanel.question.account.remove">
+        <source>Remove %1 and their API tokens? This cannot be undone.</source>
+        <translation>Remover %1 e seus tokens de API? Não dá para desfazer.</translation>
+    </message>
+    <message id="autopanel.question.account.revoke">
+        <source>Revoke token %1? Whatever uses it is refused from now on.</source>
+        <translation>Revogar o token %1? O que o usar será recusado a partir de agora.</translation>
     </message>
     <message id="autopanel.question.domains.remove">
         <source>Remove the domain %1? Its routes stay; the removal is refused while a route would be left under no domain.</source>
@@ -1755,6 +2011,42 @@
         <source>Copy the stack's definition from its source again, then review it</source>
         <translation>Copiar de novo a definição do stack da origem e depois revisá-la</translation>
     </message>
+    <message id="autopanel.tip.tokens.new">
+        <source>Make an API token, shown once</source>
+        <translation>Criar um token de API, mostrado uma vez</translation>
+    </message>
+    <message id="autopanel.tip.tokens.revoke">
+        <source>Revoke the selected token</source>
+        <translation>Revogar o token selecionado</translation>
+    </message>
+    <message id="autopanel.tip.totp.confirm">
+        <source>Turn two-factor on with the code the app shows</source>
+        <translation>Ativar os dois fatores com o código do app</translation>
+    </message>
+    <message id="autopanel.tip.users.add">
+        <source>Add a panel user</source>
+        <translation>Adicionar um usuário do painel</translation>
+    </message>
+    <message id="autopanel.tip.users.disable">
+        <source>Disable the selected user, or enable it again</source>
+        <translation>Desativar o usuário selecionado, ou reativá-lo</translation>
+    </message>
+    <message id="autopanel.tip.users.remove">
+        <source>Remove the selected user</source>
+        <translation>Remover o usuário selecionado</translation>
+    </message>
+    <message id="autopanel.tip.users.reset">
+        <source>Set a new passphrase for the selected user</source>
+        <translation>Definir uma nova frase para o usuário selecionado</translation>
+    </message>
+    <message id="autopanel.tip.users.role">
+        <source>Change the selected user's role</source>
+        <translation>Trocar o papel do usuário selecionado</translation>
+    </message>
+    <message id="autopanel.tip.users.unlock">
+        <source>Lift the selected user's lockout</source>
+        <translation>Tirar o bloqueio do usuário selecionado</translation>
+    </message>
     <message id="autopanel.title.browse.entries">
         <source>Entries: %1</source>
         <translation>%1 itens</translation>
@@ -1799,6 +2091,14 @@
         <source>Close the terminal</source>
         <translation>Fechar o terminal</translation>
     </message>
+    <message id="autopanel.title.confirm.tokenRevoke">
+        <source>Revoke a token</source>
+        <translation>Revogar um token</translation>
+    </message>
+    <message id="autopanel.title.confirm.userRemove">
+        <source>Remove a user</source>
+        <translation>Remover um usuário</translation>
+    </message>
     <message id="autopanel.title.dialog.about">
         <source>About AutoPanel</source>
         <translation>Sobre o AutoPanel</translation>
@@ -1818,6 +2118,18 @@
     <message id="autopanel.title.dialog.mailDns">
         <source>Records to enter at your DNS provider</source>
         <translation>Registros a inserir no seu provedor de DNS</translation>
+    </message>
+    <message id="autopanel.title.dialog.recovery">
+        <source>Recovery codes</source>
+        <translation>Códigos de recuperação</translation>
+    </message>
+    <message id="autopanel.title.dialog.token">
+        <source>New API token</source>
+        <translation>Novo token de API</translation>
+    </message>
+    <message id="autopanel.title.dialog.totp">
+        <source>Turn on two-factor</source>
+        <translation>Ativar os dois fatores</translation>
     </message>
     <message id="autopanel.title.form.add">
         <source>Add route</source>
@@ -1883,6 +2195,14 @@
         <source>Stacks</source>
         <translation>Stacks</translation>
     </message>
+    <message id="autopanel.title.list.tokens">
+        <source>Tokens</source>
+        <translation>Tokens</translation>
+    </message>
+    <message id="autopanel.title.list.users">
+        <source>Users</source>
+        <translation>Usuários</translation>
+    </message>
     <message id="autopanel.title.pane.details">
         <source>Details</source>
         <translation>Detalhes</translation>
@@ -1947,6 +2267,14 @@
         <source>Terminal</source>
         <translation>Terminal</translation>
     </message>
+    <message id="autopanel.title.panel.tokens">
+        <source>API tokens</source>
+        <translation>Tokens de API</translation>
+    </message>
+    <message id="autopanel.title.panel.users">
+        <source>Users</source>
+        <translation>Usuários</translation>
+    </message>
     <message id="autopanel.title.prompt.addDomain">
         <source>Add a domain</source>
         <translation>Adicionar um domínio</translation>
@@ -1974,6 +2302,34 @@
     <message id="autopanel.title.prompt.mailPassword">
         <source>Mail account password</source>
         <translation>Senha da conta de e-mail</translation>
+    </message>
+    <message id="autopanel.title.prompt.passphrase">
+        <source>Change your passphrase</source>
+        <translation>Trocar sua frase</translation>
+    </message>
+    <message id="autopanel.title.prompt.tokenDays">
+        <source>Token lifetime</source>
+        <translation>Validade do token</translation>
+    </message>
+    <message id="autopanel.title.prompt.tokenName">
+        <source>New API token</source>
+        <translation>Novo token de API</translation>
+    </message>
+    <message id="autopanel.title.prompt.totpOff">
+        <source>Turn off two-factor</source>
+        <translation>Desativar os dois fatores</translation>
+    </message>
+    <message id="autopanel.title.prompt.userName">
+        <source>Add a user</source>
+        <translation>Adicionar um usuário</translation>
+    </message>
+    <message id="autopanel.title.prompt.userPassphrase">
+        <source>A user's passphrase</source>
+        <translation>Frase de um usuário</translation>
+    </message>
+    <message id="autopanel.title.prompt.userRole">
+        <source>Role</source>
+        <translation>Papel</translation>
     </message>
     <message id="autopanel.title.review.add">
         <source>Add stack %1: review</source>
@@ -2022,6 +2378,26 @@
     <message id="autopanel.value.about.what">
         <source>A lightweight control plane for self-hosted web services.</source>
         <translation>Um plano de controle leve para serviços web auto-hospedados.</translation>
+    </message>
+    <message id="autopanel.value.account.disabled">
+        <source>disabled</source>
+        <translation>desativado</translation>
+    </message>
+    <message id="autopanel.value.account.enrolled">
+        <source>on</source>
+        <translation>ativado</translation>
+    </message>
+    <message id="autopanel.value.account.locked">
+        <source>locked</source>
+        <translation>bloqueado</translation>
+    </message>
+    <message id="autopanel.value.account.mustChange">
+        <source>must change</source>
+        <translation>deve trocar</translation>
+    </message>
+    <message id="autopanel.value.account.revoked">
+        <source>revoked</source>
+        <translation>revogado</translation>
     </message>
     <message id="autopanel.value.browse.folder">
         <source>Folder</source>
