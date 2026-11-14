@@ -66,7 +66,7 @@ func (m *sysModule) Errors() []module.PublicError {
 }
 
 func (m *sysModule) Verbs() []module.Verb {
-	return append([]module.Verb{module.Handle(module.Contract{Verb: "sys.status", Since: 1,
+	return append([]module.Verb{module.Handle(module.Contract{Verb: "sys.status", Discloses: module.Plain, Since: 1,
 		Result: "{version, https, http, store, ca, challenge, routes, uptime}",
 		Doc:    "The running AutoPanel: its listeners, store, certificate issuer and route count."}, m.status)}, m.monitorVerbs()...)
 }

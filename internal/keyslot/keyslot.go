@@ -254,3 +254,14 @@ func (v *Vault) Open(aad string, sealed []byte) ([]byte, error) {
 	}
 	return Open(v.mk, aad, sealed)
 }
+
+// SealPassphrase wraps the vault's master key under a passphrase: a new
+// admin's slot, made while the vault is open. The key never leaves the vault.
+func (v *Vault) SealPassphrase(passphrase string, p Params) (PassphraseSlot, error) {
+	v.mu.RLock()
+	defer v.mu.RUnlock()
+	if v.mk == nil {
+		return PassphraseSlot{}, ErrLocked
+	}
+	return SealPassphrase(v.mk, passphrase, p)
+}

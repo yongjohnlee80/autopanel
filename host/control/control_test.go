@@ -17,6 +17,7 @@ import (
 	"github.com/yongjohnlee80/autopanel/core/audit"
 	"github.com/yongjohnlee80/autopanel/core/gate"
 	"github.com/yongjohnlee80/autopanel/internal/auth"
+	"github.com/yongjohnlee80/autopanel/internal/auth/authtest"
 	"github.com/yongjohnlee80/autopanel/internal/keyslot"
 	"github.com/yongjohnlee80/autopanel/internal/module"
 	"github.com/yongjohnlee80/autopanel/internal/peercred"
@@ -106,11 +107,11 @@ func TestTheControlSocketServesVerbsAndKeepsErrorsPublicOrBare(t *testing.T) {
 	vault := &keyslot.Vault{}
 	unlocked := 0
 	log := &auditLog{}
-	am, err := auth.New(slots{"root": rootSlot}, log, vault, func(context.Context) { unlocked++ }, cheap)
+	am, err := auth.New(authtest.New("root", rootSlot), authtest.NewSecrets(), log, vault, func(context.Context) { unlocked++ }, cheap)
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv, err := Listen(sock, slog.New(slog.NewTextHandler(io.Discard, nil)), Access{}, gm, am)
+	srv, err := Listen(sock, slog.New(slog.NewTextHandler(io.Discard, nil)), Access{Authorizer: am}, gm, am)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -209,7 +210,7 @@ func TestTheSocketAdmitsOnlyTheUsersItNames(t *testing.T) {
 	sock := filepath.Join(t.TempDir(), "link.sock")
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	gm := gate.NewModule(&memRoutes{}, anyDomain{}, func(context.Context) error { return nil })
-	srv, err := Listen(sock, log, Access{Peers: []int{os.Getuid() + 1}, Mode: 0o660}, gm)
+	srv, err := Listen(sock, log, Access{Peers: []int{os.Getuid() + 1}, Mode: 0o660, Authorizer: allowAll{}}, gm)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -471,4 +472,12 @@ func TestTheSubjectNamesWhatTheCallActsOn(t *testing.T) {
 			t.Errorf("subject(%v) = %q; want %q", c.param, got, c.want)
 		}
 	}
+}
+
+// allowAll lets every logged-in principal call every verb: for tests of what
+// the socket does around the decision.
+type allowAll struct{}
+
+func (allowAll) Authorize(context.Context, string, time.Time, module.Contract) (string, error) {
+	return "", nil
 }

@@ -215,22 +215,30 @@ func change(verb, param, doc string) module.Contract {
 	return module.Contract{Verb: verb, Since: 6, Param: param, Mutates: true, Privileged: true, Doc: doc}
 }
 
+// adminChange is a change that administers the host (it writes a stack, or
+// runs a recovery): the admin's and the operator's, never the mail role's.
+func adminChange(verb, param, doc string) module.Contract {
+	c := change(verb, param, doc)
+	c.Area = "mail.admin"
+	return c
+}
+
 func (m *Module) Verbs() []module.Verb {
 	return []module.Verb{
-		module.Handle(module.Contract{Verb: "mail.status", Since: 6, Result: "{set_up, host, bootstrapped, stack, step, error, at, loopback, domains}",
+		module.Handle(module.Contract{Verb: "mail.status", Discloses: module.Plain, Since: 6, Result: "{set_up, host, bootstrapped, stack, step, error, at, loopback, domains}",
 			Doc: "Whether mail is set up, how far Stalwart's setting up got, the mail stack's state, the loopback rule's, and the mail domains."}, m.status),
-		module.Handle(change("mail.setup", "{host, domain}",
+		module.Handle(adminChange("mail.setup", "{host, domain}",
 			"Sets mail up: writes the mail stack's definition (Stalwart, pinned), makes its user and the loopback rule, and records the host and first domain. The stack is then reviewed and applied as any stack; Stalwart is set up once it runs."), m.setup),
-		module.Handle(module.Contract{Verb: "mail.domain.list", Since: 6, Result: "[{name}]", Doc: "The domains that receive mail."}, m.domainList),
+		module.Handle(module.Contract{Verb: "mail.domain.list", Discloses: module.Plain, Since: 6, Result: "[{name}]", Doc: "The domains that receive mail."}, m.domainList),
 		module.Handle(change("mail.domain.add", "{name}", "Has a registry domain receive mail."), m.domainAdd),
 		module.Handle(change("mail.domain.remove", "{name}", "Stops a domain receiving mail; refused while it has accounts."), m.domainRemove),
-		module.Handle(module.Contract{Verb: "mail.account.list", Since: 6, Param: "{domain?}", Result: "[{address, quota, used, aliases}]",
+		module.Handle(module.Contract{Verb: "mail.account.list", Discloses: module.Plain, Since: 6, Param: "{domain?}", Result: "[{address, quota, used, aliases}]",
 			Doc: "The mail accounts, of one domain or of all."}, m.accountList),
 		module.Handle(change("mail.account.add", "{address, password, quota?}", "Makes a mail account. The password goes to Stalwart and nowhere else."), m.accountAdd),
 		module.Handle(change("mail.account.password", "{address, password}", "Sets an account's password."), m.accountPassword),
 		module.Handle(change("mail.account.quota", "{address, quota}", "Sets an account's quota, in bytes."), m.accountQuota),
 		module.Handle(change("mail.account.remove", "{address}", "Deletes a mail account and its mail."), m.accountRemove),
-		module.Handle(module.Contract{Verb: "mail.records", Since: 6, Param: "{domain}", Result: "{at, records: [{name, type, value, found, state, why, error?}], dkim: [{selector, step, since}]}",
+		module.Handle(module.Contract{Verb: "mail.records", Discloses: module.Plain, Since: 6, Param: "{domain}", Result: "{at, records: [{name, type, value, found, state, why, error?}], dkim: [{selector, step, since}]}",
 			Doc: "The records a mail domain (or the mail host) needs, and each one's state as the last pass found it: ok, publishing, different (a record AutoPanel did not write holds its place), manual (no DNS token), failed."}, m.records),
 		module.Handle(change("mail.records.takeover", "{domain, name, type}",
 			"Replaces the records AutoPanel did not write that hold a needed record's place, after the panel showed them: an SPF record is merged, any other is deleted. The next pass publishes the record."), m.recordsTakeover),

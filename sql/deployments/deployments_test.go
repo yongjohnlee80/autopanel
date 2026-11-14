@@ -212,6 +212,42 @@ func applyAndCheck(t *testing.T, db dao.DataConn) {
 	if err := exec("INSERT INTO mail_dkim(domain, selector, step, since) VALUES ('example.org', 'ap202611e', 'created', 0)"); err != nil {
 		t.Fatal(err)
 	}
+	// 000006: users with roles (the existing root an admin), their factors,
+	// recovery codes and tokens; a token's role is a role.
+	if err := exec("INSERT INTO app_user(name, created_at) VALUES ('root', 0)"); err != nil {
+		t.Fatal(err)
+	}
+	rows, err = db.QueryContext(ctx, "SELECT role, verifier, must_change, totp FROM app_user WHERE name = 'root'")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var role, verifier string
+	var mustChange, totp int64
+	if !rows.Next() {
+		t.Fatal("root's row is not there")
+	}
+	if err := rows.Scan(&role, &verifier, &mustChange, &totp); err != nil || role != "admin" || verifier != "" || mustChange != 0 || totp != 0 {
+		t.Fatalf("an existing user after 000006 = %q, %q, %d, %d, %v; want an admin as it was", role, verifier, mustChange, totp, err)
+	}
+	_ = rows.Close()
+	if err := exec("INSERT INTO api_token(user_id, name, hash, role, created_at, expires_at) SELECT id, 'backup', X'01', 'viewer', 0, 1 FROM app_user WHERE name = 'root'"); err != nil {
+		t.Fatal(err)
+	}
+	if err := exec("INSERT INTO api_token(user_id, name, hash, role, created_at, expires_at) SELECT id, 'bad', X'02', 'god', 0, 1 FROM app_user WHERE name = 'root'"); err == nil {
+		t.Error("the store accepted a token of no role")
+	}
+	if err := exec("INSERT INTO recovery_code(user_id, hash) SELECT id, X'03' FROM app_user WHERE name = 'root'"); err != nil {
+		t.Fatal(err)
+	}
+	if name, err := deployments.Runner().Revert(ctx, db, 6); err != nil {
+		t.Fatalf("reverting 000006 = %q, %v", name, err)
+	}
+	if err := exec("SELECT role FROM app_user"); err == nil {
+		t.Fatal("the role column outlived its revert")
+	}
+	if err := exec("DELETE FROM app_user"); err != nil {
+		t.Fatal(err)
+	}
 	if name, err := deployments.Runner().Revert(ctx, db, 5); err != nil {
 		t.Fatalf("reverting 000005 = %q, %v", name, err)
 	}

@@ -72,7 +72,7 @@ type RouteRef struct {
 
 func (m *Module) Verbs() []module.Verb {
 	return []module.Verb{
-		module.Handle(module.Contract{Verb: "gate.route.list", Since: 1, Result: "[{id, host, path_prefix, upstream}]",
+		module.Handle(module.Contract{Verb: "gate.route.list", Discloses: module.Plain, Since: 1, Result: "[{id, host, path_prefix, upstream}]",
 			Doc: "Every route, by host, then the longest path prefix first."}, m.list),
 		module.Handle(module.Contract{Verb: "gate.route.add", Since: 1, Param: "{host, path_prefix?, upstream}", Result: "{id, host, path_prefix, upstream}",
 			Doc: "Adds a route and serves it at once. The host may then have a certificate.", Mutates: true}, m.add),
@@ -80,7 +80,7 @@ func (m *Module) Verbs() []module.Verb {
 			Doc: "Replaces a route's host, prefix and upstream.", Mutates: true}, m.update),
 		module.Handle(module.Contract{Verb: "gate.route.remove", Since: 1, Param: "{id}", Result: "{id, host, path_prefix, upstream}",
 			Doc: "Removes a route; its host stops being served once no route names it.", Mutates: true}, m.remove),
-		module.Handle(module.Contract{Verb: "gate.domain.list", Since: 5, Result: "[{name, routes}]",
+		module.Handle(module.Contract{Verb: "gate.domain.list", Discloses: module.Plain, Since: 5, Result: "[{name, routes}]",
 			Doc: "Every registered domain, by name, with the number of routes under it."}, m.domainList),
 		module.Handle(module.Contract{Verb: "gate.domain.add", Since: 5, Param: "{name}", Result: "{name, routes}",
 			Doc: "Registers a domain the administrator owns: example.com. A route's host must be a domain or a name under one.", Mutates: true}, m.domainAdd),

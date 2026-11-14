@@ -376,22 +376,22 @@ func (m *sysModule) gateStop(ctx context.Context, _ struct{}) (struct{}, error) 
 // monitorVerbs are the sys.* verbs beyond sys.status.
 func (m *sysModule) monitorVerbs() []module.Verb {
 	return []module.Verb{
-		module.Handle(module.Contract{Verb: "sys.metrics", Since: 1,
+		module.Handle(module.Contract{Verb: "sys.metrics", Discloses: module.Plain, Since: 1,
 			Result: "{uptime, goroutines, heap_bytes, runtime_bytes, https_requests, http_requests, routes, gate: {running, pid, memory_bytes}, host: {load, mem_total, mem_available, disk_total, disk_free}}",
 			Doc:    "The core's memory and goroutines; the gate's request counts since it started, its process and its memory, as it last reported them (running is false when it has stopped reporting); and the host's load, memory and the disk the store is on."}, m.metrics),
 		module.Handle(module.Contract{Verb: "sys.audit.list", Since: 1, Param: "{limit?}", Result: "[{id, at, actor, action, subject, detail, outcome}]",
 			Doc: "The newest audit entries, newest first: 200 unless limit says, 1000 at most. outcome is set on a privileged action's entry: attempt until it ends, then ok or the error's name."}, m.auditLog),
 		module.Handle(module.Contract{Verb: "sys.logins", Since: 1, Param: "{limit?}", Result: "{attempts: [{at, source, user, from, result, detail}], ssh_note}",
 			Doc: "Login attempts, newest first: to the panel, from the audit log, and to the host over SSH, from the journal. ssh_note says why when the journal could not be read."}, m.logins),
-		module.Handle(module.Contract{Verb: "sys.ports", Since: 1, Result: "[{proto, address, port, process, pid, user, use}]",
+		module.Handle(module.Contract{Verb: "sys.ports", Discloses: module.Plain, Since: 1, Result: "[{proto, address, port, process, pid, user, use}]",
 			Doc: "The host's listening TCP sockets and bound UDP sockets, each with the process and the user that hold it when the host says. use names AutoPanel's own, a route's upstream, or, for a socket whose process is not known, the port's usual service."}, m.ports),
-		module.Handle(module.Contract{Verb: "sys.prefs.get", Since: 1, Result: "{theme, language}",
+		module.Handle(module.Contract{Verb: "sys.prefs.get", Discloses: module.Plain, Since: 1, Result: "{theme, language}",
 			Doc: "The panel's preferences; an empty one was never chosen."}, m.prefs),
 		module.Handle(module.Contract{Verb: "sys.prefs.set", Since: 1, Param: "{theme?, language?}", Result: "{theme, language}", Mutates: true,
 			Doc: "Keeps the panel's theme or language; a field left out is unchanged."}, m.setPrefs),
-		module.Handle(module.Contract{Verb: "sys.gate.restart", Since: 2, Mutates: true, Privileged: true,
+		module.Handle(module.Contract{Verb: "sys.gate.restart", Area: "sys.admin", Since: 2, Mutates: true, Privileged: true,
 			Doc: "Restarts the gate process: the two listeners close and open again. Audited before it takes effect."}, m.gateRestart),
-		module.Handle(module.Contract{Verb: "sys.gate.stop", Since: 2, Mutates: true, Privileged: true,
+		module.Handle(module.Contract{Verb: "sys.gate.stop", Area: "sys.admin", Since: 2, Mutates: true, Privileged: true,
 			Doc: "Stops the gate process: nothing is served until sys.gate.restart, or the core's next start. Audited before it takes effect."}, m.gateStop),
 	}
 }
