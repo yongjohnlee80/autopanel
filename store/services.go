@@ -149,3 +149,30 @@ func (r serviceRows) SetStopped(ctx context.Context, name string, stopped []stri
 func (r serviceRows) Remove(ctx context.Context, name string) error {
 	return r.changed(ctx, "DELETE FROM service WHERE name = ?", name)
 }
+
+// Source is where a stack's definition was imported from.
+func (r serviceRows) Source(ctx context.Context, name string) (services.Source, bool, error) {
+	rows, err := r.s.conn.QueryContext(ctx, r.s.q("SELECT path, imported_at, sha256 FROM stack_source WHERE name = ?"), name)
+	if err != nil {
+		return services.Source{}, false, err
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		return services.Source{}, false, rows.Err()
+	}
+	var src services.Source
+	var at int64
+	if err := rows.Scan(&src.Path, &at, &src.SHA256); err != nil {
+		return services.Source{}, false, err
+	}
+	src.ImportedAt = time.Unix(at, 0)
+	return src, true, nil
+}
+
+// SetSource records, or replaces, where a stack's definition came from.
+func (r serviceRows) SetSource(ctx context.Context, name string, src services.Source) error {
+	_, err := r.s.conn.ExecContext(ctx, r.s.q("INSERT INTO stack_source(name, path, imported_at, sha256) VALUES (?, ?, ?, ?) "+
+		"ON CONFLICT (name) DO UPDATE SET path = excluded.path, imported_at = excluded.imported_at, sha256 = excluded.sha256"),
+		name, src.Path, src.ImportedAt.Unix(), src.SHA256)
+	return err
+}

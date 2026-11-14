@@ -65,15 +65,16 @@ var userName = func(uid int) string {
 
 // Metrics is sys.metrics's answer.
 type Metrics struct {
-	Uptime        string       `json:"uptime"`
-	Goroutines    int          `json:"goroutines"`
-	HeapBytes     uint64       `json:"heap_bytes"`    // the core's live heap
-	RuntimeBytes  uint64       `json:"runtime_bytes"` // all memory the core's runtime holds
-	HTTPSRequests int64        `json:"https_requests"`
-	HTTPRequests  int64        `json:"http_requests"`
-	Routes        int          `json:"routes"`
-	Gate          GateMetrics  `json:"gate"`
-	Host          sysinfo.Host `json:"host"`
+	Uptime        string         `json:"uptime"`
+	Goroutines    int            `json:"goroutines"`
+	HeapBytes     uint64         `json:"heap_bytes"`    // the core's live heap
+	RuntimeBytes  uint64         `json:"runtime_bytes"` // all memory the core's runtime holds
+	HTTPSRequests int64          `json:"https_requests"`
+	HTTPRequests  int64          `json:"http_requests"`
+	Routes        int            `json:"routes"`
+	Gate          GateMetrics    `json:"gate"`
+	Host          sysinfo.Host   `json:"host"`
+	Activity      sysinfo.Sample `json:"activity"` // CPU, swap, uptime and the network, with rates since the last read
 }
 
 // GateMetrics is what the gate last reported of itself. Running is false for
@@ -163,6 +164,7 @@ func (m *sysModule) metrics(context.Context, struct{}) (Metrics, error) {
 		Goroutines: runtime.NumGoroutine(), HeapBytes: ms.HeapAlloc, RuntimeBytes: ms.Sys,
 		HTTPSRequests: m.counts.https.Load(), HTTPRequests: m.counts.http.Load(),
 		Routes: len(m.table.Routes()), Gate: g, Host: sysinfo.ReadHost(m.cfg.StateDir),
+		Activity: m.sampler.Read(),
 	}, nil
 }
 

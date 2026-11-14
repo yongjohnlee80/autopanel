@@ -37,6 +37,9 @@ type sysModule struct {
 	// serviceUsers are the deployed services' host users, each with its
 	// service's name; nil when this core deploys none.
 	serviceUsers func(ctx context.Context) (map[string]string, error)
+	// sampler answers each metrics read with the host's rates since the read
+	// before it, whoever made that one.
+	sampler *sysinfo.Sampler
 }
 
 // Status is sys.status's answer.

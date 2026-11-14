@@ -81,13 +81,22 @@ func (m *memRoutes) Remove(context.Context, gate.RouteID) (gate.Route, error) {
 	return gate.Route{}, gate.ErrNotFound
 }
 
+// anyDomain is gate.Domains holding one domain that covers every test host.
+type anyDomain struct{}
+
+func (anyDomain) All(context.Context) ([]gate.Domain, error) {
+	return []gate.Domain{{Name: "example.com"}}, nil
+}
+func (anyDomain) Add(context.Context, gate.Domain) error { return nil }
+func (anyDomain) Remove(context.Context, string) error   { return nil }
+
 func TestTheControlSocketServesVerbsAndKeepsErrorsPublicOrBare(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	sock := filepath.Join(t.TempDir(), "c.sock") // TempDir is 0700, as CheckDir wants
 	routes := &memRoutes{}
 	reloads := 0
-	gm := gate.NewModule(routes, func(context.Context) error { reloads++; return nil })
+	gm := gate.NewModule(routes, anyDomain{}, func(context.Context) error { reloads++; return nil })
 	mk, _ := keyslot.NewMasterKey()
 	rootSlot, err := keyslot.SealPassphrase(mk, "a long master passphrase", cheap)
 	if err != nil {
@@ -198,7 +207,7 @@ func TestTheSocketAdmitsOnlyTheUsersItNames(t *testing.T) {
 	defer cancel()
 	sock := filepath.Join(t.TempDir(), "link.sock")
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	gm := gate.NewModule(&memRoutes{}, func(context.Context) error { return nil })
+	gm := gate.NewModule(&memRoutes{}, anyDomain{}, func(context.Context) error { return nil })
 	srv, err := Listen(sock, log, Access{Peers: []int{os.Getuid() + 1}, Mode: 0o660}, gm)
 	if err != nil {
 		t.Fatal(err)

@@ -103,7 +103,7 @@ func Main(args []string, stdout, stderr io.Writer) int {
 // contractModules are the modules whose verbs --contracts lists. Built with no
 // store: a contract is data, and listing one runs nothing.
 func contractModules() []module.Module {
-	return []module.Module{&auth.Module{}, gate.NewModule(nil, nil), &certsModule{}, &sysModule{}, services.NewModule(nil, nil), &linkModule{}}
+	return []module.Module{&auth.Module{}, gate.NewModule(nil, nil, nil), &certsModule{}, &sysModule{}, services.NewModule(nil, nil), &linkModule{}}
 }
 
 func printContracts(stdout io.Writer) int {
