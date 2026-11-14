@@ -3,6 +3,10 @@
 <TS version="2.1" language="zh_CN">
 <context>
     <name>autopanel</name>
+    <message id="autopanel.button.account.confirm">
+        <source>&amp;Turn on</source>
+        <translation>启用(&amp;t)</translation>
+    </message>
     <message id="autopanel.button.browse.import">
         <source>&amp;Import…</source>
         <translation>导入(&amp;i)…</translation>
@@ -162,6 +166,38 @@
     <message id="autopanel.button.stacks.update">
         <source>Update from &amp;source</source>
         <translation>从源更新(&amp;s)</translation>
+    </message>
+    <message id="autopanel.button.tokens.new">
+        <source>&amp;New token…</source>
+        <translation>新建令牌(&amp;n)…</translation>
+    </message>
+    <message id="autopanel.button.tokens.revoke">
+        <source>&amp;Revoke…</source>
+        <translation>撤销(&amp;r)…</translation>
+    </message>
+    <message id="autopanel.button.users.add">
+        <source>&amp;Add…</source>
+        <translation>添加(&amp;a)…</translation>
+    </message>
+    <message id="autopanel.button.users.disable">
+        <source>&amp;Disable</source>
+        <translation>停用(&amp;d)</translation>
+    </message>
+    <message id="autopanel.button.users.remove">
+        <source>&amp;Remove…</source>
+        <translation>删除(&amp;r)…</translation>
+    </message>
+    <message id="autopanel.button.users.reset">
+        <source>R&amp;eset…</source>
+        <translation>重置(&amp;e)…</translation>
+    </message>
+    <message id="autopanel.button.users.role">
+        <source>R&amp;ole…</source>
+        <translation>角色(&amp;o)…</translation>
+    </message>
+    <message id="autopanel.button.users.unlock">
+        <source>&amp;Unlock</source>
+        <translation>解锁(&amp;u)</translation>
     </message>
     <message id="autopanel.finding.review.absolute-path">
         <source>A path must be inside the stack's folder, not absolute</source>
@@ -559,6 +595,66 @@
         <source>Source</source>
         <translation>源代码</translation>
     </message>
+    <message id="autopanel.label.account.created">
+        <source>Created</source>
+        <translation>创建于</translation>
+    </message>
+    <message id="autopanel.label.account.expires">
+        <source>Expires</source>
+        <translation>到期</translation>
+    </message>
+    <message id="autopanel.label.account.factor">
+        <source>Two-factor</source>
+        <translation>双因素认证</translation>
+    </message>
+    <message id="autopanel.label.account.lastLogin">
+        <source>Last login</source>
+        <translation>上次登录</translation>
+    </message>
+    <message id="autopanel.label.account.lastUsed">
+        <source>Last used</source>
+        <translation>上次使用</translation>
+    </message>
+    <message id="autopanel.label.account.lockedUntil">
+        <source>Locked until</source>
+        <translation>锁定至</translation>
+    </message>
+    <message id="autopanel.label.account.name">
+        <source>Name</source>
+        <translation>名称</translation>
+    </message>
+    <message id="autopanel.label.account.once">
+        <source>This is shown once: copy it now. Once this closes, AutoPanel cannot show it again.</source>
+        <translation>仅显示一次：请立即复制。关闭后 AutoPanel 无法再次显示。</translation>
+    </message>
+    <message id="autopanel.label.account.owner">
+        <source>Owner</source>
+        <translation>所有者</translation>
+    </message>
+    <message id="autopanel.label.account.recovery">
+        <source>Recovery codes: each signs you in once in place of a code, should you lose the app. Keep them somewhere safe.</source>
+        <translation>恢复码：丢失应用时，每个可代替验证码登录一次。请妥善保管。</translation>
+    </message>
+    <message id="autopanel.label.account.role">
+        <source>Role</source>
+        <translation>角色</translation>
+    </message>
+    <message id="autopanel.label.account.token">
+        <source>API token %1, until %2. Give it to a script in a file only you can read (mode 0600): autopanel --call --token-file &lt;file&gt; &lt;verb&gt;</source>
+        <translation>API 令牌 %1，有效期至 %2。请放入只有您能读取的文件（权限 0600）交给脚本：autopanel --call --token-file &lt;文件&gt; &lt;动词&gt;</translation>
+    </message>
+    <message id="autopanel.label.account.totpCode">
+        <source>Code from the app</source>
+        <translation>应用中的验证码</translation>
+    </message>
+    <message id="autopanel.label.account.totpSecret">
+        <source>Add this secret to an authenticator app (any TOTP app):</source>
+        <translation>请将此密钥添加到身份验证应用（任何 TOTP 应用）：</translation>
+    </message>
+    <message id="autopanel.label.account.totpURI">
+        <source>Or, where the app takes a link, this one:</source>
+        <translation>或者，如果应用接受链接，可使用此链接：</translation>
+    </message>
     <message id="autopanel.label.audit.action">
         <source>Action</source>
         <translation>操作</translation>
@@ -650,6 +746,10 @@
     <message id="autopanel.label.host.uptime">
         <source>Uptime</source>
         <translation>运行时间</translation>
+    </message>
+    <message id="autopanel.label.login.code">
+        <source>Two-factor code (empty without two-factor)</source>
+        <translation>双因素验证码（未启用则留空）</translation>
     </message>
     <message id="autopanel.label.login.passphrase">
         <source>Passphrase</source>
@@ -883,9 +983,49 @@
         <source>The password for %1, 12 characters at least. It goes to the mail server and is kept nowhere else:</source>
         <translation>%1 的密码，至少 12 个字符。它只交给邮件服务器，不在别处保存：</translation>
     </message>
+    <message id="autopanel.label.prompt.passphraseAgain">
+        <source>The new passphrase again</source>
+        <translation>再次输入新口令</translation>
+    </message>
+    <message id="autopanel.label.prompt.passphraseNew">
+        <source>A new passphrase (12 characters at least)</source>
+        <translation>新口令（至少 12 个字符）</translation>
+    </message>
+    <message id="autopanel.label.prompt.passphraseOld">
+        <source>Your passphrase now</source>
+        <translation>当前口令</translation>
+    </message>
     <message id="autopanel.label.prompt.stackName">
         <source>The stack's name: a lower-case letter, then letters, digits and hyphens.</source>
         <translation>堆栈名称：以小写字母开头，后接字母、数字和连字符。</translation>
+    </message>
+    <message id="autopanel.label.prompt.tokenDays">
+        <source>Days it lasts (1 to 365)</source>
+        <translation>有效天数（1 到 365）</translation>
+    </message>
+    <message id="autopanel.label.prompt.tokenName">
+        <source>A name for the token (what will use it)</source>
+        <translation>令牌名称（由什么使用）</translation>
+    </message>
+    <message id="autopanel.label.prompt.totpOff">
+        <source>A code from the app (or a recovery code), to turn two-factor off</source>
+        <translation>输入应用中的验证码（或恢复码）以关闭双因素认证</translation>
+    </message>
+    <message id="autopanel.label.prompt.userName">
+        <source>Name (a lower-case letter, then letters, digits, . _ -)</source>
+        <translation>名称（以小写字母开头，其后为字母、数字、. _ -）</translation>
+    </message>
+    <message id="autopanel.label.prompt.userPassphrase">
+        <source>A first passphrase for %1 (they change it at their first login)</source>
+        <translation>%1 的初始口令（首次登录时更改）</translation>
+    </message>
+    <message id="autopanel.label.prompt.userReset">
+        <source>A new passphrase for %1 (they change it at their next login)</source>
+        <translation>%1 的新口令（下次登录时更改）</translation>
+    </message>
+    <message id="autopanel.label.prompt.userRole">
+        <source>Role: admin, operator, mail or viewer</source>
+        <translation>角色：admin、operator、mail 或 viewer</translation>
     </message>
     <message id="autopanel.label.review.capAdd">
         <source>Capabilities added</source>
@@ -1183,9 +1323,21 @@
         <source>&amp;Manage users…</source>
         <translation>管理用户(&amp;m)…</translation>
     </message>
+    <message id="autopanel.menu.users.passphrase">
+        <source>&amp;Passphrase…</source>
+        <translation>口令(&amp;p)…</translation>
+    </message>
     <message id="autopanel.menu.users.title">
         <source>&amp;Users</source>
         <translation>用户(&amp;u)</translation>
+    </message>
+    <message id="autopanel.menu.users.tokens">
+        <source>API &amp;tokens…</source>
+        <translation>API 令牌(&amp;t)…</translation>
+    </message>
+    <message id="autopanel.menu.users.totp">
+        <source>Two-&amp;factor…</source>
+        <translation>双因素认证(&amp;f)…</translation>
     </message>
     <message id="autopanel.menu.view.activity">
         <source>&amp;Activity</source>
@@ -1227,6 +1379,14 @@
         <source>T&amp;raffic</source>
         <translation>流量(&amp;r)</translation>
     </message>
+    <message id="autopanel.note.account.root">
+        <source>Root is the first admin, made by --init: never removed, demoted or disabled.</source>
+        <translation>root 是 --init 创建的第一个管理员：不会被删除、降级或停用。</translation>
+    </message>
+    <message id="autopanel.note.account.tokens">
+        <source>A token is for scripts. It never manages users, tokens or passphrases, and its role is no higher than its owner's.</source>
+        <translation>令牌用于脚本。它不能管理用户、令牌或口令，其角色不高于所有者。</translation>
+    </message>
     <message id="autopanel.note.browse.cut">
         <source>Only the start of the file is shown.</source>
         <translation>仅显示文件的开头部分。</translation>
@@ -1243,9 +1403,89 @@
         <source>The file is not text.</source>
         <translation>该文件不是文本。</translation>
     </message>
+    <message id="autopanel.note.login.vaultLocked">
+        <source>The vault is locked: until an admin signs in, users with two-factor cannot sign in.</source>
+        <translation>保险库已锁定：在管理员登录之前，启用双因素认证的用户无法登录。</translation>
+    </message>
     <message id="autopanel.note.terminal.empty">
         <source>No shell running. Press + to start one.</source>
         <translation>没有正在运行的 Shell。按 + 启动一个。</translation>
+    </message>
+    <message id="autopanel.notice.account.added">
+        <source>%1 added</source>
+        <translation>已添加 %1</translation>
+    </message>
+    <message id="autopanel.notice.account.adminOnly">
+        <source>only an admin manages users</source>
+        <translation>只有管理员可以管理用户</translation>
+    </message>
+    <message id="autopanel.notice.account.badCode">
+        <source>that code is not right; type the newest one the app shows</source>
+        <translation>验证码不正确；请输入应用显示的最新验证码</translation>
+    </message>
+    <message id="autopanel.notice.account.badDays">
+        <source>a token lasts 1 to 365 days</source>
+        <translation>令牌有效期为 1 到 365 天</translation>
+    </message>
+    <message id="autopanel.notice.account.badName">
+        <source>a name is a lower-case letter, then letters, digits, . _ -, 32 at most</source>
+        <translation>名称以小写字母开头，其后为字母、数字、. _ -，最多 32 个字符</translation>
+    </message>
+    <message id="autopanel.notice.account.badRole">
+        <source>a role is admin, operator, mail or viewer</source>
+        <translation>角色为 admin、operator、mail 或 viewer</translation>
+    </message>
+    <message id="autopanel.notice.account.disabled">
+        <source>%1 disabled</source>
+        <translation>已停用 %1</translation>
+    </message>
+    <message id="autopanel.notice.account.enabled">
+        <source>%1 enabled</source>
+        <translation>已启用 %1</translation>
+    </message>
+    <message id="autopanel.notice.account.mismatch">
+        <source>not the same passphrase; type the new one again</source>
+        <translation>口令不一致；请再次输入新口令</translation>
+    </message>
+    <message id="autopanel.notice.account.mustChange">
+        <source>change your passphrase before anything else</source>
+        <translation>请先更改口令</translation>
+    </message>
+    <message id="autopanel.notice.account.noName">
+        <source>give the token a name</source>
+        <translation>请为令牌命名</translation>
+    </message>
+    <message id="autopanel.notice.account.passphraseChanged">
+        <source>passphrase changed</source>
+        <translation>口令已更改</translation>
+    </message>
+    <message id="autopanel.notice.account.removed">
+        <source>%1 removed</source>
+        <translation>已删除 %1</translation>
+    </message>
+    <message id="autopanel.notice.account.reset">
+        <source>%1's passphrase reset; they change it at their next login</source>
+        <translation>已重置 %1 的口令；下次登录时更改</translation>
+    </message>
+    <message id="autopanel.notice.account.revoked">
+        <source>token %1 revoked</source>
+        <translation>已撤销令牌 %1</translation>
+    </message>
+    <message id="autopanel.notice.account.roleSet">
+        <source>%1 is now %2</source>
+        <translation>%1 现在是 %2</translation>
+    </message>
+    <message id="autopanel.notice.account.totpOff">
+        <source>two-factor is off</source>
+        <translation>双因素认证已关闭</translation>
+    </message>
+    <message id="autopanel.notice.account.unlocked">
+        <source>%1 unlocked</source>
+        <translation>已解锁 %1</translation>
+    </message>
+    <message id="autopanel.notice.account.weak">
+        <source>a passphrase is 12 characters at least, holds no user name, and is no common password</source>
+        <translation>口令至少 12 个字符，不含用户名，且不是常见密码</translation>
     </message>
     <message id="autopanel.notice.app.busy">
         <source>busy: a change is in flight</source>
@@ -1322,6 +1562,14 @@
     <message id="autopanel.notice.language.unknown">
         <source>no language %1</source>
         <translation>没有语言 %1</translation>
+    </message>
+    <message id="autopanel.notice.login.expired">
+        <source>the session has ended; sign in again</source>
+        <translation>会话已结束；请重新登录</translation>
+    </message>
+    <message id="autopanel.notice.login.idle">
+        <source>signed out after 30 minutes idle; sign in again</source>
+        <translation>闲置 30 分钟后已退出；请重新登录</translation>
     </message>
     <message id="autopanel.notice.login.running">
         <source>another sign-in is still running; try again in a moment</source>
@@ -1526,6 +1774,14 @@
     <message id="autopanel.notice.widget.readFailed">
         <source>read failed: %1</source>
         <translation>读取失败：%1</translation>
+    </message>
+    <message id="autopanel.question.account.remove">
+        <source>Remove %1 and their API tokens? This cannot be undone.</source>
+        <translation>删除 %1 及其 API 令牌？此操作无法撤销。</translation>
+    </message>
+    <message id="autopanel.question.account.revoke">
+        <source>Revoke token %1? Whatever uses it is refused from now on.</source>
+        <translation>撤销令牌 %1？使用它的程序将从此被拒绝。</translation>
     </message>
     <message id="autopanel.question.domains.remove">
         <source>Remove the domain %1? Its routes stay; the removal is refused while a route would be left under no domain.</source>
@@ -1755,6 +2011,42 @@
         <source>Copy the stack's definition from its source again, then review it</source>
         <translation>从源重新复制堆栈定义，然后审查</translation>
     </message>
+    <message id="autopanel.tip.tokens.new">
+        <source>Make an API token, shown once</source>
+        <translation>创建 API 令牌（仅显示一次）</translation>
+    </message>
+    <message id="autopanel.tip.tokens.revoke">
+        <source>Revoke the selected token</source>
+        <translation>撤销所选令牌</translation>
+    </message>
+    <message id="autopanel.tip.totp.confirm">
+        <source>Turn two-factor on with the code the app shows</source>
+        <translation>用应用显示的验证码启用双因素认证</translation>
+    </message>
+    <message id="autopanel.tip.users.add">
+        <source>Add a panel user</source>
+        <translation>添加面板用户</translation>
+    </message>
+    <message id="autopanel.tip.users.disable">
+        <source>Disable the selected user, or enable it again</source>
+        <translation>停用所选用户，或重新启用</translation>
+    </message>
+    <message id="autopanel.tip.users.remove">
+        <source>Remove the selected user</source>
+        <translation>删除所选用户</translation>
+    </message>
+    <message id="autopanel.tip.users.reset">
+        <source>Set a new passphrase for the selected user</source>
+        <translation>为所选用户设置新口令</translation>
+    </message>
+    <message id="autopanel.tip.users.role">
+        <source>Change the selected user's role</source>
+        <translation>更改所选用户的角色</translation>
+    </message>
+    <message id="autopanel.tip.users.unlock">
+        <source>Lift the selected user's lockout</source>
+        <translation>解除所选用户的锁定</translation>
+    </message>
     <message id="autopanel.title.browse.entries">
         <source>Entries: %1</source>
         <translation>%1 个条目</translation>
@@ -1799,6 +2091,14 @@
         <source>Close the terminal</source>
         <translation>关闭终端</translation>
     </message>
+    <message id="autopanel.title.confirm.tokenRevoke">
+        <source>Revoke a token</source>
+        <translation>撤销令牌</translation>
+    </message>
+    <message id="autopanel.title.confirm.userRemove">
+        <source>Remove a user</source>
+        <translation>删除用户</translation>
+    </message>
     <message id="autopanel.title.dialog.about">
         <source>About AutoPanel</source>
         <translation>关于 AutoPanel</translation>
@@ -1818,6 +2118,18 @@
     <message id="autopanel.title.dialog.mailDns">
         <source>Records to enter at your DNS provider</source>
         <translation>需在 DNS 服务商处填写的记录</translation>
+    </message>
+    <message id="autopanel.title.dialog.recovery">
+        <source>Recovery codes</source>
+        <translation>恢复码</translation>
+    </message>
+    <message id="autopanel.title.dialog.token">
+        <source>New API token</source>
+        <translation>新 API 令牌</translation>
+    </message>
+    <message id="autopanel.title.dialog.totp">
+        <source>Turn on two-factor</source>
+        <translation>启用双因素认证</translation>
     </message>
     <message id="autopanel.title.form.add">
         <source>Add route</source>
@@ -1883,6 +2195,14 @@
         <source>Stacks</source>
         <translation>堆栈</translation>
     </message>
+    <message id="autopanel.title.list.tokens">
+        <source>Tokens</source>
+        <translation>令牌</translation>
+    </message>
+    <message id="autopanel.title.list.users">
+        <source>Users</source>
+        <translation>用户</translation>
+    </message>
     <message id="autopanel.title.pane.details">
         <source>Details</source>
         <translation>详情</translation>
@@ -1947,6 +2267,14 @@
         <source>Terminal</source>
         <translation>终端</translation>
     </message>
+    <message id="autopanel.title.panel.tokens">
+        <source>API tokens</source>
+        <translation>API 令牌</translation>
+    </message>
+    <message id="autopanel.title.panel.users">
+        <source>Users</source>
+        <translation>用户</translation>
+    </message>
     <message id="autopanel.title.prompt.addDomain">
         <source>Add a domain</source>
         <translation>添加域名</translation>
@@ -1974,6 +2302,34 @@
     <message id="autopanel.title.prompt.mailPassword">
         <source>Mail account password</source>
         <translation>邮件账户密码</translation>
+    </message>
+    <message id="autopanel.title.prompt.passphrase">
+        <source>Change your passphrase</source>
+        <translation>更改口令</translation>
+    </message>
+    <message id="autopanel.title.prompt.tokenDays">
+        <source>Token lifetime</source>
+        <translation>令牌有效期</translation>
+    </message>
+    <message id="autopanel.title.prompt.tokenName">
+        <source>New API token</source>
+        <translation>新 API 令牌</translation>
+    </message>
+    <message id="autopanel.title.prompt.totpOff">
+        <source>Turn off two-factor</source>
+        <translation>关闭双因素认证</translation>
+    </message>
+    <message id="autopanel.title.prompt.userName">
+        <source>Add a user</source>
+        <translation>添加用户</translation>
+    </message>
+    <message id="autopanel.title.prompt.userPassphrase">
+        <source>A user's passphrase</source>
+        <translation>用户口令</translation>
+    </message>
+    <message id="autopanel.title.prompt.userRole">
+        <source>Role</source>
+        <translation>角色</translation>
     </message>
     <message id="autopanel.title.review.add">
         <source>Add stack %1: review</source>
@@ -2022,6 +2378,26 @@
     <message id="autopanel.value.about.what">
         <source>A lightweight control plane for self-hosted web services.</source>
         <translation>面向自托管 Web 服务的轻量级控制平面。</translation>
+    </message>
+    <message id="autopanel.value.account.disabled">
+        <source>disabled</source>
+        <translation>已停用</translation>
+    </message>
+    <message id="autopanel.value.account.enrolled">
+        <source>on</source>
+        <translation>已启用</translation>
+    </message>
+    <message id="autopanel.value.account.locked">
+        <source>locked</source>
+        <translation>已锁定</translation>
+    </message>
+    <message id="autopanel.value.account.mustChange">
+        <source>must change</source>
+        <translation>需更改</translation>
+    </message>
+    <message id="autopanel.value.account.revoked">
+        <source>revoked</source>
+        <translation>已撤销</translation>
     </message>
     <message id="autopanel.value.browse.folder">
         <source>Folder</source>

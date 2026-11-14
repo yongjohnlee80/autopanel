@@ -17,6 +17,7 @@ import (
 
 	"github.com/yongjohnlee80/autopanel/core/gate"
 	"github.com/yongjohnlee80/autopanel/core/services"
+	"github.com/yongjohnlee80/autopanel/internal/auth"
 	"github.com/yongjohnlee80/autopanel/internal/sysinfo"
 )
 
@@ -43,7 +44,8 @@ type fakeClient struct {
 	metricsReads int
 	domainAsks   []string // "add example.org" or "remove example.com"
 
-	mail fakeMail // the Mail menu's verbs (mail_test.go)
+	mail fakeMail    // the Mail menu's verbs (mail_test.go)
+	acct fakeAccount // users, two-factor and tokens (account_test.go)
 
 	stacks    []services.View            // what Stacks answers
 	reviews   map[string]services.Review // what CheckStack answers, by stack
@@ -73,15 +75,16 @@ func newFakeClient() *fakeClient {
 // passphrase is the one the fake service accepts, for any user.
 const passphrase = "a long master passphrase"
 
-func (f *fakeClient) Login(_ context.Context, user, pass string) error {
+func (f *fakeClient) Login(_ context.Context, user, pass, code string) (auth.LoggedIn, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if pass != passphrase {
+	if pass != passphrase || code != f.acct.code {
 		f.logins = append(f.logins, user+"!")
-		return errors.New("wrong user or passphrase")
+		return auth.LoggedIn{}, errors.New("wrong user or passphrase")
 	}
 	f.logins = append(f.logins, user)
-	return nil
+	f.acct.user = user
+	return auth.LoggedIn{User: user, Principal: "user:1", Role: f.acct.role()}, nil
 }
 
 func (f *fakeClient) Routes(context.Context) ([]gate.RouteView, error) {
@@ -415,12 +418,12 @@ func openHost(t *testing.T, c Client, w, ht int) (*host, *decltest.Screen) {
 }
 
 // signIn answers the login dialog as root: the passphrase field has the
-// keyboard, and Enter signs in.
+// keyboard, Enter moves to the (empty) code, and Enter signs in.
 func signIn(t *testing.T, s *decltest.Screen) {
 	t.Helper()
 	s.WaitForText(t, "Sign in to AutoPanel")
 	s.Keys(t, decltest.Type(passphrase)...)
-	s.Keys(t, enter)
+	s.Keys(t, enter, enter)
 	s.WaitFor(t, "the login dialog to close", func(sc string) bool { return !strings.Contains(sc, "Sign in to AutoPanel") })
 }
 
@@ -940,7 +943,7 @@ func TestThePanelOpensOnTheLogin(t *testing.T) {
 	if strings.Contains(s.String(), "not the passphrase") {
 		t.Fatalf("the passphrase is on the screen as typed:\n%s", s)
 	}
-	s.Keys(t, enter)
+	s.Keys(t, enter, enter)
 	s.WaitForText(t, "error: wrong user or passphrase")
 	s.WaitForText(t, "Sign in to AutoPanel") // open again
 	if _, _, _, reads := f.snapshot(); reads != 0 {
@@ -948,7 +951,7 @@ func TestThePanelOpensOnTheLogin(t *testing.T) {
 	}
 
 	s.Keys(t, decltest.Type(passphrase)...) // the field was emptied, and has the keyboard
-	s.Keys(t, enter)
+	s.Keys(t, enter, enter)
 	s.WaitForText(t, "signed in as root")
 	s.WaitForText(t, "CA LE staging")
 	if strings.Contains(s.String(), "Sign in to AutoPanel") {
@@ -973,7 +976,7 @@ func TestALoginAsAnotherUser(t *testing.T) {
 	s.Keys(t, decltest.Type("2")...)
 	s.Keys(t, enter) // Enter in the user field moves to the passphrase
 	s.Keys(t, decltest.Type(passphrase)...)
-	s.Keys(t, enter)
+	s.Keys(t, enter, enter)
 	s.WaitForText(t, "signed in as root2")
 }
 

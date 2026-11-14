@@ -400,6 +400,7 @@ func (h *host) startPolling() {
 // for the status bar; each other verb only while a widget or an open panel
 // shows its answer. One poll at a time: a slow daemon is not asked twice.
 func (h *host) poll() {
+	h.checkIdle()
 	if !h.signedIn || h.polling {
 		return
 	}
