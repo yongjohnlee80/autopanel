@@ -35,6 +35,8 @@ var released = map[string]map[string]string{
 		"000004_revert_domains_and_sources.sql": "a6412e9bbd8449189987d39394c048ff66196d1a7e1fbfb91711fb0ed02bc4cb", // v0.2.4
 		"000005_update_mail.sql":                "f5c6433873bf6e1fb55e2d30436aeb6b9c433488e5094f169de00f595c197ac7", // v0.2.5
 		"000005_revert_mail.sql":                "0239f75ab767daddd50989dc3a3b0cfa0b2d22d21436e41166eea1da7517c3e4", // v0.2.5
+		"000006_update_users_and_tokens.sql":    "5155eebabab4eea8375b1b4057d765ab790e2a9671de94ae0184d8c59fd1d2ea", // v0.2.6
+		"000006_revert_users_and_tokens.sql":    "fff709b3d92cd14169a35161c2e45919e40393b5cc539ca57f22d4857159b4c9", // v0.2.6
 	},
 	dao.DialectPostgres: {
 		"000001_update_initialize_tables.sql":   "c6ba5f47590ab15655f6c4be17ccce0d0b617678d83d58a241c9d015736f41e7", // v0.1.0
@@ -46,6 +48,8 @@ var released = map[string]map[string]string{
 		"000004_revert_domains_and_sources.sql": "a6412e9bbd8449189987d39394c048ff66196d1a7e1fbfb91711fb0ed02bc4cb", // v0.2.4
 		"000005_update_mail.sql":                "b5b57e65063d35c6ed7b52aa4cc4440eee8d561f3e76e2c09fafd7b9b6669fd0", // v0.2.5
 		"000005_revert_mail.sql":                "0239f75ab767daddd50989dc3a3b0cfa0b2d22d21436e41166eea1da7517c3e4", // v0.2.5
+		"000006_update_users_and_tokens.sql":    "4829a9db84610055c9b0a26c134bd68499f1c9d276348abbe0b94478d1dbfcbd", // v0.2.6
+		"000006_revert_users_and_tokens.sql":    "fff709b3d92cd14169a35161c2e45919e40393b5cc539ca57f22d4857159b4c9", // v0.2.6
 	},
 }
 

@@ -501,9 +501,10 @@ second factor, and make tokens for scripts.
 | viewer | read what the screen shows, change nothing; never logs, files or who logged in |
 
 Everyone may change their own passphrase, two-factor and tokens. Menus a role cannot use are greyed
-out, and the daemon refuses them regardless. Only admins hold a copy of the master key, so only an
-admin's login unlocks the vault after a restart; until an admin has signed in, the sign-in dialog
-says the vault is locked, and users with two-factor cannot sign in yet.
+out, and the daemon refuses them regardless. Only admins hold a copy of the master key. The
+server's keyfile opens the vault when the core starts; without it (removed, or a store restored on
+another server), only an admin's login unlocks the vault, and until then the sign-in dialog says the
+vault is locked and users with two-factor cannot sign in yet.
 
 **Users → Manage users…** (admins) lists everyone with role, two-factor and state. **Add** asks a
 name, a role (viewer unless you change it) and a first passphrase; **Reset** sets a new passphrase;
