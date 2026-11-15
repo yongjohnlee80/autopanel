@@ -234,13 +234,13 @@ func applyAndCheck(t *testing.T, db dao.DataConn) {
 		t.Fatalf("an existing user after 000006 = %q, %q, %d, %d, %v; want an admin as it was", role, verifier, mustChange, totp, err)
 	}
 	_ = rows.Close()
-	if err := exec("INSERT INTO api_token(user_id, name, hash, role, created_at, expires_at) SELECT id, 'backup', X'01', 'viewer', 0, 1 FROM app_user WHERE name = 'root'"); err != nil {
+	if err := exec("INSERT INTO api_token(user_id, name, hash, role, created_at, expires_at) SELECT id, 'backup', '\\x01', 'viewer', 0, 1 FROM app_user WHERE name = 'root'"); err != nil {
 		t.Fatal(err)
 	}
-	if err := exec("INSERT INTO api_token(user_id, name, hash, role, created_at, expires_at) SELECT id, 'bad', X'02', 'god', 0, 1 FROM app_user WHERE name = 'root'"); err == nil {
+	if err := exec("INSERT INTO api_token(user_id, name, hash, role, created_at, expires_at) SELECT id, 'bad', '\\x02', 'god', 0, 1 FROM app_user WHERE name = 'root'"); err == nil {
 		t.Error("the store accepted a token of no role")
 	}
-	if err := exec("INSERT INTO recovery_code(user_id, hash) SELECT id, X'03' FROM app_user WHERE name = 'root'"); err != nil {
+	if err := exec("INSERT INTO recovery_code(user_id, hash) SELECT id, '\\x03' FROM app_user WHERE name = 'root'"); err != nil {
 		t.Fatal(err)
 	}
 	if name, err := deployments.Runner().Revert(ctx, db, 6); err != nil {
@@ -328,7 +328,7 @@ func TestTheScriptsApplyOnPostgres(t *testing.T) {
 		t.Fatal(err)
 	}
 	clear := func() {
-		for _, table := range []string{"route", "audit", "cert_blob", "store_lease", "secret", "keyslot", "app_user", "service", "domain", "stack_source"} {
+		for _, table := range []string{"route", "audit", "cert_blob", "store_lease", "secret", "keyslot", "recovery_code", "api_token", "app_user", "service", "domain", "stack_source"} {
 			_, _ = db.ExecContext(context.Background(), "DELETE FROM "+table) // before Apply, the tables may not exist yet
 		}
 	}
