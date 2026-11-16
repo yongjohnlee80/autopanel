@@ -176,6 +176,11 @@ type Module struct {
 	// file, no rule). pendMu orders mail.setup and mail.setup.apply.
 	pendMu  sync.Mutex
 	pending *pendingSetup
+	// setupOpen is true while mail.setup or mail.setup.apply runs, or a
+	// setup waits to be applied: the guard then admits the stack mail with
+	// AutoPanel's own definition before mail is recorded. Read without
+	// pendMu, since the guard is called from inside both verbs.
+	setupOpen atomic.Bool
 }
 
 // pendingSetup is mail.setup's answers, until mail.setup.apply.
@@ -284,12 +289,17 @@ func (m *Module) Verbs() []module.Verb {
 func (m *Module) Owns(name string) bool { return name == Stack }
 
 // Review refuses a mail stack that was not set up from Mail, and warns of one
-// whose definition is no longer the one AutoPanel wrote.
+// whose definition is no longer the one AutoPanel wrote. Mail is recorded as
+// set up only once its stack is added (setting mail up is one transaction),
+// so while a setup is open the stack is admitted with AutoPanel's own
+// definition, and with no other.
 func (m *Module) Review(ctx context.Context, name string, compose []byte) []services.Finding {
 	if name != Stack {
 		return nil
 	}
-	if _, ok, err := m.store.State(ctx); err != nil || !ok {
+	_, recorded, err := m.store.State(ctx)
+	ours := m.setupOpen.Load() && string(compose) == string(Compose())
+	if err != nil || (!recorded && !ours) {
 		return []services.Finding{{ID: "reserved-name", Severity: services.Refused,
 			Detail: "the stack mail is AutoPanel's: set it up from Mail → Set up mail"}}
 	}
@@ -399,6 +409,8 @@ type Accept struct {
 func (m *Module) setup(ctx context.Context, p SetupAsk) (Setup, error) {
 	m.pendMu.Lock()
 	defer m.pendMu.Unlock()
+	m.setupOpen.Store(true)
+	defer func() { m.setupOpen.Store(m.pending != nil) }()
 	st, recorded, err := m.store.State(ctx)
 	if err != nil {
 		return Setup{}, err
@@ -447,6 +459,8 @@ func (m *Module) setup(ctx context.Context, p SetupAsk) (Setup, error) {
 func (m *Module) apply(ctx context.Context, p Accept) (Setup, error) {
 	m.pendMu.Lock()
 	defer m.pendMu.Unlock()
+	m.setupOpen.Store(true)
+	defer func() { m.setupOpen.Store(m.pending != nil) }()
 	pend := m.pending
 	if pend == nil {
 		return Setup{}, ErrNoPending
