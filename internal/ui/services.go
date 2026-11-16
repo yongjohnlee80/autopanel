@@ -76,6 +76,10 @@ type stacks struct {
 	findingTexts []string        // the review's findings, whole, in the list's order
 	findingLevel []string        // and each one's level
 	reviewAt     int
+	// draft: the review is of the mail setup, held by the daemon until Add
+	// and start applies it (mail.setup.apply), not of a stack on disk.
+	// nextDraft marks the next showReview so.
+	draft, nextDraft bool
 }
 
 func newStacks() stacks {
@@ -614,6 +618,7 @@ func (h *host) reviewDetailAt(row int) string {
 func (h *host) showReview(name, mode string, r services.Review, again bool) error {
 	d := &h.stk
 	d.reviewName, d.reviewMode, d.reviewed, d.again, d.reviewAt = name, mode, r, again, 0
+	d.draft, d.nextDraft = d.nextDraft, false
 	if err := h.renderReview(); err != nil {
 		return err
 	}
@@ -649,7 +654,7 @@ func (h *host) renderReview() error {
 		"App.reviewGo":          h.tr("autopanel.button.review." + d.reviewMode),
 		"App.reviewAllowed":     allowed,
 		"App.reviewNew":         d.reviewMode == reviewAdd,
-		"App.reviewMayPrepare":  allowed && d.reviewMode == reviewAdd,
+		"App.reviewMayPrepare":  allowed && d.reviewMode == reviewAdd && !d.draft,
 	})
 }
 
@@ -663,6 +668,12 @@ func (h *host) reviewMoved(row int) error {
 // reviewAccept is the review confirmed: the stack is added and started,
 // applied, or started, as the review said it would be.
 func (h *host) reviewAccept() error {
+	if h.stk.draft {
+		if !refused(h.stk.reviewed) {
+			h.runMailSetup(h.stk.reviewed.SHA256)
+		}
+		return nil
+	}
 	verb := "add" // a new stack, and a prepared one's start
 	if h.stk.reviewMode == reviewApply {
 		verb = "apply"
@@ -674,7 +685,7 @@ func (h *host) reviewAccept() error {
 // reviewPrepare is "Prepare only" on a new stack's review: its user, files
 // and images are put in place, and nothing is started.
 func (h *host) reviewPrepare() error {
-	if h.stk.reviewMode != reviewAdd {
+	if h.stk.reviewMode != reviewAdd || h.stk.draft {
 		return nil
 	}
 	h.runReviewed("prepare", "autopanel.notice.stacks.prepareDone")

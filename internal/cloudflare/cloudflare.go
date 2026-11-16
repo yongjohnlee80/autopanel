@@ -43,6 +43,12 @@ func (e *Error) Error() string {
 	return fmt.Sprintf("cloudflare: %d: %s", e.Status, strings.Join(e.Messages, "; "))
 }
 
+// ErrTokenRefused is a token Cloudflare says is not valid, or not active.
+var ErrTokenRefused = errors.New("cloudflare: the token was refused")
+
+// ErrNoAnswer is Cloudflare not answering, so a token could not be checked.
+var ErrNoAnswer = errors.New("cloudflare: no answer")
+
 // ErrNoZone is a name no zone the token reaches holds.
 var ErrNoZone = errors.New("cloudflare: no zone the token can reach holds that name")
 

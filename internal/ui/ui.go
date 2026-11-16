@@ -161,6 +161,11 @@ type Client interface {
 	Remove(ctx context.Context, id int64) error
 	// SetCA chooses the certificate service: "staging" or "production".
 	SetCA(ctx context.Context, ca string) error
+	// SetCloudflare checks a Cloudflare API token with Cloudflare, then seals
+	// it: refused with cloudflare.ErrTokenRefused or cloudflare.ErrNoAnswer.
+	SetCloudflare(ctx context.Context, token string) error
+	// ClearCloudflare forgets the token.
+	ClearCloudflare(ctx context.Context) error
 
 	// Domains are the registered domains, each with its routes' count.
 	Domains(ctx context.Context) ([]gate.DomainView, error)
@@ -209,7 +214,10 @@ type Client interface {
 
 	// The Mail menu. Each is a verb of the daemon's (mail.*).
 	MailStatus(ctx context.Context) (mail.Status, error)
+	// MailSetup answers the review of the mail setup and writes nothing;
+	// MailSetupApply makes it, given that review's sha256.
 	MailSetup(ctx context.Context, host, domain string) (mail.Setup, error)
+	MailSetupApply(ctx context.Context, accept string) error
 	MailAddDomain(ctx context.Context, name string) error
 	MailRemoveDomain(ctx context.Context, name string) error
 	MailRecords(ctx context.Context, domain string) (mail.RecordsAnswer, error)

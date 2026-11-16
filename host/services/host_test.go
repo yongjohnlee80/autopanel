@@ -368,3 +368,39 @@ func TestADefinitionIsBounded(t *testing.T) {
 		t.Errorf("a compose file over the bound = %v; want ErrTooLarge", err)
 	}
 }
+
+// TestADraftStagesAsItsWrittenDefinition: a definition reviewed from memory
+// (StageDraft) is staged byte for byte, and by mode, as the same definition
+// written to the stacks' directory, so the review's sha256 is the one an add
+// of the written stack is given; and a draft needs no definition folder.
+func TestADraftStagesAsItsWrittenDefinition(t *testing.T) {
+	ctx := context.Background()
+	root, defs := filepath.Join(t.TempDir(), "services"), filepath.Join(t.TempDir(), "stacks")
+	h := New(root, defs)
+	const compose = "services:\n  app:\n    image: docker.io/library/nginx:1.27\n"
+	if err := h.StageDraft(ctx, "drafted", []byte(compose)); err != nil {
+		t.Fatal(err)
+	}
+	draft, missing, links, err := h.StagePaths(ctx, "drafted", nil)
+	if err != nil || len(missing) != 0 || len(links) != 0 || len(draft) != 1 {
+		t.Fatalf("a draft's staged files = %+v, %v, %v, %v", draft, missing, links, err)
+	}
+	if _, err := os.Stat(filepath.Join(defs, "drafted")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("a draft wrote into the stacks' directory: %v", err)
+	}
+
+	tree(t, defs, map[string]string{"drafted/compose.yaml": compose})
+	if err := os.Chmod(filepath.Join(defs, "drafted/compose.yaml"), 0o600); err != nil { // as the mail host writes it
+		t.Fatal(err)
+	}
+	if _, _, err := h.Stage(ctx, "drafted"); err != nil {
+		t.Fatal(err)
+	}
+	written, _, _, err := h.StagePaths(ctx, "drafted", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if services.NewManifest(draft).SHA256 != services.NewManifest(written).SHA256 {
+		t.Fatalf("the draft's manifest %+v differs from the written one's %+v", draft, written)
+	}
+}

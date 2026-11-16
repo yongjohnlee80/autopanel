@@ -122,7 +122,8 @@ Window {
                 MenuItem { text: qsTrId("autopanel.menu.certs.production"); group: "ca"; checked: App.caProduction; onTriggered: App.setCA("production") }
                 MenuItem { text: qsTrId("autopanel.menu.certs.staging");    group: "ca"; checked: App.caStaging;    onTriggered: App.setCA("staging") }
             }
-            MenuItem { text: qsTrId("autopanel.menu.certs.cloudflare"); enabled: false }
+            MenuItem { text: qsTrId("autopanel.menu.certs.cloudflare"); enabled: App.isAdmin; onTriggered: App.setCloudflare() }
+            MenuItem { text: qsTrId("autopanel.menu.certs.cloudflareClear"); enabled: App.cloudflareClearable; onTriggered: App.clearCloudflare() }
         }
         Menu {
             title: qsTrId("autopanel.menu.services.title")

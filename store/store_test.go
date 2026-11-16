@@ -151,7 +151,7 @@ func engines(t *testing.T) map[string]*Store {
 			t.Fatal(err)
 		}
 		clear := func() {
-			for _, table := range []string{"route", "audit", "cert_blob", "store_lease", "secret", "keyslot", "app_user", "setting", "service"} {
+			for _, table := range []string{"route", "audit", "cert_blob", "store_lease", "secret", "keyslot", "app_user", "setting", "service", "mail_dkim", "mail_record", "mail_domain", "mail"} {
 				_, _ = p.conn.ExecContext(ctx, "DELETE FROM "+table)
 			}
 		}

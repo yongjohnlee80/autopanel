@@ -102,11 +102,12 @@ type host struct {
 	polling   bool          // a poll is in flight
 	polled    bool          // the poller runs
 
-	confirmed func() error       // what Yes in the confirmation runs
-	other     func() error       // what its third button runs, when it has one
-	prompted  func(string) error // what OK in the prompt runs, with the text
-	secreted  func(string)       // what OK in the password dialog runs, with the password
-	busy      bool               // a change is in flight
+	confirmed   func() error       // what Yes in the confirmation runs
+	other       func() error       // what its third button runs, when it has one
+	prompted    func(string) error // what OK in the prompt runs, with the text
+	secreted    func(string)       // what OK in the password dialog runs, with the password
+	secretShort string             // the message for a text too short to be it
+	busy        bool               // a change is in flight
 
 	me         auth.Whoami // who is logged in
 	lastAction time.Time   // the person's last command, for the idle limit
@@ -185,43 +186,44 @@ func (h *host) attach(p *tuidecl.Program) {
 // source: changing one repaints the bindings that read it.
 func (h *host) state() map[string]any {
 	s := map[string]any{
-		"App.routes":           h.routesModel,
-		"App.domains":          h.domainModel,
-		"App.themes":           h.themes,
-		"App.dock":             h.dock,
-		"App.status":           tui.Msg("autopanel.status.bar.signedOut"),
-		"App.statusCenter":     "",
-		"App.statusShown":      true,
-		"App.lastUser":         defaultUser,
-		"App.loginError":       "",
-		"App.loginErrorShown":  false,
-		"App.message":          "",
-		"App.caStaging":        false,
-		"App.caProduction":     false,
-		"App.aboutHeadline":    "AutoPanel " + orDash(h.version),
-		"App.aboutPanel":       orDash(h.version),
-		"App.aboutDaemon":      "-",
-		"App.routesTitle":      "",
-		"App.routeDetail":      "",
-		"App.domainsTitle":     "",
-		"App.domainDetail":     "",
-		"App.confirmTitle":     "",
-		"App.confirmQuestion":  "",
-		"App.confirmOther":     "",
-		"App.confirmHasOther":  false,
-		"App.promptTitle":      "",
-		"App.promptLabel":      "",
-		"App.promptText":       "",
-		"App.promptError":      "",
-		"App.promptErrorShown": false,
-		"App.loginVaultLocked": false,
-		"App.isAdmin":          false,
-		"App.canChange":        false,
-		"App.canMail":          false,
-		"App.canReadAll":       false,
-		"App.terminalShown":    false,
-		"App.terminalEmpty":    englishText("autopanel.note.terminal.empty"),
-		"App.keysText":         "",
+		"App.routes":              h.routesModel,
+		"App.domains":             h.domainModel,
+		"App.themes":              h.themes,
+		"App.dock":                h.dock,
+		"App.status":              tui.Msg("autopanel.status.bar.signedOut"),
+		"App.statusCenter":        "",
+		"App.statusShown":         true,
+		"App.lastUser":            defaultUser,
+		"App.loginError":          "",
+		"App.loginErrorShown":     false,
+		"App.message":             "",
+		"App.caStaging":           false,
+		"App.caProduction":        false,
+		"App.aboutHeadline":       "AutoPanel " + orDash(h.version),
+		"App.aboutPanel":          orDash(h.version),
+		"App.aboutDaemon":         "-",
+		"App.routesTitle":         "",
+		"App.routeDetail":         "",
+		"App.domainsTitle":        "",
+		"App.domainDetail":        "",
+		"App.confirmTitle":        "",
+		"App.confirmQuestion":     "",
+		"App.confirmOther":        "",
+		"App.confirmHasOther":     false,
+		"App.promptTitle":         "",
+		"App.promptLabel":         "",
+		"App.promptText":          "",
+		"App.promptError":         "",
+		"App.promptErrorShown":    false,
+		"App.loginVaultLocked":    false,
+		"App.isAdmin":             false,
+		"App.cloudflareClearable": false,
+		"App.canChange":           false,
+		"App.canMail":             false,
+		"App.canReadAll":          false,
+		"App.terminalShown":       false,
+		"App.terminalEmpty":       englishText("autopanel.note.terminal.empty"),
+		"App.keysText":            "",
 	}
 	for name, v := range languageChecks(h.language) {
 		s[name] = v
@@ -318,6 +320,7 @@ func (h *host) setStatus(st Status) {
 		"App.caStaging":    ca == certmagic.LetsEncryptStagingCA,
 		"App.caProduction": ca == certmagic.LetsEncryptProductionCA,
 	})
+	h.renderCloudflare()
 }
 
 // setRoutes keeps routes as the routes panel's rows. Each row's key is its

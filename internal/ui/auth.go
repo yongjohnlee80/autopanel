@@ -88,6 +88,7 @@ func (h *host) login(user, pass, code string) error {
 		h.say(h.trf("autopanel.notice.login.signedIn", user))
 		h.loadPrefs()
 		h.startPolling()
+		h.loadMail() // the Mail menu's state, for Set up mail
 		_ = h.panelLeft()
 	})
 	return nil
@@ -112,6 +113,7 @@ func (h *host) setMe(me auth.Whoami) {
 		"App.canMail":    changes || me.Role == auth.RoleMail,
 		"App.canReadAll": changes || me.Role == auth.RoleViewer,
 	})
+	h.renderCloudflare()
 }
 
 // idleAfter is how long the panel waits with no key from its person before

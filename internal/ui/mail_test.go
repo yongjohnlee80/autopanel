@@ -9,7 +9,6 @@ import (
 
 	"github.com/yongjohnlee80/autopanel/core/gate"
 	"github.com/yongjohnlee80/autopanel/core/mail"
-	"github.com/yongjohnlee80/autopanel/core/services"
 )
 
 // fakeMail is the Mail menu's daemon, in memory.
@@ -18,6 +17,7 @@ type fakeMail struct {
 	records   map[string]mail.RecordsAnswer
 	accounts  []mail.AccountView
 	setups    []string // "host domain"
+	pending   string   // the setup the daemon holds until it is applied: "host domain"
 	asks      []string // "add-domain x", "takeover d TXT n", "sync"
 	passwords []string // what reached the daemon, for the test to compare; never shown
 }
@@ -35,12 +35,22 @@ func (f *fakeClient) MailSetup(_ context.Context, host, domain string) (mail.Set
 	if domain != "example.com" && domain != "example.net" {
 		return mail.Setup{}, mail.ErrNotRegistered
 	}
-	f.mail.status = mail.Status{SetUp: true, Host: host, Domains: []string{domain}, Stack: "absent"}
-	if f.reviews == nil {
-		f.reviews = map[string]services.Review{}
+	// Set up mail writes nothing: the setup waits for MailSetupApply.
+	f.mail.pending = host + " " + domain
+	return mail.Setup{Stack: mail.Stack, SHA256: webSHA, Review: warned(webSHA)}, nil
+}
+
+func (f *fakeClient) MailSetupApply(_ context.Context, accept string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.mail.asks = append(f.mail.asks, "apply "+accept)
+	if f.mail.pending == "" {
+		return mail.ErrNoPending
 	}
-	f.reviews[mail.Stack] = warned(webSHA)
-	return mail.Setup{Stack: mail.Stack, SHA256: "abc"}, nil
+	host, domain, _ := strings.Cut(f.mail.pending, " ")
+	f.mail.status = mail.Status{SetUp: true, Host: host, Domains: []string{domain}, Stack: "applied"}
+	f.mail.pending = ""
+	return nil
 }
 
 func (f *fakeClient) MailAddDomain(_ context.Context, name string) error {
@@ -130,8 +140,9 @@ func withMail() *fakeClient {
 }
 
 // TestSettingMailUp: Mail › Set up mail asks the host, then the first domain
-// (an unregistered one refused in the prompt), writes the mail stack, and
-// opens its review.
+// (an unregistered one refused in the prompt), and opens the mail stack's
+// review, having written nothing. Left there, it can be asked again, with the
+// answers offered; Add and start makes the whole setup in one call.
 func TestSettingMailUp(t *testing.T) {
 	f := newFakeClient()
 	h, s := startHost(t, f)
@@ -152,18 +163,39 @@ func TestSettingMailUp(t *testing.T) {
 	}
 	s.Keys(t, decltest.Type("example.com")...)
 	s.Keys(t, enter)
-	s.WaitForText(t, "Add stack mail: review") // the status bar's notice is under it
-	s.WaitFor(t, "the mail stack's review", func(string) bool {
-		f.mu.Lock()
-		defer f.mu.Unlock()
-		return len(f.checks) > 0 && f.checks[len(f.checks)-1] == "mail"
+	s.WaitForText(t, "Add stack mail: review")
+	if a := f.mailAsked(); len(a) != 0 || len(f.asked().applies) != 0 {
+		t.Fatalf("something was applied before Add and start: %v %v", a, f.asked().applies)
+	}
+
+	// Left at its review: Set up mail is open again, with the answers offered.
+	s.Keys(t, escape)
+	s.WaitFor(t, "the review to close", func(screen string) bool { return !strings.Contains(screen, "Add stack mail: review") })
+	if !onLoop(h, h.mailMaySetUp) {
+		t.Fatal("Set up mail is closed after its review was left")
+	}
+	run(t, h, h.mailSetup)
+	s.WaitForText(t, "Set up mail: the mail host")
+	s.Keys(t, enter)
+	s.WaitForText(t, "Set up mail: the first domain")
+	s.Keys(t, enter)
+	s.WaitForText(t, "Add stack mail: review")
+	s.Keys(t, decltest.Rune('a'))
+	s.WaitFor(t, "the setup applied", func(string) bool {
+		a := f.mailAsked()
+		return len(a) == 1 && a[0] == "apply "+webSHA
 	})
+	s.WaitForText(t, "mail is set up")
+	if ap := f.asked().applies; len(ap) != 0 {
+		t.Fatalf("the mail stack was added as any stack: %v", ap)
+	}
 	f.mu.Lock()
 	setups := strings.Join(f.mail.setups, ";")
 	f.mu.Unlock()
-	if setups != "mail.example.com example.org;mail.example.com example.com" {
+	if setups != "mail.example.com example.org;mail.example.com example.com;mail.example.com example.com" {
 		t.Fatalf("setups: %q", setups)
 	}
+	s.WaitFor(t, "Set up mail to close", func(string) bool { return !onLoop(h, h.mailMaySetUp) })
 }
 
 // TestTheMailDomainsPanel: the domains, the selected one's records with their

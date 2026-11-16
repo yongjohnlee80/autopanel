@@ -100,6 +100,7 @@ type notRoot struct{}
 func (notRoot) Podman(context.Context) (int, int, error)              { return 0, 0, errNotRoot }
 func (notRoot) Available(context.Context) ([]string, error)           { return nil, nil }
 func (notRoot) Stage(context.Context, string) ([]byte, []byte, error) { return nil, nil, errNotRoot }
+func (notRoot) StageDraft(context.Context, string, []byte) error      { return errNotRoot }
 func (notRoot) StagePaths(context.Context, string, []string) ([]services.Input, []string, []string, error) {
 	return nil, nil, nil, errNotRoot
 }

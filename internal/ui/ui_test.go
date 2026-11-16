@@ -34,6 +34,7 @@ type fakeClient struct {
 	addErr  error
 	ca      string   // the ACME directory the status reports
 	setCAs  []string // what SetCA was asked for
+	cf      string   // the Cloudflare token the daemon holds; "" for none
 	caErr   error
 	logins  []string // the users Login was asked for, a "!" after a refused one
 	prefs   Prefs    // what Prefs answers
@@ -98,7 +99,7 @@ func (f *fakeClient) Status(context.Context) (Status, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return Status{Version: "v0.1.0", HTTPS: ":443", HTTP: ":80", Store: "sqlite",
-		CA: f.ca, Challenge: "http-01",
+		CA: f.ca, Challenge: f.challenge(),
 		Routes: len(f.routes), Uptime: "1m0s"}, nil
 }
 

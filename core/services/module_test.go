@@ -96,6 +96,13 @@ func (h *machine) Stage(_ context.Context, name string) ([]byte, []byte, error) 
 	return []byte(def["compose.yaml"]), []byte(def[".env"]), nil
 }
 
+func (h *machine) StageDraft(_ context.Context, name string, compose []byte) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.staged[name] = map[string]string{"compose.yaml": string(compose)}
+	return nil
+}
+
 func (h *machine) StagePaths(_ context.Context, name string, paths []string) ([]Input, []string, []string, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()

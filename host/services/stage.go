@@ -66,6 +66,36 @@ func (h *Host) definition(name string) (*os.Root, error) {
 	return os.OpenRoot(dir)
 }
 
+// freshStage empties name's staged copy, and opens it.
+func (h *Host) freshStage(name string) (*os.Root, error) {
+	dir := h.staging(name)
+	if err := os.RemoveAll(dir); err != nil {
+		return nil, err
+	}
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return nil, err
+	}
+	if err := os.Chmod(filepath.Dir(dir), 0o700); err != nil {
+		return nil, err
+	}
+	return os.OpenRoot(dir)
+}
+
+// StageDraft starts a fresh staged copy holding compose as its compose.yaml: a
+// definition AutoPanel wrote and holds in memory, reviewed before anything of
+// it is written where it takes effect. The staged copy is scratch.
+func (h *Host) StageDraft(_ context.Context, name string, compose []byte) error {
+	if len(compose) > maxText {
+		return services.ErrTooLarge
+	}
+	stage, err := h.freshStage(name)
+	if err != nil {
+		return err
+	}
+	defer stage.Close()
+	return stage.WriteFile(composeFile, compose, 0o400)
+}
+
 // Stage starts a fresh staged copy with the stack's compose.yaml and .env,
 // and answers the two.
 func (h *Host) Stage(_ context.Context, name string) (compose, env []byte, err error) {
@@ -74,17 +104,7 @@ func (h *Host) Stage(_ context.Context, name string) (compose, env []byte, err e
 		return nil, nil, err
 	}
 	defer def.Close()
-	dir := h.staging(name)
-	if err := os.RemoveAll(dir); err != nil {
-		return nil, nil, err
-	}
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return nil, nil, err
-	}
-	if err := os.Chmod(filepath.Dir(dir), 0o700); err != nil {
-		return nil, nil, err
-	}
-	stage, err := os.OpenRoot(dir)
+	stage, err := h.freshStage(name)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -185,11 +205,13 @@ func keptMode(file string, m fs.FileMode) fs.FileMode {
 // StagePaths adds the files at paths, each a file or a folder of them, to the
 // staged copy, and answers every staged file.
 func (h *Host) StagePaths(_ context.Context, name string, paths []string) (files []services.Input, missing, links []string, err error) {
-	def, err := h.definition(name)
-	if err != nil {
-		return nil, nil, nil, err
+	var def *os.Root
+	if len(paths) > 0 { // a draft names no files: it has no definition folder yet
+		if def, err = h.definition(name); err != nil {
+			return nil, nil, nil, err
+		}
+		defer def.Close()
 	}
-	defer def.Close()
 	stage, err := os.OpenRoot(h.staging(name))
 	if err != nil {
 		return nil, nil, nil, err

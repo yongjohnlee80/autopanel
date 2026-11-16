@@ -58,8 +58,18 @@ func base(svc Service) (Applied, []string) {
 // review stages name's definition and checks it. The caller holds the stack's
 // lock, and the ports lock when what it does next depends on the ports being
 // free.
-func (m *Module) review(ctx context.Context, name string, svc Service) (reviewed, error) {
-	compose, envText, err := m.host.Stage(ctx, name)
+//
+// draft, when not nil, is the definition to review in place of the one in the
+// stacks' directory: one AutoPanel holds in memory until it is applied. It may
+// mount no file of its own.
+func (m *Module) review(ctx context.Context, name string, svc Service, draft []byte) (reviewed, error) {
+	compose, envText := draft, []byte(nil)
+	var err error
+	if draft != nil {
+		err = m.host.StageDraft(ctx, name, draft)
+	} else {
+		compose, envText, err = m.host.Stage(ctx, name)
+	}
 	if err != nil {
 		return reviewed{}, err
 	}
@@ -69,6 +79,9 @@ func (m *Module) review(ctx context.Context, name string, svc Service) (reviewed
 		findings = append(findings, Finding{ID: "bad-env-line", Severity: Refused, Detail: ".env line " + strconv.Itoa(line)})
 	}
 	managed, data := managedPaths(st), dataPaths(st)
+	if draft != nil && len(managed) > 0 {
+		return reviewed{}, fmt.Errorf("services: a draft definition mounts files of its own: %v", managed)
+	}
 	files, missing, links, err := m.host.StagePaths(ctx, name, managed)
 	if err != nil {
 		return reviewed{}, err
@@ -148,20 +161,45 @@ func planned(s Spec) Planned {
 }
 
 func (m *Module) check(ctx context.Context, r Ref) (Review, error) {
-	if !ValidName(r.Name) {
+	return m.checkDraft(ctx, r.Name, nil)
+}
+
+// CheckDraft reviews compose as name's definition without writing it where
+// it takes effect: a stack AutoPanel makes (mail) is reviewed from memory,
+// and its definition is written only when the administrator applies it. The
+// review's sha256 is the one an add of the same bytes, written, answers.
+// Refused with ErrDuplicate while a stack of that name is registered.
+func (m *Module) CheckDraft(ctx context.Context, name string, compose []byte) (Review, error) {
+	if compose == nil {
+		compose = []byte{}
+	}
+	return m.checkDraft(ctx, name, compose)
+}
+
+// Add is services.add for another module: it registers and applies name.
+func (m *Module) Add(ctx context.Context, name, accept string) error {
+	_, err := m.add(ctx, Accept{Name: name, Accept: accept})
+	return err
+}
+
+func (m *Module) checkDraft(ctx context.Context, name string, draft []byte) (Review, error) {
+	if !ValidName(name) {
 		return Review{}, ErrBadName
 	}
-	defer m.lock(r.Name)()
-	svc, err := m.store.Get(ctx, r.Name)
+	defer m.lock(name)()
+	svc, err := m.store.Get(ctx, name)
 	switch {
 	case errors.Is(err, ErrNotFound):
-		svc = Service{Name: r.Name}
+		svc = Service{Name: name}
 	case err != nil:
 		return Review{}, err
+	case draft != nil:
+		return Review{}, ErrDuplicate
 	case svc.Legacy:
 		return Review{}, ErrLegacy
 	}
-	rev, err := m.review(ctx, r.Name, svc)
+	r := Ref{Name: name}
+	rev, err := m.review(ctx, r.Name, svc, draft)
 	if err != nil {
 		return Review{}, err
 	}
@@ -222,7 +260,7 @@ func (m *Module) run(ctx context.Context, p Accept, first, prepareOnly bool) (Vi
 	// The ports are claimed under one lock: the check that finds them free
 	// and the record that claims them are one step to every other stack.
 	m.ports.Lock()
-	rev, err := m.review(ctx, p.Name, svc)
+	rev, err := m.review(ctx, p.Name, svc, nil)
 	if err == nil && rev.manifest.SHA256 != p.Accept {
 		err = ErrChanged
 	}

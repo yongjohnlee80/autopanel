@@ -55,6 +55,33 @@ func (ms mailStore) Create(ctx context.Context, host, firstDomain string) error 
 	})
 }
 
+func (ms mailStore) Forget(ctx context.Context) error {
+	return ms.s.tx(ctx, func(tx dao.TxConn) error {
+		var host string
+		rows, err := tx.QueryContext(ctx, "SELECT host FROM mail WHERE id = 1 AND bootstrapped = 0")
+		if err != nil {
+			return err
+		}
+		found := rows.Next()
+		if found {
+			err = rows.Scan(&host)
+		}
+		rows.Close()
+		if err != nil {
+			return err
+		}
+		if !found {
+			return mail.ErrSetUp
+		}
+		for _, table := range []string{"mail_dkim", "mail_record", "mail_domain", "mail"} {
+			if _, err := tx.ExecContext(ctx, "DELETE FROM "+table); err != nil {
+				return err
+			}
+		}
+		return ms.audit(ctx, tx, "mail.setup.forget", "host "+host+": a setup left before its stack was added")
+	})
+}
+
 func (ms mailStore) SetBootstrapped(ctx context.Context, at int64) error {
 	return ms.s.tx(ctx, func(tx dao.TxConn) error {
 		res, err := tx.ExecContext(ctx, ms.s.q("UPDATE mail SET bootstrapped = ? WHERE id = 1"), at)
