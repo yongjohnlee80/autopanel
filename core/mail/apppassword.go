@@ -12,6 +12,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/yongjohnlee80/golib/auth/password"
+
+	"github.com/yongjohnlee80/autopanel/core/mail/provider"
 )
 
 // MAIL APPS SIGN IN WITH APP PASSWORDS — one per device, made by Stalwart at
@@ -20,6 +22,10 @@ import (
 // a mail app cannot sign in with it.
 //
 // Decision: docs/decisions/mail.md#mail-apps-sign-in-with-app-passwords
+
+// AppPasswordLimit is how many app passwords an account may hold: a device
+// each, with room for ones left pending until the hourly pass destroys them.
+const AppPasswordLimit = 20
 
 // pendingFor is how long a new app password works before it is kept: long
 // enough to type it into a phone, short enough that one shown and forgotten
@@ -146,21 +152,21 @@ func validDescription(d string) (string, error) {
 }
 
 // account is the account at an address, with Stalwart's client.
-func (m *Module) account(ctx context.Context, address string) (*Client, Account, error) {
+func (m *Module) account(ctx context.Context, address string) (provider.Server, provider.Account, error) {
 	c, err := m.ready(ctx)
 	if err != nil {
-		return nil, Account{}, err
+		return nil, provider.Account{}, err
 	}
 	local, domain, err := m.address(ctx, address)
 	if err != nil {
-		return nil, Account{}, err
+		return nil, provider.Account{}, err
 	}
 	a, _, err := m.find(ctx, c, local, domain)
 	return c, a, err
 }
 
-func viewOf(p AppPassword) AppPasswordView {
-	v := AppPasswordView{ID: p.ID, Description: p.Description, CreatedAt: p.CreatedAt.Unix()}
+func viewOf(p provider.AppPassword) AppPasswordView {
+	v := AppPasswordView{ID: p.ID, Description: p.Device, CreatedAt: p.CreatedAt.Unix()}
 	if p.ExpiresAt != nil {
 		v.Pending, v.ExpiresAt = true, p.ExpiresAt.Unix()
 	}
@@ -174,7 +180,7 @@ func (m *Module) appPasswordList(ctx context.Context, p AppPasswordAsk) ([]AppPa
 	}
 	ps, err := c.AppPasswords(ctx, a.ID)
 	if err != nil {
-		return nil, stalwartErr(err)
+		return nil, serverErr(err)
 	}
 	out := make([]AppPasswordView, 0, len(ps))
 	now := m.now()
@@ -202,15 +208,10 @@ func (m *Module) appPasswordAdd(ctx context.Context, p AppPasswordAsk) (NewAppPa
 	if err != nil {
 		return NewAppPassword{}, err
 	}
-	if a.AppPasswordLimit < AppPasswordLimit { // Stalwart's default is 5, an account made before this none set
-		if err := c.SetAppPasswordLimit(ctx, a.ID, AppPasswordLimit); err != nil {
-			return NewAppPassword{}, stalwartErr(err)
-		}
-	}
 	expires := m.now().Add(pendingFor).Truncate(time.Second)
-	made, secret, err := c.AddAppPassword(ctx, a.ID, desc, expires)
+	made, secret, err := c.AddAppPassword(ctx, a.ID, desc, expires, AppPasswordLimit)
 	if err != nil {
-		return NewAppPassword{}, stalwartErr(err)
+		return NewAppPassword{}, serverErr(err)
 	}
 	if !strongSecret(secret) {
 		secret = ""
@@ -224,13 +225,13 @@ func (m *Module) appPasswordAdd(ctx context.Context, p AppPasswordAsk) (NewAppPa
 }
 
 // pick is an account's app password by its id.
-func pick(ps []AppPassword, id string) (AppPassword, bool) {
+func pick(ps []provider.AppPassword, id string) (provider.AppPassword, bool) {
 	for _, p := range ps {
 		if p.ID == id {
 			return p, true
 		}
 	}
-	return AppPassword{}, false
+	return provider.AppPassword{}, false
 }
 
 // appPasswordKeep clears a pending app password's expiry, once the device is
@@ -243,7 +244,7 @@ func (m *Module) appPasswordKeep(ctx context.Context, p AppPasswordAsk) (struct{
 	}
 	ps, err := c.AppPasswords(ctx, a.ID)
 	if err != nil {
-		return struct{}{}, stalwartErr(err)
+		return struct{}{}, serverErr(err)
 	}
 	ap, ok := pick(ps, p.ID)
 	switch {
@@ -257,7 +258,7 @@ func (m *Module) appPasswordKeep(ctx context.Context, p AppPasswordAsk) (struct{
 		}
 		return struct{}{}, ErrExpired
 	}
-	return struct{}{}, stalwartErr(c.KeepAppPassword(ctx, a.ID, ap.ID))
+	return struct{}{}, serverErr(c.KeepAppPassword(ctx, a.ID, ap.ID))
 }
 
 func (m *Module) appPasswordRevoke(ctx context.Context, p AppPasswordAsk) (struct{}, error) {
@@ -267,12 +268,12 @@ func (m *Module) appPasswordRevoke(ctx context.Context, p AppPasswordAsk) (struc
 	}
 	ps, err := c.AppPasswords(ctx, a.ID)
 	if err != nil {
-		return struct{}{}, stalwartErr(err)
+		return struct{}{}, serverErr(err)
 	}
 	if _, ok := pick(ps, p.ID); !ok {
 		return struct{}{}, ErrNoAppPassword
 	}
-	return struct{}{}, stalwartErr(c.RevokeAppPassword(ctx, a.ID, p.ID))
+	return struct{}{}, serverErr(c.RevokeAppPassword(ctx, a.ID, p.ID))
 }
 
 // accountLock replaces a mailbox's own password, typed under an older
@@ -287,13 +288,13 @@ func (m *Module) accountLock(ctx context.Context, p AccountAsk) (struct{}, error
 	if err != nil {
 		return struct{}{}, err
 	}
-	return struct{}{}, stalwartErr(c.SetSecret(ctx, a.ID, secret))
+	return struct{}{}, serverErr(c.SetPasswordHash(ctx, a.ID, secret))
 }
 
 // sweepAppPasswords destroys the app passwords whose expiry has passed: shown
 // and never kept. They sign nothing in already; destroyed, they stop counting
 // toward the account's limit.
-func (m *Module) sweepAppPasswords(ctx context.Context, c *Client) error {
+func (m *Module) sweepAppPasswords(ctx context.Context, c provider.Server) error {
 	accounts, err := c.Accounts(ctx)
 	if err != nil {
 		return err

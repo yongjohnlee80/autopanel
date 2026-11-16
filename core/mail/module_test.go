@@ -6,8 +6,6 @@ import (
 	"errors"
 	"io"
 	"log/slog"
-	"net/http"
-	"net/http/httptest"
 	"slices"
 	"sort"
 	"strings"
@@ -17,6 +15,7 @@ import (
 	"time"
 
 	"github.com/yongjohnlee80/autopanel/core/gate"
+	"github.com/yongjohnlee80/autopanel/core/mail/provider/memory"
 	"github.com/yongjohnlee80/autopanel/core/services"
 )
 
@@ -193,7 +192,7 @@ func (s *fakeStacks) CheckDraft(_ context.Context, _ string, compose []byte) (se
 	if !s.absent {
 		return services.Review{}, services.ErrDuplicate
 	}
-	return services.Review{SHA256: "reviewed-" + ComposeSHA256()[:8], Findings: []services.Finding{}}, nil
+	return services.Review{SHA256: "reviewed-compose", Findings: []services.Finding{}}, nil
 }
 func (s *fakeStacks) Add(_ context.Context, _ string, accept string) error {
 	s.mu.Lock()
@@ -228,7 +227,7 @@ func (s *fakeStacks) Restart(context.Context, string) error {
 }
 
 type fakeHost struct {
-	cpu        error
+	journal    []string // what the stack printed
 	definition []byte
 	loopback   int // InstallLoopback calls
 	ensured    atomic.Int32
@@ -237,13 +236,17 @@ type fakeHost struct {
 	txt        map[string][]string // what public resolvers answer
 }
 
-func (h *fakeHost) CPU() error                                        { return h.cpu }
+func (h *fakeHost) CPU() (string, map[string]bool, error) {
+	return "amd64", map[string]bool{"sse4_2": true}, nil
+}
 func (h *fakeHost) WriteDefinition(_ context.Context, b []byte) error { h.definition = b; return nil }
 func (h *fakeHost) RemoveDefinition(context.Context) error            { h.definition = nil; return nil }
 func (h *fakeHost) RemoveLoopback(context.Context, int) error         { h.loopback--; return nil }
 func (h *fakeHost) StackUID(context.Context) (int, error)             { return 990, nil }
-func (h *fakeHost) FirstPassword(context.Context, time.Time) (string, error) {
-	return "once-printed", nil
+func (h *fakeHost) Journal(context.Context, time.Time) ([]string, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return slices.Clone(h.journal), nil
 }
 func (h *fakeHost) Forwarder(context.Context) (string, error)  { return "10.89.0.0/24", nil }
 func (h *fakeHost) PublicIPv4(context.Context) (string, error) { return "192.0.2.10", nil }
@@ -272,54 +275,53 @@ func setUpMail(t *testing.T, m *Module, stacks *fakeStacks) {
 	}
 }
 
+// prod is a test module's product, and mem its server.
+func prod(m *Module) *memory.Product { return m.product.(*memory.Product) }
+func mem(m *Module) *memory.Server   { return prod(m).Server }
+
 func newTestModule(t *testing.T) (*Module, *fakeStore, *fakeVault, *fakeStacks, *fakeHost, *atomic.Bool) {
 	st := &fakeStore{}
 	v := &fakeVault{m: map[string][]byte{}}
 	stacks := &fakeStacks{}
-	h := &fakeHost{}
+	h := &fakeHost{journal: []string{"starting", "one-time: once-printed"}}
 	on := new(atomic.Bool)
-	m := NewModule(st, v, fakeRegistry{"example.net", "example.org"}, stacks, h, func(b bool) { on.Store(b) },
+	product := &memory.Product{Server: memory.New(), Key: "the-key"}
+	m := NewModule(st, v, fakeRegistry{"example.net", "example.org"}, stacks, h, product, func(b bool) { on.Store(b) },
 		slog.New(slog.NewTextHandler(io.Discard, nil)))
 	return m, st, v, stacks, h, on
 }
 
 // --- the definition and the guard --------------------------------------------------
 
-func TestTheComposeIsAcceptedAndPinned(t *testing.T) {
-	st, findings := services.Parse(Compose(), nil)
-	for _, f := range findings {
-		if f.Severity == services.Refused {
-			t.Errorf("the mail definition is refused: %+v", f)
+// TestTheDefinitionIsTheProducts: the stack's definition is the product's,
+// with mail's loopback ports and its management port.
+func TestTheDefinitionIsTheProducts(t *testing.T) {
+	m, _, _, _, _, _ := newTestModule(t)
+	def := string(m.compose())
+	for _, port := range []string{"127.0.0.1:10025:", "127.0.0.1:10465:", "127.0.0.1:10587:", "127.0.0.1:10993:", "127.0.0.1:18480:"} {
+		if !strings.Contains(def, port) {
+			t.Errorf("the definition does not publish %s: %s", port, def)
 		}
 	}
-	if len(st.Services) != 1 || !strings.Contains(st.Services[0].Image, "@sha256:") {
-		t.Fatalf("one service, pinned by digest: %+v", st.Services)
-	}
-	s := st.Services[0]
-	if !s.ReadOnly || !s.HasUser || s.MemLimit == 0 || !slices.Equal(s.CapAdd, []string{"NET_BIND_SERVICE"}) {
-		t.Fatalf("read-only, its own user, a memory limit and one capability: %+v", s)
-	}
-	for _, p := range s.Ports {
-		if p.Public() {
-			t.Errorf("a mail port published beyond loopback: %+v", p)
-		}
+	if !strings.Contains(def, memory.Image) {
+		t.Fatal("the definition is not the product's")
 	}
 }
 
 func TestTheGuard(t *testing.T) {
 	m, st, _, _, _, _ := newTestModule(t)
 	ctx := context.Background()
-	if f := m.Review(ctx, Stack, Compose()); len(f) != 1 || f[0].Severity != services.Refused {
+	if f := m.Review(ctx, Stack, m.compose()); len(f) != 1 || f[0].Severity != services.Refused {
 		t.Fatalf("a mail stack nobody set up: %+v; want refused", f)
 	}
 	st.state = &State{Host: "mail.example.net"}
-	if f := m.Review(ctx, Stack, Compose()); len(f) != 0 {
+	if f := m.Review(ctx, Stack, m.compose()); len(f) != 0 {
 		t.Fatalf("AutoPanel's own definition: %+v; want no finding", f)
 	}
-	if f := m.Review(ctx, Stack, append(Compose(), "# edited\n"...)); len(f) != 1 || f[0].Severity != services.Warning {
+	if f := m.Review(ctx, Stack, append(m.compose(), "# edited\n"...)); len(f) != 1 || f[0].Severity != services.Warning {
 		t.Fatalf("an edited definition: %+v; want a warning", f)
 	}
-	two := strings.Replace(string(Compose()), "services:\n", "services:\n  webmail:\n    image: docker.io/library/nginx@sha256:"+strings.Repeat("a", 64)+"\n", 1)
+	two := strings.Replace(string(m.compose()), "services:\n", "services:\n  webmail:\n    image: docker.io/library/nginx@sha256:"+strings.Repeat("a", 64)+"\n", 1)
 	if f := m.Review(ctx, Stack, []byte(two)); len(f) != 1 || f[0].ID != "mail-one-service" || f[0].Severity != services.Refused {
 		t.Fatalf("a second service in the mail stack: %+v; want refused", f)
 	}
@@ -336,11 +338,11 @@ func TestTheGuard(t *testing.T) {
 	if !slices.Equal(ports, []int{10025, 10465, 10587, 10993, 18480}) {
 		t.Fatalf("reserved ports: %v", ports)
 	}
-	masked := m.Mask(Stack, []string{"   username: admin", "   password: Zx9-secret", "an ordinary line"})
-	if masked[1] != "   password: [hidden]" || masked[0] != "   username: admin" || masked[2] != "an ordinary line" {
+	masked := m.Mask(Stack, []string{"starting", "one-time: Zx9-secret", "an ordinary line"})
+	if masked[1] != "one-time: [hidden]" || masked[0] != "starting" || masked[2] != "an ordinary line" {
 		t.Fatalf("masked: %q", masked)
 	}
-	if got := m.Mask("blog", []string{"password: x"}); got[0] != "password: x" {
+	if got := m.Mask("blog", []string{"one-time: x"}); got[0] != "one-time: x" {
 		t.Fatal("only the mail stack's logs are masked")
 	}
 }
@@ -360,11 +362,11 @@ func TestSetup(t *testing.T) {
 			t.Errorf("%s: set up, want refused", name)
 		}
 	}
-	h.cpu = errors.New("no sse4_2")
+	prod(m).CPUError = errors.New("no sse4_2")
 	if _, err := m.setup(ctx, SetupAsk{Host: "mail.example.net", Domain: "example.net"}); !errors.Is(err, ErrCPU) {
 		t.Fatalf("an old processor: %v", err)
 	}
-	h.cpu = nil
+	prod(m).CPUError = nil
 	v.locked = true
 	if _, err := m.setup(ctx, SetupAsk{Host: "mail.example.net", Domain: "example.net"}); !errors.Is(err, ErrLocked) {
 		t.Fatalf("a locked vault: %v", err)
@@ -410,7 +412,7 @@ func TestSetup(t *testing.T) {
 	if _, err := m.apply(ctx, Accept{Accept: out.SHA256}); err != nil {
 		t.Fatal(err)
 	}
-	if !stacks.user || h.loopback != 1 || string(h.definition) != string(Compose()) || len(stacks.added) != 1 || stacks.added[0] != out.SHA256 {
+	if !stacks.user || h.loopback != 1 || string(h.definition) != string(m.compose()) || len(stacks.added) != 1 || stacks.added[0] != out.SHA256 {
 		t.Fatalf("the user, the loopback rule, the definition, the add: %v %d %q %v", stacks.user, h.loopback, h.definition, stacks.added)
 	}
 	if st.state == nil || st.state.Host != "post.example.net" || !slices.Equal(st.domains, []string{"example.net"}) {
@@ -456,96 +458,32 @@ func TestASetupLeftByAnOlderVersionIsDropped(t *testing.T) {
 	}
 }
 
-// --- the bootstrap against a fake Stalwart ------------------------------------------
-
-// stalwart is a fake of Stalwart's management API through a bootstrap: it
-// answers the one-time password before set-up and the administrator and the
-// key after, and records what it was told.
-type stalwart struct {
-	mu        sync.Mutex
-	setUp     bool
-	restarted func() bool
-	listeners map[string]any
-	keys      int
-	domains   []string
-}
-
-func (s *stalwart) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	var req struct {
-		MethodCalls [][]json.RawMessage `json:"methodCalls"`
-	}
-	_ = json.NewDecoder(r.Body).Decode(&req)
-	var method string
-	var args map[string]any
-	_ = json.Unmarshal(req.MethodCalls[0][0], &method)
-	_ = json.Unmarshal(req.MethodCalls[0][1], &args)
-	user, pass, basic := r.BasicAuth()
-	bearer := r.Header.Get("Authorization") == "Bearer the-key"
-	answer := func(v any) {
-		_ = json.NewEncoder(w).Encode(map[string]any{"methodResponses": []any{[]any{method, v, "c"}}})
-	}
-	switch {
-	case !s.setUp:
-		if !basic || user != "admin" || pass != "once-printed" || method != "x:Bootstrap/set" {
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-		s.setUp = true
-		answer(map[string]any{"updated": map[string]any{"singleton": map[string]any{"username": "admin@example.net", "secret": "permanent"}}})
-	case basic && user == "admin" && pass == "once-printed" && s.restarted():
-		w.WriteHeader(http.StatusUnauthorized) // the printed password ends with the restart
-	case !(basic && user == "admin@example.net" && pass == "permanent") && !bearer:
-		w.WriteHeader(http.StatusUnauthorized)
-	case method == "x:Domain/get":
-		answer(map[string]any{"list": []any{map[string]any{"id": "b", "name": "example.net"}}})
-	case method == "x:NetworkListener/get":
-		answer(map[string]any{"list": []any{map[string]any{"id": "l1", "name": "smtp", "bind": map[string]bool{"[::]:25": true}, "protocol": "smtp"}}})
-	case method == "x:NetworkListener/set":
-		s.listeners = args
-		answer(map[string]any{})
-	case method == "x:ApiKey/set":
-		s.keys++
-		answer(map[string]any{"created": map[string]any{"k": map[string]any{"id": "k1", "secret": "the-key"}}})
-	default:
-		w.WriteHeader(http.StatusBadRequest)
-	}
-}
+// --- the bootstrap: the product's steps, the module's record -------------------
 
 func TestBootstrap(t *testing.T) {
 	m, st, v, stacks, _, on := newTestModule(t)
 	ctx := context.Background()
 	setUpMail(t, m, stacks)
-	fake := &stalwart{restarted: func() bool { return stacks.restarts > 0 }}
-	srv := httptest.NewServer(fake)
-	defer srv.Close()
-	m.base = srv.URL
+	p := prod(m)
 
 	// Not running yet: nothing happens.
 	state, _, _ := st.State(ctx)
 	m.tryBootstrap(ctx, state)
-	if fake.setUp {
-		t.Fatal("set up before the stack ran")
+	if p.Bootstraps != 0 {
+		t.Fatal("bootstrapped before the stack ran")
 	}
 	stacks.since = time.Now().Unix()
 	m.tryBootstrap(ctx, state)
 	if m.progress.Error != "" {
 		t.Fatalf("the bootstrap failed: %s", m.progress.Error)
 	}
-	if !fake.setUp || stacks.restarts != 2 || fake.keys != 1 {
-		t.Fatalf("set up %v, restarts %d, keys %d; want set up, restarted twice, one key", fake.setUp, stacks.restarts, fake.keys)
+	if stacks.restarts != 2 {
+		t.Fatalf("restarts %d; want the product's two", stacks.restarts)
 	}
-	if string(v.m[sealedKey]) != "the-key" {
-		t.Fatal("the API key is not sealed")
-	}
-	var admin Admin
-	if err := json.Unmarshal(v.m[sealedAdmin], &admin); err != nil || admin.Secret != "permanent" {
-		t.Fatalf("the administrator is not sealed: %+v %v", admin, err)
-	}
-	smtp := fake.listeners["update"].(map[string]any)["l1"].(map[string]any)
-	if _, ok := smtp["overrideProxyTrustedNetworks"].(map[string]any)["10.89.0.0/24"]; !ok {
-		t.Fatalf("the forwarder is not trusted: %v", smtp)
+	// What the product sealed is under mail/, by its names; the one-time
+	// credential it read from the journal is in it, and nowhere else.
+	if string(v.m[sealedKey]) != p.Key || string(v.m[sealedServer+"admin"]) != "admin:once-printed" {
+		t.Fatalf("sealed: key %q, admin %q", v.m[sealedKey], v.m[sealedServer+"admin"])
 	}
 	if state, _, _ = st.State(ctx); state.Bootstrapped == 0 {
 		t.Fatal("not marked set up")
@@ -568,23 +506,35 @@ func TestBootstrap(t *testing.T) {
 	}
 }
 
+// TestABootstrapCarriesOnAfterAFailure: a bootstrap whose product sealed its
+// administrator and then failed carries on from there; the first start's
+// credential, gone with the restart, is not needed again.
 func TestABootstrapCarriesOnAfterAFailure(t *testing.T) {
-	// A bootstrap that sealed the administrator and then failed carries on with
-	// it: the printed password is gone after the restart, and is not needed.
-	m, st, v, stacks, _, _ := newTestModule(t)
+	m, st, v, stacks, h, _ := newTestModule(t)
 	ctx := context.Background()
 	setUpMail(t, m, stacks)
-	fake := &stalwart{setUp: true, restarted: func() bool { return true }}
-	srv := httptest.NewServer(fake)
-	defer srv.Close()
-	m.base = srv.URL
-	raw, _ := json.Marshal(Admin{Username: "admin@example.net", Secret: "permanent"})
-	v.m[sealedAdmin] = raw
+	v.m[sealedServer+"admin"] = []byte("admin:earlier")
+	h.journal = nil // the credential is no longer printed
 	stacks.since = time.Now().Unix()
 	state, _, _ := st.State(ctx)
 	m.tryBootstrap(ctx, state)
-	if m.progress.Error != "" || fake.keys != 1 {
-		t.Fatalf("carried on: error %q, keys %d", m.progress.Error, fake.keys)
+	if m.progress.Error != "" || string(v.m[sealedKey]) != prod(m).Key {
+		t.Fatalf("carried on: error %q", m.progress.Error)
+	}
+}
+
+// TestAKeyThatDoesNotSignInLeavesMailNotReady: the product's bootstrap ran,
+// but the key it sealed is refused: mail is not marked set up.
+func TestAKeyThatDoesNotSignInLeavesMailNotReady(t *testing.T) {
+	m, st, v, stacks, _, _ := newTestModule(t)
+	ctx := context.Background()
+	setUpMail(t, m, stacks)
+	v.m[sealedKey] = []byte("another key")
+	stacks.since = time.Now().Unix()
+	state, _, _ := st.State(ctx)
+	m.tryBootstrap(ctx, state)
+	if state, _, _ = st.State(ctx); state.Bootstrapped != 0 || !strings.Contains(m.progress.Error, "does not sign in") {
+		t.Fatalf("bootstrapped %d, error %q", state.Bootstrapped, m.progress.Error)
 	}
 }
 

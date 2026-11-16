@@ -30,6 +30,12 @@
   record), it is journaled so that asking again finishes it, never blocks it. A store row that
   says a thing exists is written last. New code is reviewed for this; a flow that writes before
   its confirmation is a bug.
+- **Mail's rules name no mail server.** `core/mail` and `core/mail/provider` reach the server
+  only through `provider.Server` and `provider.Product`; a server's protocol, deployment and
+  quirks belong in its SDK (`sdk/<server>`), wired in `app/` alone. A change the rules need of a
+  server is a change to the provider interface and to the conformance suite
+  (`core/mail/provider/conformance`), which every SDK, and the server in memory, must pass.
+  `core/mail/boundary_test.go` enforces it.
 - **Two modules that call each other are tested together.** A fake answers for one module only:
   where a module's port is another of AutoPanel's modules (mail's `Stacks` is the services
   module, the services module's `Guard` is mail), at least one test wires the real modules and

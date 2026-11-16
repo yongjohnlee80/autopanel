@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/yongjohnlee80/autopanel/core/gate"
+	"github.com/yongjohnlee80/autopanel/core/mail/provider"
 	"github.com/yongjohnlee80/autopanel/core/services"
 	"github.com/yongjohnlee80/autopanel/internal/module"
 )
@@ -21,7 +22,7 @@ import (
 // State is the store's record of mail: that it exists, and how far it got.
 type State struct {
 	Host         string
-	Bootstrapped int64 // Unix seconds; 0 while Stalwart is not set up
+	Bootstrapped int64 // Unix seconds; 0 while the mail server is not set up
 	CreatedAt    int64
 }
 
@@ -75,8 +76,9 @@ type Stacks interface {
 
 // Host is the machine side of mail (host/mail).
 type Host interface {
-	// CPU is nil when the host's processor runs Stalwart (x86-64-v2 or arm64).
-	CPU() error
+	// CPU is the host's processor: its architecture (GOARCH's names) and its
+	// /proc/cpuinfo flags, for the product to judge.
+	CPU() (arch string, flags map[string]bool, err error)
 	// WriteDefinition writes the mail stack's compose.yaml into the stacks'
 	// directory.
 	WriteDefinition(ctx context.Context, compose []byte) error
@@ -85,11 +87,11 @@ type Host interface {
 	RemoveDefinition(ctx context.Context) error
 	// StackUID is the mail stack user's id.
 	StackUID(ctx context.Context) (int, error)
-	// FirstPassword is the one-time password Stalwart printed at its start at
-	// or after since, from the stack's journal.
-	FirstPassword(ctx context.Context, since time.Time) (string, error)
-	// Forwarder is the source Stalwart sees forwarded connections arrive
-	// from, as a prefix: the mail stack network's subnet, read from Podman.
+	// Journal is what the mail stack printed since, line by line, from its
+	// user's journal.
+	Journal(ctx context.Context, since time.Time) ([]string, error)
+	// Forwarder is the source the mail server sees forwarded connections
+	// arrive from, as a prefix: the mail stack network's subnet, from Podman.
 	Forwarder(ctx context.Context) (string, error)
 	// InstallLoopback writes and loads the loopback rule, ordered before the
 	// stack user's systemd; EnsureLoopback checks it and loads it again if the
@@ -106,11 +108,13 @@ type Host interface {
 	ResolveTXT(ctx context.Context, name string) ([]string, error)
 }
 
-// Sealed names: every key and setting of mail is in the vault.
+// Sealed names: every key and setting of mail is in the vault. The mail
+// server's own (its API key, its administrator) are under sealedServer, by the
+// names its product gives them.
 const (
 	sealedConfig = "mail/config"
-	sealedAdmin  = "mail/admin"
-	sealedKey    = "mail/apikey"
+	sealedServer = "mail/"
+	sealedKey    = sealedServer + provider.SealedAPIKey
 )
 
 // Config is mail's settings, sealed as mail/config.
@@ -127,10 +131,10 @@ const defaultQuota = 5 << 30
 var (
 	ErrNotSetUp          = errors.New("mail: mail is not set up")
 	ErrSetUp             = errors.New("mail: mail is set up already")
-	ErrNotReady          = errors.New("mail: Stalwart is not set up yet")
+	ErrNotReady          = errors.New("mail: the mail server is not set up yet")
 	ErrBadHost           = errors.New("mail: the mail host is not a host name")
 	ErrNotRegistered     = errors.New("mail: the domain is not in the registry")
-	ErrCPU               = errors.New("mail: this processor cannot run Stalwart")
+	ErrCPU               = errors.New("mail: this processor cannot run the mail server")
 	ErrLocked            = errors.New("mail: the vault is locked")
 	ErrNoSecret          = errors.New("mail: no such sealed value")
 	ErrDomainExists      = errors.New("mail: the domain receives mail already")
@@ -139,12 +143,12 @@ var (
 	ErrBadAddress        = errors.New("mail: not a mail address of a mail domain")
 	ErrNoAccount         = errors.New("mail: no such account")
 	ErrAccountExists     = errors.New("mail: the account exists")
-	ErrStalwart          = errors.New("mail: Stalwart refused")
-	ErrAdminAccount      = errors.New("mail: that is Stalwart's administrator")
+	ErrServer            = errors.New("mail: the mail server refused")
+	ErrAdminAccount      = errors.New("mail: that is the mail server's administrator")
 	ErrNoRecord          = errors.New("mail: no record of that name and type is held by another")
 	ErrNoPending         = errors.New("mail: no setup is waiting to be applied")
 	ErrChanged           = errors.New("mail: the setup changed since it was reviewed")
-	ErrWeakSecret        = errors.New("mail: Stalwart made a weak app password")
+	ErrWeakSecret        = errors.New("mail: the mail server made a weak app password")
 	ErrExpired           = errors.New("mail: the app password expired before it was kept")
 	ErrNoAppPassword     = errors.New("mail: no such app password")
 	ErrBadDescription    = errors.New("mail: an app password's device name is 1 to 64 characters")
@@ -161,6 +165,7 @@ type Module struct {
 	registry Registry
 	stacks   Stacks
 	host     Host
+	product  provider.Product // the mail server: its stack, its first start, its API
 	streams  Streams
 	log      *slog.Logger
 	now      func() time.Time
@@ -201,8 +206,8 @@ type Progress struct {
 }
 
 // NewModule is the mail verbs and loop.
-func NewModule(store Store, vault Vault, registry Registry, stacks Stacks, host Host, streams Streams, log *slog.Logger) *Module {
-	return &Module{store: store, vault: vault, registry: registry, stacks: stacks, host: host, streams: streams, log: log, now: time.Now,
+func NewModule(store Store, vault Vault, registry Registry, stacks Stacks, host Host, product provider.Product, streams Streams, log *slog.Logger) *Module {
+	return &Module{store: store, vault: vault, registry: registry, stacks: stacks, host: host, product: product, streams: streams, log: log, now: time.Now,
 		base: ManageURL(), sync: syncState{kick: make(chan struct{}, 1)}}
 }
 
@@ -230,10 +235,10 @@ func (m *Module) Errors() []module.PublicError {
 		{Err: ErrSetUp, Code: -32131, Name: "mail.set_up", Message: "mail is set up already"},
 		{Err: ErrNoPending, Code: -32148, Name: "mail.no_pending", Message: "no setup is waiting to be applied: Mail → Set up mail first"},
 		{Err: ErrChanged, Code: -32149, Name: "mail.changed", Message: "the setup changed since it was reviewed: set mail up again"},
-		{Err: ErrNotReady, Code: -32132, Name: "mail.not_ready", Message: "Stalwart is not set up yet: apply the mail stack, and wait for mail.status to say ready"},
+		{Err: ErrNotReady, Code: -32132, Name: "mail.not_ready", Message: "the mail server is not set up yet: apply the mail stack, and wait for mail.status to say ready"},
 		{Err: ErrBadHost, Code: -32133, Name: "mail.bad_host", Message: "the mail host is a host name with a dot: mail.example.com"},
 		{Err: ErrNotRegistered, Code: -32134, Name: "mail.not_registered", Message: "the domain is not in the registry: add it under Domains first"},
-		{Err: ErrCPU, Code: -32135, Name: "mail.cpu", Message: "this processor cannot run Stalwart, which needs x86-64-v2 (SSE4.2, POPCNT) or arm64"},
+		{Err: ErrCPU, Code: -32135, Name: "mail.cpu", Message: "this processor cannot run the mail server"},
 		{Err: ErrLocked, Code: -32136, Name: "mail.locked", Message: "the vault is locked: log in as root first"},
 		{Err: ErrDomainExists, Code: -32137, Name: "mail.domain_exists", Message: "the domain receives mail already"},
 		{Err: ErrNoDomain, Code: -32138, Name: "mail.no_domain", Message: "the domain does not receive mail"},
@@ -241,14 +246,14 @@ func (m *Module) Errors() []module.PublicError {
 		{Err: ErrBadAddress, Code: -32140, Name: "mail.bad_address", Message: "an address is a local part (letters, digits, . _ + -) and a domain that receives mail"},
 		{Err: ErrNoAccount, Code: -32141, Name: "mail.no_account", Message: "no such account"},
 		{Err: ErrAccountExists, Code: -32142, Name: "mail.account_exists", Message: "that account exists"},
-		{Err: ErrStalwart, Code: -32144, Name: "mail.refused", Message: "Stalwart refused the change"},
+		{Err: ErrServer, Code: -32144, Name: "mail.refused", Message: "the mail server refused the change"},
 		{Err: ErrNoRecord, Code: -32146, Name: "mail.no_record", Message: "no needed record of that name and type is held by one AutoPanel did not write"},
 		{Err: ErrNoDNS, Code: -32147, Name: "mail.no_dns", Message: "no DNS token: set one (certs.cloudflare.set) for AutoPanel to publish records"},
-		{Err: ErrWeakSecret, Code: -32175, Name: "mail.weak_secret", Message: "Stalwart made an app password weaker than 128 bits; it was destroyed, and none is handed out until Stalwart is fixed"},
+		{Err: ErrWeakSecret, Code: -32175, Name: "mail.weak_secret", Message: "the mail server made an app password weaker than 128 bits; it was destroyed, and none is handed out until the server is fixed"},
 		{Err: ErrExpired, Code: -32176, Name: "mail.expired", Message: "the app password expired before it was kept, and was destroyed: add another"},
 		{Err: ErrNoAppPassword, Code: -32177, Name: "mail.no_app_password", Message: "the account has no such app password"},
 		{Err: ErrBadDescription, Code: -32178, Name: "mail.bad_description", Message: "an app password's device name is 1 to 64 characters, with no control characters"},
-		{Err: ErrAdminAccount, Code: -32145, Name: "mail.admin_account", Message: "that address is Stalwart's administrator, which AutoPanel manages Stalwart with; it is not a mailbox"},
+		{Err: ErrAdminAccount, Code: -32145, Name: "mail.admin_account", Message: "that address is the mail server's administrator, which AutoPanel manages it with; it is not a mailbox"},
 	}
 }
 
@@ -267,9 +272,9 @@ func adminChange(verb, param, doc string) module.Contract {
 func (m *Module) Verbs() []module.Verb {
 	return []module.Verb{
 		module.Handle(module.Contract{Verb: "mail.status", Discloses: module.Plain, Since: 6, Result: "{set_up, host, bootstrapped, stack, step, error, at, loopback, domains}",
-			Doc: "Whether mail is set up, how far Stalwart's setting up got, the mail stack's state, the loopback rule's, and the mail domains."}, m.status),
+			Doc: "Whether mail is set up, how far the mail server's setting up got, the mail stack's state, the loopback rule's, and the mail domains."}, m.status),
 		module.Handle(adminChange("mail.setup", "{host, domain}",
-			"Answers the review of the mail stack (Stalwart, pinned) for this host and first domain, and holds the answers until mail.setup.apply. It writes nothing: a setup left here leaves no trace, and may be asked again."), m.setup),
+			"Answers the review of the mail stack (the mail server, pinned) for this host and first domain, and holds the answers until mail.setup.apply. It writes nothing: a setup left here leaves no trace, and may be asked again."), m.setup),
 		module.Handle(adminChange("mail.setup.apply", "{accept}",
 			"Applies the setup mail.setup reviewed, as one transaction: the stack's user, the loopback rule, its definition, the stack added and started, then the record of the host and first domain. A step that fails undoes the ones before it; the stack's own apply, once begun, is finished by asking again. Refused unless accept is the review's sha256."), m.apply),
 		module.Handle(module.Contract{Verb: "mail.domain.list", Discloses: module.Plain, Since: 6, Result: "[{name}]", Doc: "The domains that receive mail."}, m.domainList),
@@ -310,7 +315,7 @@ func (m *Module) Review(ctx context.Context, name string, compose []byte) []serv
 		return nil
 	}
 	_, recorded, err := m.store.State(ctx)
-	ours := m.setupOpen.Load() && string(compose) == string(Compose())
+	ours := m.setupOpen.Load() && string(compose) == string(m.compose())
 	if err != nil || (!recorded && !ours) {
 		return []services.Finding{{ID: "reserved-name", Severity: services.Refused,
 			Detail: "the stack mail is AutoPanel's: set it up from Mail → Set up mail"}}
@@ -320,9 +325,9 @@ func (m *Module) Review(ctx context.Context, name string, compose []byte) []serv
 	// the like are stacks of their own.
 	if st, _ := services.Parse(compose, nil); len(st.Services) != 1 {
 		return []services.Finding{{ID: "mail-one-service", Severity: services.Refused,
-			Detail: "the mail stack runs Stalwart alone: it trusts its network, so any other service belongs in a stack of its own"}}
+			Detail: "the mail stack runs the mail server alone: it trusts its network, so any other service belongs in a stack of its own"}}
 	}
-	if string(compose) != string(Compose()) {
+	if string(compose) != string(m.compose()) {
 		return []services.Finding{{ID: "not-autopanels", Severity: services.Warning,
 			Detail: "the mail stack's definition is not the one AutoPanel wrote; Mail may not manage it"}}
 	}
@@ -338,20 +343,13 @@ func (m *Module) Reserved() []services.Claim {
 	return out
 }
 
-// passwordLine is Stalwart's first-start banner line that holds its one-time
-// password.
-var passwordLine = regexp.MustCompile(`(?i)(password:\s*)\S+`)
-
-// Mask hides the one-time password in the mail stack's log lines.
+// Mask hides any secret in the mail stack's log lines: the mail server's
+// product knows which.
 func (m *Module) Mask(name string, lines []string) []string {
 	if name != Stack {
 		return lines
 	}
-	out := make([]string, len(lines))
-	for i, l := range lines {
-		out[i] = passwordLine.ReplaceAllString(l, "${1}[hidden]")
-	}
-	return out
+	return m.product.Mask(lines)
 }
 
 // --- status and setup ---------------------------------------------------------
@@ -438,8 +436,10 @@ func (m *Module) setup(ctx context.Context, p SetupAsk) (Setup, error) {
 	if err != nil {
 		return Setup{}, err
 	}
-	if err := m.host.CPU(); err != nil {
-		return Setup{}, fmt.Errorf("%w: %v", ErrCPU, err)
+	if arch, flags, err := m.host.CPU(); err != nil {
+		return Setup{}, err
+	} else if err := m.product.CPU(arch, flags); err != nil {
+		return Setup{}, with(ErrCPU, err.Error())
 	}
 	if _, err := m.vault.Get(ctx, sealedConfig); errors.Is(err, ErrLocked) { // the apply seals the settings
 		return Setup{}, err
@@ -452,7 +452,7 @@ func (m *Module) setup(ctx context.Context, p SetupAsk) (Setup, error) {
 			return Setup{}, err
 		}
 	}
-	rev, err := m.stacks.CheckDraft(ctx, Stack, Compose())
+	rev, err := m.stacks.CheckDraft(ctx, Stack, m.compose())
 	if err != nil {
 		return Setup{}, err
 	}
@@ -516,7 +516,7 @@ func (m *Module) apply(ctx context.Context, p Accept) (Setup, error) {
 		return fail(fmt.Errorf("mail: the loopback rule: %w", err))
 	}
 	undo = append(undo, func(ctx context.Context) error { return m.host.RemoveLoopback(ctx, uid) })
-	if err := m.host.WriteDefinition(ctx, Compose()); err != nil {
+	if err := m.host.WriteDefinition(ctx, m.compose()); err != nil {
 		return fail(err)
 	}
 	undo = append(undo, m.host.RemoveDefinition)
@@ -681,7 +681,7 @@ func (m *Module) tryBootstrap(ctx context.Context, st State) {
 	}
 	m.note("setting up", "")
 	if err := m.bootstrap(ctx, st, time.Unix(since, 0)); err != nil {
-		m.log.Warn("mail: setting Stalwart up", "err", err)
+		m.log.Warn("mail: setting the mail server up", "err", err)
 		m.note("setting up", err.Error())
 	}
 }
@@ -708,11 +708,10 @@ func (m *Module) restartWait(ctx context.Context) (time.Time, error) {
 	return time.Time{}, errors.New("mail: the stack did not come back after a restart")
 }
 
-// bootstrap: the one-time password Stalwart printed sets it up, which answers
-// with the permanent administrator (sealed at once); a restart ends the
-// one-time password; the administrator moves the listeners to the ports and
-// the trust the gate needs and makes AutoPanel's API key (sealed); a restart
-// applies the listeners. Only then is mail marked set up.
+// bootstrap has the product take the freshly started server to one AutoPanel
+// manages (its steps are the product's, resumable through the sealed values
+// it keeps); then the sealed API key must sign in, and only then is mail
+// marked set up.
 func (m *Module) bootstrap(ctx context.Context, st State, upSince time.Time) error {
 	cfgRaw, err := m.vault.Get(ctx, sealedConfig)
 	if err != nil {
@@ -722,53 +721,8 @@ func (m *Module) bootstrap(ctx context.Context, st State, upSince time.Time) err
 	if err := json.Unmarshal(cfgRaw, &cfg); err != nil {
 		return fmt.Errorf("mail's settings do not parse: %w", err)
 	}
-	var admin Admin
-	if raw, err := m.vault.Get(ctx, sealedAdmin); err == nil {
-		_ = json.Unmarshal(raw, &admin) // set up already, by an earlier try
-	} else if !errors.Is(err, ErrNoSecret) {
-		return err
-	}
-	if admin.Secret == "" {
-		once, err := m.host.FirstPassword(ctx, upSince)
-		if err != nil {
-			return fmt.Errorf("the one-time password: %w", err)
-		}
-		c := NewClient(m.base, Basic("admin", once))
-		admin, err = c.SetUp(ctx, Bootstrap{Hostname: cfg.Host, Domain: cfg.FirstDomain})
-		if err != nil {
-			return fmt.Errorf("setting Stalwart up: %w", err)
-		}
-		raw, _ := json.Marshal(admin)
-		if err := m.vault.Put(ctx, sealedAdmin, raw); err != nil {
-			return fmt.Errorf("sealing the administrator: %w", err)
-		}
-		if upSince, err = m.restartWait(ctx); err != nil {
-			return err
-		}
-	}
-	c := NewClient(m.base, Basic(admin.Username, admin.Secret))
-	if _, err := c.Domains(ctx); err != nil {
-		return fmt.Errorf("signing in as the administrator: %w", err)
-	}
-	forwarder, err := m.host.Forwarder(ctx)
-	if err != nil {
-		return fmt.Errorf("the forwarder's address: %w", err)
-	}
-	if err := c.ConfigureListeners(ctx, Listeners, forwarder); err != nil {
-		return fmt.Errorf("the listeners: %w", err)
-	}
-	if _, err := m.vault.Get(ctx, sealedKey); errors.Is(err, ErrNoSecret) {
-		_, key, err := c.CreateAPIKey(ctx, "autopanel core")
-		if err != nil {
-			return fmt.Errorf("the API key: %w", err)
-		}
-		if err := m.vault.Put(ctx, sealedKey, []byte(key)); err != nil {
-			return fmt.Errorf("sealing the API key: %w", err)
-		}
-	} else if err != nil {
-		return err
-	}
-	if _, err := m.restartWait(ctx); err != nil {
+	env := &bootEnv{m: m, set: provider.Settings{Host: cfg.Host, FirstDomain: cfg.FirstDomain}, since: upSince}
+	if err := m.product.Bootstrap(ctx, env); err != nil {
 		return err
 	}
 	if _, err := m.client().Domains(ctx); err != nil {
@@ -777,21 +731,22 @@ func (m *Module) bootstrap(ctx context.Context, st State, upSince time.Time) err
 	if err := m.store.SetBootstrapped(ctx, m.now().Unix()); err != nil {
 		return err
 	}
-	m.log.Info("mail: Stalwart is set up", "host", st.Host)
+	m.log.Info("mail: the mail server is set up", "server", m.product.Name(), "host", st.Host)
 	m.note("ready", "")
 	return nil
 }
 
-// client is Stalwart's API as the core uses it: with the sealed API key.
-func (m *Module) client() *Client {
-	return NewClient(m.base, Bearer(func(ctx context.Context) (string, error) {
+// client is the mail server's API as the core uses it: with the sealed API
+// key.
+func (m *Module) client() provider.Server {
+	return m.product.Client(m.base, func(ctx context.Context) (string, error) {
 		k, err := m.vault.Get(ctx, sealedKey)
 		return string(k), err
-	}))
+	})
 }
 
 // ready is the client of a set-up mail, or why there is none.
-func (m *Module) ready(ctx context.Context) (*Client, error) {
+func (m *Module) ready(ctx context.Context) (provider.Server, error) {
 	st, ok, err := m.store.State(ctx)
 	switch {
 	case err != nil:
@@ -804,16 +759,17 @@ func (m *Module) ready(ctx context.Context) (*Client, error) {
 	return m.client(), nil
 }
 
-// stalwartErr turns Stalwart's refusal into the declared error, its reason
-// the detail.
-func stalwartErr(err error) error {
-	var se *SetError
-	var me *MethodError
+// serverErr turns the mail server's refusal into the declared error, its
+// reason the detail.
+func serverErr(err error) error {
+	var r *provider.Refusal
 	switch {
-	case errors.As(err, &se):
-		return with(ErrStalwart, strings.TrimSpace(se.Type+": "+se.Description))
-	case errors.As(err, &me):
-		return with(ErrStalwart, strings.TrimSpace(me.Type+": "+me.Description))
+	case err == nil:
+		return nil
+	case errors.As(err, &r):
+		return with(ErrServer, r.Why)
+	case errors.Is(err, provider.ErrOverLimit):
+		return with(ErrServer, err.Error())
 	}
 	return err
 }
@@ -879,9 +835,9 @@ func (m *Module) domainAdd(ctx context.Context, p Name) (DomainView, error) {
 	if err != nil {
 		return DomainView{}, err
 	}
-	if !slices.ContainsFunc(theirs, func(d Domain) bool { return d.Name == name }) {
+	if !slices.ContainsFunc(theirs, func(d provider.Domain) bool { return d.Name == name }) {
 		if _, err := c.AddDomain(ctx, name); err != nil {
-			return DomainView{}, stalwartErr(err)
+			return DomainView{}, serverErr(err)
 		}
 	}
 	if err := m.store.AddDomain(ctx, name); err != nil {
@@ -922,7 +878,7 @@ func (m *Module) domainRemove(ctx context.Context, p Name) (struct{}, error) {
 			}
 		}
 		if err := c.RemoveDomain(ctx, d.ID); err != nil {
-			return struct{}{}, stalwartErr(err)
+			return struct{}{}, serverErr(err)
 		}
 	}
 	if err := m.store.RemoveDomain(ctx, name); err != nil {
@@ -991,8 +947,8 @@ func (m *Module) address(ctx context.Context, addr string) (local, domain string
 	return local, domain, nil
 }
 
-// domainIDs maps Stalwart's domain ids to names.
-func domainIDs(ds []Domain) map[string]string {
+// domainIDs maps the mail server's domain ids to names.
+func domainIDs(ds []provider.Domain) map[string]string {
 	out := make(map[string]string, len(ds))
 	for _, d := range ds {
 		out[d.ID] = d.Name
@@ -1024,7 +980,7 @@ func (m *Module) accountList(ctx context.Context, p DomainAsk) ([]AccountView, e
 		}
 		v := AccountView{Address: a.Address, Quota: a.Quota, Used: a.Used, Aliases: []string{}}
 		for _, al := range a.Aliases {
-			v.Aliases = append(v.Aliases, al.Name+"@"+names[al.DomainID])
+			v.Aliases = append(v.Aliases, al.Local+"@"+names[al.DomainID])
 		}
 		out = append(out, v)
 	}
@@ -1032,10 +988,10 @@ func (m *Module) accountList(ctx context.Context, p DomainAsk) ([]AccountView, e
 }
 
 // find is the account at an address, with Stalwart's id for its domain.
-func (m *Module) find(ctx context.Context, c *Client, local, domain string) (Account, string, error) {
+func (m *Module) find(ctx context.Context, c provider.Server, local, domain string) (provider.Account, string, error) {
 	ds, err := c.Domains(ctx)
 	if err != nil {
-		return Account{}, "", err
+		return provider.Account{}, "", err
 	}
 	domainID := ""
 	for _, d := range ds {
@@ -1044,21 +1000,21 @@ func (m *Module) find(ctx context.Context, c *Client, local, domain string) (Acc
 		}
 	}
 	if domainID == "" {
-		return Account{}, "", ErrBadAddress
+		return provider.Account{}, "", ErrBadAddress
 	}
 	accounts, err := c.Accounts(ctx)
 	if err != nil {
-		return Account{}, "", err
+		return provider.Account{}, "", err
 	}
 	for _, a := range accounts {
-		if a.DomainID == domainID && a.Name == local {
+		if a.DomainID == domainID && a.Local == local {
 			if a.Admin { // never changed or removed through Mail: AutoPanel would lose its way in
-				return Account{}, domainID, ErrAdminAccount
+				return provider.Account{}, domainID, ErrAdminAccount
 			}
 			return a, domainID, nil
 		}
 	}
-	return Account{}, domainID, ErrNoAccount
+	return provider.Account{}, domainID, ErrNoAccount
 }
 
 func (m *Module) accountAdd(ctx context.Context, p AccountAsk) (AccountView, error) {
@@ -1085,8 +1041,8 @@ func (m *Module) accountAdd(ctx context.Context, p AccountAsk) (AccountView, err
 	if err != nil {
 		return AccountView{}, err
 	}
-	if _, err := c.AddAccount(ctx, NewAccount{Name: local, DomainID: domainID, Secret: secret, Quota: quota}); err != nil {
-		return AccountView{}, stalwartErr(err)
+	if _, err := c.AddAccount(ctx, provider.NewAccount{Local: local, DomainID: domainID, PasswordHash: secret, Quota: quota, AppPasswords: AppPasswordLimit}); err != nil {
+		return AccountView{}, serverErr(err)
 	}
 	return AccountView{Address: local + "@" + domain, Quota: quota, Aliases: []string{}}, nil
 }
@@ -1107,7 +1063,7 @@ func (m *Module) accountQuota(ctx context.Context, p AccountAsk) (struct{}, erro
 	if err != nil {
 		return struct{}{}, err
 	}
-	return struct{}{}, stalwartErr(c.SetQuota(ctx, a.ID, p.Quota))
+	return struct{}{}, serverErr(c.SetQuota(ctx, a.ID, p.Quota))
 }
 
 func (m *Module) accountRemove(ctx context.Context, p AccountAsk) (struct{}, error) {
@@ -1123,7 +1079,7 @@ func (m *Module) accountRemove(ctx context.Context, p AccountAsk) (struct{}, err
 	if err != nil {
 		return struct{}{}, err
 	}
-	return struct{}{}, stalwartErr(c.RemoveAccount(ctx, a.ID))
+	return struct{}{}, serverErr(c.RemoveAccount(ctx, a.ID))
 }
 
 // --- records ------------------------------------------------------------------
@@ -1183,7 +1139,7 @@ func (m *Module) recordsTakeover(ctx context.Context, p TakeoverAsk) (struct{}, 
 	for _, v := range m.lastSync().Records[owner] {
 		if v.Name == strings.ToLower(p.Name) && v.Type == strings.ToUpper(p.Type) && v.State == "different" {
 			if err := m.takeover(ctx, owner, st.Host, v.Record); err != nil {
-				return struct{}{}, with(ErrStalwart, err.Error())
+				return struct{}{}, with(ErrServer, err.Error())
 			}
 			m.kickSync()
 			return struct{}{}, nil
