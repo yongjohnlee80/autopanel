@@ -63,6 +63,18 @@
         <source>&amp;Add…</source>
         <translation>&amp;Add…</translation>
     </message>
+    <message id="autopanel.button.mail.appAdd">
+        <source>&amp;New app password…</source>
+        <translation>&amp;New app password…</translation>
+    </message>
+    <message id="autopanel.button.mail.appDone">
+        <source>&amp;Done: the device signed in</source>
+        <translation>&amp;Done: the device signed in</translation>
+    </message>
+    <message id="autopanel.button.mail.appRevoke">
+        <source>Re&amp;voke…</source>
+        <translation>Re&amp;voke…</translation>
+    </message>
     <message id="autopanel.button.mail.copy">
         <source>&amp;Copy value</source>
         <translation>&amp;Copy value</translation>
@@ -71,9 +83,9 @@
         <source>D&amp;NS records…</source>
         <translation>D&amp;NS records…</translation>
     </message>
-    <message id="autopanel.button.mail.password">
-        <source>&amp;Password…</source>
-        <translation>&amp;Password…</translation>
+    <message id="autopanel.button.mail.lock">
+        <source>L&amp;ock password…</source>
+        <translation>L&amp;ock password…</translation>
     </message>
     <message id="autopanel.button.mail.reload">
         <source>&amp;Reload</source>
@@ -791,6 +803,30 @@
         <source>Aliases</source>
         <translation>Aliases</translation>
     </message>
+    <message id="autopanel.label.mail.appIMAP">
+        <source>Incoming (IMAP)</source>
+        <translation>Incoming (IMAP)</translation>
+    </message>
+    <message id="autopanel.label.mail.appPending">
+        <source>Shown once. It works until %1: press Done once the device signs in, or it stops then. The QR code holds the password alone: scan it with the phone's camera and paste it into the password field.</source>
+        <translation>Shown once. It works until %1: press Done once the device signs in, or it stops then. The QR code holds the password alone: scan it with the phone's camera and paste it into the password field.</translation>
+    </message>
+    <message id="autopanel.label.mail.appSMTP">
+        <source>Outgoing (SMTP)</source>
+        <translation>Outgoing (SMTP)</translation>
+    </message>
+    <message id="autopanel.label.mail.appSMTPAlt">
+        <source>or outgoing</source>
+        <translation>or outgoing</translation>
+    </message>
+    <message id="autopanel.label.mail.appSecret">
+        <source>For the mail app's password field, typed as it is in the first line; the second is the same in groups of four, to check it.</source>
+        <translation>For the mail app's password field, typed as it is in the first line; the second is the same in groups of four, to check it.</translation>
+    </message>
+    <message id="autopanel.label.mail.appUser">
+        <source>User name</source>
+        <translation>User name</translation>
+    </message>
     <message id="autopanel.label.mail.certificate">
         <source>Certificate</source>
         <translation>Certificate</translation>
@@ -959,6 +995,10 @@
         <source>User</source>
         <translation>User</translation>
     </message>
+    <message id="autopanel.label.prompt.appPassword">
+        <source>The device it is for (such as Ana's phone)</source>
+        <translation>The device it is for (such as Ana's phone)</translation>
+    </message>
     <message id="autopanel.label.prompt.cloudflare">
         <source>Paste an API token from Cloudflare (My Profile → API Tokens) with Zone · Zone · Read and Zone · DNS · Edit on the zone of every domain here. AutoPanel checks it with Cloudflare, then keeps it sealed. Every certificate then comes through DNS, and mail's records are published for you.</source>
         <translation>Paste an API token from Cloudflare (My Profile → API Tokens) with Zone · Zone · Read and Zone · DNS · Edit on the zone of every domain here. AutoPanel checks it with Cloudflare, then keeps it sealed. Every certificate then comes through DNS, and mail's records are published for you.</translation>
@@ -982,10 +1022,6 @@
     <message id="autopanel.label.prompt.mailHost">
         <source>The mail host's name, under one of your domains. Its certificate and the domains' MX point at it:</source>
         <translation>The mail host's name, under one of your domains. Its certificate and the domains' MX point at it:</translation>
-    </message>
-    <message id="autopanel.label.prompt.mailPassword">
-        <source>The password for %1, 12 characters at least. It goes to the mail server and is kept nowhere else:</source>
-        <translation>The password for %1, 12 characters at least. It goes to the mail server and is kept nowhere else:</translation>
     </message>
     <message id="autopanel.label.prompt.passphraseAgain">
         <source>The new passphrase again</source>
@@ -1619,6 +1655,26 @@
         <source>%1 deleted</source>
         <translation>%1 deleted</translation>
     </message>
+    <message id="autopanel.notice.mail.appCancelled">
+        <source>%1: the app password was revoked</source>
+        <translation>%1: the app password was revoked</translation>
+    </message>
+    <message id="autopanel.notice.mail.appExpired">
+        <source>%1: the app password expired before Done and was destroyed; make another</source>
+        <translation>%1: the app password expired before Done and was destroyed; make another</translation>
+    </message>
+    <message id="autopanel.notice.mail.appKept">
+        <source>%1: the app password is kept</source>
+        <translation>%1: the app password is kept</translation>
+    </message>
+    <message id="autopanel.notice.mail.appNotRevoked">
+        <source>%1: the app password could not be revoked now; it stops working within ten minutes</source>
+        <translation>%1: the app password could not be revoked now; it stops working within ten minutes</translation>
+    </message>
+    <message id="autopanel.notice.mail.appRevoked">
+        <source>%1: revoked; that device no longer signs in</source>
+        <translation>%1: revoked; that device no longer signs in</translation>
+    </message>
     <message id="autopanel.notice.mail.applied">
         <source>mail is set up: Stalwart is starting, and Mail → Server says ready within a minute or two</source>
         <translation>mail is set up: Stalwart is starting, and Mail → Server says ready within a minute or two</translation>
@@ -1626,6 +1682,10 @@
     <message id="autopanel.notice.mail.badAddress">
         <source>an address is name@domain, of a domain that receives mail</source>
         <translation>an address is name@domain, of a domain that receives mail</translation>
+    </message>
+    <message id="autopanel.notice.mail.badDevice">
+        <source>a device's name is 1 to 64 characters</source>
+        <translation>a device's name is 1 to 64 characters</translation>
     </message>
     <message id="autopanel.notice.mail.badHost">
         <source>the mail host is a name with a dot: mail.example.com</source>
@@ -1646,6 +1706,14 @@
     <message id="autopanel.notice.mail.isHost">
         <source>that row is the mail host's own records: it receives no mail, so there is nothing to remove</source>
         <translation>that row is the mail host's own records: it receives no mail, so there is nothing to remove</translation>
+    </message>
+    <message id="autopanel.notice.mail.locked">
+        <source>%1: its own password is locked; only app passwords sign in</source>
+        <translation>%1: its own password is locked; only app passwords sign in</translation>
+    </message>
+    <message id="autopanel.notice.mail.noAppPassword">
+        <source>no app password is selected</source>
+        <translation>no app password is selected</translation>
     </message>
     <message id="autopanel.notice.mail.noClipboard">
         <source>this terminal takes no clipboard copy: select the value with the mouse</source>
@@ -1671,10 +1739,6 @@
         <source>Mail is not set up: Mail › Set up mail</source>
         <translation>Mail is not set up: Mail › Set up mail</translation>
     </message>
-    <message id="autopanel.notice.mail.passwordSet">
-        <source>%1's password set</source>
-        <translation>%1's password set</translation>
-    </message>
     <message id="autopanel.notice.mail.setUp">
         <source>mail is set up already</source>
         <translation>mail is set up already</translation>
@@ -1694,6 +1758,10 @@
     <message id="autopanel.notice.mail.weakPassword">
         <source>a password is 12 characters at least, 256 at most</source>
         <translation>a password is 12 characters at least, 256 at most</translation>
+    </message>
+    <message id="autopanel.notice.mail.weakSecret">
+        <source>Stalwart made an app password weaker than 128 bits; it was destroyed, and none is handed out until Stalwart is fixed</source>
+        <translation>Stalwart made an app password weaker than 128 bits; it was destroyed, and none is handed out until Stalwart is fixed</translation>
     </message>
     <message id="autopanel.notice.prefs.notKept">
         <source>the choice is shown but was not kept: %1</source>
@@ -1827,6 +1895,18 @@
         <source>Remove the domain %1? Its routes stay; the removal is refused while a route would be left under no domain.</source>
         <translation>Remove the domain %1? Its routes stay; the removal is refused while a route would be left under no domain.</translation>
     </message>
+    <message id="autopanel.question.mail.appFirst">
+        <source>%1 is made. Its devices sign in with app passwords: make one for its first device now?</source>
+        <translation>%1 is made. Its devices sign in with app passwords: make one for its first device now?</translation>
+    </message>
+    <message id="autopanel.question.mail.appRevoke">
+        <source>Revoke the app password of %1 (%2)? That device stops signing in at once.</source>
+        <translation>Revoke the app password of %1 (%2)? That device stops signing in at once.</translation>
+    </message>
+    <message id="autopanel.question.mail.lock">
+        <source>Replace %1's own password with one no one knows? Every device signed in with it stops; from then on only its app passwords sign in.</source>
+        <translation>Replace %1's own password with one no one knows? Every device signed in with it stops; from then on only its app passwords sign in.</translation>
+    </message>
     <message id="autopanel.question.mail.removeAccount">
         <source>Delete %1 and all its mail? This cannot be undone.</source>
         <translation>Delete %1 and all its mail? This cannot be undone.</translation>
@@ -1943,13 +2023,25 @@
         <source>Make a mail account</source>
         <translation>Make a mail account</translation>
     </message>
-    <message id="autopanel.tip.mail.accountPassword">
-        <source>Set the selected account's password</source>
-        <translation>Set the selected account's password</translation>
+    <message id="autopanel.tip.mail.accountLock">
+        <source>Replace the selected account's own password with one no one knows: only its app passwords sign in</source>
+        <translation>Replace the selected account's own password with one no one knows: only its app passwords sign in</translation>
     </message>
     <message id="autopanel.tip.mail.accountRemove">
         <source>Delete the selected account and its mail</source>
         <translation>Delete the selected account and its mail</translation>
+    </message>
+    <message id="autopanel.tip.mail.appAdd">
+        <source>Make an app password for a device of the selected account, shown once</source>
+        <translation>Make an app password for a device of the selected account, shown once</translation>
+    </message>
+    <message id="autopanel.tip.mail.appDone">
+        <source>Keep the app password: press once the device has signed in</source>
+        <translation>Keep the app password: press once the device has signed in</translation>
+    </message>
+    <message id="autopanel.tip.mail.appRevoke">
+        <source>Revoke the selected app password: its device stops signing in at once</source>
+        <translation>Revoke the selected app password: its device stops signing in at once</translation>
     </message>
     <message id="autopanel.tip.mail.copy">
         <source>Copy the selected record's value to the clipboard</source>
@@ -2099,9 +2191,21 @@
         <source>%1 · more than shown</source>
         <translation>%1 · more than shown</translation>
     </message>
+    <message id="autopanel.title.confirm.appFirst">
+        <source>App password</source>
+        <translation>App password</translation>
+    </message>
+    <message id="autopanel.title.confirm.appRevoke">
+        <source>Revoke the app password</source>
+        <translation>Revoke the app password</translation>
+    </message>
     <message id="autopanel.title.confirm.cloudflareClear">
         <source>Remove the Cloudflare token</source>
         <translation>Remove the Cloudflare token</translation>
+    </message>
+    <message id="autopanel.title.confirm.mailLock">
+        <source>Lock the mailbox's password</source>
+        <translation>Lock the mailbox's password</translation>
     </message>
     <message id="autopanel.title.confirm.mailRemoveAccount">
         <source>Delete a mail account</source>
@@ -2146,6 +2250,10 @@
     <message id="autopanel.title.dialog.about">
         <source>About AutoPanel</source>
         <translation>About AutoPanel</translation>
+    </message>
+    <message id="autopanel.title.dialog.appPassword">
+        <source>App password for %1 · %2</source>
+        <translation>App password for %1 · %2</translation>
     </message>
     <message id="autopanel.title.dialog.browse">
         <source>Add a stack: choose its folder</source>
@@ -2210,6 +2318,10 @@
     <message id="autopanel.title.list.mailAccounts">
         <source>Accounts</source>
         <translation>Accounts</translation>
+    </message>
+    <message id="autopanel.title.list.mailAppPasswords">
+        <source>App passwords</source>
+        <translation>App passwords</translation>
     </message>
     <message id="autopanel.title.list.mailDomains">
         <source>Domains</source>
@@ -2323,6 +2435,10 @@
         <source>Add a domain</source>
         <translation>Add a domain</translation>
     </message>
+    <message id="autopanel.title.prompt.appPassword">
+        <source>New app password</source>
+        <translation>New app password</translation>
+    </message>
     <message id="autopanel.title.prompt.cloudflare">
         <source>Cloudflare token</source>
         <translation>Cloudflare token</translation>
@@ -2346,10 +2462,6 @@
     <message id="autopanel.title.prompt.mailHost">
         <source>Set up mail: the mail host</source>
         <translation>Set up mail: the mail host</translation>
-    </message>
-    <message id="autopanel.title.prompt.mailPassword">
-        <source>Mail account password</source>
-        <translation>Mail account password</translation>
     </message>
     <message id="autopanel.title.prompt.passphrase">
         <source>Change your passphrase</source>
@@ -2526,6 +2638,14 @@
     <message id="autopanel.value.logins.ok">
         <source>ok</source>
         <translation>ok</translation>
+    </message>
+    <message id="autopanel.value.mail.appKept">
+        <source>in use</source>
+        <translation>in use</translation>
+    </message>
+    <message id="autopanel.value.mail.appPending">
+        <source>pending until %1</source>
+        <translation>pending until %1</translation>
     </message>
     <message id="autopanel.value.mail.hostRow">
         <source>%1 (mail host)</source>

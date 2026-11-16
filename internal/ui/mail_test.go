@@ -2,8 +2,11 @@ package ui
 
 import (
 	"context"
+	"fmt"
+	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/yongjohnlee80/golib/tui/decl/decltest"
 
@@ -13,14 +16,18 @@ import (
 
 // fakeMail is the Mail menu's daemon, in memory.
 type fakeMail struct {
-	status    mail.Status
-	records   map[string]mail.RecordsAnswer
-	accounts  []mail.AccountView
-	setups    []string // "host domain"
-	pending   string   // the setup the daemon holds until it is applied: "host domain"
-	asks      []string // "add-domain x", "takeover d TXT n", "sync"
-	passwords []string // what reached the daemon, for the test to compare; never shown
+	status   mail.Status
+	records  map[string]mail.RecordsAnswer
+	accounts []mail.AccountView
+	setups   []string                          // "host domain"
+	pending  string                            // the setup the daemon holds until it is applied: "host domain"
+	asks     []string                          // "add-domain x", "takeover d TXT n", "sync"
+	apps     map[string][]mail.AppPasswordView // by address
+	appSeq   int
 }
+
+// appSecret is the secret the fake daemon answers for its n-th app password.
+func appSecret(n int) string { return fmt.Sprintf("app_q7%034d", n) }
 
 func (f *fakeClient) MailStatus(context.Context) (mail.Status, error) {
 	f.mu.Lock()
@@ -94,18 +101,59 @@ func (f *fakeClient) MailAccounts(context.Context, string) ([]mail.AccountView, 
 	return append([]mail.AccountView(nil), f.mail.accounts...), nil
 }
 
-func (f *fakeClient) MailAddAccount(_ context.Context, address, password string, _ int64) error {
+func (f *fakeClient) MailAddAccount(_ context.Context, address string, _ int64) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.mail.passwords = append(f.mail.passwords, password)
+	f.mail.asks = append(f.mail.asks, "add-account "+address)
 	f.mail.accounts = append(f.mail.accounts, mail.AccountView{Address: address, Quota: 5 << 30, Aliases: []string{}})
 	return nil
 }
 
-func (f *fakeClient) MailSetPassword(_ context.Context, _, password string) error {
+func (f *fakeClient) MailLockAccount(_ context.Context, address string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.mail.passwords = append(f.mail.passwords, password)
+	f.mail.asks = append(f.mail.asks, "lock "+address)
+	return nil
+}
+
+func (f *fakeClient) MailAppPasswords(_ context.Context, address string) ([]mail.AppPasswordView, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]mail.AppPasswordView(nil), f.mail.apps[address]...), nil
+}
+
+func (f *fakeClient) MailAddAppPassword(_ context.Context, address, device string) (mail.NewAppPassword, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.mail.appSeq++
+	id := fmt.Sprintf("p%d", f.mail.appSeq)
+	if f.mail.apps == nil {
+		f.mail.apps = map[string][]mail.AppPasswordView{}
+	}
+	exp := time.Date(2026, 11, 17, 9, 10, 0, 0, time.Local).Unix()
+	f.mail.apps[address] = append(f.mail.apps[address], mail.AppPasswordView{ID: id, Description: device, CreatedAt: exp - 600, Pending: true, ExpiresAt: exp})
+	f.mail.asks = append(f.mail.asks, "app-add "+address+" "+device)
+	return mail.NewAppPassword{ID: id, Secret: appSecret(f.mail.appSeq), User: address, Host: "mail.example.com",
+		IMAP: 993, SMTP: 465, Submission: 587, ExpiresAt: exp}, nil
+}
+
+func (f *fakeClient) MailKeepAppPassword(_ context.Context, address, id string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for i, p := range f.mail.apps[address] {
+		if p.ID == id {
+			f.mail.apps[address][i].Pending, f.mail.apps[address][i].ExpiresAt = false, 0
+		}
+	}
+	f.mail.asks = append(f.mail.asks, "app-keep "+id)
+	return nil
+}
+
+func (f *fakeClient) MailRevokeAppPassword(_ context.Context, address, id string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.mail.apps[address] = slices.DeleteFunc(f.mail.apps[address], func(p mail.AppPasswordView) bool { return p.ID == id })
+	f.mail.asks = append(f.mail.asks, "app-revoke "+id)
 	return nil
 }
 
@@ -227,9 +275,12 @@ func TestTheMailDomainsPanel(t *testing.T) {
 	s.WaitForText(t, "nothing to remove")
 }
 
-// TestAMailPasswordIsNeverShown: Accounts › Add asks the address, then the
-// password in a dialog that shows nothing of it; a short one is refused there.
-func TestAMailPasswordIsNeverShown(t *testing.T) {
+// TestAnAppPasswordIsShownOnceAndKeptOnDone: Accounts › Add asks the address
+// alone (no password: the daemon makes one no one knows), then offers an app
+// password for the first device. Its dialog shows the secret, its groups of
+// four and a QR code; Done keeps it, and the secret leaves the screen. Another,
+// left with Escape, is revoked.
+func TestAnAppPasswordIsShownOnceAndKeptOnDone(t *testing.T) {
 	f := withMail()
 	h, s := startHost(t, f)
 	s.WaitForText(t, "CA LE staging")
@@ -242,28 +293,57 @@ func TestAMailPasswordIsNeverShown(t *testing.T) {
 	}
 	s.Keys(t, decltest.Type("bo@example.com")...)
 	s.Keys(t, enter)
-	s.WaitForText(t, "Mail account password")
-	s.Keys(t, decltest.Type("short")...)
+	s.WaitForText(t, "make one for its first device now?")
+	waitMailAsked(t, s, f, "add-account bo@example.com")
+	s.Keys(t, decltest.Type("y")...)
+	s.WaitForText(t, "New app password")
+	s.Keys(t, decltest.Type("Bo's phone")...)
 	s.Keys(t, enter)
-	s.WaitForText(t, "12 characters at least")
-	for range len("short") {
-		s.Keys(t, backspace)
+	secret := appSecret(1)
+	s.WaitForText(t, secret)
+	s.WaitForText(t, groupsOfFour(secret))
+	s.WaitForText(t, "bo@example.com")
+	s.WaitForText(t, "993")
+	s.WaitForText(t, "▀") // the QR code
+	s.WaitForText(t, "Shown once")
+	s.Keys(t, decltest.Type("d")...)
+	waitMailAsked(t, s, f, "app-keep p1")
+	s.WaitForText(t, "the app password is kept")
+	if strings.Contains(s.String(), secret) || strings.Contains(s.String(), "▀▀") {
+		t.Fatal("the secret stayed on the screen after Done")
 	}
-	const pw = "correct-horse-battery"
-	s.Keys(t, decltest.Type(pw)...)
-	if strings.Contains(s.String(), pw) || strings.Contains(s.String(), "correct-horse") {
-		t.Fatal("the password is on the screen")
-	}
+
+	// A second, for the selected account, left with Escape: revoked at once.
+	run(t, h, func() error { return h.mailAddAppPassword(1) })
+	s.WaitForText(t, "New app password")
+	s.Keys(t, decltest.Type("laptop")...)
 	s.Keys(t, enter)
-	s.WaitForText(t, "made")
-	f.mu.Lock()
-	got := f.mail.passwords
-	f.mu.Unlock()
-	if len(got) != 1 || got[0] != pw {
-		t.Fatalf("what reached the daemon: %d passwords", len(got))
+	s.WaitForText(t, appSecret(2))
+	s.Keys(t, escape)
+	waitMailAsked(t, s, f, "app-revoke p2")
+	s.WaitFor(t, "the second secret to leave the screen", func(sc string) bool { return !strings.Contains(sc, appSecret(2)) })
+}
+
+func waitMailAsked(t *testing.T, s *decltest.Screen, f *fakeClient, want string) {
+	t.Helper()
+	s.WaitFor(t, want, func(string) bool { return slices.Contains(f.mailAsked(), want) })
+}
+
+func TestQRTextDrawsTheCodeForTheTheme(t *testing.T) {
+	dark, err := qrText("app_abc", true)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if strings.Contains(s.String(), pw) {
-		t.Fatal("the password is on the screen after it was taken")
+	light, _ := qrText("app_abc", false)
+	lines := strings.Split(dark, "\n")
+	// Version 1 at level M is 21 modules, plus two of margin each side: 25
+	// wide, 13 lines of two module rows.
+	if len(lines) != 13 || len([]rune(lines[0])) != 25 {
+		t.Fatalf("the code is %d lines of %d", len(lines), len([]rune(lines[0])))
+	}
+	// On a dark window the margin is drawn (it is light); on a light one, not.
+	if lines[0] != strings.Repeat("█", 25) || strings.Split(light, "\n")[0] != strings.Repeat(" ", 25) {
+		t.Fatalf("the margin: dark %q, light %q", lines[0], strings.Split(light, "\n")[0])
 	}
 }
 

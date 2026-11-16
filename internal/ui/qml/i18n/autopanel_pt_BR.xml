@@ -63,6 +63,18 @@
         <source>&amp;Add…</source>
         <translation>&amp;Adicionar…</translation>
     </message>
+    <message id="autopanel.button.mail.appAdd">
+        <source>&amp;New app password…</source>
+        <translation>&amp;Nova senha de app…</translation>
+    </message>
+    <message id="autopanel.button.mail.appDone">
+        <source>&amp;Done: the device signed in</source>
+        <translation>Pronto: o &amp;dispositivo entrou</translation>
+    </message>
+    <message id="autopanel.button.mail.appRevoke">
+        <source>Re&amp;voke…</source>
+        <translation>Re&amp;vogar…</translation>
+    </message>
     <message id="autopanel.button.mail.copy">
         <source>&amp;Copy value</source>
         <translation>&amp;Copiar o valor</translation>
@@ -71,9 +83,9 @@
         <source>D&amp;NS records…</source>
         <translation>Registros D&amp;NS…</translation>
     </message>
-    <message id="autopanel.button.mail.password">
-        <source>&amp;Password…</source>
-        <translation>Senha (&amp;p)…</translation>
+    <message id="autopanel.button.mail.lock">
+        <source>L&amp;ock password…</source>
+        <translation>Bl&amp;oquear senha…</translation>
     </message>
     <message id="autopanel.button.mail.reload">
         <source>&amp;Reload</source>
@@ -791,6 +803,30 @@
         <source>Aliases</source>
         <translation>Aliases</translation>
     </message>
+    <message id="autopanel.label.mail.appIMAP">
+        <source>Incoming (IMAP)</source>
+        <translation>Entrada (IMAP)</translation>
+    </message>
+    <message id="autopanel.label.mail.appPending">
+        <source>Shown once. It works until %1: press Done once the device signs in, or it stops then. The QR code holds the password alone: scan it with the phone's camera and paste it into the password field.</source>
+        <translation>Mostrada uma vez. Funciona até %1: aperte Pronto quando o dispositivo entrar, ou ela para nessa hora. O código QR contém só a senha: leia com a câmera do celular e cole no campo de senha.</translation>
+    </message>
+    <message id="autopanel.label.mail.appSMTP">
+        <source>Outgoing (SMTP)</source>
+        <translation>Saída (SMTP)</translation>
+    </message>
+    <message id="autopanel.label.mail.appSMTPAlt">
+        <source>or outgoing</source>
+        <translation>ou saída</translation>
+    </message>
+    <message id="autopanel.label.mail.appSecret">
+        <source>For the mail app's password field, typed as it is in the first line; the second is the same in groups of four, to check it.</source>
+        <translation>Para o campo de senha do app de e-mail, digitada como está na primeira linha; a segunda é a mesma em grupos de quatro, para conferir.</translation>
+    </message>
+    <message id="autopanel.label.mail.appUser">
+        <source>User name</source>
+        <translation>Usuário</translation>
+    </message>
     <message id="autopanel.label.mail.certificate">
         <source>Certificate</source>
         <translation>Certificado</translation>
@@ -959,6 +995,10 @@
         <source>User</source>
         <translation>Usuário</translation>
     </message>
+    <message id="autopanel.label.prompt.appPassword">
+        <source>The device it is for (such as Ana's phone)</source>
+        <translation>O dispositivo a que se destina (como o celular da Ana)</translation>
+    </message>
     <message id="autopanel.label.prompt.cloudflare">
         <source>Paste an API token from Cloudflare (My Profile → API Tokens) with Zone · Zone · Read and Zone · DNS · Edit on the zone of every domain here. AutoPanel checks it with Cloudflare, then keeps it sealed. Every certificate then comes through DNS, and mail's records are published for you.</source>
         <translation>Cole um token de API do Cloudflare (My Profile → API Tokens) com Zone · Zone · Read e Zone · DNS · Edit na zona de cada domínio daqui. O AutoPanel o verifica com o Cloudflare e o guarda selado. A partir daí, cada certificado vem por DNS e os registros do e-mail são publicados para você.</translation>
@@ -982,10 +1022,6 @@
     <message id="autopanel.label.prompt.mailHost">
         <source>The mail host's name, under one of your domains. Its certificate and the domains' MX point at it:</source>
         <translation>O nome do servidor de e-mail, sob um dos seus domínios. O certificado e o MX dos domínios apontam para ele:</translation>
-    </message>
-    <message id="autopanel.label.prompt.mailPassword">
-        <source>The password for %1, 12 characters at least. It goes to the mail server and is kept nowhere else:</source>
-        <translation>A senha de %1, com 12 caracteres no mínimo. Vai para o servidor de e-mail e não é guardada em outro lugar:</translation>
     </message>
     <message id="autopanel.label.prompt.passphraseAgain">
         <source>The new passphrase again</source>
@@ -1619,6 +1655,26 @@
         <source>%1 deleted</source>
         <translation>%1 excluída</translation>
     </message>
+    <message id="autopanel.notice.mail.appCancelled">
+        <source>%1: the app password was revoked</source>
+        <translation>%1: a senha de app foi revogada</translation>
+    </message>
+    <message id="autopanel.notice.mail.appExpired">
+        <source>%1: the app password expired before Done and was destroyed; make another</source>
+        <translation>%1: a senha de app expirou antes de Pronto e foi destruída; crie outra</translation>
+    </message>
+    <message id="autopanel.notice.mail.appKept">
+        <source>%1: the app password is kept</source>
+        <translation>%1: a senha de app foi mantida</translation>
+    </message>
+    <message id="autopanel.notice.mail.appNotRevoked">
+        <source>%1: the app password could not be revoked now; it stops working within ten minutes</source>
+        <translation>%1: não foi possível revogar a senha de app agora; ela para de funcionar em dez minutos</translation>
+    </message>
+    <message id="autopanel.notice.mail.appRevoked">
+        <source>%1: revoked; that device no longer signs in</source>
+        <translation>%1: revogada; esse dispositivo não entra mais</translation>
+    </message>
     <message id="autopanel.notice.mail.applied">
         <source>mail is set up: Stalwart is starting, and Mail → Server says ready within a minute or two</source>
         <translation>o e-mail está configurado: o Stalwart está iniciando, e E-mail → Servidor dirá pronto em um ou dois minutos</translation>
@@ -1626,6 +1682,10 @@
     <message id="autopanel.notice.mail.badAddress">
         <source>an address is name@domain, of a domain that receives mail</source>
         <translation>um endereço é nome@domínio, de um domínio que recebe e-mail</translation>
+    </message>
+    <message id="autopanel.notice.mail.badDevice">
+        <source>a device's name is 1 to 64 characters</source>
+        <translation>o nome de um dispositivo tem de 1 a 64 caracteres</translation>
     </message>
     <message id="autopanel.notice.mail.badHost">
         <source>the mail host is a name with a dot: mail.example.com</source>
@@ -1646,6 +1706,14 @@
     <message id="autopanel.notice.mail.isHost">
         <source>that row is the mail host's own records: it receives no mail, so there is nothing to remove</source>
         <translation>essa linha são os registros do próprio servidor de e-mail: ele não recebe e-mail, então não há nada a remover</translation>
+    </message>
+    <message id="autopanel.notice.mail.locked">
+        <source>%1: its own password is locked; only app passwords sign in</source>
+        <translation>%1: a senha própria está bloqueada; só senhas de app entram</translation>
+    </message>
+    <message id="autopanel.notice.mail.noAppPassword">
+        <source>no app password is selected</source>
+        <translation>nenhuma senha de app está selecionada</translation>
     </message>
     <message id="autopanel.notice.mail.noClipboard">
         <source>this terminal takes no clipboard copy: select the value with the mouse</source>
@@ -1671,10 +1739,6 @@
         <source>Mail is not set up: Mail › Set up mail</source>
         <translation>O e-mail não está configurado: E-mail › Configurar e-mail</translation>
     </message>
-    <message id="autopanel.notice.mail.passwordSet">
-        <source>%1's password set</source>
-        <translation>senha de %1 definida</translation>
-    </message>
     <message id="autopanel.notice.mail.setUp">
         <source>mail is set up already</source>
         <translation>o e-mail já está configurado</translation>
@@ -1694,6 +1758,10 @@
     <message id="autopanel.notice.mail.weakPassword">
         <source>a password is 12 characters at least, 256 at most</source>
         <translation>uma senha tem 12 caracteres no mínimo e 256 no máximo</translation>
+    </message>
+    <message id="autopanel.notice.mail.weakSecret">
+        <source>Stalwart made an app password weaker than 128 bits; it was destroyed, and none is handed out until Stalwart is fixed</source>
+        <translation>O Stalwart criou uma senha de app com menos de 128 bits; ela foi destruída, e nenhuma é entregue até o Stalwart ser corrigido</translation>
     </message>
     <message id="autopanel.notice.prefs.notKept">
         <source>the choice is shown but was not kept: %1</source>
@@ -1827,6 +1895,18 @@
         <source>Remove the domain %1? Its routes stay; the removal is refused while a route would be left under no domain.</source>
         <translation>Remover o domínio %1? As rotas dele permanecem; a remoção é recusada enquanto uma rota ficaria sem domínio.</translation>
     </message>
+    <message id="autopanel.question.mail.appFirst">
+        <source>%1 is made. Its devices sign in with app passwords: make one for its first device now?</source>
+        <translation>%1 foi criada. Os dispositivos entram com senhas de app: criar uma para o primeiro dispositivo agora?</translation>
+    </message>
+    <message id="autopanel.question.mail.appRevoke">
+        <source>Revoke the app password of %1 (%2)? That device stops signing in at once.</source>
+        <translation>Revogar a senha de app de %1 (%2)? Esse dispositivo para de entrar na hora.</translation>
+    </message>
+    <message id="autopanel.question.mail.lock">
+        <source>Replace %1's own password with one no one knows? Every device signed in with it stops; from then on only its app passwords sign in.</source>
+        <translation>Substituir a senha própria de %1 por uma que ninguém conhece? Todo dispositivo que a usa para de entrar; daí em diante só as senhas de app entram.</translation>
+    </message>
     <message id="autopanel.question.mail.removeAccount">
         <source>Delete %1 and all its mail? This cannot be undone.</source>
         <translation>Excluir %1 e todos os seus e-mails? Isso não pode ser desfeito.</translation>
@@ -1943,13 +2023,25 @@
         <source>Make a mail account</source>
         <translation>Criar uma conta de e-mail</translation>
     </message>
-    <message id="autopanel.tip.mail.accountPassword">
-        <source>Set the selected account's password</source>
-        <translation>Definir a senha da conta selecionada</translation>
+    <message id="autopanel.tip.mail.accountLock">
+        <source>Replace the selected account's own password with one no one knows: only its app passwords sign in</source>
+        <translation>Substitui a senha própria da conta por uma que ninguém conhece: só as senhas de app entram</translation>
     </message>
     <message id="autopanel.tip.mail.accountRemove">
         <source>Delete the selected account and its mail</source>
         <translation>Excluir a conta selecionada e seus e-mails</translation>
+    </message>
+    <message id="autopanel.tip.mail.appAdd">
+        <source>Make an app password for a device of the selected account, shown once</source>
+        <translation>Cria uma senha de app para um dispositivo da conta selecionada, mostrada uma vez</translation>
+    </message>
+    <message id="autopanel.tip.mail.appDone">
+        <source>Keep the app password: press once the device has signed in</source>
+        <translation>Mantém a senha de app: aperte quando o dispositivo tiver entrado</translation>
+    </message>
+    <message id="autopanel.tip.mail.appRevoke">
+        <source>Revoke the selected app password: its device stops signing in at once</source>
+        <translation>Revoga a senha de app selecionada: o dispositivo para de entrar na hora</translation>
     </message>
     <message id="autopanel.tip.mail.copy">
         <source>Copy the selected record's value to the clipboard</source>
@@ -2099,9 +2191,21 @@
         <source>%1 · more than shown</source>
         <translation>%1 · mais do que o mostrado</translation>
     </message>
+    <message id="autopanel.title.confirm.appFirst">
+        <source>App password</source>
+        <translation>Senha de app</translation>
+    </message>
+    <message id="autopanel.title.confirm.appRevoke">
+        <source>Revoke the app password</source>
+        <translation>Revogar a senha de app</translation>
+    </message>
     <message id="autopanel.title.confirm.cloudflareClear">
         <source>Remove the Cloudflare token</source>
         <translation>Remover o token do Cloudflare</translation>
+    </message>
+    <message id="autopanel.title.confirm.mailLock">
+        <source>Lock the mailbox's password</source>
+        <translation>Bloquear a senha da caixa</translation>
     </message>
     <message id="autopanel.title.confirm.mailRemoveAccount">
         <source>Delete a mail account</source>
@@ -2146,6 +2250,10 @@
     <message id="autopanel.title.dialog.about">
         <source>About AutoPanel</source>
         <translation>Sobre o AutoPanel</translation>
+    </message>
+    <message id="autopanel.title.dialog.appPassword">
+        <source>App password for %1 · %2</source>
+        <translation>Senha de app de %1 · %2</translation>
     </message>
     <message id="autopanel.title.dialog.browse">
         <source>Add a stack: choose its folder</source>
@@ -2210,6 +2318,10 @@
     <message id="autopanel.title.list.mailAccounts">
         <source>Accounts</source>
         <translation>Contas</translation>
+    </message>
+    <message id="autopanel.title.list.mailAppPasswords">
+        <source>App passwords</source>
+        <translation>Senhas de app</translation>
     </message>
     <message id="autopanel.title.list.mailDomains">
         <source>Domains</source>
@@ -2323,6 +2435,10 @@
         <source>Add a domain</source>
         <translation>Adicionar um domínio</translation>
     </message>
+    <message id="autopanel.title.prompt.appPassword">
+        <source>New app password</source>
+        <translation>Nova senha de app</translation>
+    </message>
     <message id="autopanel.title.prompt.cloudflare">
         <source>Cloudflare token</source>
         <translation>Token do Cloudflare</translation>
@@ -2346,10 +2462,6 @@
     <message id="autopanel.title.prompt.mailHost">
         <source>Set up mail: the mail host</source>
         <translation>Configurar e-mail: o servidor</translation>
-    </message>
-    <message id="autopanel.title.prompt.mailPassword">
-        <source>Mail account password</source>
-        <translation>Senha da conta de e-mail</translation>
     </message>
     <message id="autopanel.title.prompt.passphrase">
         <source>Change your passphrase</source>
@@ -2526,6 +2638,14 @@
     <message id="autopanel.value.logins.ok">
         <source>ok</source>
         <translation>ok</translation>
+    </message>
+    <message id="autopanel.value.mail.appKept">
+        <source>in use</source>
+        <translation>em uso</translation>
+    </message>
+    <message id="autopanel.value.mail.appPending">
+        <source>pending until %1</source>
+        <translation>pendente até %1</translation>
     </message>
     <message id="autopanel.value.mail.hostRow">
         <source>%1 (mail host)</source>

@@ -118,6 +118,10 @@ func (m *Module) syncAll(ctx context.Context, st State) Sync {
 	}
 	out.Records[st.Host] = views
 
+	if err := m.sweepAppPasswords(ctx, c); err != nil {
+		fail("expired app passwords", err)
+	}
+
 	// The certificate last: obtaining one can take minutes, and the records
 	// must not wait for it (its challenge may even need them).
 	if m.certs != nil {

@@ -63,6 +63,18 @@
         <source>&amp;Add…</source>
         <translation>添加(&amp;a)…</translation>
     </message>
+    <message id="autopanel.button.mail.appAdd">
+        <source>&amp;New app password…</source>
+        <translation>新建应用密码(&amp;n)…</translation>
+    </message>
+    <message id="autopanel.button.mail.appDone">
+        <source>&amp;Done: the device signed in</source>
+        <translation>完成：设备已登录(&amp;d)</translation>
+    </message>
+    <message id="autopanel.button.mail.appRevoke">
+        <source>Re&amp;voke…</source>
+        <translation>吊销(&amp;v)…</translation>
+    </message>
     <message id="autopanel.button.mail.copy">
         <source>&amp;Copy value</source>
         <translation>复制值(&amp;c)</translation>
@@ -71,9 +83,9 @@
         <source>D&amp;NS records…</source>
         <translation>DNS 记录(&amp;n)…</translation>
     </message>
-    <message id="autopanel.button.mail.password">
-        <source>&amp;Password…</source>
-        <translation>密码(&amp;p)…</translation>
+    <message id="autopanel.button.mail.lock">
+        <source>L&amp;ock password…</source>
+        <translation>锁定密码(&amp;o)…</translation>
     </message>
     <message id="autopanel.button.mail.reload">
         <source>&amp;Reload</source>
@@ -791,6 +803,30 @@
         <source>Aliases</source>
         <translation>别名</translation>
     </message>
+    <message id="autopanel.label.mail.appIMAP">
+        <source>Incoming (IMAP)</source>
+        <translation>收件 (IMAP)</translation>
+    </message>
+    <message id="autopanel.label.mail.appPending">
+        <source>Shown once. It works until %1: press Done once the device signs in, or it stops then. The QR code holds the password alone: scan it with the phone's camera and paste it into the password field.</source>
+        <translation>只显示一次。有效至 %1：设备登录后请按完成，否则届时失效。二维码只包含密码：用手机相机扫描后粘贴到密码栏。</translation>
+    </message>
+    <message id="autopanel.label.mail.appSMTP">
+        <source>Outgoing (SMTP)</source>
+        <translation>发件 (SMTP)</translation>
+    </message>
+    <message id="autopanel.label.mail.appSMTPAlt">
+        <source>or outgoing</source>
+        <translation>或发件</translation>
+    </message>
+    <message id="autopanel.label.mail.appSecret">
+        <source>For the mail app's password field, typed as it is in the first line; the second is the same in groups of four, to check it.</source>
+        <translation>按第一行原样填入邮件应用的密码栏；第二行是按四个字符分组的同一密码，便于核对。</translation>
+    </message>
+    <message id="autopanel.label.mail.appUser">
+        <source>User name</source>
+        <translation>用户名</translation>
+    </message>
     <message id="autopanel.label.mail.certificate">
         <source>Certificate</source>
         <translation>证书</translation>
@@ -959,6 +995,10 @@
         <source>User</source>
         <translation>用户</translation>
     </message>
+    <message id="autopanel.label.prompt.appPassword">
+        <source>The device it is for (such as Ana's phone)</source>
+        <translation>用于哪台设备（如：安娜的手机）</translation>
+    </message>
     <message id="autopanel.label.prompt.cloudflare">
         <source>Paste an API token from Cloudflare (My Profile → API Tokens) with Zone · Zone · Read and Zone · DNS · Edit on the zone of every domain here. AutoPanel checks it with Cloudflare, then keeps it sealed. Every certificate then comes through DNS, and mail's records are published for you.</source>
         <translation>粘贴 Cloudflare 的 API 令牌（My Profile → API Tokens），需对此处每个域名所在的区域拥有 Zone · Zone · Read 和 Zone · DNS · Edit 权限。AutoPanel 会先向 Cloudflare 验证，再加密保存。此后所有证书都通过 DNS 获取，邮件的记录也会自动发布。</translation>
@@ -982,10 +1022,6 @@
     <message id="autopanel.label.prompt.mailHost">
         <source>The mail host's name, under one of your domains. Its certificate and the domains' MX point at it:</source>
         <translation>邮件主机名，位于你的某个域名之下。其证书和各域名的 MX 指向它：</translation>
-    </message>
-    <message id="autopanel.label.prompt.mailPassword">
-        <source>The password for %1, 12 characters at least. It goes to the mail server and is kept nowhere else:</source>
-        <translation>%1 的密码，至少 12 个字符。它只交给邮件服务器，不在别处保存：</translation>
     </message>
     <message id="autopanel.label.prompt.passphraseAgain">
         <source>The new passphrase again</source>
@@ -1619,6 +1655,26 @@
         <source>%1 deleted</source>
         <translation>已删除 %1</translation>
     </message>
+    <message id="autopanel.notice.mail.appCancelled">
+        <source>%1: the app password was revoked</source>
+        <translation>%1：已吊销应用密码</translation>
+    </message>
+    <message id="autopanel.notice.mail.appExpired">
+        <source>%1: the app password expired before Done and was destroyed; make another</source>
+        <translation>%1：应用密码在完成前已过期并被销毁；请重新创建</translation>
+    </message>
+    <message id="autopanel.notice.mail.appKept">
+        <source>%1: the app password is kept</source>
+        <translation>%1：已保留应用密码</translation>
+    </message>
+    <message id="autopanel.notice.mail.appNotRevoked">
+        <source>%1: the app password could not be revoked now; it stops working within ten minutes</source>
+        <translation>%1：暂时无法吊销应用密码；它将在十分钟内失效</translation>
+    </message>
+    <message id="autopanel.notice.mail.appRevoked">
+        <source>%1: revoked; that device no longer signs in</source>
+        <translation>%1：已吊销；该设备不能再登录</translation>
+    </message>
     <message id="autopanel.notice.mail.applied">
         <source>mail is set up: Stalwart is starting, and Mail → Server says ready within a minute or two</source>
         <translation>邮件已设置：Stalwart 正在启动，一两分钟内 邮件 → 服务器 将显示就绪</translation>
@@ -1626,6 +1682,10 @@
     <message id="autopanel.notice.mail.badAddress">
         <source>an address is name@domain, of a domain that receives mail</source>
         <translation>地址为 名称@域名，且该域名须接收邮件</translation>
+    </message>
+    <message id="autopanel.notice.mail.badDevice">
+        <source>a device's name is 1 to 64 characters</source>
+        <translation>设备名称为 1 到 64 个字符</translation>
     </message>
     <message id="autopanel.notice.mail.badHost">
         <source>the mail host is a name with a dot: mail.example.com</source>
@@ -1646,6 +1706,14 @@
     <message id="autopanel.notice.mail.isHost">
         <source>that row is the mail host's own records: it receives no mail, so there is nothing to remove</source>
         <translation>该行是邮件主机自身的记录：它不接收邮件，因此无可移除</translation>
+    </message>
+    <message id="autopanel.notice.mail.locked">
+        <source>%1: its own password is locked; only app passwords sign in</source>
+        <translation>%1：自身密码已锁定；只能用应用密码登录</translation>
+    </message>
+    <message id="autopanel.notice.mail.noAppPassword">
+        <source>no app password is selected</source>
+        <translation>未选择应用密码</translation>
     </message>
     <message id="autopanel.notice.mail.noClipboard">
         <source>this terminal takes no clipboard copy: select the value with the mouse</source>
@@ -1671,10 +1739,6 @@
         <source>Mail is not set up: Mail › Set up mail</source>
         <translation>邮件尚未设置：邮件 › 设置邮件</translation>
     </message>
-    <message id="autopanel.notice.mail.passwordSet">
-        <source>%1's password set</source>
-        <translation>已设置 %1 的密码</translation>
-    </message>
     <message id="autopanel.notice.mail.setUp">
         <source>mail is set up already</source>
         <translation>邮件已设置</translation>
@@ -1694,6 +1758,10 @@
     <message id="autopanel.notice.mail.weakPassword">
         <source>a password is 12 characters at least, 256 at most</source>
         <translation>密码至少 12 个字符，至多 256 个</translation>
+    </message>
+    <message id="autopanel.notice.mail.weakSecret">
+        <source>Stalwart made an app password weaker than 128 bits; it was destroyed, and none is handed out until Stalwart is fixed</source>
+        <translation>Stalwart 生成的应用密码弱于 128 位，已销毁；在 Stalwart 修复前不再发放</translation>
     </message>
     <message id="autopanel.notice.prefs.notKept">
         <source>the choice is shown but was not kept: %1</source>
@@ -1827,6 +1895,18 @@
         <source>Remove the domain %1? Its routes stay; the removal is refused while a route would be left under no domain.</source>
         <translation>移除域名 %1？其路由会保留；若会有路由不属于任何域名，则拒绝移除。</translation>
     </message>
+    <message id="autopanel.question.mail.appFirst">
+        <source>%1 is made. Its devices sign in with app passwords: make one for its first device now?</source>
+        <translation>%1 已创建。其设备用应用密码登录：现在为第一台设备创建一个吗？</translation>
+    </message>
+    <message id="autopanel.question.mail.appRevoke">
+        <source>Revoke the app password of %1 (%2)? That device stops signing in at once.</source>
+        <translation>吊销 %1（%2）的应用密码？该设备将立即无法登录。</translation>
+    </message>
+    <message id="autopanel.question.mail.lock">
+        <source>Replace %1's own password with one no one knows? Every device signed in with it stops; from then on only its app passwords sign in.</source>
+        <translation>将 %1 自身的密码替换为无人知道的密码？用它登录的设备都会停止；此后只能用应用密码登录。</translation>
+    </message>
     <message id="autopanel.question.mail.removeAccount">
         <source>Delete %1 and all its mail? This cannot be undone.</source>
         <translation>删除 %1 及其全部邮件？此操作无法撤销。</translation>
@@ -1943,13 +2023,25 @@
         <source>Make a mail account</source>
         <translation>创建邮件账户</translation>
     </message>
-    <message id="autopanel.tip.mail.accountPassword">
-        <source>Set the selected account's password</source>
-        <translation>设置所选账户的密码</translation>
+    <message id="autopanel.tip.mail.accountLock">
+        <source>Replace the selected account's own password with one no one knows: only its app passwords sign in</source>
+        <translation>将所选账户自身的密码替换为无人知道的密码：此后只能用应用密码登录</translation>
     </message>
     <message id="autopanel.tip.mail.accountRemove">
         <source>Delete the selected account and its mail</source>
         <translation>删除所选账户及其邮件</translation>
+    </message>
+    <message id="autopanel.tip.mail.appAdd">
+        <source>Make an app password for a device of the selected account, shown once</source>
+        <translation>为所选账户的一台设备创建应用密码，只显示一次</translation>
+    </message>
+    <message id="autopanel.tip.mail.appDone">
+        <source>Keep the app password: press once the device has signed in</source>
+        <translation>保留应用密码：设备登录后再按</translation>
+    </message>
+    <message id="autopanel.tip.mail.appRevoke">
+        <source>Revoke the selected app password: its device stops signing in at once</source>
+        <translation>吊销所选应用密码：该设备立即无法登录</translation>
     </message>
     <message id="autopanel.tip.mail.copy">
         <source>Copy the selected record's value to the clipboard</source>
@@ -2099,9 +2191,21 @@
         <source>%1 · more than shown</source>
         <translation>%1 · 未全部显示</translation>
     </message>
+    <message id="autopanel.title.confirm.appFirst">
+        <source>App password</source>
+        <translation>应用密码</translation>
+    </message>
+    <message id="autopanel.title.confirm.appRevoke">
+        <source>Revoke the app password</source>
+        <translation>吊销应用密码</translation>
+    </message>
     <message id="autopanel.title.confirm.cloudflareClear">
         <source>Remove the Cloudflare token</source>
         <translation>删除 Cloudflare 令牌</translation>
+    </message>
+    <message id="autopanel.title.confirm.mailLock">
+        <source>Lock the mailbox's password</source>
+        <translation>锁定邮箱密码</translation>
     </message>
     <message id="autopanel.title.confirm.mailRemoveAccount">
         <source>Delete a mail account</source>
@@ -2146,6 +2250,10 @@
     <message id="autopanel.title.dialog.about">
         <source>About AutoPanel</source>
         <translation>关于 AutoPanel</translation>
+    </message>
+    <message id="autopanel.title.dialog.appPassword">
+        <source>App password for %1 · %2</source>
+        <translation>%1 的应用密码 · %2</translation>
     </message>
     <message id="autopanel.title.dialog.browse">
         <source>Add a stack: choose its folder</source>
@@ -2210,6 +2318,10 @@
     <message id="autopanel.title.list.mailAccounts">
         <source>Accounts</source>
         <translation>账户</translation>
+    </message>
+    <message id="autopanel.title.list.mailAppPasswords">
+        <source>App passwords</source>
+        <translation>应用密码</translation>
     </message>
     <message id="autopanel.title.list.mailDomains">
         <source>Domains</source>
@@ -2323,6 +2435,10 @@
         <source>Add a domain</source>
         <translation>添加域名</translation>
     </message>
+    <message id="autopanel.title.prompt.appPassword">
+        <source>New app password</source>
+        <translation>新建应用密码</translation>
+    </message>
     <message id="autopanel.title.prompt.cloudflare">
         <source>Cloudflare token</source>
         <translation>Cloudflare 令牌</translation>
@@ -2346,10 +2462,6 @@
     <message id="autopanel.title.prompt.mailHost">
         <source>Set up mail: the mail host</source>
         <translation>设置邮件：邮件主机</translation>
-    </message>
-    <message id="autopanel.title.prompt.mailPassword">
-        <source>Mail account password</source>
-        <translation>邮件账户密码</translation>
     </message>
     <message id="autopanel.title.prompt.passphrase">
         <source>Change your passphrase</source>
@@ -2526,6 +2638,14 @@
     <message id="autopanel.value.logins.ok">
         <source>ok</source>
         <translation>成功</translation>
+    </message>
+    <message id="autopanel.value.mail.appKept">
+        <source>in use</source>
+        <translation>使用中</translation>
+    </message>
+    <message id="autopanel.value.mail.appPending">
+        <source>pending until %1</source>
+        <translation>待定至 %1</translation>
     </message>
     <message id="autopanel.value.mail.hostRow">
         <source>%1 (mail host)</source>

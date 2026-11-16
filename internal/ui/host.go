@@ -107,6 +107,7 @@ type host struct {
 	prompted    func(string) error // what OK in the prompt runs, with the text
 	secreted    func(string)       // what OK in the password dialog runs, with the password
 	secretShort string             // the message for a text too short to be it
+	appShown    *shownAppPassword  // the app password whose dialog is open: Done keeps it, Cancel revokes it
 	busy        bool               // a change is in flight
 
 	me         auth.Whoami // who is logged in

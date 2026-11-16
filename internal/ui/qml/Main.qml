@@ -21,7 +21,7 @@
 import tui 1.0
 import autopanel 1.0              // App: the panel's state and commands
 import autopanel.theme.dark 1.0   // the Theme singleton; System › Theme switches it
-import autopanel.dialogs 1.0      // Login, RouteDialog, BrowseDialog, ReviewDialog, PromptDialog, SecretDialog, DnsDialog, TotpDialog, OnceDialog, ConfirmDialog
+import autopanel.dialogs 1.0      // Login, RouteDialog, BrowseDialog, ReviewDialog, PromptDialog, SecretDialog, DnsDialog, TotpDialog, OnceDialog, AppPasswordDialog, ConfirmDialog
 import autopanel.views 1.0        // Keys, About
 import tui.panels 1.0             // Panel: the panels the menus open (golib)
 import tui.tiles 1.0              // TilePanel: the widgets of the main screen (golib)
@@ -788,7 +788,8 @@ Window {
         }
     }
 
-    // Mail › Accounts: the accounts on the left, the selected one on the right
+    // Mail › Accounts: the accounts on the left; the selected one on the
+    // right, above its app passwords (a device each)
     Panel {
         id: mailAccountsPanel
         key: "mailAccounts"
@@ -799,14 +800,16 @@ Window {
         onClosed: App.panelClosed("mailAccounts")
         onChanged: App.panelChanged("mailAccounts", operation)
         Shortcut { sequence: "a"; onActivated: App.mailAddAccount() }
-        Shortcut { sequence: "p"; onActivated: App.mailAccountPassword(mailAccountsTable.currentIndex) }
+        Shortcut { sequence: "n"; onActivated: App.mailAddAppPassword(mailAccountsTable.currentIndex) }
+        Shortcut { sequence: "v"; onActivated: App.mailRevokeAppPassword(mailAppPasswordsTable.currentIndex) }
+        Shortcut { sequence: "o"; onActivated: App.mailLockAccount(mailAccountsTable.currentIndex) }
         Shortcut { sequence: "r"; onActivated: App.mailRemoveAccount(mailAccountsTable.currentIndex) }
         Flex {
             direction: Tui.Vertical
             Split {
                 Layout.fillHeight: true
                 orientation: Tui.Horizontal
-                ratio: 0.55
+                ratio: 0.5
                 Frame {
                     title: App.mailAccountsTitle
                     TableView {
@@ -820,9 +823,26 @@ Window {
                         TableViewColumn { role: "quota"; title: "QUOTA"; width: 10 }
                     }
                 }
-                Frame {
-                    title: qsTrId("autopanel.title.pane.details")
-                    Text { text: App.mailAccountDetail; wrapMode: Tui.WordWrap }
+                Split {
+                    orientation: Tui.Vertical
+                    ratio: 0.4
+                    Frame {
+                        title: qsTrId("autopanel.title.pane.details")
+                        Text { text: App.mailAccountDetail; wrapMode: Tui.WordWrap }
+                    }
+                    Frame {
+                        title: App.mailAppPasswordsTitle
+                        TableView {
+                            id: mailAppPasswordsTable
+                            palette.highlight: Theme.document.highlight
+                            palette.highlightedText: Theme.document.highlightedText
+                            model: App.mailAppPasswords
+                            onCurrentIndexChanged: App.mailAppPasswordMoved(index)
+                            TableViewColumn { role: "device"; title: "DEVICE"; width: 0 }
+                            TableViewColumn { role: "made"; title: "MADE"; width: 11 }
+                            TableViewColumn { role: "state"; title: "STATE"; width: 16 }
+                        }
+                    }
                 }
             }
             Flex {
@@ -830,7 +850,11 @@ Window {
                 Text { text: " "; Layout.fillWidth: true }
                 Button { text: qsTrId("autopanel.button.mail.add"); toolTipText: App.tipMailAccountAdd; onClicked: App.mailAddAccount() }
                 Text { text: " " }
-                Button { text: qsTrId("autopanel.button.mail.password"); toolTipText: App.tipMailAccountPassword; onClicked: App.mailAccountPassword(mailAccountsTable.currentIndex) }
+                Button { text: qsTrId("autopanel.button.mail.appAdd"); toolTipText: App.tipMailAppAdd; onClicked: App.mailAddAppPassword(mailAccountsTable.currentIndex) }
+                Text { text: " " }
+                Button { text: qsTrId("autopanel.button.mail.appRevoke"); toolTipText: App.tipMailAppRevoke; onClicked: App.mailRevokeAppPassword(mailAppPasswordsTable.currentIndex) }
+                Text { text: " " }
+                Button { text: qsTrId("autopanel.button.mail.lock"); toolTipText: App.tipMailAccountLock; onClicked: App.mailLockAccount(mailAccountsTable.currentIndex) }
                 Text { text: " " }
                 Button { text: qsTrId("autopanel.button.mail.remove"); toolTipText: App.tipMailAccountRemove; onClicked: App.mailRemoveAccount(mailAccountsTable.currentIndex) }
                 Text { text: " " }
@@ -1157,6 +1181,7 @@ Window {
     SecretDialog { id: secretDialog }
     TotpDialog { id: totpDialog }
     OnceDialog { id: onceDialog }
+    AppPasswordDialog { id: appPasswordDialog }
     DnsDialog { id: dnsDialog }
     ConfirmDialog { id: confirmDialog }
     Keys { id: keysDialog }

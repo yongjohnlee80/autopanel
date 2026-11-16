@@ -139,12 +139,15 @@ var (
 	ErrBadAddress        = errors.New("mail: not a mail address of a mail domain")
 	ErrNoAccount         = errors.New("mail: no such account")
 	ErrAccountExists     = errors.New("mail: the account exists")
-	ErrWeakPassword      = errors.New("mail: the password is too short")
 	ErrStalwart          = errors.New("mail: Stalwart refused")
 	ErrAdminAccount      = errors.New("mail: that is Stalwart's administrator")
 	ErrNoRecord          = errors.New("mail: no record of that name and type is held by another")
 	ErrNoPending         = errors.New("mail: no setup is waiting to be applied")
 	ErrChanged           = errors.New("mail: the setup changed since it was reviewed")
+	ErrWeakSecret        = errors.New("mail: Stalwart made a weak app password")
+	ErrExpired           = errors.New("mail: the app password expired before it was kept")
+	ErrNoAppPassword     = errors.New("mail: no such app password")
+	ErrBadDescription    = errors.New("mail: an app password's device name is 1 to 64 characters")
 )
 
 // Streams switches the gate's forwarding of mail's ports on or off.
@@ -238,10 +241,13 @@ func (m *Module) Errors() []module.PublicError {
 		{Err: ErrBadAddress, Code: -32140, Name: "mail.bad_address", Message: "an address is a local part (letters, digits, . _ + -) and a domain that receives mail"},
 		{Err: ErrNoAccount, Code: -32141, Name: "mail.no_account", Message: "no such account"},
 		{Err: ErrAccountExists, Code: -32142, Name: "mail.account_exists", Message: "that account exists"},
-		{Err: ErrWeakPassword, Code: -32143, Name: "mail.weak_password", Message: "a password is 12 characters at least, 256 at most, with no control characters"},
 		{Err: ErrStalwart, Code: -32144, Name: "mail.refused", Message: "Stalwart refused the change"},
 		{Err: ErrNoRecord, Code: -32146, Name: "mail.no_record", Message: "no needed record of that name and type is held by one AutoPanel did not write"},
 		{Err: ErrNoDNS, Code: -32147, Name: "mail.no_dns", Message: "no DNS token: set one (certs.cloudflare.set) for AutoPanel to publish records"},
+		{Err: ErrWeakSecret, Code: -32175, Name: "mail.weak_secret", Message: "Stalwart made an app password weaker than 128 bits; it was destroyed, and none is handed out until Stalwart is fixed"},
+		{Err: ErrExpired, Code: -32176, Name: "mail.expired", Message: "the app password expired before it was kept, and was destroyed: add another"},
+		{Err: ErrNoAppPassword, Code: -32177, Name: "mail.no_app_password", Message: "the account has no such app password"},
+		{Err: ErrBadDescription, Code: -32178, Name: "mail.bad_description", Message: "an app password's device name is 1 to 64 characters, with no control characters"},
 		{Err: ErrAdminAccount, Code: -32145, Name: "mail.admin_account", Message: "that address is Stalwart's administrator, which AutoPanel manages Stalwart with; it is not a mailbox"},
 	}
 }
@@ -271,8 +277,14 @@ func (m *Module) Verbs() []module.Verb {
 		module.Handle(change("mail.domain.remove", "{name}", "Stops a domain receiving mail; refused while it has accounts."), m.domainRemove),
 		module.Handle(module.Contract{Verb: "mail.account.list", Discloses: module.Plain, Since: 6, Param: "{domain?}", Result: "[{address, quota, used, aliases}]",
 			Doc: "The mail accounts, of one domain or of all."}, m.accountList),
-		module.Handle(change("mail.account.add", "{address, password, quota?}", "Makes a mail account. The password goes to Stalwart and nowhere else."), m.accountAdd),
-		module.Handle(change("mail.account.password", "{address, password}", "Sets an account's password."), m.accountPassword),
+		module.Handle(change("mail.account.add", "{address, quota?}", "Makes a mail account. Its own password is generated and told to no one: mail apps sign in with its app passwords."), m.accountAdd),
+		module.Handle(change("mail.account.lock", "{address}", "Replaces an account's own password, typed under an older AutoPanel, with one no one knows: from then on only its app passwords sign in."), m.accountLock),
+		module.Handle(module.Contract{Verb: "mail.apppassword.list", Discloses: module.Plain, Since: 6, Param: "{address}", Result: "[{id, description, created_at, pending, expires_at}]",
+			Doc: "An account's app passwords, never their secrets. A pending one stops at expires_at unless kept."}, m.appPasswordList),
+		module.Handle(change("mail.apppassword.add", "{address, description}",
+			"Makes an app password for a device, and answers its secret, once, with the settings a mail app needs. It is pending: it stops working after ten minutes unless mail.apppassword.keep keeps it."), m.appPasswordAdd),
+		module.Handle(change("mail.apppassword.keep", "{address, id}", "Keeps a pending app password, once its device signs in: it works until revoked. One already expired is destroyed instead."), m.appPasswordKeep),
+		module.Handle(change("mail.apppassword.revoke", "{address, id}", "Revokes an app password: its device stops signing in at once."), m.appPasswordRevoke),
 		module.Handle(change("mail.account.quota", "{address, quota}", "Sets an account's quota, in bytes."), m.accountQuota),
 		module.Handle(change("mail.account.remove", "{address}", "Deletes a mail account and its mail."), m.accountRemove),
 		module.Handle(module.Contract{Verb: "mail.records", Discloses: module.Plain, Since: 6, Param: "{domain}", Result: "{at, records: [{name, type, value, found, state, why, error?}], dkim: [{selector, step, since}]}",
@@ -956,9 +968,8 @@ type DomainAsk struct {
 
 // AccountAsk names an account, and what to set.
 type AccountAsk struct {
-	Address  string `json:"address"`
-	Password string `json:"password"`
-	Quota    int64  `json:"quota"`
+	Address string `json:"address"`
+	Quota   int64  `json:"quota"`
 }
 
 var localPart = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9._+-]{0,62}[a-z0-9])?$`)
@@ -978,18 +989,6 @@ func (m *Module) address(ctx context.Context, addr string) (local, domain string
 		return "", "", ErrBadAddress
 	}
 	return local, domain, nil
-}
-
-func validPassword(p string) error {
-	if n := len([]rune(p)); n < 12 || n > 256 {
-		return ErrWeakPassword
-	}
-	for _, r := range p {
-		if r < 0x20 || r == 0x7f {
-			return ErrWeakPassword
-		}
-	}
-	return nil
 }
 
 // domainIDs maps Stalwart's domain ids to names.
@@ -1071,9 +1070,6 @@ func (m *Module) accountAdd(ctx context.Context, p AccountAsk) (AccountView, err
 	if err != nil {
 		return AccountView{}, err
 	}
-	if err := validPassword(p.Password); err != nil {
-		return AccountView{}, err
-	}
 	quota := p.Quota
 	if quota <= 0 {
 		quota = defaultQuota
@@ -1085,29 +1081,14 @@ func (m *Module) accountAdd(ctx context.Context, p AccountAsk) (AccountView, err
 	case !errors.Is(err, ErrNoAccount):
 		return AccountView{}, err
 	}
-	if _, err := c.AddAccount(ctx, NewAccount{Name: local, DomainID: domainID, Password: p.Password, Quota: quota}); err != nil {
+	secret, err := lockedSecret()
+	if err != nil {
+		return AccountView{}, err
+	}
+	if _, err := c.AddAccount(ctx, NewAccount{Name: local, DomainID: domainID, Secret: secret, Quota: quota}); err != nil {
 		return AccountView{}, stalwartErr(err)
 	}
 	return AccountView{Address: local + "@" + domain, Quota: quota, Aliases: []string{}}, nil
-}
-
-func (m *Module) accountPassword(ctx context.Context, p AccountAsk) (struct{}, error) {
-	c, err := m.ready(ctx)
-	if err != nil {
-		return struct{}{}, err
-	}
-	local, domain, err := m.address(ctx, p.Address)
-	if err != nil {
-		return struct{}{}, err
-	}
-	if err := validPassword(p.Password); err != nil {
-		return struct{}{}, err
-	}
-	a, _, err := m.find(ctx, c, local, domain)
-	if err != nil {
-		return struct{}{}, err
-	}
-	return struct{}{}, stalwartErr(c.SetPassword(ctx, a.ID, p.Password))
 }
 
 func (m *Module) accountQuota(ctx context.Context, p AccountAsk) (struct{}, error) {
