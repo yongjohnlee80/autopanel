@@ -30,3 +30,9 @@
   record), it is journaled so that asking again finishes it, never blocks it. A store row that
   says a thing exists is written last. New code is reviewed for this; a flow that writes before
   its confirmation is a bug.
+- **Two modules that call each other are tested together.** A fake answers for one module only:
+  where a module's port is another of AutoPanel's modules (mail's `Stacks` is the services
+  module, the services module's `Guard` is mail), at least one test wires the real modules and
+  fakes only the machine under them. A test whose fake plays the other module cannot catch the
+  two disagreeing (v0.2.7's mail guard refused its own setup). A change to one side runs the
+  other side's tests.

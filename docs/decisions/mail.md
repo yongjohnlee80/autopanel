@@ -74,7 +74,10 @@ compiled into it: Stalwart pinned by digest, as user 2000 under keep-id, a read-
 `etc`, `data` and `log` folders as data, every port on loopback only, a 250 MB memory limit, and one
 capability. It is then reviewed and applied as any stack. No other stack may be named `mail` or
 publish its loopback ports, and an import of that name is refused (`services.reserved`). A mail
-definition edited by hand is reviewed with a warning, since Mail may no longer manage it.
+definition edited by hand is reviewed with a warning, since Mail may no longer manage it. Mail is
+recorded only when its stack is added, so while a setup is open (being reviewed, or waiting for
+Add and start) the guard admits the stack `mail` with AutoPanel's own definition, and still
+refuses any other.
 
 **Why AutoPanel writes it:** Mail's panels depend on the stack's shape: its ports, its management
 port, its folders. A definition the administrator wrote could move any of them.
