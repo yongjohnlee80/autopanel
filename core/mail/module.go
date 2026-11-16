@@ -166,6 +166,10 @@ type Module struct {
 	certs    Certs  // nil: no certificate is handed over
 	sync     syncState
 	hostName atomic.Value // string: the mail host, for IsHost
+	// settingUp is true while mail.setup reviews, or mail.setup.apply adds, the
+	// mail stack: the one time the guard admits it with no record of mail yet
+	// (the record is the apply's last write), and then its own definition only
+	settingUp atomic.Bool
 
 	mu       sync.Mutex
 	progress Progress
@@ -289,9 +293,14 @@ func (m *Module) Review(ctx context.Context, name string, compose []byte) []serv
 	if name != Stack {
 		return nil
 	}
+	// With no record of mail, the stack is admitted only as Set up mail's own:
+	// while it reviews or adds it, and then AutoPanel's definition alone. The
+	// record is the setup's last write, so its own review and add come before it.
 	if _, ok, err := m.store.State(ctx); err != nil || !ok {
-		return []services.Finding{{ID: "reserved-name", Severity: services.Refused,
-			Detail: "the stack mail is AutoPanel's: set it up from Mail → Set up mail"}}
+		if err != nil || !m.settingUp.Load() || string(compose) != string(Compose()) {
+			return []services.Finding{{ID: "reserved-name", Severity: services.Refused,
+				Detail: "the stack mail is AutoPanel's: set it up from Mail → Set up mail"}}
+		}
 	}
 	// Stalwart trusts PROXY headers from its stack's network: a second service
 	// there could forge one, past the gate and the loopback rule. Webmail and
@@ -428,7 +437,9 @@ func (m *Module) setup(ctx context.Context, p SetupAsk) (Setup, error) {
 			return Setup{}, err
 		}
 	}
+	m.settingUp.Store(true) // the guard admits this review of mail's own stack
 	rev, err := m.stacks.CheckDraft(ctx, Stack, Compose())
+	m.settingUp.Store(false)
 	if err != nil {
 		return Setup{}, err
 	}
@@ -494,7 +505,10 @@ func (m *Module) apply(ctx context.Context, p Accept) (Setup, error) {
 		return fail(err)
 	}
 	undo = append(undo, m.host.RemoveDefinition)
-	if err := m.stacks.Add(ctx, Stack, pend.accept); err != nil && !errors.Is(err, services.ErrDuplicate) {
+	m.settingUp.Store(true) // the guard admits this add: the record is written after it
+	err = m.stacks.Add(ctx, Stack, pend.accept)
+	m.settingUp.Store(false)
+	if err != nil && !errors.Is(err, services.ErrDuplicate) {
 		return fail(err)
 	}
 	cfg, _ := json.Marshal(Config{Host: pend.host, FirstDomain: pend.domain, QuotaDefault: defaultQuota, DMARC: "quarantine"})

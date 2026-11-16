@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -185,17 +186,41 @@ type fakeStacks struct {
 	absent   bool     // the stack was never added: Up answers services.ErrNotFound
 	added    []string // the sha256 each Add was given
 	addErr   error    // what the next Add answers
+	// guard and definition are what the services module asks at every review
+	// and add: the module that owns the stack (mail's own Review), and the
+	// definition as written. A fake that skipped them let Set up mail pass its
+	// tests while its own guard refused it in the panel (v0.2.7).
+	guard      func(ctx context.Context, name string, compose []byte) []services.Finding
+	definition func() []byte
 }
 
-func (s *fakeStacks) CheckDraft(_ context.Context, _ string, compose []byte) (services.Review, error) {
+// refused is the guard's first refusal of compose as name's definition.
+func (s *fakeStacks) refused(ctx context.Context, name string, compose []byte) ([]services.Finding, error) {
+	if s.guard == nil {
+		return []services.Finding{}, nil
+	}
+	fs := s.guard(ctx, name, compose)
+	for _, f := range fs {
+		if f.Severity == services.Refused {
+			return fs, fmt.Errorf("%w: %s %s", services.ErrRefused, f.ID, f.Detail)
+		}
+	}
+	if fs == nil {
+		fs = []services.Finding{}
+	}
+	return fs, nil
+}
+
+func (s *fakeStacks) CheckDraft(ctx context.Context, name string, compose []byte) (services.Review, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if !s.absent {
 		return services.Review{}, services.ErrDuplicate
 	}
-	return services.Review{SHA256: "reviewed-" + ComposeSHA256()[:8], Findings: []services.Finding{}}, nil
+	fs, _ := s.refused(ctx, name, compose) // a review shows a refusal; it is the add that fails on one
+	return services.Review{SHA256: "reviewed-" + ComposeSHA256()[:8], Findings: fs}, nil
 }
-func (s *fakeStacks) Add(_ context.Context, _ string, accept string) error {
+func (s *fakeStacks) Add(ctx context.Context, name string, accept string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if err := s.addErr; err != nil {
@@ -204,6 +229,11 @@ func (s *fakeStacks) Add(_ context.Context, _ string, accept string) error {
 	}
 	if !s.absent {
 		return services.ErrDuplicate
+	}
+	if s.definition != nil {
+		if _, err := s.refused(ctx, name, s.definition()); err != nil {
+			return err
+		}
 	}
 	s.added = append(s.added, accept)
 	s.absent = false
@@ -280,6 +310,7 @@ func newTestModule(t *testing.T) (*Module, *fakeStore, *fakeVault, *fakeStacks, 
 	on := new(atomic.Bool)
 	m := NewModule(st, v, fakeRegistry{"example.net", "example.org"}, stacks, h, func(b bool) { on.Store(b) },
 		slog.New(slog.NewTextHandler(io.Discard, nil)))
+	stacks.guard, stacks.definition = m.Review, func() []byte { return h.definition } // as app/core.go wires them (SetGuard)
 	return m, st, v, stacks, h, on
 }
 
@@ -312,6 +343,16 @@ func TestTheGuard(t *testing.T) {
 	if f := m.Review(ctx, Stack, Compose()); len(f) != 1 || f[0].Severity != services.Refused {
 		t.Fatalf("a mail stack nobody set up: %+v; want refused", f)
 	}
+	// While Set up mail reviews or adds its stack, the guard admits AutoPanel's
+	// own definition, and nothing else under that name.
+	m.settingUp.Store(true)
+	if f := m.Review(ctx, Stack, Compose()); len(f) != 0 {
+		t.Fatalf("mail's own definition during its setup: %+v; want no finding", f)
+	}
+	if f := m.Review(ctx, Stack, append(Compose(), "# edited\n"...)); len(f) != 1 || f[0].ID != "reserved-name" {
+		t.Fatalf("another definition during mail's setup: %+v; want reserved-name", f)
+	}
+	m.settingUp.Store(false)
 	st.state = &State{Host: "mail.example.net"}
 	if f := m.Review(ctx, Stack, Compose()); len(f) != 0 {
 		t.Fatalf("AutoPanel's own definition: %+v; want no finding", f)
@@ -385,6 +426,17 @@ func TestSetup(t *testing.T) {
 	out, err := m.setup(ctx, SetupAsk{Host: "Mail.Example.net", Domain: "example.net"})
 	if err != nil || out.Stack != "mail" || out.SHA256 == "" || out.Review.SHA256 != out.SHA256 {
 		t.Fatalf("setup = %+v, %v", out, err)
+	}
+	// Mail's own guard admits the review of mail's own stack, though nothing
+	// records mail yet: in v0.2.7 it refused it ("reserved-name"), and Set up
+	// mail could not be applied.
+	for _, f := range out.Review.Findings {
+		if f.Severity == services.Refused {
+			t.Fatalf("Set up mail's own review is refused: %+v", f)
+		}
+	}
+	if m.settingUp.Load() {
+		t.Fatal("the guard still admits an unrecorded mail stack after the review")
 	}
 	nothing("after the review")
 	// Asked again, with another host: the answers are replaced, still unwritten.
