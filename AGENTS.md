@@ -21,3 +21,12 @@
   change, and `test -z "$(gofmt -l .)"` is the format gate.
 - **Tests never touch the developer's environment:** no real home directory, socket, network
   service or store.
+- **Every operation is a transaction; never write half a configuration.** An operation either
+  completes or leaves the host as it found it. A flow of several steps (prompts, then a review,
+  then a confirmation) holds its answers in memory and writes nothing until its last step is
+  confirmed; quitting at any step leaves no trace, and the flow can be started again. The
+  confirming step makes every write in an order that lets each be undone, and undoes the ones
+  before a step that fails. Where a step cannot be undone (a stack's apply, a published DNS
+  record), it is journaled so that asking again finishes it, never blocks it. A store row that
+  says a thing exists is written last. New code is reviewed for this; a flow that writes before
+  its confirmation is a bug.
