@@ -617,8 +617,13 @@ func (m *Module) totpDisable(ctx context.Context, p CodeAsk) (struct{}, error) {
 			return struct{}{}, ErrBadCode
 		}
 	}
+	// Off first, then the seed: a seed left over is clutter a later
+	// enrolment replaces, while two-factor on with no seed locks the user out.
+	if err := m.store.SetTOTP(ctx, target.ID, false, nil); err != nil {
+		return struct{}{}, err
+	}
 	_ = m.secrets.DeleteSecret(ctx, totpSecret(target.ID))
-	return struct{}{}, m.store.SetTOTP(ctx, target.ID, false, nil)
+	return struct{}{}, nil
 }
 
 // --- tokens -------------------------------------------------------------------------
