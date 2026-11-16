@@ -69,7 +69,7 @@ publishes another loopback port between them is not caught by it.
 
 ## The mail stack is AutoPanel's
 
-**Decided:** the stack named `mail` is written by AutoPanel (`mail.setup`), from a definition
+**Decided:** the stack named `mail` is written by AutoPanel (`mail.setup.apply`), from a definition
 compiled into it: Stalwart pinned by digest, as user 2000 under keep-id, a read-only root, its
 `etc`, `data` and `log` folders as data, every port on loopback only, a 250 MB memory limit, and one
 capability. It is then reviewed and applied as any stack. No other stack may be named `mail` or
@@ -90,6 +90,30 @@ adds its findings to that stack's review, reserves its ports, and masks what its
 
 **In the code:** `core/mail/stack.go` (`Compose`, `Ports`), `core/mail/module.go` (`Owns`,
 `Review`, `Reserved`, `Mask`), `core/services/module.go` (`Guard`).
+
+## Setting mail up is one transaction
+
+**Decided:** **Mail → Set up mail** (`mail.setup`) checks the host and the first domain and
+answers the mail stack's review, reviewed from the definition in memory; it writes nothing. The
+answers wait in the core's memory. **Add and start** on that review (`mail.setup.apply`, given the
+review's sha256) makes every write, in this order: the stack's user, the loopback rule, the
+definition in the stacks' directory, the stack added and started, the sealed settings, and last the
+`mail` row that makes mail set up. A step that fails undoes the ones before it (the rule and the
+definition are taken off again). Once the stack is registered, its apply keeps its own journal and
+is not undone: asking again finishes it, and the record follows.
+
+- Leaving the review, quitting the panel or restarting the core leaves no trace: Set up mail opens
+  again, and the panel offers the answers it was given.
+- A `mail` row with Stalwart never set up and no stack (what v0.2.6 left when its review was quit)
+  is half a setup: the next Set up mail drops it.
+- The stack's user, once made, stays after a failed apply: it owns nothing, and the next apply
+  makes it again.
+
+**Why:** v0.2.6 recorded mail as set up before its stack was reviewed. Quitting at the review left
+mail "set up" with no stack, and the panel offered no way back.
+
+**In the code:** `core/mail/module.go` (`setup`, `apply`, `untaken`), `core/services/apply.go`
+(`CheckDraft`), `host/services/stage.go` (`StageDraft`), `internal/ui/mail.go` (`runMailSetup`).
 
 ## Setting Stalwart up
 

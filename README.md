@@ -406,11 +406,15 @@ When the domain's DNS is hosted at Cloudflare, give AutoPanel an API token, and 
 record above itself, keeps them in step, and rotates the DKIM keys without you:
 
 1. In Cloudflare, **My Profile → API Tokens → Create Token**, from the **Edit zone DNS** template:
-   permission *Zone · DNS · Edit*, and under *Zone Resources* the zone of each mail domain (and of
-   the mail host, if it is under another).
-2. Give it to AutoPanel: `sudo autopanel --call certs.cloudflare.set '{"token":"…"}'`. It is sealed
-   under the master key. The same token also lets AutoPanel obtain certificates through DNS
-   (DNS-01), and the panel says so under Certs.
+   permission *Zone · DNS · Edit*, add *Zone · Zone · Read*, and under *Zone Resources* the zone of
+   **every** domain under Routes → Domains, not only the mail domains (see below).
+2. Give it to AutoPanel: **Certs → Cloudflare token…**, as an admin, and paste it. It is typed
+   unseen, checked with Cloudflare (a mistyped or inactive token is refused and not kept), then
+   sealed under the master key. **Certs → Remove Cloudflare token…** forgets it.
+
+   **The token changes how every certificate is obtained:** with it, AutoPanel obtains them all
+   through DNS (DNS-01), so a domain whose zone the token does not reach fails at its next renewal.
+   If the token cannot be put to use, the one before it is kept.
 3. Set mail up (below). The records appear in Cloudflare within the first pass, a minute or two after
    Stalwart is ready; **Sync** runs a pass at once.
 
@@ -452,10 +456,12 @@ to Cloudflare (its free plan is enough), which takes the work away.
 
 #### Setting it up
 
-**Mail → Set up mail** asks the mail host and the first domain, writes the mail stack, and opens
-its review; **Add and start** runs it. AutoPanel then sets Stalwart up through its API, by itself,
-within a minute or two: **Mail → Server** says `ready` when it is done, and from then on the gate
-forwards the mail ports.
+**Mail → Set up mail** asks the mail host and the first domain, and opens the mail stack's review.
+Nothing is written until you confirm it: leave the review, or quit, and Set up mail opens again with
+your answers. **Add and start** makes the whole setup at once (the stack's user, its firewall rule,
+its files, the stack started, and the record); if a step fails, the ones before it are undone.
+AutoPanel then sets Stalwart up through its API, by itself, within a minute or two: **Mail → Server**
+says `ready` when it is done, and from then on the gate forwards the mail ports.
 
 The mail host's certificate comes from AutoPanel's own certificate service, once the mail host's A
 record resolves to this server: **Mail → Server** shows it (`ok until …`), and **Sync** asks for it
