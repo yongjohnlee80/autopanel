@@ -227,3 +227,41 @@ days and waits, the old one signing, until its records are entered and resolve. 
 private keys are in the core's memory only to be handed over: they are Stalwart's to keep.
 
 **In the code:** `core/mail/dkim.go` (`rotate`), `host/mail/host.go` (`ResolveTXT`).
+
+## Mail apps sign in with app passwords
+
+**Decided:** every device signs in with an app password of its own, made by Stalwart at AutoPanel's
+request (`x:AppPassword`; its API generates the secret and refuses one supplied). The secret is
+shown once, with the settings a mail app needs, and is in no store, log or audit entry of
+AutoPanel's. A mailbox's own password is 32 random bytes the core generates, hashes (argon2id at
+golib's least cost: no one can guess 256 bits, and Stalwart pays the cost at every failed sign-in)
+and forgets, so mail apps sign in with app passwords only. Mailboxes made with a typed password keep
+it until Lock password.
+
+**Kept only once the device is set up:** a new app password expires ten minutes after it is made;
+Done clears the expiry. Escape, a closed panel or a lost connection leaves it to expire, and
+Cancel revokes it. Stalwart enforces the expiry itself, so it holds with the core down; the hourly
+pass destroys expired ones, which otherwise count toward the account's limit.
+
+**What Stalwart does that the code relies on** (tested against the pinned v1.1.0):
+
+- The secret is `app_` and 36 of `[a-z0-9]`. AutoPanel refuses, and destroys, one under 128 bits
+  or with fewer than 12 different characters: a weakened generator stops the feature.
+- The user name is the full address: a bare local part signs in only to the default domain's
+  account.
+- **An expired app password whose expiry is cleared works again.** So keep reads it first, and
+  destroys one within five seconds of its expiry instead of keeping it.
+- **App passwords are entries of the account's `credentials` map**, beside its password. Replacing
+  the map deletes them all (and two-factor's `otpUrl`). So a password change patches the password
+  entry's `secret`, found by its `@type`, and a quota change patches `quotas/maxDiskQuota`; neither
+  ever sends a whole map.
+- The limit is 5 app passwords unless `quotas/maxAppPasswords` says otherwise; AutoPanel sets 20.
+- Stalwart keeps no last use of an app password, so the list shows the device and when it was made.
+
+**No expiry, no address limits:** a device far away whose app password expired could not be set up
+again without someone there; phones move between networks. Revocation is the control.
+
+**In the code:** `core/mail/apppassword.go` (the verbs, the strength check, the sweep),
+`core/mail/jmap.go` (`AddAppPassword`, `KeepAppPassword`, `RevokeAppPassword`, `SetSecret`),
+`internal/ui/apppassword.go` (the dialog and its QR code).
+

@@ -394,6 +394,9 @@ type Account struct {
 	Used     int64   `json:"usedDiskQuota"`
 	Aliases  []Alias `json:"-"` // the enabled ones
 	Admin    bool    `json:"-"` // Stalwart's administrator: the one the bootstrap made
+	// AppPasswordLimit is quotas' maxAppPasswords; 0 when unset (Stalwart's
+	// default of 5 applies).
+	AppPasswordLimit int64 `json:"-"`
 }
 
 // Alias is an extra address of an account's.
@@ -429,6 +432,7 @@ func (c *Client) Accounts(ctx context.Context) ([]Account, error) {
 		}
 		acc := a.Account
 		acc.Quota = a.Quotas["maxDiskQuota"]
+		acc.AppPasswordLimit = a.Quotas["maxAppPasswords"]
 		acc.Admin = a.Roles.Type == "Admin"
 		for _, al := range a.Aliases {
 			if al.Enable {
@@ -446,19 +450,22 @@ func (c *Client) Accounts(ctx context.Context) ([]Account, error) {
 type NewAccount struct {
 	Name     string // the local part, validated
 	DomainID string
-	Password string
-	Quota    int64 // bytes
+	Secret   string // the password's hash: Stalwart verifies it and never holds the password
+	Quota    int64  // bytes
 }
 
-func credentials(password string) map[string]any {
-	return map[string]any{"0": map[string]any{"@type": "Password", "secret": password}}
-}
+// AppPasswordLimit is how many app passwords an account may have: Stalwart's
+// own default is 5, and one left pending (not yet kept) counts until it is
+// destroyed.
+const AppPasswordLimit = 20
 
-// AddAccount makes a user account with a password and a quota.
+// AddAccount makes a user account with a password's hash, a disk quota and
+// room for AppPasswordLimit app passwords.
 func (c *Client) AddAccount(ctx context.Context, n NewAccount) (string, error) {
 	a, err := c.set(ctx, "Account", map[string]any{"create": map[string]any{"a": map[string]any{
 		"@type": "User", "name": n.Name, "domainId": n.DomainID,
-		"credentials": credentials(n.Password), "quotas": map[string]int64{"maxDiskQuota": n.Quota}}}})
+		"credentials": map[string]any{"0": map[string]any{"@type": "Password", "secret": n.Secret}},
+		"quotas":      map[string]int64{"maxDiskQuota": n.Quota, "maxAppPasswords": AppPasswordLimit}}}})
 	if err != nil {
 		return "", err
 	}
@@ -469,15 +476,112 @@ func (c *Client) AddAccount(ctx context.Context, n NewAccount) (string, error) {
 	return made.ID, nil
 }
 
-// SetPassword replaces an account's credentials with one password.
-func (c *Client) SetPassword(ctx context.Context, id, password string) error {
-	_, err := c.set(ctx, "Account", map[string]any{"update": map[string]any{id: map[string]any{"credentials": credentials(password)}}})
+// SetSecret replaces the account's password (its hash) and nothing else.
+// The credentials map holds the account's app passwords beside its password:
+// sending the map would delete every one of them, and two-factor with them.
+// So the password's own entry is found by its type, and its secret patched.
+func (c *Client) SetSecret(ctx context.Context, id, secret string) error {
+	var got struct {
+		List []struct {
+			Credentials map[string]struct {
+				Type string `json:"@type"`
+			} `json:"credentials"`
+		} `json:"list"`
+	}
+	if err := c.call(ctx, "x:Account/get", map[string]any{"ids": []string{id}, "properties": []string{"credentials"}}, &got); err != nil {
+		return err
+	}
+	if len(got.List) != 1 {
+		return fmt.Errorf("mail: Stalwart has no account %q", id)
+	}
+	key := ""
+	for k, cr := range got.List[0].Credentials {
+		if cr.Type == "Password" {
+			if key != "" {
+				return errors.New("mail: the account has two passwords")
+			}
+			key = k
+		}
+	}
+	if key == "" {
+		return errors.New("mail: the account has no password")
+	}
+	_, err := c.set(ctx, "Account", map[string]any{"update": map[string]any{id: map[string]any{"credentials/" + key + "/secret": secret}}})
 	return err
 }
 
-// SetQuota sets an account's disk quota, in bytes.
+// SetQuota sets an account's disk quota, in bytes. A patch: its other quotas
+// (the app passwords' limit) stay.
 func (c *Client) SetQuota(ctx context.Context, id string, bytes int64) error {
-	_, err := c.set(ctx, "Account", map[string]any{"update": map[string]any{id: map[string]any{"quotas": map[string]int64{"maxDiskQuota": bytes}}}})
+	_, err := c.set(ctx, "Account", map[string]any{"update": map[string]any{id: map[string]any{"quotas/maxDiskQuota": bytes}}})
+	return err
+}
+
+// SetAppPasswordLimit sets how many app passwords an account may have.
+func (c *Client) SetAppPasswordLimit(ctx context.Context, id string, n int64) error {
+	_, err := c.set(ctx, "Account", map[string]any{"update": map[string]any{id: map[string]any{"quotas/maxAppPasswords": n}}})
+	return err
+}
+
+// --- app passwords -------------------------------------------------------------
+
+// AppPassword is one of an account's app passwords. Its secret is Stalwart's
+// alone: answered once, when it is made, and read back as ****.
+type AppPassword struct {
+	ID          string     `json:"id"`
+	Description string     `json:"description"`
+	CreatedAt   time.Time  `json:"createdAt"`
+	ExpiresAt   *time.Time `json:"expiresAt"` // nil: it never expires
+}
+
+// AppPasswords are an account's app passwords, oldest first.
+func (c *Client) AppPasswords(ctx context.Context, accountID string) ([]AppPassword, error) {
+	var got struct {
+		List []AppPassword `json:"list"`
+	}
+	if err := c.call(ctx, "x:AppPassword/get", map[string]any{"accountId": accountID, "ids": nil,
+		"properties": []string{"description", "createdAt", "expiresAt"}}, &got); err != nil {
+		return nil, err
+	}
+	sort.Slice(got.List, func(i, j int) bool {
+		if !got.List[i].CreatedAt.Equal(got.List[j].CreatedAt) {
+			return got.List[i].CreatedAt.Before(got.List[j].CreatedAt)
+		}
+		return got.List[i].ID < got.List[j].ID
+	})
+	return got.List, nil
+}
+
+// AddAppPassword makes an app password for an account, expiring at expires,
+// and answers it with its secret: Stalwart generates the secret, and gives it
+// this once.
+func (c *Client) AddAppPassword(ctx context.Context, accountID, description string, expires time.Time) (AppPassword, string, error) {
+	a, err := c.set(ctx, "AppPassword", map[string]any{"accountId": accountID, "create": map[string]any{"p": map[string]any{
+		"description": description, "expiresAt": expires.UTC().Format(time.RFC3339)}}})
+	if err != nil {
+		return AppPassword{}, "", err
+	}
+	var made struct{ ID, Secret string }
+	if raw, ok := a.Created["p"]; ok {
+		_ = json.Unmarshal(raw, &made)
+	}
+	if made.ID == "" || made.Secret == "" {
+		return AppPassword{}, "", errors.New("mail: Stalwart made an app password but answered no secret")
+	}
+	e := expires.UTC()
+	return AppPassword{ID: made.ID, Description: description, ExpiresAt: &e}, made.Secret, nil
+}
+
+// KeepAppPassword clears an app password's expiry: it works until revoked.
+// Stalwart revives an expired one this way too, so the caller checks first.
+func (c *Client) KeepAppPassword(ctx context.Context, accountID, id string) error {
+	_, err := c.set(ctx, "AppPassword", map[string]any{"accountId": accountID, "update": map[string]any{id: map[string]any{"expiresAt": nil}}})
+	return err
+}
+
+// RevokeAppPassword destroys an app password.
+func (c *Client) RevokeAppPassword(ctx context.Context, accountID, id string) error {
+	_, err := c.set(ctx, "AppPassword", map[string]any{"accountId": accountID, "destroy": []string{id}})
 	return err
 }
 

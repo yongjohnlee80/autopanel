@@ -224,10 +224,18 @@ type Client interface {
 	MailTakeover(ctx context.Context, domain, name, typ string) error
 	MailSync(ctx context.Context) error
 	MailAccounts(ctx context.Context, domain string) ([]mail.AccountView, error)
-	// MailAddAccount and MailSetPassword carry the password to the daemon,
-	// which hands it to Stalwart and keeps it nowhere.
-	MailAddAccount(ctx context.Context, address, password string, quota int64) error
-	MailSetPassword(ctx context.Context, address, password string) error
+	// MailAddAccount makes a mailbox whose own password no one knows; its
+	// devices sign in with app passwords. MailLockAccount does the same to one
+	// made with a typed password.
+	MailAddAccount(ctx context.Context, address string, quota int64) error
+	MailLockAccount(ctx context.Context, address string) error
+	// MailAppPasswords lists a mailbox's app passwords, never their secrets.
+	// MailAddAppPassword answers a new one's secret, once; it stops working
+	// after ten minutes unless MailKeepAppPassword keeps it.
+	MailAppPasswords(ctx context.Context, address string) ([]mail.AppPasswordView, error)
+	MailAddAppPassword(ctx context.Context, address, description string) (mail.NewAppPassword, error)
+	MailKeepAppPassword(ctx context.Context, address, id string) error
+	MailRevokeAppPassword(ctx context.Context, address, id string) error
 	MailRemoveAccount(ctx context.Context, address string) error
 
 	// The panel's preferences, kept by the daemon.

@@ -63,6 +63,18 @@
         <source>&amp;Add…</source>
         <translation>追加(&amp;a)…</translation>
     </message>
+    <message id="autopanel.button.mail.appAdd">
+        <source>&amp;New app password…</source>
+        <translation>新しいアプリパスワード(&amp;n)…</translation>
+    </message>
+    <message id="autopanel.button.mail.appDone">
+        <source>&amp;Done: the device signed in</source>
+        <translation>完了: 端末がサインインした(&amp;d)</translation>
+    </message>
+    <message id="autopanel.button.mail.appRevoke">
+        <source>Re&amp;voke…</source>
+        <translation>失効(&amp;v)…</translation>
+    </message>
     <message id="autopanel.button.mail.copy">
         <source>&amp;Copy value</source>
         <translation>値をコピー(&amp;c)</translation>
@@ -71,9 +83,9 @@
         <source>D&amp;NS records…</source>
         <translation>DNS レコード(&amp;n)…</translation>
     </message>
-    <message id="autopanel.button.mail.password">
-        <source>&amp;Password…</source>
-        <translation>パスワード(&amp;p)…</translation>
+    <message id="autopanel.button.mail.lock">
+        <source>L&amp;ock password…</source>
+        <translation>パスワードをロック(&amp;o)…</translation>
     </message>
     <message id="autopanel.button.mail.reload">
         <source>&amp;Reload</source>
@@ -791,6 +803,30 @@
         <source>Aliases</source>
         <translation>エイリアス</translation>
     </message>
+    <message id="autopanel.label.mail.appIMAP">
+        <source>Incoming (IMAP)</source>
+        <translation>受信 (IMAP)</translation>
+    </message>
+    <message id="autopanel.label.mail.appPending">
+        <source>Shown once. It works until %1: press Done once the device signs in, or it stops then. The QR code holds the password alone: scan it with the phone's camera and paste it into the password field.</source>
+        <translation>表示は一度だけです。%1 まで有効です。端末がサインインしたら完了を押してください。押さなければその時刻に停止します。QR コードにはパスワードだけが入っています。スマートフォンのカメラで読み取り、パスワード欄に貼り付けてください。</translation>
+    </message>
+    <message id="autopanel.label.mail.appSMTP">
+        <source>Outgoing (SMTP)</source>
+        <translation>送信 (SMTP)</translation>
+    </message>
+    <message id="autopanel.label.mail.appSMTPAlt">
+        <source>or outgoing</source>
+        <translation>または送信</translation>
+    </message>
+    <message id="autopanel.label.mail.appSecret">
+        <source>For the mail app's password field, typed as it is in the first line; the second is the same in groups of four, to check it.</source>
+        <translation>メールアプリのパスワード欄に、1 行目のとおり入力してください。2 行目は確認用に 4 文字ずつ区切った同じパスワードです。</translation>
+    </message>
+    <message id="autopanel.label.mail.appUser">
+        <source>User name</source>
+        <translation>ユーザー名</translation>
+    </message>
     <message id="autopanel.label.mail.certificate">
         <source>Certificate</source>
         <translation>証明書</translation>
@@ -959,6 +995,10 @@
         <source>User</source>
         <translation>ユーザー</translation>
     </message>
+    <message id="autopanel.label.prompt.appPassword">
+        <source>The device it is for (such as Ana's phone)</source>
+        <translation>使う端末（例: アナのスマートフォン）</translation>
+    </message>
     <message id="autopanel.label.prompt.cloudflare">
         <source>Paste an API token from Cloudflare (My Profile → API Tokens) with Zone · Zone · Read and Zone · DNS · Edit on the zone of every domain here. AutoPanel checks it with Cloudflare, then keeps it sealed. Every certificate then comes through DNS, and mail's records are published for you.</source>
         <translation>Cloudflare の API トークン（My Profile → API Tokens）を貼り付けてください。ここにあるすべてのドメインのゾーンに Zone · Zone · Read と Zone · DNS · Edit の権限が必要です。AutoPanel は Cloudflare で確認してから封印して保管します。以後、証明書はすべて DNS で取得され、メールのレコードは自動で公開されます。</translation>
@@ -982,10 +1022,6 @@
     <message id="autopanel.label.prompt.mailHost">
         <source>The mail host's name, under one of your domains. Its certificate and the domains' MX point at it:</source>
         <translation>あなたのドメイン配下のメールホスト名。証明書とドメインの MX がここを指します:</translation>
-    </message>
-    <message id="autopanel.label.prompt.mailPassword">
-        <source>The password for %1, 12 characters at least. It goes to the mail server and is kept nowhere else:</source>
-        <translation>%1 のパスワード(12文字以上)。メールサーバーに渡され、他には保存されません:</translation>
     </message>
     <message id="autopanel.label.prompt.passphraseAgain">
         <source>The new passphrase again</source>
@@ -1619,6 +1655,26 @@
         <source>%1 deleted</source>
         <translation>%1 を削除しました</translation>
     </message>
+    <message id="autopanel.notice.mail.appCancelled">
+        <source>%1: the app password was revoked</source>
+        <translation>%1: アプリパスワードを失効させました</translation>
+    </message>
+    <message id="autopanel.notice.mail.appExpired">
+        <source>%1: the app password expired before Done and was destroyed; make another</source>
+        <translation>%1: 完了の前にアプリパスワードが期限切れになり破棄しました。作り直してください</translation>
+    </message>
+    <message id="autopanel.notice.mail.appKept">
+        <source>%1: the app password is kept</source>
+        <translation>%1: アプリパスワードを保持しました</translation>
+    </message>
+    <message id="autopanel.notice.mail.appNotRevoked">
+        <source>%1: the app password could not be revoked now; it stops working within ten minutes</source>
+        <translation>%1: 今はアプリパスワードを失効できませんでした。10 分以内に使えなくなります</translation>
+    </message>
+    <message id="autopanel.notice.mail.appRevoked">
+        <source>%1: revoked; that device no longer signs in</source>
+        <translation>%1: 失効しました。その端末はもうサインインできません</translation>
+    </message>
     <message id="autopanel.notice.mail.applied">
         <source>mail is set up: Stalwart is starting, and Mail → Server says ready within a minute or two</source>
         <translation>メールを設定しました。Stalwart を起動中です。1〜2 分で メール → サーバー に準備完了と表示されます</translation>
@@ -1626,6 +1682,10 @@
     <message id="autopanel.notice.mail.badAddress">
         <source>an address is name@domain, of a domain that receives mail</source>
         <translation>アドレスはメールを受信するドメインの 名前@ドメイン です</translation>
+    </message>
+    <message id="autopanel.notice.mail.badDevice">
+        <source>a device's name is 1 to 64 characters</source>
+        <translation>端末名は 1〜64 文字です</translation>
     </message>
     <message id="autopanel.notice.mail.badHost">
         <source>the mail host is a name with a dot: mail.example.com</source>
@@ -1646,6 +1706,14 @@
     <message id="autopanel.notice.mail.isHost">
         <source>that row is the mail host's own records: it receives no mail, so there is nothing to remove</source>
         <translation>その行はメールホスト自身のレコードです: メールを受信しないため削除するものはありません</translation>
+    </message>
+    <message id="autopanel.notice.mail.locked">
+        <source>%1: its own password is locked; only app passwords sign in</source>
+        <translation>%1: 自身のパスワードをロックしました。アプリパスワードでのみサインインします</translation>
+    </message>
+    <message id="autopanel.notice.mail.noAppPassword">
+        <source>no app password is selected</source>
+        <translation>アプリパスワードが選択されていません</translation>
     </message>
     <message id="autopanel.notice.mail.noClipboard">
         <source>this terminal takes no clipboard copy: select the value with the mouse</source>
@@ -1671,10 +1739,6 @@
         <source>Mail is not set up: Mail › Set up mail</source>
         <translation>メールは未設定です: メール › メールを設定</translation>
     </message>
-    <message id="autopanel.notice.mail.passwordSet">
-        <source>%1's password set</source>
-        <translation>%1 のパスワードを設定しました</translation>
-    </message>
     <message id="autopanel.notice.mail.setUp">
         <source>mail is set up already</source>
         <translation>メールは設定済みです</translation>
@@ -1694,6 +1758,10 @@
     <message id="autopanel.notice.mail.weakPassword">
         <source>a password is 12 characters at least, 256 at most</source>
         <translation>パスワードは 12 文字以上 256 文字以下です</translation>
+    </message>
+    <message id="autopanel.notice.mail.weakSecret">
+        <source>Stalwart made an app password weaker than 128 bits; it was destroyed, and none is handed out until Stalwart is fixed</source>
+        <translation>Stalwart が 128 ビット未満のアプリパスワードを作ったため破棄しました。Stalwart が直るまで発行しません</translation>
     </message>
     <message id="autopanel.notice.prefs.notKept">
         <source>the choice is shown but was not kept: %1</source>
@@ -1827,6 +1895,18 @@
         <source>Remove the domain %1? Its routes stay; the removal is refused while a route would be left under no domain.</source>
         <translation>ドメイン %1 を削除しますか? ルートは残ります。どのドメインにも属さないルートが残る場合、削除は拒否されます。</translation>
     </message>
+    <message id="autopanel.question.mail.appFirst">
+        <source>%1 is made. Its devices sign in with app passwords: make one for its first device now?</source>
+        <translation>%1 を作りました。端末はアプリパスワードでサインインします。最初の端末用に今作りますか？</translation>
+    </message>
+    <message id="autopanel.question.mail.appRevoke">
+        <source>Revoke the app password of %1 (%2)? That device stops signing in at once.</source>
+        <translation>%1（%2）のアプリパスワードを失効させますか？その端末はすぐにサインインできなくなります。</translation>
+    </message>
+    <message id="autopanel.question.mail.lock">
+        <source>Replace %1's own password with one no one knows? Every device signed in with it stops; from then on only its app passwords sign in.</source>
+        <translation>%1 自身のパスワードを誰も知らないものに置き換えますか？それでサインインしている端末はすべて止まり、以後はアプリパスワードでのみサインインします。</translation>
+    </message>
     <message id="autopanel.question.mail.removeAccount">
         <source>Delete %1 and all its mail? This cannot be undone.</source>
         <translation>%1 とそのすべてのメールを削除しますか? 元に戻せません。</translation>
@@ -1943,13 +2023,25 @@
         <source>Make a mail account</source>
         <translation>メールアカウントを作成します</translation>
     </message>
-    <message id="autopanel.tip.mail.accountPassword">
-        <source>Set the selected account's password</source>
-        <translation>選択したアカウントのパスワードを設定します</translation>
+    <message id="autopanel.tip.mail.accountLock">
+        <source>Replace the selected account's own password with one no one knows: only its app passwords sign in</source>
+        <translation>選択したアカウント自身のパスワードを誰も知らないものに置き換えます。以後はアプリパスワードでのみサインインします</translation>
     </message>
     <message id="autopanel.tip.mail.accountRemove">
         <source>Delete the selected account and its mail</source>
         <translation>選択したアカウントとそのメールを削除します</translation>
+    </message>
+    <message id="autopanel.tip.mail.appAdd">
+        <source>Make an app password for a device of the selected account, shown once</source>
+        <translation>選択したアカウントの端末用アプリパスワードを作ります。表示は一度だけです</translation>
+    </message>
+    <message id="autopanel.tip.mail.appDone">
+        <source>Keep the app password: press once the device has signed in</source>
+        <translation>アプリパスワードを保持します。端末がサインインしてから押してください</translation>
+    </message>
+    <message id="autopanel.tip.mail.appRevoke">
+        <source>Revoke the selected app password: its device stops signing in at once</source>
+        <translation>選択したアプリパスワードを失効させます。その端末はすぐにサインインできなくなります</translation>
     </message>
     <message id="autopanel.tip.mail.copy">
         <source>Copy the selected record's value to the clipboard</source>
@@ -2099,9 +2191,21 @@
         <source>%1 · more than shown</source>
         <translation>%1 · 表示しきれない項目あり</translation>
     </message>
+    <message id="autopanel.title.confirm.appFirst">
+        <source>App password</source>
+        <translation>アプリパスワード</translation>
+    </message>
+    <message id="autopanel.title.confirm.appRevoke">
+        <source>Revoke the app password</source>
+        <translation>アプリパスワードの失効</translation>
+    </message>
     <message id="autopanel.title.confirm.cloudflareClear">
         <source>Remove the Cloudflare token</source>
         <translation>Cloudflare トークンの削除</translation>
+    </message>
+    <message id="autopanel.title.confirm.mailLock">
+        <source>Lock the mailbox's password</source>
+        <translation>メールボックスのパスワードをロック</translation>
     </message>
     <message id="autopanel.title.confirm.mailRemoveAccount">
         <source>Delete a mail account</source>
@@ -2146,6 +2250,10 @@
     <message id="autopanel.title.dialog.about">
         <source>About AutoPanel</source>
         <translation>AutoPanel について</translation>
+    </message>
+    <message id="autopanel.title.dialog.appPassword">
+        <source>App password for %1 · %2</source>
+        <translation>%1 のアプリパスワード · %2</translation>
     </message>
     <message id="autopanel.title.dialog.browse">
         <source>Add a stack: choose its folder</source>
@@ -2210,6 +2318,10 @@
     <message id="autopanel.title.list.mailAccounts">
         <source>Accounts</source>
         <translation>アカウント</translation>
+    </message>
+    <message id="autopanel.title.list.mailAppPasswords">
+        <source>App passwords</source>
+        <translation>アプリパスワード</translation>
     </message>
     <message id="autopanel.title.list.mailDomains">
         <source>Domains</source>
@@ -2323,6 +2435,10 @@
         <source>Add a domain</source>
         <translation>ドメインを追加</translation>
     </message>
+    <message id="autopanel.title.prompt.appPassword">
+        <source>New app password</source>
+        <translation>新しいアプリパスワード</translation>
+    </message>
     <message id="autopanel.title.prompt.cloudflare">
         <source>Cloudflare token</source>
         <translation>Cloudflare トークン</translation>
@@ -2346,10 +2462,6 @@
     <message id="autopanel.title.prompt.mailHost">
         <source>Set up mail: the mail host</source>
         <translation>メール設定: メールホスト</translation>
-    </message>
-    <message id="autopanel.title.prompt.mailPassword">
-        <source>Mail account password</source>
-        <translation>メールアカウントのパスワード</translation>
     </message>
     <message id="autopanel.title.prompt.passphrase">
         <source>Change your passphrase</source>
@@ -2526,6 +2638,14 @@
     <message id="autopanel.value.logins.ok">
         <source>ok</source>
         <translation>成功</translation>
+    </message>
+    <message id="autopanel.value.mail.appKept">
+        <source>in use</source>
+        <translation>使用中</translation>
+    </message>
+    <message id="autopanel.value.mail.appPending">
+        <source>pending until %1</source>
+        <translation>%1 まで保留</translation>
     </message>
     <message id="autopanel.value.mail.hostRow">
         <source>%1 (mail host)</source>

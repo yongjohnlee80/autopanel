@@ -319,12 +319,30 @@ func (u uiClient) MailAccounts(ctx context.Context, domain string) ([]mail.Accou
 	return as, u.call(ctx, "mail.account.list", mail.DomainAsk{Domain: domain}, &as)
 }
 
-func (u uiClient) MailAddAccount(ctx context.Context, address, password string, quota int64) error {
-	return u.call(ctx, "mail.account.add", mail.AccountAsk{Address: address, Password: password, Quota: quota}, nil)
+func (u uiClient) MailAddAccount(ctx context.Context, address string, quota int64) error {
+	return u.call(ctx, "mail.account.add", mail.AccountAsk{Address: address, Quota: quota}, nil)
 }
 
-func (u uiClient) MailSetPassword(ctx context.Context, address, password string) error {
-	return u.call(ctx, "mail.account.password", mail.AccountAsk{Address: address, Password: password}, nil)
+func (u uiClient) MailLockAccount(ctx context.Context, address string) error {
+	return u.call(ctx, "mail.account.lock", mail.AccountAsk{Address: address}, nil)
+}
+
+func (u uiClient) MailAppPasswords(ctx context.Context, address string) ([]mail.AppPasswordView, error) {
+	var ps []mail.AppPasswordView
+	return ps, u.call(ctx, "mail.apppassword.list", mail.AppPasswordAsk{Address: address}, &ps)
+}
+
+func (u uiClient) MailAddAppPassword(ctx context.Context, address, description string) (mail.NewAppPassword, error) {
+	var n mail.NewAppPassword
+	return n, u.call(ctx, "mail.apppassword.add", mail.AppPasswordAsk{Address: address, Description: description}, &n)
+}
+
+func (u uiClient) MailKeepAppPassword(ctx context.Context, address, id string) error {
+	return u.call(ctx, "mail.apppassword.keep", mail.AppPasswordAsk{Address: address, ID: id}, nil)
+}
+
+func (u uiClient) MailRevokeAppPassword(ctx context.Context, address, id string) error {
+	return u.call(ctx, "mail.apppassword.revoke", mail.AppPasswordAsk{Address: address, ID: id}, nil)
 }
 
 func (u uiClient) MailRemoveAccount(ctx context.Context, address string) error {

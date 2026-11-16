@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 // fakeStalwart answers one JMAP method call with what answer gives, and keeps
@@ -178,16 +179,49 @@ func TestAgainstStalwart(t *testing.T) {
 	if err != nil || !strings.Contains(zone, "IN MX") || strings.Contains(zone, "_domainkey") {
 		t.Fatalf("a new manual domain's zone: %v\n%s", err, zone)
 	}
-	id, err := c.AddAccount(ctx, NewAccount{Name: "probe", DomainID: d.ID, Password: "a-long-test-password-1", Quota: 1 << 30})
+	first, err := lockedSecret()
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, err := c.AddAccount(ctx, NewAccount{Name: "probe", DomainID: d.ID, Secret: first, Quota: 1 << 30})
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = c.RemoveAccount(context.Background(), id) })
-	if err := c.SetPassword(ctx, id, "a-long-test-password-2"); err != nil {
+
+	// App passwords: made with an expiry, kept, revoked; Stalwart's secret
+	// passes the strength check.
+	exp := time.Now().Add(pendingFor)
+	kept, secret, err := c.AddAppPassword(ctx, id, "probe phone", exp)
+	if err != nil || !strongSecret(secret) {
+		t.Fatalf("AddAppPassword: %v; strong %v", err, strongSecret(secret))
+	}
+	gone, _, err := c.AddAppPassword(ctx, id, "probe laptop", exp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := c.KeepAppPassword(ctx, id, kept.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.RevokeAppPassword(ctx, id, gone.ID); err != nil {
+		t.Fatal(err)
+	}
+	ps, err := c.AppPasswords(ctx, id)
+	if err != nil || len(ps) != 1 || ps[0].ID != kept.ID || ps[0].ExpiresAt != nil || ps[0].Description != "probe phone" {
+		t.Fatalf("AppPasswords = %+v, %v", ps, err)
+	}
+
+	// A new password's hash, and a new quota: both patches, so the app
+	// password and the limit stay.
+	again, _ := lockedSecret()
+	if err := c.SetSecret(ctx, id, again); err != nil {
 		t.Fatal(err)
 	}
 	if err := c.SetQuota(ctx, id, 2<<30); err != nil {
 		t.Fatal(err)
+	}
+	if ps, err := c.AppPasswords(ctx, id); err != nil || len(ps) != 1 {
+		t.Fatalf("after SetSecret and SetQuota: %+v, %v", ps, err)
 	}
 	accounts, err := c.Accounts(ctx)
 	if err != nil {
@@ -199,7 +233,7 @@ func TestAgainstStalwart(t *testing.T) {
 			found = &accounts[i]
 		}
 	}
-	if found == nil || found.Address != "probe@autopanel-test.example.net" || found.Quota != 2<<30 {
+	if found == nil || found.Address != "probe@autopanel-test.example.net" || found.Quota != 2<<30 || found.AppPasswordLimit != AppPasswordLimit {
 		t.Fatalf("the account as listed: %+v", found)
 	}
 	if err := c.RemoveAccount(ctx, id); err != nil {
