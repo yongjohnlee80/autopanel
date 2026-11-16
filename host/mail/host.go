@@ -86,6 +86,13 @@ func (h *Host) WriteDefinition(_ context.Context, compose []byte) error {
 	return nil
 }
 
+// RemoveDefinition takes the mail stack's folder out of the stacks'
+// directory: the undo of WriteDefinition when a setup fails before its stack
+// is registered. The folder holds only what WriteDefinition wrote.
+func (h *Host) RemoveDefinition(context.Context) error {
+	return os.RemoveAll(filepath.Join(h.Stacks, coremail.Stack))
+}
+
 // StackUID is the mail stack user's id.
 func (h *Host) StackUID(context.Context) (int, error) {
 	u, err := user.Lookup(services.UserOf(coremail.Stack))
@@ -207,6 +214,16 @@ func (h *Host) InstallLoopback(ctx context.Context, stackUID int) error {
 		return err
 	}
 	return l.Install(ctx)
+}
+
+// RemoveLoopback takes the rule out of the kernel and its files off the host:
+// the undo of InstallLoopback when a setup fails.
+func (h *Host) RemoveLoopback(ctx context.Context, stackUID int) error {
+	l, err := h.loopback(stackUID)
+	if err != nil {
+		return err
+	}
+	return l.Remove(ctx)
 }
 
 // EnsureLoopback checks the rule and loads it again if the kernel lost it.

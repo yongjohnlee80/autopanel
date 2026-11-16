@@ -12,6 +12,7 @@ import (
 
 	"github.com/yongjohnlee80/autopanel/core/gate"
 	"github.com/yongjohnlee80/autopanel/core/mail"
+	"github.com/yongjohnlee80/autopanel/internal/cloudflare"
 )
 
 // MAIL — Mail › Set up mail, Domains, Accounts and Server: the mail verbs,
@@ -28,19 +29,22 @@ type mailPanes struct {
 	server   *tuidecl.ListModel // App.mailServerRows: Mail › Server's facts
 	dns      *tuidecl.ListModel // App.dnsRows: the DNS records dialog's
 
-	status      mail.Status
-	statusRead  bool
-	domainList  []string
-	recordsOf   string
-	recordList  []mail.RecordView
-	dkimList    []mail.DKIMRow
-	recordsAt   int64
-	accountList []mail.AccountView
-	domainAt    int
-	recordAt    int
-	accountAt   int
-	dnsList     []dnsRow
-	dnsAt       int
+	status mail.Status
+	// The last Set up mail's answers: offered again when it is asked again,
+	// since the daemon holds a setup only until it is applied.
+	lastHost, lastDomain string
+	statusRead           bool
+	domainList           []string
+	recordsOf            string
+	recordList           []mail.RecordView
+	dkimList             []mail.DKIMRow
+	recordsAt            int64
+	accountList          []mail.AccountView
+	domainAt             int
+	recordAt             int
+	accountAt            int
+	dnsList              []dnsRow
+	dnsAt                int
 }
 
 func newMailPanes() mailPanes {
@@ -164,7 +168,7 @@ func (h *host) renderMail() {
 	}
 	_ = h.p.SetMany(map[string]any{
 		"App.mailSetUp":         m.status.SetUp,
-		"App.mailNotSetUp":      !m.status.SetUp,
+		"App.mailNotSetUp":      h.mailMaySetUp(),
 		"App.mailDomainsTitle":  h.trf("autopanel.title.list.count", h.tr("autopanel.title.list.mailDomains"), len(m.status.Domains), at),
 		"App.mailRecordsTitle":  recTitle,
 		"App.mailRecordDetail":  h.mailRecordDetail(),
@@ -313,7 +317,34 @@ func (h *host) mailAccountMoved(row int) error {
 // mailSetup asks for the mail host, then the first domain, writes the mail
 // stack, and opens its review: confirming it applies the stack, and Stalwart
 // is set up once it runs.
+// mailSetup reads mail's state first: a setup left at its review is taken
+// again, its answers offered, and a setup Stalwart took is said, not asked.
 func (h *host) mailSetup() error {
+	var st mail.Status
+	h.background(func(ctx context.Context) (err error) {
+		st, err = h.client.MailStatus(ctx)
+		return err
+	}, func(err error) {
+		if err != nil {
+			h.failed(err)
+			return
+		}
+		h.mail.status = st
+		_ = h.p.SetMany(map[string]any{"App.mailNotSetUp": h.mailMaySetUp()})
+		if !h.mailMaySetUp() {
+			h.say(h.tr("autopanel.notice.mail.setUp"))
+			return
+		}
+		if err := h.askMailSetup(); err != nil {
+			h.failed(err)
+		}
+	})
+	return nil
+}
+
+// askMailSetup asks the mail host, then the first domain, then writes the
+// stack and opens its review.
+func (h *host) askMailSetup() error {
 	first := ""
 	if len(h.domains) > 0 {
 		first = h.domains[0].Name
@@ -321,6 +352,9 @@ func (h *host) mailSetup() error {
 	start := ""
 	if first != "" {
 		start = "mail." + first
+	}
+	if h.mail.lastHost != "" { // asked again: what was answered before
+		start = h.mail.lastHost
 	}
 	return h.prompt("autopanel.title.prompt.mailHost", "autopanel.label.prompt.mailHost", start, func(host string) error {
 		host = strings.ToLower(strings.TrimSpace(host))
@@ -334,6 +368,9 @@ func (h *host) mailSetup() error {
 				domain = d.Name
 			}
 		}
+		if h.mail.lastDomain != "" && host == h.mail.lastHost {
+			domain = h.mail.lastDomain
+		}
 		h.promptDone()
 		return h.prompt("autopanel.title.prompt.mailDomain", "autopanel.label.prompt.mailDomain", domain, func(domain string) error {
 			domain = strings.ToLower(strings.TrimSpace(domain))
@@ -342,8 +379,9 @@ func (h *host) mailSetup() error {
 				return nil
 			}
 			h.busy = true
-			h.background(func(ctx context.Context) error {
-				_, err := h.client.MailSetup(ctx, host, domain)
+			var out mail.Setup
+			h.background(func(ctx context.Context) (err error) {
+				out, err = h.client.MailSetup(ctx, host, domain)
 				return err
 			}, func(err error) {
 				h.busy = false
@@ -357,9 +395,11 @@ func (h *host) mailSetup() error {
 					h.promptRefused(h.trf("autopanel.notice.app.error", err.Error()))
 				default:
 					h.promptDone()
-					h.say(h.tr("autopanel.notice.mail.written"))
-					h.loadMail()
-					h.checkStack(mail.Stack, reviewAdd, false)
+					h.mail.lastHost, h.mail.lastDomain = host, domain
+					h.stk.nextDraft = true // Add and start applies the setup: nothing is written before it
+					if err := h.showReview(mail.Stack, reviewAdd, out.Review, false); err != nil {
+						h.failed(err)
+					}
 				}
 			})
 			return nil
@@ -367,7 +407,40 @@ func (h *host) mailSetup() error {
 	})
 }
 
+// runMailSetup is Add and start on the mail stack's review: the daemon makes
+// the whole setup in one call, or undoes what it began.
+func (h *host) runMailSetup(accept string) {
+	if h.busy {
+		h.say(h.tr("autopanel.notice.app.busy"))
+		return
+	}
+	h.busy = true
+	h.say(h.trf("autopanel.notice.stacks.working", mail.Stack))
+	h.background(func(ctx context.Context) error { return h.client.MailSetupApply(ctx, accept) }, func(err error) {
+		h.busy = false
+		switch {
+		case errors.Is(err, mail.ErrChanged), errors.Is(err, mail.ErrNoPending):
+			h.say(h.tr("autopanel.notice.mail.setUpAgain"))
+		case err != nil:
+			h.failed(err)
+		default:
+			h.mail.lastHost, h.mail.lastDomain = "", ""
+			h.say(h.tr("autopanel.notice.mail.applied"))
+		}
+		h.loadMail()
+		h.loadStacks()
+	})
+}
+
 // --- domains ------------------------------------------------------------------
+
+// mailMaySetUp says whether Mail → Set up mail is open: before mail is set
+// up, and over what a v0.2.6 setup left at its review (recorded, its stack
+// never added, Stalwart never set up), which mail.setup drops.
+func (h *host) mailMaySetUp() bool {
+	st := h.mail.status
+	return !st.SetUp || (st.Bootstrapped == 0 && st.Stack == "absent")
+}
 
 func (h *host) mailReady() bool {
 	switch {
@@ -543,6 +616,7 @@ func (h *host) mailRemoveAccount(row int) error {
 // secretAnswered. The text is never put in a source or a log.
 func (h *host) askSecret(title, label string, then func(string)) error {
 	h.secreted = then
+	h.secretShort = "autopanel.notice.mail.weakPassword"
 	if err := h.fill(map[string]any{"App.secretText": ""}); err != nil { // the field starts empty, every time
 		return err
 	}
@@ -559,7 +633,7 @@ func (h *host) secretEntered(text string) error {
 		return h.p.Call("secretDialog", "close")
 	}
 	if n := len([]rune(text)); n < 12 || n > 256 {
-		return h.p.SetMany(map[string]any{"App.secretError": h.tr("autopanel.notice.mail.weakPassword"), "App.secretErrorShown": true})
+		return h.p.SetMany(map[string]any{"App.secretError": h.tr(h.secretShort), "App.secretErrorShown": true})
 	}
 	if h.busy {
 		return h.p.SetMany(map[string]any{"App.secretError": h.tr("autopanel.notice.app.busy"), "App.secretErrorShown": true})
@@ -573,8 +647,13 @@ func (h *host) secretEntered(text string) error {
 func (h *host) secretAnswered(err error, done func()) {
 	if err != nil {
 		msg := h.trf("autopanel.notice.app.error", err.Error())
-		if errors.Is(err, mail.ErrWeakPassword) {
+		switch {
+		case errors.Is(err, mail.ErrWeakPassword):
 			msg = h.tr("autopanel.notice.mail.weakPassword")
+		case errors.Is(err, cloudflare.ErrTokenRefused):
+			msg = h.tr("autopanel.notice.certs.cloudflareRefused")
+		case errors.Is(err, cloudflare.ErrNoAnswer):
+			msg = h.tr("autopanel.notice.certs.cloudflareNoAnswer")
 		}
 		_ = h.p.SetMany(map[string]any{"App.secretError": msg, "App.secretErrorShown": true})
 		return

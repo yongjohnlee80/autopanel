@@ -29,6 +29,10 @@ type State struct {
 type Store interface {
 	State(ctx context.Context) (State, bool, error)
 	Create(ctx context.Context, host, firstDomain string) error
+	// Forget drops a setup Stalwart never took up (bootstrapped 0), with its
+	// domains: what a v0.2.6 setup left when its review was quit. ErrSetUp
+	// once Stalwart has taken it.
+	Forget(ctx context.Context) error
 	SetBootstrapped(ctx context.Context, at int64) error
 	Domains(ctx context.Context) ([]string, error)
 	AddDomain(ctx context.Context, name string) error
@@ -63,6 +67,10 @@ type Stacks interface {
 	EnsureUser(ctx context.Context, name string) error
 	Up(ctx context.Context, name string) (state string, since int64, err error)
 	Restart(ctx context.Context, name string) error
+	// CheckDraft reviews a definition held in memory; Add registers and
+	// applies the stack written since, given the review's sha256.
+	CheckDraft(ctx context.Context, name string, compose []byte) (services.Review, error)
+	Add(ctx context.Context, name, accept string) error
 }
 
 // Host is the machine side of mail (host/mail).
@@ -72,6 +80,9 @@ type Host interface {
 	// WriteDefinition writes the mail stack's compose.yaml into the stacks'
 	// directory.
 	WriteDefinition(ctx context.Context, compose []byte) error
+	// RemoveDefinition takes the mail stack's folder out of the stacks'
+	// directory: the undo of WriteDefinition when a setup fails.
+	RemoveDefinition(ctx context.Context) error
 	// StackUID is the mail stack user's id.
 	StackUID(ctx context.Context) (int, error)
 	// FirstPassword is the one-time password Stalwart printed at its start at
@@ -84,6 +95,9 @@ type Host interface {
 	// stack user's systemd; EnsureLoopback checks it and loads it again if the
 	// kernel lost it, reporting whether it had to.
 	InstallLoopback(ctx context.Context, stackUID int) error
+	// RemoveLoopback takes the rule out of the kernel and off the host: the
+	// undo of InstallLoopback when a setup fails.
+	RemoveLoopback(ctx context.Context, stackUID int) error
 	EnsureLoopback(ctx context.Context, stackUID int) (reloaded bool, err error)
 	// PublicIPv4 is the host's one global IPv4 address, for the mail host's A
 	// record; "" when it has none or several.
@@ -129,6 +143,8 @@ var (
 	ErrStalwart          = errors.New("mail: Stalwart refused")
 	ErrAdminAccount      = errors.New("mail: that is Stalwart's administrator")
 	ErrNoRecord          = errors.New("mail: no record of that name and type is held by another")
+	ErrNoPending         = errors.New("mail: no setup is waiting to be applied")
+	ErrChanged           = errors.New("mail: the setup changed since it was reviewed")
 )
 
 // Streams switches the gate's forwarding of mail's ports on or off.
@@ -154,6 +170,18 @@ type Module struct {
 	mu       sync.Mutex
 	progress Progress
 	setupMu  sync.Mutex // one bootstrap at a time
+
+	// pending is a setup answered and reviewed but not applied: held here
+	// alone, so a setup left at its review leaves nothing behind (no row, no
+	// file, no rule). pendMu orders mail.setup and mail.setup.apply.
+	pendMu  sync.Mutex
+	pending *pendingSetup
+}
+
+// pendingSetup is mail.setup's answers, until mail.setup.apply.
+type pendingSetup struct {
+	host, domain string
+	accept       string // the review's sha256
 }
 
 // Progress is where mail's setting up is, for mail.status.
@@ -192,6 +220,8 @@ func (m *Module) Errors() []module.PublicError {
 	return []module.PublicError{
 		{Err: ErrNotSetUp, Code: -32130, Name: "mail.not_set_up", Message: "mail is not set up: Mail → Set up mail"},
 		{Err: ErrSetUp, Code: -32131, Name: "mail.set_up", Message: "mail is set up already"},
+		{Err: ErrNoPending, Code: -32148, Name: "mail.no_pending", Message: "no setup is waiting to be applied: Mail → Set up mail first"},
+		{Err: ErrChanged, Code: -32149, Name: "mail.changed", Message: "the setup changed since it was reviewed: set mail up again"},
 		{Err: ErrNotReady, Code: -32132, Name: "mail.not_ready", Message: "Stalwart is not set up yet: apply the mail stack, and wait for mail.status to say ready"},
 		{Err: ErrBadHost, Code: -32133, Name: "mail.bad_host", Message: "the mail host is a host name with a dot: mail.example.com"},
 		{Err: ErrNotRegistered, Code: -32134, Name: "mail.not_registered", Message: "the domain is not in the registry: add it under Domains first"},
@@ -228,7 +258,9 @@ func (m *Module) Verbs() []module.Verb {
 		module.Handle(module.Contract{Verb: "mail.status", Discloses: module.Plain, Since: 6, Result: "{set_up, host, bootstrapped, stack, step, error, at, loopback, domains}",
 			Doc: "Whether mail is set up, how far Stalwart's setting up got, the mail stack's state, the loopback rule's, and the mail domains."}, m.status),
 		module.Handle(adminChange("mail.setup", "{host, domain}",
-			"Sets mail up: writes the mail stack's definition (Stalwart, pinned), makes its user and the loopback rule, and records the host and first domain. The stack is then reviewed and applied as any stack; Stalwart is set up once it runs."), m.setup),
+			"Answers the review of the mail stack (Stalwart, pinned) for this host and first domain, and holds the answers until mail.setup.apply. It writes nothing: a setup left here leaves no trace, and may be asked again."), m.setup),
+		module.Handle(adminChange("mail.setup.apply", "{accept}",
+			"Applies the setup mail.setup reviewed, as one transaction: the stack's user, the loopback rule, its definition, the stack added and started, then the record of the host and first domain. A step that fails undoes the ones before it; the stack's own apply, once begun, is finished by asking again. Refused unless accept is the review's sha256."), m.apply),
 		module.Handle(module.Contract{Verb: "mail.domain.list", Discloses: module.Plain, Since: 6, Result: "[{name}]", Doc: "The domains that receive mail."}, m.domainList),
 		module.Handle(change("mail.domain.add", "{name}", "Has a registry domain receive mail."), m.domainAdd),
 		module.Handle(change("mail.domain.remove", "{name}", "Stops a domain receiving mail; refused while it has accounts."), m.domainRemove),
@@ -347,16 +379,31 @@ type SetupAsk struct {
 	Domain string `json:"domain"`
 }
 
-// Setup is mail.setup's answer: the stack to review and apply next.
+// Setup is mail.setup's answer: the review of the mail stack, to show before
+// mail.setup.apply.
 type Setup struct {
-	Stack  string `json:"stack"`
-	SHA256 string `json:"sha256"` // of the compose file written
+	Stack  string          `json:"stack"`
+	SHA256 string          `json:"sha256"` // the review's: what mail.setup.apply must be given
+	Review services.Review `json:"review"`
 }
 
+// Accept is mail.setup.apply's param.
+type Accept struct {
+	Accept string `json:"accept"`
+}
+
+// setup checks the answers and reviews the mail stack from memory. It writes
+// nothing (Decision: docs/decisions/mail.md#setting-mail-up-is-one-transaction):
+// the answers wait in memory for mail.setup.apply, and asking again replaces
+// them.
 func (m *Module) setup(ctx context.Context, p SetupAsk) (Setup, error) {
-	if _, ok, err := m.store.State(ctx); err != nil {
+	m.pendMu.Lock()
+	defer m.pendMu.Unlock()
+	st, recorded, err := m.store.State(ctx)
+	if err != nil {
 		return Setup{}, err
-	} else if ok {
+	}
+	if recorded && !m.untaken(ctx, st) {
 		return Setup{}, ErrSetUp
 	}
 	host, err := gate.CanonicalHost(p.Host)
@@ -370,30 +417,109 @@ func (m *Module) setup(ctx context.Context, p SetupAsk) (Setup, error) {
 	if err := m.host.CPU(); err != nil {
 		return Setup{}, fmt.Errorf("%w: %v", ErrCPU, err)
 	}
-	cfg, _ := json.Marshal(Config{Host: host, FirstDomain: domain, QuotaDefault: defaultQuota, DMARC: "quarantine"})
-	if err := m.vault.Put(ctx, sealedConfig, cfg); err != nil {
+	if _, err := m.vault.Get(ctx, sealedConfig); errors.Is(err, ErrLocked) { // the apply seals the settings
 		return Setup{}, err
 	}
-	// The user first, so the loopback rule can be ordered before its systemd,
-	// and loaded before the stack ever runs.
-	if err := m.stacks.EnsureUser(ctx, Stack); err != nil {
-		return Setup{}, err
+	if recorded { // what a v0.2.6 setup left at its review: half a setup, dropped
+		if err := m.store.Forget(ctx); err != nil {
+			return Setup{}, err
+		}
+		if err := m.vault.Delete(ctx, sealedConfig); err != nil && !errors.Is(err, ErrNoSecret) {
+			return Setup{}, err
+		}
 	}
-	uid, err := m.host.StackUID(ctx)
+	rev, err := m.stacks.CheckDraft(ctx, Stack, Compose())
 	if err != nil {
 		return Setup{}, err
 	}
+	m.pending = &pendingSetup{host: host, domain: domain, accept: rev.SHA256}
+	return Setup{Stack: Stack, SHA256: rev.SHA256, Review: rev}, nil
+}
+
+// apply makes the setup setup reviewed, as one transaction. Every write is
+// here, in an order that lets each be undone: the stack's user (the services
+// module's, made by any add of the stack), the loopback rule (before the
+// stack can run), the definition, the stack added and started, and last the
+// record and the sealed settings, which make mail set up. A step that fails
+// undoes the writes before it. The stack's own apply keeps its own journal:
+// once the stack is registered it is not undone here, and asking again
+// finishes it.
+func (m *Module) apply(ctx context.Context, p Accept) (Setup, error) {
+	m.pendMu.Lock()
+	defer m.pendMu.Unlock()
+	pend := m.pending
+	if pend == nil {
+		return Setup{}, ErrNoPending
+	}
+	if p.Accept != pend.accept {
+		return Setup{}, ErrChanged
+	}
+	if _, recorded, err := m.store.State(ctx); err != nil {
+		return Setup{}, err
+	} else if recorded {
+		return Setup{}, ErrSetUp
+	}
+	if _, err := m.vault.Get(ctx, sealedConfig); errors.Is(err, ErrLocked) {
+		return Setup{}, err
+	}
+	registered := func() bool {
+		_, _, err := m.stacks.Up(ctx, Stack)
+		return !errors.Is(err, services.ErrNotFound)
+	}
+	var undo []func(context.Context) error
+	fail := func(err error) (Setup, error) {
+		if !registered() { // the stack's own journal holds what it made, once it is
+			bg := context.WithoutCancel(ctx)
+			for i := len(undo) - 1; i >= 0; i-- {
+				if uerr := undo[i](bg); uerr != nil {
+					m.log.Warn("mail: undoing a setup that failed", "err", uerr)
+				}
+			}
+		}
+		return Setup{}, err
+	}
+
+	if err := m.stacks.EnsureUser(ctx, Stack); err != nil {
+		return fail(err)
+	}
+	uid, err := m.host.StackUID(ctx)
+	if err != nil {
+		return fail(err)
+	}
 	if err := m.host.InstallLoopback(ctx, uid); err != nil {
-		return Setup{}, fmt.Errorf("mail: the loopback rule: %w", err)
+		return fail(fmt.Errorf("mail: the loopback rule: %w", err))
 	}
+	undo = append(undo, func(ctx context.Context) error { return m.host.RemoveLoopback(ctx, uid) })
 	if err := m.host.WriteDefinition(ctx, Compose()); err != nil {
-		return Setup{}, err
+		return fail(err)
 	}
-	if err := m.store.Create(ctx, host, domain); err != nil {
-		return Setup{}, err
+	undo = append(undo, m.host.RemoveDefinition)
+	if err := m.stacks.Add(ctx, Stack, pend.accept); err != nil && !errors.Is(err, services.ErrDuplicate) {
+		return fail(err)
 	}
+	cfg, _ := json.Marshal(Config{Host: pend.host, FirstDomain: pend.domain, QuotaDefault: defaultQuota, DMARC: "quarantine"})
+	if err := m.vault.Put(ctx, sealedConfig, cfg); err != nil {
+		return fail(err)
+	}
+	if err := m.store.Create(ctx, pend.host, pend.domain); err != nil {
+		_ = m.vault.Delete(context.WithoutCancel(ctx), sealedConfig)
+		return fail(err)
+	}
+	m.pending = nil
+	m.hostName.Store(pend.host)
 	m.note("waiting for the stack", "")
-	return Setup{Stack: Stack, SHA256: ComposeSHA256()}, nil
+	return Setup{Stack: Stack, SHA256: pend.accept}, nil
+}
+
+// untaken says whether a setup was left before its stack was ever added (its
+// review closed, the panel quit): Stalwart never ran, nothing was published,
+// so mail.setup may run again, with the same answers or new ones.
+func (m *Module) untaken(ctx context.Context, st State) bool {
+	if st.Bootstrapped != 0 {
+		return false
+	}
+	_, _, err := m.stacks.Up(ctx, Stack)
+	return errors.Is(err, services.ErrNotFound)
 }
 
 // registered is name as the registry holds it, by its exact name.

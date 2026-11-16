@@ -48,6 +48,15 @@ func (f *fakeStore) Create(_ context.Context, host, d string) error {
 	f.domains = append(f.domains, d)
 	return nil
 }
+func (f *fakeStore) Forget(context.Context) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.state == nil || f.state.Bootstrapped != 0 {
+		return ErrSetUp
+	}
+	f.state, f.domains = nil, nil
+	return nil
+}
 func (f *fakeStore) SetBootstrapped(_ context.Context, at int64) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -173,12 +182,41 @@ type fakeStacks struct {
 	user     bool
 	since    int64
 	restarts int
+	absent   bool     // the stack was never added: Up answers services.ErrNotFound
+	added    []string // the sha256 each Add was given
+	addErr   error    // what the next Add answers
+}
+
+func (s *fakeStacks) CheckDraft(_ context.Context, _ string, compose []byte) (services.Review, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.absent {
+		return services.Review{}, services.ErrDuplicate
+	}
+	return services.Review{SHA256: "reviewed-" + ComposeSHA256()[:8], Findings: []services.Finding{}}, nil
+}
+func (s *fakeStacks) Add(_ context.Context, _ string, accept string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := s.addErr; err != nil {
+		s.addErr = nil
+		return err
+	}
+	if !s.absent {
+		return services.ErrDuplicate
+	}
+	s.added = append(s.added, accept)
+	s.absent = false
+	return nil
 }
 
 func (s *fakeStacks) EnsureUser(context.Context, string) error { s.user = true; return nil }
 func (s *fakeStacks) Up(context.Context, string) (string, int64, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.absent {
+		return "", 0, services.ErrNotFound
+	}
 	return "applied", s.since, nil
 }
 func (s *fakeStacks) Restart(context.Context, string) error {
@@ -201,6 +239,8 @@ type fakeHost struct {
 
 func (h *fakeHost) CPU() error                                        { return h.cpu }
 func (h *fakeHost) WriteDefinition(_ context.Context, b []byte) error { h.definition = b; return nil }
+func (h *fakeHost) RemoveDefinition(context.Context) error            { h.definition = nil; return nil }
+func (h *fakeHost) RemoveLoopback(context.Context, int) error         { h.loopback--; return nil }
 func (h *fakeHost) StackUID(context.Context) (int, error)             { return 990, nil }
 func (h *fakeHost) FirstPassword(context.Context, time.Time) (string, error) {
 	return "once-printed", nil
@@ -216,6 +256,20 @@ func (h *fakeHost) InstallLoopback(context.Context, int) error { h.loopback++; r
 func (h *fakeHost) EnsureLoopback(context.Context, int) (bool, error) {
 	h.ensured.Add(1)
 	return h.reload, nil
+}
+
+// setUpMail is Set up mail, then Add and start, on a stack never added.
+func setUpMail(t *testing.T, m *Module, stacks *fakeStacks) {
+	t.Helper()
+	ctx := context.Background()
+	stacks.absent = true
+	out, err := m.setup(ctx, SetupAsk{Host: "mail.example.net", Domain: "example.net"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := m.apply(ctx, Accept{Accept: out.SHA256}); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func newTestModule(t *testing.T) (*Module, *fakeStore, *fakeVault, *fakeStacks, *fakeHost, *atomic.Bool) {
@@ -296,6 +350,7 @@ func TestTheGuard(t *testing.T) {
 func TestSetup(t *testing.T) {
 	m, st, v, stacks, h, _ := newTestModule(t)
 	ctx := context.Background()
+	stacks.absent = true
 	for name, p := range map[string]SetupAsk{
 		"a bare name":            {Host: "mail", Domain: "example.net"},
 		"an unregistered domain": {Host: "mail.example.net", Domain: "example.com"},
@@ -315,25 +370,89 @@ func TestSetup(t *testing.T) {
 		t.Fatalf("a locked vault: %v", err)
 	}
 	v.locked = false
+	if _, err := m.apply(ctx, Accept{Accept: "x"}); !errors.Is(err, ErrNoPending) {
+		t.Fatalf("an apply with nothing set up: %v", err)
+	}
+
+	// Set up mail reviews, and writes nothing: left here, it leaves no trace.
+	nothing := func(when string) {
+		t.Helper()
+		if st.state != nil || len(st.domains) != 0 || len(v.m) != 0 || stacks.user || h.loopback != 0 || h.definition != nil || len(stacks.added) != 0 {
+			t.Fatalf("%s: written: state %+v, domains %v, sealed %d, user %v, loopback %d, definition %d bytes, added %v",
+				when, st.state, st.domains, len(v.m), stacks.user, h.loopback, len(h.definition), stacks.added)
+		}
+	}
 	out, err := m.setup(ctx, SetupAsk{Host: "Mail.Example.net", Domain: "example.net"})
-	if err != nil || out.Stack != "mail" || out.SHA256 != ComposeSHA256() {
+	if err != nil || out.Stack != "mail" || out.SHA256 == "" || out.Review.SHA256 != out.SHA256 {
 		t.Fatalf("setup = %+v, %v", out, err)
 	}
-	if !stacks.user || h.loopback != 1 || string(h.definition) != string(Compose()) {
-		t.Fatalf("the user, the loopback rule, the definition: %v %d %q", stacks.user, h.loopback, h.definition)
+	nothing("after the review")
+	// Asked again, with another host: the answers are replaced, still unwritten.
+	out, err = m.setup(ctx, SetupAsk{Host: "post.example.net", Domain: "example.net"})
+	if err != nil {
+		t.Fatal(err)
 	}
-	if st.state.Host != "mail.example.net" || !slices.Equal(st.domains, []string{"example.net"}) {
+	nothing("after a second review")
+	if _, err := m.apply(ctx, Accept{Accept: "not-the-review"}); !errors.Is(err, ErrChanged) {
+		t.Fatalf("an apply of another review: %v", err)
+	}
+
+	// A step that fails undoes the ones before it.
+	stacks.addErr = errors.New("podman: no network")
+	if _, err := m.apply(ctx, Accept{Accept: out.SHA256}); err == nil {
+		t.Fatal("an apply whose stack failed to add succeeded")
+	}
+	if st.state != nil || len(v.m) != 0 || h.loopback != 0 || h.definition != nil {
+		t.Fatalf("a failed apply left: state %+v, sealed %d, loopback %d, definition %d bytes", st.state, len(v.m), h.loopback, len(h.definition))
+	}
+
+	// Add and start: every write, then the record.
+	if _, err := m.apply(ctx, Accept{Accept: out.SHA256}); err != nil {
+		t.Fatal(err)
+	}
+	if !stacks.user || h.loopback != 1 || string(h.definition) != string(Compose()) || len(stacks.added) != 1 || stacks.added[0] != out.SHA256 {
+		t.Fatalf("the user, the loopback rule, the definition, the add: %v %d %q %v", stacks.user, h.loopback, h.definition, stacks.added)
+	}
+	if st.state == nil || st.state.Host != "post.example.net" || !slices.Equal(st.domains, []string{"example.net"}) {
 		t.Fatalf("recorded: %+v %v", st.state, st.domains)
 	}
 	var cfg Config
-	if err := json.Unmarshal(v.m[sealedConfig], &cfg); err != nil || cfg.Host != "mail.example.net" || cfg.DMARC != "quarantine" {
+	if err := json.Unmarshal(v.m[sealedConfig], &cfg); err != nil || cfg.Host != "post.example.net" || cfg.DMARC != "quarantine" {
 		t.Fatalf("the sealed settings: %+v %v", cfg, err)
+	}
+	if !m.IsHost("post.example.net") {
+		t.Fatal("the mail host is not known for its certificate")
+	}
+	if _, err := m.apply(ctx, Accept{Accept: out.SHA256}); !errors.Is(err, ErrNoPending) {
+		t.Fatalf("a second apply: %v", err)
 	}
 	if _, err := m.setup(ctx, SetupAsk{Host: "mail.example.net", Domain: "example.net"}); !errors.Is(err, ErrSetUp) {
 		t.Fatalf("a second setup: %v", err)
 	}
 	if _, err := m.domainAdd(ctx, Name{Name: "example.org"}); !errors.Is(err, ErrNotReady) {
 		t.Fatalf("a domain before Stalwart is set up: %v", err)
+	}
+}
+
+// TestASetupLeftByAnOlderVersionIsDropped: v0.2.6 recorded mail before its
+// stack was added. Such a half setup is dropped by the next Set up mail; one
+// Stalwart took is never touched.
+func TestASetupLeftByAnOlderVersionIsDropped(t *testing.T) {
+	m, st, v, stacks, _, _ := newTestModule(t)
+	ctx := context.Background()
+	st.state = &State{Host: "old.example.net", CreatedAt: 1}
+	st.domains = []string{"example.org"}
+	v.m[sealedConfig] = []byte(`{"host":"old.example.net"}`)
+	stacks.absent = true
+	if _, err := m.setup(ctx, SetupAsk{Host: "mail.example.net", Domain: "example.net"}); err != nil {
+		t.Fatal(err)
+	}
+	if st.state != nil || len(st.domains) != 0 || v.m[sealedConfig] != nil {
+		t.Fatalf("the half setup is still there: %+v %v %q", st.state, st.domains, v.m[sealedConfig])
+	}
+	st.state = &State{Host: "old.example.net", CreatedAt: 1, Bootstrapped: 7}
+	if _, err := m.setup(ctx, SetupAsk{Host: "mail.example.net", Domain: "example.net"}); !errors.Is(err, ErrSetUp) {
+		t.Fatalf("a setup Stalwart took: %v", err)
 	}
 }
 
@@ -397,9 +516,7 @@ func (s *stalwart) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func TestBootstrap(t *testing.T) {
 	m, st, v, stacks, _, on := newTestModule(t)
 	ctx := context.Background()
-	if _, err := m.setup(ctx, SetupAsk{Host: "mail.example.net", Domain: "example.net"}); err != nil {
-		t.Fatal(err)
-	}
+	setUpMail(t, m, stacks)
 	fake := &stalwart{restarted: func() bool { return stacks.restarts > 0 }}
 	srv := httptest.NewServer(fake)
 	defer srv.Close()
@@ -456,9 +573,7 @@ func TestABootstrapCarriesOnAfterAFailure(t *testing.T) {
 	// it: the printed password is gone after the restart, and is not needed.
 	m, st, v, stacks, _, _ := newTestModule(t)
 	ctx := context.Background()
-	if _, err := m.setup(ctx, SetupAsk{Host: "mail.example.net", Domain: "example.net"}); err != nil {
-		t.Fatal(err)
-	}
+	setUpMail(t, m, stacks)
 	fake := &stalwart{setUp: true, restarted: func() bool { return true }}
 	srv := httptest.NewServer(fake)
 	defer srv.Close()

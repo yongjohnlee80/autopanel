@@ -89,6 +89,9 @@ type Host interface {
 	// Stage reads a stack's compose.yaml and .env once, into a folder only
 	// root reaches, and answers them: ErrNoDefinition without a compose.yaml.
 	Stage(ctx context.Context, name string) (compose, env []byte, err error)
+	// StageDraft starts a fresh staged copy holding compose alone: a
+	// definition held in memory, not yet written to the stacks' directory.
+	StageDraft(ctx context.Context, name string, compose []byte) error
 	// StagePaths adds the files at paths to the staged copy and answers every
 	// staged file. missing are the paths the definition does not have; links
 	// are the ones that are, or hold, a symbolic link.

@@ -272,8 +272,23 @@ func TestTheCoreAndTheGateEndToEnd(t *testing.T) {
 		t.Fatalf("plain HTTP answered %d %q; want a 308 to the canonical https URL", res.StatusCode, res.Header.Get("Location"))
 	}
 
+	// A token Cloudflare refuses is neither kept nor used; one it accepts is.
+	// Cloudflare is played here: the pair never reaches the network.
+	defer func(v func(context.Context, string) error) { verifyCloudflare = v }(verifyCloudflare)
+	verifyCloudflare = func(_ context.Context, tok string) error {
+		if tok != "test-token" {
+			return errTokenRefused
+		}
+		return nil
+	}
 	var cs CertState
-	if err := c.Call(ctx, "certs.cloudflare.set", Token{Token: "test-token"}, &cs); err != nil || cs.Challenge != "dns-01 (cloudflare)" {
+	if err := c.Call(ctx, "certs.cloudflare.set", Token{Token: "mistyped"}, &cs); wireCode(err) != -32173 {
+		t.Fatalf("certs.cloudflare.set with a refused token = %+v, %v; want -32173", cs, err)
+	}
+	if err := c.Call(ctx, "sys.status", nil, &st); err != nil || st.Challenge != "http-01, tls-alpn-01" {
+		t.Fatalf("after a refused token the challenge is %q, %v; want it unchanged", st.Challenge, err)
+	}
+	if err := c.Call(ctx, "certs.cloudflare.set", Token{Token: " test-token\n"}, &cs); err != nil || cs.Challenge != "dns-01 (cloudflare)" {
 		t.Fatalf("certs.cloudflare.set = %+v, %v", cs, err)
 	}
 	if err := c.Call(ctx, "certs.cloudflare.clear", nil, &cs); err != nil || cs.Challenge != "http-01, tls-alpn-01" {

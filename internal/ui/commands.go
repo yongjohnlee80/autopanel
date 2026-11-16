@@ -43,12 +43,14 @@ func (h *host) commandTable() map[string]decl.HandlerFunc {
 		"App.closePanel":      oneString("App.closePanel", h.closePanel),
 
 		// System, and the preferences
-		"App.setCA":         oneString("App.setCA", h.setCA),
-		"App.openMonitor":   oneString("App.openMonitor", h.openMonitor),
-		"App.reloadMonitor": oneString("App.reloadMonitor", h.reloadMonitor),
-		"App.monitorMoved":  stringAndRow("App.monitorMoved", h.monitorMoved),
-		"App.useTheme":      oneString("App.useTheme", h.useTheme),
-		"App.setLanguage":   oneString("App.setLanguage", h.setLanguage),
+		"App.setCA":           oneString("App.setCA", h.setCA),
+		"App.setCloudflare":   none(h.setCloudflare),
+		"App.clearCloudflare": none(h.clearCloudflare),
+		"App.openMonitor":     oneString("App.openMonitor", h.openMonitor),
+		"App.reloadMonitor":   oneString("App.reloadMonitor", h.reloadMonitor),
+		"App.monitorMoved":    stringAndRow("App.monitorMoved", h.monitorMoved),
+		"App.useTheme":        oneString("App.useTheme", h.useTheme),
+		"App.setLanguage":     oneString("App.setLanguage", h.setLanguage),
 
 		// Routes: the routes, the domains, the form
 		"App.openRoutes":   none(h.openRoutes),

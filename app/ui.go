@@ -149,6 +149,14 @@ func (u uiClient) SetCA(ctx context.Context, ca string) error {
 	return u.call(ctx, "certs.ca.set", CA{CA: ca}, nil)
 }
 
+func (u uiClient) SetCloudflare(ctx context.Context, token string) error {
+	return u.call(ctx, "certs.cloudflare.set", Token{Token: token}, nil)
+}
+
+func (u uiClient) ClearCloudflare(ctx context.Context) error {
+	return u.call(ctx, "certs.cloudflare.clear", nil, nil)
+}
+
 func (u uiClient) Domains(ctx context.Context) ([]gate.DomainView, error) {
 	var ds []gate.DomainView
 	return ds, u.call(ctx, "gate.domain.list", nil, &ds)
@@ -279,6 +287,10 @@ func (u uiClient) MailStatus(ctx context.Context) (mail.Status, error) {
 func (u uiClient) MailSetup(ctx context.Context, host, domain string) (mail.Setup, error) {
 	var s mail.Setup
 	return s, u.call(ctx, "mail.setup", mail.SetupAsk{Host: host, Domain: domain}, &s)
+}
+
+func (u uiClient) MailSetupApply(ctx context.Context, accept string) error {
+	return u.call(ctx, "mail.setup.apply", mail.Accept{Accept: accept}, nil)
 }
 
 func (u uiClient) MailAddDomain(ctx context.Context, name string) error {

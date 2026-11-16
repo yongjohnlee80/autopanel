@@ -959,6 +959,10 @@
         <source>User</source>
         <translation>사용자</translation>
     </message>
+    <message id="autopanel.label.prompt.cloudflare">
+        <source>Paste an API token from Cloudflare (My Profile → API Tokens) with Zone · Zone · Read and Zone · DNS · Edit on the zone of every domain here. AutoPanel checks it with Cloudflare, then keeps it sealed. Every certificate then comes through DNS, and mail's records are published for you.</source>
+        <translation>Cloudflare의 API 토큰(My Profile → API Tokens)을 붙여 넣으세요. 여기 있는 모든 도메인의 영역에 Zone · Zone · Read와 Zone · DNS · Edit 권한이 있어야 합니다. AutoPanel이 Cloudflare에서 확인한 뒤 봉인해 보관합니다. 그 뒤로 모든 인증서는 DNS로 발급되고, 메일의 레코드는 자동으로 게시됩니다.</translation>
+    </message>
     <message id="autopanel.label.prompt.domain">
         <source>The domain's name, a name and a suffix:</source>
         <translation>도메인 이름 (이름과 접미사):</translation>
@@ -1174,6 +1178,10 @@
     <message id="autopanel.menu.certs.cloudflare">
         <source>&amp;Cloudflare token…</source>
         <translation>Cloudflare 토큰(&amp;c)…</translation>
+    </message>
+    <message id="autopanel.menu.certs.cloudflareClear">
+        <source>&amp;Remove Cloudflare token…</source>
+        <translation>Cloudflare 토큰 삭제(&amp;r)…</translation>
     </message>
     <message id="autopanel.menu.certs.production">
         <source>&amp;Production (trusted certificates)</source>
@@ -1511,6 +1519,26 @@
         <source>certificates now come from %1</source>
         <translation>이제 인증서는 %1에서 발급됩니다</translation>
     </message>
+    <message id="autopanel.notice.certs.cloudflareCleared">
+        <source>The Cloudflare token is removed: certificates come through HTTP again</source>
+        <translation>Cloudflare 토큰을 삭제했습니다. 인증서는 다시 HTTP로 발급됩니다</translation>
+    </message>
+    <message id="autopanel.notice.certs.cloudflareNoAnswer">
+        <source>Cloudflare did not answer, so the token was not kept: try again</source>
+        <translation>Cloudflare가 응답하지 않아 토큰을 저장하지 않았습니다. 다시 시도하세요</translation>
+    </message>
+    <message id="autopanel.notice.certs.cloudflareRefused">
+        <source>Cloudflare refused this token: check that it was copied whole and is active</source>
+        <translation>Cloudflare가 이 토큰을 거부했습니다. 전체가 복사되었는지, 활성 상태인지 확인하세요</translation>
+    </message>
+    <message id="autopanel.notice.certs.cloudflareSet">
+        <source>The Cloudflare token is kept: certificates now come through DNS</source>
+        <translation>Cloudflare 토큰을 저장했습니다. 이제 인증서는 DNS로 발급됩니다</translation>
+    </message>
+    <message id="autopanel.notice.certs.cloudflareShort">
+        <source>That is too short for a Cloudflare token: paste it whole</source>
+        <translation>Cloudflare 토큰으로는 너무 짧습니다. 전체를 붙여 넣으세요</translation>
+    </message>
     <message id="autopanel.notice.domains.added">
         <source>domain %1 added</source>
         <translation>도메인 %1 추가됨</translation>
@@ -1591,6 +1619,10 @@
         <source>%1 deleted</source>
         <translation>%1 삭제됨</translation>
     </message>
+    <message id="autopanel.notice.mail.applied">
+        <source>mail is set up: Stalwart is starting, and Mail → Server says ready within a minute or two</source>
+        <translation>메일이 설정되었습니다. Stalwart가 시작 중이며, 1~2분 안에 메일 → 서버에 준비됨이 표시됩니다</translation>
+    </message>
     <message id="autopanel.notice.mail.badAddress">
         <source>an address is name@domain, of a domain that receives mail</source>
         <translation>주소는 메일을 받는 도메인의 이름@도메인 형식입니다</translation>
@@ -1647,6 +1679,10 @@
         <source>mail is set up already</source>
         <translation>메일은 이미 설정되어 있습니다</translation>
     </message>
+    <message id="autopanel.notice.mail.setUpAgain">
+        <source>the setup was not kept (AutoPanel restarted, or it changed): Mail → Set up mail again</source>
+        <translation>설정이 유지되지 않았습니다(AutoPanel이 다시 시작되었거나 바뀌었습니다). 메일 → 메일 설정을 다시 하세요</translation>
+    </message>
     <message id="autopanel.notice.mail.syncing">
         <source>the DNS, DKIM and certificate pass has started</source>
         <translation>DNS, DKIM, 인증서 동기화를 시작했습니다</translation>
@@ -1658,10 +1694,6 @@
     <message id="autopanel.notice.mail.weakPassword">
         <source>a password is 12 characters at least, 256 at most</source>
         <translation>비밀번호는 12자 이상 256자 이하입니다</translation>
-    </message>
-    <message id="autopanel.notice.mail.written">
-        <source>the mail stack is written: review it, and confirm to run it</source>
-        <translation>메일 스택을 작성했습니다: 검토하고 확인하면 실행됩니다</translation>
     </message>
     <message id="autopanel.notice.prefs.notKept">
         <source>the choice is shown but was not kept: %1</source>
@@ -1786,6 +1818,10 @@
     <message id="autopanel.question.account.revoke">
         <source>Revoke token %1? Whatever uses it is refused from now on.</source>
         <translation>토큰 %1을(를) 폐기할까요? 이 토큰을 쓰는 것은 이제부터 거부됩니다.</translation>
+    </message>
+    <message id="autopanel.question.certs.cloudflareClear">
+        <source>Forget the Cloudflare token? Certificates go back to HTTP, and mail's DNS records become yours to enter by hand.</source>
+        <translation>Cloudflare 토큰을 지울까요? 인증서는 다시 HTTP로 발급되고, 메일의 DNS 레코드는 직접 입력해야 합니다.</translation>
     </message>
     <message id="autopanel.question.domains.remove">
         <source>Remove the domain %1? Its routes stay; the removal is refused while a route would be left under no domain.</source>
@@ -2063,6 +2099,10 @@
         <source>%1 · more than shown</source>
         <translation>%1 · 표시된 것보다 많음</translation>
     </message>
+    <message id="autopanel.title.confirm.cloudflareClear">
+        <source>Remove the Cloudflare token</source>
+        <translation>Cloudflare 토큰 삭제</translation>
+    </message>
     <message id="autopanel.title.confirm.mailRemoveAccount">
         <source>Delete a mail account</source>
         <translation>메일 계정 삭제</translation>
@@ -2282,6 +2322,10 @@
     <message id="autopanel.title.prompt.addDomain">
         <source>Add a domain</source>
         <translation>도메인 추가</translation>
+    </message>
+    <message id="autopanel.title.prompt.cloudflare">
+        <source>Cloudflare token</source>
+        <translation>Cloudflare 토큰</translation>
     </message>
     <message id="autopanel.title.prompt.import">
         <source>Import a stack</source>
