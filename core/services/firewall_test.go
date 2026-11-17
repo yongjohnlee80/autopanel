@@ -60,7 +60,7 @@ func join(ss []string) string {
 const public = `services:
   relay:
     image: example.com/web:1
-    ports: ["3478:3478/udp", "10.10.10.1:8008:80", "127.0.0.1:9000:9000", "49152-49160:49152-49160/udp"]
+    ports: ["3478:3478/udp", "192.0.2.1:8008:80", "127.0.0.1:9000:9000", "49152-49160:49152-49160/udp"]
 `
 
 // TestAStackOpensWhatItChoseAndClosesWhatItDrops: the review lists the public
@@ -81,12 +81,12 @@ func TestAStackOpensWhatItChoseAndClosesWhatItDrops(t *testing.T) {
 	for _, s := range r.Firewall {
 		got = append(got, s.Key)
 	}
-	want := []string{"udp/3478", "tcp/10.10.10.1:8008", "udp/49152-49160"}
+	want := []string{"udp/3478", "tcp/192.0.2.1:8008", "udp/49152-49160"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("the review's ports = %v; want %v", got, want)
 	}
 	relay := corefw.Want{Proto: "udp", From: 3478, To: 3478}
-	bound := corefw.Want{Proto: "tcp", From: 8008, To: 8008, Addr: netip.MustParseAddr("10.10.10.1")}
+	bound := corefw.Want{Proto: "tcp", From: 8008, To: 8008, Addr: netip.MustParseAddr("192.0.2.1")}
 	loop := corefw.Want{Proto: "tcp", From: 9000, To: 9000}
 	if _, err := f.m.add(ctx, Accept{Name: "relay", Accept: r.SHA256, Open: []corefw.Want{relay, loop}}); !errors.Is(err, ErrNotOwnPort) {
 		t.Fatalf("opening a loopback port = %v; want ErrNotOwnPort", err)
@@ -97,10 +97,10 @@ func TestAStackOpensWhatItChoseAndClosesWhatItDrops(t *testing.T) {
 	if _, err := f.m.add(ctx, Accept{Name: "relay", Accept: r.SHA256, Open: []corefw.Want{relay, bound}}); err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(fw.calls, []string{"open stack:relay udp/3478,tcp/10.10.10.1:8008"}) {
+	if !reflect.DeepEqual(fw.calls, []string{"open stack:relay udp/3478,tcp/192.0.2.1:8008"}) {
 		t.Fatalf("calls = %q", fw.calls)
 	}
-	if got := wantKeys(f.s.all["relay"].Applied.Open); !reflect.DeepEqual(got, []string{"udp/3478", "tcp/10.10.10.1:8008"}) {
+	if got := wantKeys(f.s.all["relay"].Applied.Open); !reflect.DeepEqual(got, []string{"udp/3478", "tcp/192.0.2.1:8008"}) {
 		t.Fatalf("the applied plan keeps %v", got)
 	}
 
@@ -108,7 +108,7 @@ func TestAStackOpensWhatItChoseAndClosesWhatItDrops(t *testing.T) {
 	if _, err := f.m.applyVerb(ctx, Accept{Name: "relay", Accept: f.accept("relay"), Open: []corefw.Want{relay}}); err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(fw.calls, []string{"close stack:relay tcp/10.10.10.1:8008", "open stack:relay udp/3478"}) {
+	if !reflect.DeepEqual(fw.calls, []string{"close stack:relay tcp/192.0.2.1:8008", "open stack:relay udp/3478"}) {
 		t.Fatalf("an apply that drops a port: %q", fw.calls)
 	}
 

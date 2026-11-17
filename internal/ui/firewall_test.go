@@ -50,7 +50,7 @@ func (f *fakeClient) FirewallRevoke(_ context.Context, id string) error {
 }
 func (f *fakeClient) FirewallEnable(_ context.Context, plan string, allow []string) (corefw.Armed, error) {
 	err := f.fwAsk("enable " + plan + " " + strings.Join(allow, ","))
-	return corefw.Armed{ConfirmBy: 1794887066}, err
+	return corefw.Armed{ConfirmBy: 1700000000}, err
 }
 func (f *fakeClient) FirewallConfirm(context.Context) error { return f.fwAsk("confirm") }
 func (f *fakeClient) FirewallDisable(context.Context) error { return f.fwAsk("disable") }
