@@ -18,6 +18,7 @@ The examples use `example.com` as the mail domain, `mail.example.com` as the mai
 - [Mail → Accounts](#mail--accounts)
 - [Setting up a mail app](#setting-up-a-mail-app)
 - [The background pass](#the-background-pass)
+- [Removing mail](#removing-mail)
 - [Checking from outside](#checking-from-outside)
 - [Troubleshooting](#troubleshooting)
 - [From the command line](#from-the-command-line)
@@ -67,9 +68,10 @@ flowchart LR
 | The domain is under **Routes → Domains** | Mail is set up only for domains you registered | the Domains panel lists it |
 | A decision on who writes DNS | AutoPanel, with a Cloudflare token, or you, by hand | **Certs → Cloudflare token…** |
 
-**A firewall on the server.** AutoPanel does not yet open the mail ports in the server's own
-firewall. If `ufw` or `firewalld` is on, allow the four ports yourself, for example
-`sudo ufw allow 25,465,587,993/tcp`.
+**A firewall on the server.** With `ufw`, AutoPanel opens the four ports itself: at set-up, or
+later with **Open ports** on Mail → Server. With `firewalld`, or with rules it cannot read, it
+shows the commands to run instead. A firewall in front of the server, at the hosting provider (a
+security group, a cloud firewall), is yours to open: AutoPanel cannot see it.
 
 ## The Mail menu
 
@@ -93,10 +95,14 @@ not set up: Mail › Set up mail" where their facts would be. While Stalwart is 
 1. **Mail → Set up mail…** asks for the mail host (`mail.example.com`: a name under one of your
    domains) and the first domain that receives mail (`example.com`: a registered one).
 2. The mail stack's **review** opens, as for any stack: its image, ports, mounts and findings.
+   It also lists mail's four public ports with what the server's firewall does to each. A port the
+   firewall blocks is ticked `[x] open it`; **Leave it as it is** (`l`) unticks it. A port
+   AutoPanel cannot open here shows `[!] by hand`, with the commands and **Copy commands** (`y`).
    Nothing has been written yet. Leave the review, or quit, and Set up mail opens again with your
    answers.
 3. **Add and start** makes the whole setup as one step: the stack's user, the loopback rule, the
-   stack's files, the stack started, and the record that mail is set up. If any part fails, the
+   stack's files, the stack started, the ticked ports opened in the firewall, and the record that
+   mail is set up. If any part fails, the
    parts before it are undone and the message says which part failed.
 4. Within a minute or two the core sets Stalwart up through its API. **Mail → Server** shows the
    step move from `waiting for the stack` to `setting up` to `ready`.
@@ -108,7 +114,8 @@ and you start again from step 1.
 
 ## Mail → Server
 
-One screen of facts, read again with **Reload** (`r`); **Sync** (`s`) starts a pass now.
+One screen of facts, read again with **Reload** (`r`); **Sync** (`s`) starts a pass now, and
+**Open ports** (`p`), shown when a port needs it, opens mail's blocked ports in the firewall.
 
 | Line | Shows | Healthy value |
 | --- | --- | --- |
@@ -119,10 +126,15 @@ One screen of facts, read again with **Reload** (`r`); **Sync** (`s`) starts a p
 | Certificate | the mail host's certificate as Stalwart serves it | `ok until 2027-02-09` |
 | Domains | the domains that receive mail | your domains |
 | Last pass | when the DNS, DKIM and certificate pass last ran | within the last hour |
+| Ports | each public port with the firewall's verdict and who allowed it | `tcp/25: allowed · mail`, and so on |
 | Problems | what the last pass could not do, one line each | `none` |
 
 **State** goes from `waiting for the stack` to `setting up` to `ready`. A failure is shown after
 it, as in `setting up · …`, and the step is tried again by itself.
+
+**Ports** has a line per port. After the verdict comes who made the rule that allows it: `mail`
+(AutoPanel, for mail: it is closed again if mail is removed), `a rule not AutoPanel's` (yours: it
+is left alone), or, for a blocked port AutoPanel cannot open, the commands that would.
 
 **Certificate** is `-` before the first pass, then one of:
 
@@ -337,7 +349,8 @@ The mail stack's log: **Services → Stacks**, select `mail`, open its log; or
 - With a Cloudflare token, every certificate comes through DNS, so the token must reach the zone
   of the mail host's domain.
 - Without a token, ports 80 and 443 must reach the server from outside.
-- After fixing it, press **Sync**. The `the certificate: …` problem line gives the reason.
+- After fixing it, press **Sync**. The `the certificate: …` problem line gives the reason, and
+  **Certs → Certificates** keeps the last order's failure for the mail host.
 - A certificate from Let's Encrypt's **staging** service is issued, but mail apps warn about it or
   refuse it. Switch to production under **Certs → Type**, then **Sync**.
 
@@ -346,7 +359,10 @@ The mail stack's log: **Services → Stacks**, select `mail`, open its log; or
 1. `dig +short MX example.com` must answer the mail host. If it answers another provider, the MX
    record is `different`: [take it over](#taking-over-a-record).
 2. Port 25 must reach the server: `openssl s_client -starttls smtp -connect mail.example.com:25`
-   from outside. No answer means a firewall on the server or at the provider drops it.
+   from outside. No answer means a firewall drops it. **Mail → Server** shows the server's own
+   firewall: a port that reads `blocked` is opened with **Open ports** (`p`). If every port reads
+   `allowed` there, the firewall is the provider's. **System → Host checks** also says when the
+   firewall blocks a mail port.
 3. The address must be a mailbox: **Mail → Accounts**. Mail to an address that does not exist is
    refused.
 4. The sender's bounce message says what the server answered; the mail stack's log shows the
@@ -378,8 +394,10 @@ Other causes:
 - The app password was never kept: it stopped ten minutes after it was made. **Accounts** shows no
   row for that device. Make another and press **Done** once the app signs in.
 - The server name is the mail host, with 993 for IMAP and 465 or 587 for SMTP, and the ports reach
-  the server from where the device is.
+  the server from where the device is: **Mail → Server** must show 993, 465 and 587 as `allowed`.
 - A certificate warning means the staging service is in use, or the certificate is `not issued`.
+  **Certs → Certificates** shows the mail host's certificate, its end, and why its last order
+  failed.
 
 ### A record stays `different`
 
@@ -413,6 +431,20 @@ the domain. AutoPanel then deletes the records it published there, and only thos
 The core restarted and nothing has opened the vault. Log in to the panel as root or another admin;
 with a keyfile, the vault opens by itself at start.
 
+## Removing mail
+
+There is no menu row for it yet. As root:
+
+```sh
+sudo autopanel --call mail.remove               # keeps the mailboxes' data on disk
+sudo autopanel --call mail.remove '{"purge":true}'   # deletes the mailboxes too
+```
+
+It is refused while mail has accounts: delete them under **Accounts** first. It then closes the
+ports AutoPanel opened for mail, removes the stack, the loopback rule and the DNS records
+AutoPanel published, and forgets the setup. If a step fails it says which; running it again
+finishes. Removing the `mail` stack under **Services** is refused: this is the way.
+
 ## From the command line
 
 Every screen reads and writes through the same calls, as root or with an API token:
@@ -434,5 +466,5 @@ sudo autopanel --call services.logs '{"name":"mail","limit":100}'
 
 - Webmail, forwarding to an outside address, and aliases from the panel. Stalwart's own web
   interface does them meanwhile, through an SSH tunnel to its management port.
-- Opening the mail ports in the server's firewall, and removing mail from the panel.
+- A menu row for removing mail; opening ports under `firewalld`.
 - Repairing a setup whose API key or administrator was lost.

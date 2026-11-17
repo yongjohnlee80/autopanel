@@ -667,33 +667,31 @@ A deployed service is stopped by `--apply`, and its user and directory are delet
 
 ## Progress
 
-**Built and released** (v0.2.11):
+**Built:**
 
 | Area | What works |
 | --- | --- |
 | Proxy gate | routes by host and path, changed without a restart; a request in flight finishes on the route it started with. HTTP/2, WebSocket upgrades, streamed answers and large uploads pass through. Behind Cloudflare, the client's address is believed only from Cloudflare's ranges |
-| Certificates | Let's Encrypt, staging or production, by HTTP-01 and TLS-ALPN-01, or by DNS-01 with a Cloudflare token. Kept in the store. A name no route holds gets no certificate |
+| Certificates | Let's Encrypt, staging or production, by HTTP-01 and TLS-ALPN-01, or by DNS-01 with a Cloudflare token. Kept in the store. A name no route holds gets no certificate. Each name's certificate, its end and its last failed order are in the panel; every order is in the audit log |
 | Two processes | a sandboxed gate that faces the network, and a core that listens on no network and holds the store and the keys. The gate keeps serving while the core restarts |
 | Store | SQLite by default, PostgreSQL as an option; migrations for both, tested on both |
 | Users | four roles, two-factor codes with recovery codes, lockout after failed logins, API tokens for scripts |
 | Stacks | a compose file, reviewed before it runs, under rootless Podman as a user of its own |
 | Mail | Stalwart behind the gate; DNS records published and kept through Cloudflare, or listed to enter by hand; DKIM keys rotated; app passwords per device. See [MAIL.md](MAIL.md) |
-| Monitoring | metrics, the audit log, login attempts, open ports and who holds them |
+| Firewall | the server's own firewall through `ufw`: its rules and who made each, every open port's verdict, a guard against locking yourself out of SSH, an enable that undoes itself unless a new login confirms it, ports opened for mail and for stacks and closed with them |
+| Monitoring | metrics, the audit log, login attempts, open ports and who holds them, and host checks: the server's posture as findings |
 | Panel | a terminal UI over SSH: menus, movable panels, a dashboard, shells in tabs, themes, six languages |
 | Install | one line, from a release with its checksum verified; upgrade and uninstall scripts |
 
 **In progress:**
 
-1. **The server's firewall** from the panel (ufw first, then firewalld): what is allowed and why,
-   a guard against locking yourself out of SSH, ports opened for mail and for stacks, and host
-   checks.
-2. Tests that prove the gate's promises under load.
+1. `firewalld` beside `ufw`, for hosts that use it.
 
 **Next:**
 
 1. A public HTTPS surface for the panel and its API, with cookie sessions and passkeys.
 2. Port forwarding (TCP and UDP) through the gate.
-3. Certificate expiry and renewals shown in the panel; health checks per upstream.
+3. Health checks per upstream.
 4. For mail: webmail, aliases and forwarding from the panel, and repairing a broken setup.
 
 ## Design principles
