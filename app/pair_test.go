@@ -124,12 +124,12 @@ func (g *recordedGate) counts() (int, int, int) {
 // is made: the test only crosses the plain listener.
 func TestTheCoreAndTheGateEndToEnd(t *testing.T) {
 	// The host reads are the test's own: no real socket table, no journal.
-	defer func(l func(context.Context) ([]sysinfo.Listener, error), s func(context.Context, int) ([]sysinfo.SSHLogin, error), u func(int) string, f func(context.Context) (sysinfo.Firewall, error)) {
-		readListeners, readSSHLogins, userName, readFirewall = l, s, u, f
-	}(readListeners, readSSHLogins, userName, readFirewall)
+	defer func(l func(context.Context) ([]sysinfo.Listener, error), s func(context.Context, int) ([]sysinfo.SSHLogin, error), u func(int) string) {
+		readListeners, readSSHLogins, userName = l, s, u
+	}(readListeners, readSSHLogins, userName)
 	// ufw on, denying by default: SSH allowed, the TURN port from one network
 	// only, and a rule for a port nothing listens on.
-	readFirewall = func(context.Context) (sysinfo.Firewall, error) {
+	defer useFirewall(func() sysinfo.Firewall {
 		allow := func(proto string, port, seq int, source string) sysinfo.Rule {
 			fam := "both"
 			if source != "" {
@@ -140,8 +140,8 @@ func TestTheCoreAndTheGateEndToEnd(t *testing.T) {
 		}
 		return sysinfo.Firewall{Manager: "ufw", Active: true, Default: "deny", Limits: []string{}, Rules: []sysinfo.Rule{
 			allow("tcp", 22, 1, ""), allow("udp", 3478, 2, "198.51.100.0/24"), allow("tcp", 8443, 3, ""),
-		}}, nil
-	}
+		}}
+	}())()
 	var listening []sysinfo.Listener // set once the configuration names the gate's ports
 	readListeners = func(context.Context) ([]sysinfo.Listener, error) { return listening, nil }
 	userName = func(uid int) string { return map[int]string{0: "root", 33: "www-data"}[uid] }
@@ -382,6 +382,16 @@ func TestTheCoreAndTheGateEndToEnd(t *testing.T) {
 	if ports[1].Why != "from 198.51.100.0/24" || ports[6].Port != 8443 || ports[6].Why != "allow 8443" {
 		t.Fatalf("the limited port = %+v, the stale rule = %+v", ports[1], ports[6])
 	}
+	// System → Firewall reads the same firewall through its own verbs, and
+	// plans an enable without changing anything.
+	var fw sysinfo.Firewall
+	if err := c.Call(ctx, "sys.firewall.get", nil, &fw); err != nil || fw.Manager != "ufw" || len(fw.Rules) != 3 {
+		t.Fatalf("sys.firewall.get = %+v, %v", fw, err)
+	}
+	var plan map[string]any
+	if err := c.Call(ctx, "sys.firewall.plan", nil, &plan); err != nil || plan["sha256"] == "" || plan["manager"] != "ufw" {
+		t.Fatalf("sys.firewall.plan = %+v, %v", plan, err)
+	}
 	// A socket carries its process and its user when the host names them, and
 	// then no guess from its port. Only a socket whose process is unknown is
 	// given its port's usual service.
@@ -594,12 +604,10 @@ const blogCompose = `services:
 // with the review it accepts, a refusal names its cause, and Open ports names
 // the stack's sockets by its name.
 func TestStacksThroughTheControlSocket(t *testing.T) {
-	defer func(l func(context.Context) ([]sysinfo.Listener, error), u func(int) string, h func(Config) services.Host, f func(context.Context) (sysinfo.Firewall, error)) {
-		readListeners, userName, serviceHost, readFirewall = l, u, h, f
-	}(readListeners, userName, serviceHost, readFirewall)
-	readFirewall = func(context.Context) (sysinfo.Firewall, error) {
-		return sysinfo.Firewall{Manager: "none", Rules: []sysinfo.Rule{}}, nil
-	}
+	defer func(l func(context.Context) ([]sysinfo.Listener, error), u func(int) string, h func(Config) services.Host) {
+		readListeners, userName, serviceHost = l, u, h
+	}(readListeners, userName, serviceHost)
+	defer useFirewall(sysinfo.Firewall{Manager: "none", Rules: []sysinfo.Rule{}})()
 	readListeners = func(context.Context) ([]sysinfo.Listener, error) {
 		return []sysinfo.Listener{
 			{Proto: "udp", Address: "0.0.0.0", Port: 3478, UID: 990, Process: "rootlessport", PID: 77},

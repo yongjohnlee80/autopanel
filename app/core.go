@@ -15,6 +15,7 @@ import (
 	"syscall"
 	"time"
 
+	corefw "github.com/yongjohnlee80/autopanel/core/firewall"
 	"github.com/yongjohnlee80/autopanel/core/gate"
 	"github.com/yongjohnlee80/autopanel/core/mail"
 	"github.com/yongjohnlee80/autopanel/core/services"
@@ -268,8 +269,14 @@ func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateContr
 	mailMod.SetDNS(mailDNS{st: st, vault: vault})
 	mailMod.SetCerts(mailCerts{sw: sw})
 	sw.also = mailMod.IsHost // the mail host has a certificate, though no route names it
+	// The firewall: one lock for every change, and what a change left when
+	// the core stopped in it settled before anything else changes it.
+	fwm := corefw.New(firewallHost(), st, readListeners, firewallUses(cfg), log)
+	if err := fwm.Settle(ctx); err != nil {
+		log.Warn("firewall: settling what an earlier change left", "err", err)
+	}
 	sys := &sysModule{cfg: cfg, sampler: sysinfo.NewSampler(), table: table, engine: st.Engine(), started: time.Now(), challenge: sw.Challenge, ca: sw.CA,
-		st: st, log: log, counts: counts, listeners: readListeners, sshLogins: readSSHLogins, firewall: readFirewall, gate: gc, serviceUsers: svcs.Users}
+		st: st, log: log, counts: counts, listeners: readListeners, sshLogins: readSSHLogins, firewall: fwm.Read, gate: gc, serviceUsers: svcs.Users}
 	am, err := auth.New(st.Users(), st, st, vault, func(ctx context.Context) {
 		if err := sw.rebuild(ctx); err != nil {
 			log.Error("certificates after unlock", "err", err)
@@ -280,7 +287,7 @@ func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateContr
 	}
 	// The control socket: this user's processes only, so root's under the unit.
 	// A privileged verb's entry goes to the store's audit log before it runs.
-	ctl, err := hostcontrol.Listen(cfg.Socket, log, hostcontrol.Access{Audit: st, Authorizer: am}, am, gm, &certsModule{sw: sw}, sys, servicesModule{svcs}, mailMod)
+	ctl, err := hostcontrol.Listen(cfg.Socket, log, hostcontrol.Access{Audit: st, Authorizer: am}, am, gm, &certsModule{sw: sw}, sys, firewallModule{fwm}, servicesModule{svcs}, mailMod)
 	if err != nil {
 		return err
 	}

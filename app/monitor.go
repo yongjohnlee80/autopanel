@@ -31,7 +31,6 @@ import (
 var (
 	readListeners = sysinfo.Listeners
 	readSSHLogins = sysinfo.SSHLogins
-	readFirewall  = func(ctx context.Context) (sysinfo.Firewall, error) { return hostfirewall.New().Read(ctx) }
 )
 
 // counters are what the gate last reported over the link (link.report): its
