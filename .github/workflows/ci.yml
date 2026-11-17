@@ -82,8 +82,13 @@ jobs:
           PGPASSWORD=ci-only-not-a-secret psql -h localhost -U postgres -d autopanel_test -c 'CREATE SCHEMA autopanel'
       - name: head coverage
         run: go test -count=1 -p 1 -covermode=atomic -coverpkg=./... -coverprofile="$RUNNER_TEMP/coverage-head.out" ./...
+      # The base's tests get a schema of their own: the head's run has left
+      # its migrations in the first, and an older binary refuses a newer schema.
       - name: base coverage
+        env:
+          AUTOPANEL_TEST_POSTGRES_DSN: postgres://postgres:ci-only-not-a-secret@localhost:5432/autopanel_test?sslmode=disable&search_path=autopanel_base
         run: |
+          PGPASSWORD=ci-only-not-a-secret psql -h localhost -U postgres -d autopanel_test -c 'CREATE SCHEMA autopanel_base'
           git worktree add --detach "$RUNNER_TEMP/coverage-base" "$BASE_SHA"
           cd "$RUNNER_TEMP/coverage-base"
           go test -count=1 -p 1 -covermode=atomic -coverpkg=./... -coverprofile="$RUNNER_TEMP/coverage-base.out" ./...
