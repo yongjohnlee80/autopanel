@@ -8,7 +8,9 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
+	corefw "github.com/yongjohnlee80/autopanel/core/firewall"
 	"github.com/yongjohnlee80/autopanel/internal/hostcmd"
 	"github.com/yongjohnlee80/autopanel/internal/sysinfo"
 )
@@ -258,5 +260,73 @@ func TestSSHFactsReadTheSocketAndSshd(t *testing.T) {
 	fake.answers["/usr/bin/systemctl show ssh.socket"] = "ActiveState=inactive\n"
 	if f := h.SSHFacts(context.Background(), nil); f.Socket != nil || !f.Families["v6"] {
 		t.Fatalf("no socket, IPv6 = %+v", f)
+	}
+}
+
+// TestTheUndoTimer: one fixed unit name, the previous default put back after
+// the disable, and the confirm's stop.
+func TestTheUndoTimer(t *testing.T) {
+	h, fake := newHost(t, "inactive-empty", hostcmd.Ufw)
+	ctx := context.Background()
+	ufw := sysinfo.Firewall{Manager: "ufw"}
+	fake.answers["/usr/bin/systemctl reset-failed"] = ""
+	fake.answers["/usr/bin/systemd-run --unit="] = ""
+	fake.answers["/usr/bin/systemctl stop"] = ""
+	if err := h.ArmUndo(ctx, ufw, "allow", 120*time.Second); err != nil {
+		t.Fatal(err)
+	}
+	want := "/usr/bin/systemd-run --unit=autopanel-firewall-undo --on-active=120s --timer-property=AccuracySec=1s --collect " +
+		"--setenv=LC_ALL=C --description=AutoPanel: turn off a firewall enable nobody confirmed " +
+		"--property=ExecStartPost=/usr/sbin/ufw default allow incoming -- /usr/sbin/ufw disable"
+	if got := fake.calls[len(fake.calls)-1]; got != want {
+		t.Fatalf("arm = %q", got)
+	}
+	if err := h.ArmUndo(ctx, ufw, "deny", time.Minute); err != nil || strings.Contains(fake.calls[len(fake.calls)-1], "ExecStartPost") {
+		t.Fatalf("a deny default needs nothing put back: %q %v", fake.calls[len(fake.calls)-1], err)
+	}
+	if err := h.ArmUndo(ctx, sysinfo.Firewall{Manager: "firewalld"}, "deny", time.Minute); err != ErrUnsupported {
+		t.Fatal(err)
+	}
+	if h.UndoArmed(ctx) {
+		t.Fatal("armed while systemctl says inactive")
+	}
+	fake.answers["/usr/bin/systemctl is-active autopanel-firewall-undo.timer"] = "active\n"
+	if !h.UndoArmed(ctx) {
+		t.Fatal("not armed while systemctl says active")
+	}
+	if err := h.DisarmUndo(ctx); err != nil || fake.calls[len(fake.calls)-1] != "/usr/bin/systemctl stop autopanel-firewall-undo.timer" {
+		t.Fatalf("disarm: %v %q", err, fake.calls[len(fake.calls)-1])
+	}
+}
+
+// TestCommandsForTheAdministrator: the same argument lists as the core's
+// own calls, for ufw; firewalld's saved set first; both, labelled, when the
+// manager cannot be read; none without a manager.
+func TestCommandsForTheAdministrator(t *testing.T) {
+	h := New()
+	src := rule("allow", "v4", "tcp", 22, 22)
+	src.Source = "192.0.2.0/24"
+	c := corefw.Change{Allow: []sysinfo.Rule{rule("allow", "both", "tcp", 993, 993), src}, Revoke: []sysinfo.Rule{rule("allow", "both", "udp", 3478, 3480)}, Enable: true}
+	got := h.Commands(sysinfo.Firewall{Manager: "ufw"}, c)
+	want := []string{"sudo ufw allow proto tcp from any to any port 993", "sudo ufw allow proto tcp from 192.0.2.0/24 to any port 22",
+		"sudo ufw delete allow proto udp from any to any port 3478:3480", "sudo ufw enable"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("ufw:\n%q\nwant\n%q", got, want)
+	}
+	got = h.Commands(sysinfo.Firewall{Manager: "firewalld"}, c)
+	want = []string{"sudo firewall-cmd --permanent --add-port=993/tcp", "sudo firewall-cmd --add-port=993/tcp",
+		`sudo firewall-cmd --permanent --add-rich-rule='rule family="ipv4" source address="192.0.2.0/24" port port="22" protocol="tcp" accept'`,
+		`sudo firewall-cmd --add-rich-rule='rule family="ipv4" source address="192.0.2.0/24" port port="22" protocol="tcp" accept'`,
+		"sudo firewall-cmd --permanent --remove-port=3478-3480/udp", "sudo firewall-cmd --remove-port=3478-3480/udp",
+		"sudo systemctl enable --now firewalld"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("firewalld:\n%q\nwant\n%q", got, want)
+	}
+	if got := h.Commands(sysinfo.Firewall{Manager: "unknown"}, corefw.Change{Allow: c.Allow[:1]}); len(got) != 3 ||
+		got[0] != "with ufw: sudo ufw allow proto tcp from any to any port 993" || got[1] != "with firewalld: sudo firewall-cmd --permanent --add-port=993/tcp" {
+		t.Fatalf("unknown: %q", got)
+	}
+	if got := h.Commands(sysinfo.Firewall{Manager: "none"}, c); got != nil {
+		t.Fatalf("none: %q", got)
 	}
 }
