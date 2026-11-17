@@ -78,13 +78,15 @@ is its marked letter, pressed alone. Tab or a mouse click moves between a panel'
 
 | Row | What it does |
 | --- | --- |
-| Set up mail… | asks two questions and starts mail. Once mail is set up it answers "mail is set up already" |
+| Set up mail… | asks two questions and starts mail. Greyed out once mail is set up |
 | Domains… | the domains that receive mail, each one's DNS records and DKIM keys |
 | Accounts… | the mailboxes and each one's app passwords |
 | Server… | Stalwart's state, the certificate, the last pass and its problems |
+| DNS records… | every record in the form a DNS provider's page asks for, to copy from |
 
-Until mail is set up, the other rows answer "Mail is not set up: Mail › Set up mail". While Stalwart
-is still starting they answer "Stalwart is still being set up: see Mail › Server".
+The Domains, Accounts and Server panels open at any time. Until mail is set up they say "Mail is
+not set up: Mail › Set up mail" where their facts would be. While Stalwart is still starting,
+**Add…**, **Sync** and **DNS records…** answer "Stalwart is still being set up: see Mail › Server".
 
 ## Set up mail
 
@@ -122,20 +124,33 @@ One screen of facts, read again with **Reload** (`r`); **Sync** (`s`) starts a p
 **State** goes from `waiting for the stack` to `setting up` to `ready`. A failure is shown after
 it, as in `setting up · …`, and the step is tried again by itself.
 
+**Certificate** is `-` before the first pass, then one of:
+
+| Value | Means |
+| --- | --- |
+| `ok until …` | Stalwart serves the certificate AutoPanel holds |
+| `not issued` | AutoPanel could not obtain it: [see below](#the-certificate-says-not-issued) |
+| `not handed over` | it was issued, but Stalwart refused it; the `the certificate: …` problem says why |
+| `handed over, not served` | Stalwart has it but did not come back from the restart that puts the first certificate to use: see the stack's log |
+| `unknown` | Stalwart's certificates could not be read |
+
 **Loopback rule** is checked every hour and at every start:
 
 | Value | Means |
 | --- | --- |
 | `ok` | the rule is loaded |
 | `reloaded at …` | it was missing and AutoPanel loaded it again at that time |
-| `failed: …` | it is missing and could not be loaded; the text says why |
-| `unknown: …` | AutoPanel could not read the firewall |
+| `failed: …` | the firewall could not be read, or the rule could not be loaded; the text says why |
+| `unknown: …` | the mail stack's user was not found, so the rule could not be checked |
 
 **Problems** lines start with what failed:
 
 | Line starts with | Means | See |
 | --- | --- | --- |
+| `the domains: …` | AutoPanel's own list of mail domains could not be read | the store; the text after it |
+| `the mail server's domains: …` | Stalwart did not answer | is the `mail` stack running? Its log |
 | `example.com: the mail server does not hold the domain` | the domain is in AutoPanel's list but not in Stalwart | remove the domain and add it again |
+| `example.com: …` | Stalwart could not say which records the domain needs | the text after it; the stack's log |
 | `example.com DNS: …` | a record could not be read or written at Cloudflare | [A record shows `failed`](#a-record-shows-failed) |
 | `example.com DKIM: …` | a DKIM key could not be made or moved to its next step | the text after it; **Sync** to try again |
 | `the mail host's address: …` | the server's public IPv4 address could not be found | the server's network |
@@ -145,8 +160,9 @@ it, as in `setting up · …`, and the step is tried again by itself.
 
 ## Mail → Domains
 
-Three lists: the **Domains** on the left, and on the right the selected domain's **Records** above
-its **DKIM keys**. The last row on the left, `mail.example.com (mail host)`, is not a mail domain:
+Two lists and a text pane: the **Domains** on the left; on the right the selected domain's
+**Records** (state, type, name), and under them **Details**, which shows the selected record in
+full, the domain's DKIM keys and when the last pass ran. The last row on the left, `mail.example.com (mail host)`, is not a mail domain:
 it holds the mail host's own records (its address, its SPF).
 
 | Key | Button | Does |
@@ -171,7 +187,7 @@ and a state:
 The records every mail domain needs, and what each one does, are in the README's
 [DNS: what mail needs](README.md#dns-what-mail-needs).
 
-**DKIM keys** lists each key pair by its selector (`ap202611e` is the Ed25519 key made in November
+**DKIM keys**, in the Details pane, lists each key pair by its selector (`ap202611e` is the Ed25519 key made in November
 2026, `ap202611r` the RSA one) and its step:
 
 | Step | Means |
@@ -215,8 +231,9 @@ records at your DNS provider yourself.
 
 ## Mail → Accounts
 
-The **Accounts** on the left (address, quota, used); the selected account's **App passwords** on the
-right, each with its device name and `in use` or `pending until …`.
+The **Accounts** on the left (address, used, quota). On the right, the selected account's
+**Details**, and under them its **App passwords**, each with its device name, the day it was made,
+and `in use` or `pending until …`.
 
 | Key | Button | Does |
 | --- | --- | --- |
@@ -308,7 +325,7 @@ Start at **Mail → Server**. Its State and Problems lines name most faults.
 | --- | --- |
 | `waiting for the stack` | **Services → Stacks**: is `mail` active? Its log (below) says why Stalwart did not start. On a virtual machine, check the CPU type |
 | `setting up · …` | the text after the dot is the failure. A time-out usually means Stalwart was still starting: it is tried again by itself |
-| "Mail is not set up" | the setup was never applied: **Mail → Set up mail** |
+| "Mail is not set up: Mail › Set up mail" | the setup was never applied: **Mail → Set up mail** |
 
 The mail stack's log: **Services → Stacks**, select `mail`, open its log; or
 `sudo autopanel --call services.logs '{"name":"mail","limit":100}'`. Secrets in it are masked.
@@ -391,10 +408,10 @@ restarting AutoPanel's core loads the rule again.
 "the domain has accounts: remove them first". Delete its mailboxes under **Accounts**, then remove
 the domain. AutoPanel then deletes the records it published there, and only those.
 
-### "the vault is locked"
+### "the vault is locked: log in as root first"
 
-The core restarted and nothing has opened the vault. Log in to the panel as an admin; with a
-keyfile, the vault opens by itself at start.
+The core restarted and nothing has opened the vault. Log in to the panel as root or another admin;
+with a keyfile, the vault opens by itself at start.
 
 ## From the command line
 

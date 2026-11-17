@@ -124,7 +124,7 @@ every key. `r` reads the screen again and `q` quits.
 | Routes | **Proxy routes**: the names AutoPanel serves and where each goes; **Domains**: the domains you own |
 | Certs | **Certificates**: each name's certificate, when it expires and why its last order failed; **Type**: which Let's Encrypt service issues them, staging or production; **Cloudflare token**: lets AutoPanel write DNS records |
 | Services | **Stacks** and **Add a stack**: your services, below |
-| Mail | **Set up mail**, **Domains**, **Accounts**, **Server**: mail with Stalwart, below |
+| Mail | **Set up mail**, **Domains**, **Accounts**, **Server**, **DNS records**: mail with Stalwart, below |
 | Users | **Manage users**, **Passphrase**, **Two-factor**, **API tokens**, below |
 | Go | **Terminal**: shells on the server, a tab each |
 | View | the widgets, the status bar, and the layout |
@@ -338,9 +338,10 @@ Audit log** shows them.
 
 #### Removing a stack
 
-`d` in the panel, or `services.remove '{"name":"site"}'`, stops the stack and deletes its units
-and its user. Its directory, with its data, is kept as root's, under a name no later stack takes.
-`Shift+D`, or `"purge":true`, deletes the directory too. The definition folder under
+**Remove…** (`r`) in the panel, or `services.remove '{"name":"site"}'`, stops the stack and deletes
+its units and its user. Its directory, with its data, is kept as root's, under a name no later
+stack takes. Choosing to delete the data when the panel asks, or `"purge":true`, deletes the
+directory too. The definition folder under
 `/etc/autopanel/stacks` is never deleted.
 
 #### Examples
