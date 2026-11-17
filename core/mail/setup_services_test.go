@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/yongjohnlee80/autopanel/core/mail/provider/memory"
 	"github.com/yongjohnlee80/autopanel/core/services"
 )
 
@@ -192,7 +193,7 @@ func wired(t *testing.T) (*Module, *services.Module, *fakeStore, *fakeVault, *fa
 	h := &fakeHost{}
 	mach := &machine{mail: h, users: map[string]bool{}, units: map[string]bool{}}
 	svcs := services.NewModule(&memStacks{m: map[string]services.Service{}}, mach)
-	m := NewModule(st, v, fakeRegistry{"example.net", "example.org"}, svcs, h, func(bool) {},
+	m := NewModule(st, v, fakeRegistry{"example.net", "example.org"}, svcs, h, &memory.Product{Server: memory.New(), Key: "k"}, func(bool) {},
 		slog.New(slog.NewTextHandler(io.Discard, nil)))
 	svcs.SetGuard(m)
 	return m, svcs, st, v, h, mach
@@ -223,7 +224,7 @@ func TestSettingMailUpThroughTheServicesModule(t *testing.T) {
 	if r := refusedIn(out.Review); len(r) != 0 {
 		t.Fatalf("Set up mail's own review is refused: %v", r)
 	}
-	if out.SHA256 == "" || len(out.Review.Containers) != 1 || out.Review.Containers[0].Service != "stalwart" {
+	if out.SHA256 == "" || len(out.Review.Containers) != 1 || out.Review.Containers[0].Service != "mail" {
 		t.Fatalf("the review: %+v", out.Review)
 	}
 	if st.state != nil || h.definition != nil || len(mach.users) != 0 || len(v.m) != 0 {
@@ -246,7 +247,7 @@ func TestSettingMailUpThroughTheServicesModule(t *testing.T) {
 	if m.setupOpen.Load() {
 		t.Fatal("the guard is still open after the setup was applied")
 	}
-	if f := m.Review(ctx, Stack, Compose()); len(f) != 0 {
+	if f := m.Review(ctx, Stack, m.compose()); len(f) != 0 {
 		t.Fatalf("the guard's findings on the recorded stack: %+v", f)
 	}
 }
@@ -257,9 +258,9 @@ func TestSettingMailUpThroughTheServicesModule(t *testing.T) {
 func TestTheGuardStillRefusesAHandWrittenMailStack(t *testing.T) {
 	m, svcs, _, _, _, mach := wired(t)
 	ctx := context.Background()
-	hand := []byte("services:\n  stalwart:\n    image: docker.io/stalwartlabs/stalwart:latest\n")
+	hand := []byte("services:\n  mail:\n    image: registry.invalid/mail:latest\n")
 
-	if r, err := svcs.CheckDraft(ctx, Stack, Compose()); err != nil || !slices.Contains(refusedIn(r), "reserved-name") {
+	if r, err := svcs.CheckDraft(ctx, Stack, m.compose()); err != nil || !slices.Contains(refusedIn(r), "reserved-name") {
 		t.Fatalf("AutoPanel's definition with no setup open: %v, %v; want reserved-name", refusedIn(r), err)
 	}
 	mach.hand = hand
@@ -289,16 +290,16 @@ func TestTheGuardStillRefusesAHandWrittenMailStack(t *testing.T) {
 // guard rests on the record, and a setup that failed before its review
 // leaves the guard closed.
 func TestASetupLeftOpenClosesTheGuardWhenItEnds(t *testing.T) {
-	m, _, _, _, h, _ := wired(t)
+	m, _, _, _, _, _ := wired(t)
 	ctx := context.Background()
-	h.cpu = errors.New("no sse4_2")
+	prod(m).CPUError = errors.New("no sse4_2")
 	if _, err := m.setup(ctx, SetupAsk{Host: "mail.example.net", Domain: "example.net"}); !errors.Is(err, ErrCPU) {
 		t.Fatalf("an old processor: %v", err)
 	}
 	if m.setupOpen.Load() {
 		t.Fatal("a setup refused at its first check left the guard open")
 	}
-	h.cpu = nil
+	prod(m).CPUError = nil
 	if _, err := m.setup(ctx, SetupAsk{Host: "mail.example.net", Domain: "example.net"}); err != nil {
 		t.Fatal(err)
 	}

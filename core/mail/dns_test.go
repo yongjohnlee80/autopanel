@@ -8,17 +8,16 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"math/big"
-	"net/http"
-	"net/http/httptest"
 	"slices"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/yongjohnlee80/autopanel/core/mail/provider/memory"
 )
 
 // zoneText is the zone file Stalwart v1.1 wrote for a new manual domain with
@@ -43,22 +42,8 @@ _smtp._tls.example.net. IN TXT "v=TLSRPTv1; rua=mailto:postmaster@example.net"
 autoconfig.example.net. IN CNAME mail.example.net.
 `
 
-func TestParseZone(t *testing.T) {
-	z := parseZone(zoneText)
-	if len(z) != 15 {
-		t.Fatalf("records: %d, want 15", len(z))
-	}
-	rsa := z[1]
-	if rsa.Name != "ap202611r._domainkey.example.net" || !strings.HasPrefix(rsa.Value, "v=DKIM1; k=rsa;") || !strings.HasSuffix(rsa.Value, "IDAQAB") || strings.Contains(rsa.Value, `"`) {
-		t.Fatalf("a split TXT is one value: %+v", rsa)
-	}
-	if mx := z[4]; mx.Type != "MX" || mx.Value != "10 mail.example.net" {
-		t.Fatalf("MX: %+v", mx)
-	}
-}
-
 func TestServedIsWhatThisHostServes(t *testing.T) {
-	got := served(parseZone(zoneText), "example.net", "mail.example.net", "quarantine")
+	got := served(testZone(zoneText), "example.net", "mail.example.net", "quarantine")
 	var names []string
 	for _, r := range got {
 		names = append(names, r.Type+" "+r.Name+" "+r.Value)
@@ -80,7 +65,7 @@ func TestServedIsWhatThisHostServes(t *testing.T) {
 			t.Fatal("DKIM never comes from the zone file's own list (M1)")
 		}
 	}
-	if d := dkimFromZone(parseZone(zoneText), "example.net", []string{"ap202611e"}); len(d) != 1 || !strings.Contains(d[0].Value, "k=ed25519") {
+	if d := dkimFromZone(testZone(zoneText), "example.net", []string{"ap202611e"}); len(d) != 1 || !strings.Contains(d[0].Value, "k=ed25519") {
 		t.Fatalf("a named selector's record: %+v", d)
 	}
 }
@@ -183,7 +168,7 @@ func TestKeepPublishesThenHolds(t *testing.T) {
 	ctx := context.Background()
 	d := newFakeDNS(Record{Name: "example.net", Type: "TXT", Value: "google-site-verification=abc"})
 	m.SetDNS(d)
-	want := served(parseZone(zoneText), "example.net", "mail.example.net", "quarantine")
+	want := served(testZone(zoneText), "example.net", "mail.example.net", "quarantine")
 	vs, err := m.keep(ctx, "example.net", want)
 	if err != nil || d.creates != len(want) {
 		t.Fatalf("first pass: %d created of %d, %v", d.creates, len(want), err)
@@ -240,7 +225,7 @@ func TestKeepNeverBesideAForeignRecord(t *testing.T) {
 		Record{Name: "example.net", Type: "TXT", Value: "v=spf1 include:_spf.other.example ~all"},
 	)
 	m.SetDNS(d)
-	want := served(parseZone(zoneText), "example.net", "mail.example.net", "quarantine")
+	want := served(testZone(zoneText), "example.net", "mail.example.net", "quarantine")
 	vs, err := m.keep(ctx, "example.net", want)
 	if err != nil {
 		t.Fatal(err)
@@ -280,7 +265,7 @@ func TestKeepNeverBesideAForeignRecord(t *testing.T) {
 
 func TestKeepWithoutDNSIsManual(t *testing.T) {
 	m, _, _, _, _, _ := newTestModule(t)
-	vs, err := m.keep(context.Background(), "example.net", served(parseZone(zoneText), "example.net", "mail.example.net", ""))
+	vs, err := m.keep(context.Background(), "example.net", served(testZone(zoneText), "example.net", "mail.example.net", ""))
 	if err != ErrNoDNS {
 		t.Fatalf("err = %v", err)
 	}
@@ -291,113 +276,19 @@ func TestKeepWithoutDNSIsManual(t *testing.T) {
 	}
 }
 
-// dkimStalwart is a fake of Stalwart's DKIM, domain and certificate objects.
-type dkimStalwart struct {
-	mu    sync.Mutex
-	keys  map[string]map[string]any // by id
-	next  int
-	certs map[string]map[string]any
-}
-
-func (s *dkimStalwart) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	var req struct {
-		MethodCalls [][]json.RawMessage `json:"methodCalls"`
-	}
-	_ = json.NewDecoder(r.Body).Decode(&req)
-	var method string
-	var args map[string]any
-	_ = json.Unmarshal(req.MethodCalls[0][0], &method)
-	_ = json.Unmarshal(req.MethodCalls[0][1], &args)
-	answer := func(v any) {
-		_ = json.NewEncoder(w).Encode(map[string]any{"methodResponses": []any{[]any{method, v, "c"}}})
-	}
-	set := func(store map[string]map[string]any) map[string]any {
-		out := map[string]any{"created": map[string]any{}, "updated": map[string]any{}, "destroyed": []string{}}
-		if c, ok := args["create"].(map[string]any); ok {
-			for k, v := range c {
-				s.next++
-				id := fmt.Sprintf("x%d", s.next)
-				obj := v.(map[string]any)
-				obj["id"] = id
-				store[id] = obj
-				out["created"].(map[string]any)[k] = map[string]any{"id": id}
-			}
-		}
-		if u, ok := args["update"].(map[string]any); ok {
-			for id, v := range u {
-				for k, val := range v.(map[string]any) {
-					store[id][k] = val
-				}
-				out["updated"].(map[string]any)[id] = nil
-			}
-		}
-		if d, ok := args["destroy"].([]any); ok {
-			for _, id := range d {
-				delete(store, id.(string))
-			}
-		}
-		return out
-	}
-	switch method {
-	case "x:DkimSignature/get":
-		var list []any
-		for _, k := range s.keys {
-			list = append(list, k)
-		}
-		answer(map[string]any{"list": list})
-	case "x:DkimSignature/set":
-		answer(set(s.keys))
-	case "x:Certificate/get":
-		var list []any
-		for _, c := range s.certs {
-			list = append(list, c)
-		}
-		answer(map[string]any{"list": list})
-	case "x:Certificate/set":
-		out := set(s.certs)
-		for _, c := range s.certs { // what Stalwart derives from the PEM
-			if v, ok := c["certificate"].(map[string]any); ok {
-				leaf := parsePEMLeaf(v["value"].(string))
-				c["subjectAlternativeNames"] = map[string]bool{leaf.DNSNames[0]: true}
-				c["notValidAfter"] = leaf.NotAfter.UTC().Format(time.RFC3339)
-			}
-		}
-		answer(out)
-	case "x:Action/set":
-		answer(map[string]any{"created": map[string]any{"a": map[string]any{"id": "a"}}})
-	default:
-		w.WriteHeader(http.StatusBadRequest)
-	}
-}
-
-func (s *dkimStalwart) stages() map[string]string {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	out := map[string]string{}
-	for _, k := range s.keys {
-		out[k["selector"].(string)] = k["stage"].(string)
-	}
-	return out
-}
-
 func TestDKIMRotation(t *testing.T) {
 	m, st, _, _, h, _ := newTestModule(t)
 	ctx := context.Background()
-	fake := &dkimStalwart{keys: map[string]map[string]any{}, certs: map[string]map[string]any{}}
-	srv := httptest.NewServer(fake)
-	defer srv.Close()
-	m.base = srv.URL
-	c := NewClient(srv.URL, Basic("a", "b"))
+	fake := memory.New()
+	c := fake
 	now := time.Date(2026, 11, 14, 12, 0, 0, 0, time.UTC)
 	m.now = func() time.Time { return now }
 	h.txt = map[string][]string{}
 
-	// The zone file Stalwart writes lists a DKIM record for each key.
+	// The server's records list a DKIM record for each key.
 	zoneFor := func() []Record {
 		var z []Record
-		for sel := range fake.stages() {
+		for sel := range fake.Stages() {
 			z = append(z, Record{Name: sel + "._domainkey.example.net", Type: "TXT", Value: "v=DKIM1; k=x; p=KEY" + sel})
 		}
 		return z
@@ -407,7 +298,7 @@ func TestDKIMRotation(t *testing.T) {
 	if err != nil || len(sels) != 2 || !slices.Equal(sels, []string{"ap202611e", "ap202611r"}) {
 		t.Fatalf("the first pair: %v, %v", sels, err)
 	}
-	for sel, stage := range fake.stages() {
+	for sel, stage := range fake.Stages() {
 		if stage != "pending" {
 			t.Fatalf("%s is %s before its record resolves; want pending (M1)", sel, stage)
 		}
@@ -422,7 +313,7 @@ func TestDKIMRotation(t *testing.T) {
 	if _, err := m.rotate(ctx, c, "example.net", "b", zoneFor()); err != nil {
 		t.Fatal(err)
 	}
-	if fake.stages()["ap202611e"] != "pending" {
+	if fake.Stages()["ap202611e"] != "pending" {
 		t.Fatal("a key switched before its record resolved")
 	}
 	// Resolving: both switch to signing.
@@ -432,7 +323,7 @@ func TestDKIMRotation(t *testing.T) {
 	if _, err := m.rotate(ctx, c, "example.net", "b", zoneFor()); err != nil {
 		t.Fatal(err)
 	}
-	if s := fake.stages(); s["ap202611e"] != "active" || s["ap202611r"] != "active" {
+	if s := fake.Stages(); s["ap202611e"] != "active" || s["ap202611r"] != "active" {
 		t.Fatalf("after resolving: %v", s)
 	}
 
@@ -441,17 +332,17 @@ func TestDKIMRotation(t *testing.T) {
 	if _, err := m.rotate(ctx, c, "example.net", "b", zoneFor()); err != nil {
 		t.Fatal(err)
 	}
-	if len(fake.stages()) != 4 {
-		t.Fatalf("a second pair after 90 days: %v", fake.stages())
+	if len(fake.Stages()) != 4 {
+		t.Fatalf("a second pair after 90 days: %v", fake.Stages())
 	}
-	for sel := range fake.stages() {
+	for sel := range fake.Stages() {
 		h.txt[sel+"._domainkey.example.net"] = []string{"v=DKIM1; k=x; p=KEY" + sel}
 	}
 	now = now.Add(settleBefore + time.Minute)
 	if _, err := m.rotate(ctx, c, "example.net", "b", zoneFor()); err != nil {
 		t.Fatal(err)
 	}
-	s := fake.stages()
+	s := fake.Stages()
 	second := "ap" + now.Format("200601") + "e"
 	if s["ap202611e"] != "retiring" || s[second] != "active" {
 		t.Fatalf("after the second pair resolved: %v", s)
@@ -463,8 +354,8 @@ func TestDKIMRotation(t *testing.T) {
 	}
 	now = now.Add(retireAfter + time.Hour)
 	sels, _ = m.rotate(ctx, c, "example.net", "b", zoneFor())
-	if len(sels) != 2 || len(fake.stages()) != 2 {
-		t.Fatalf("after a week the old pair is gone: %v, %v", sels, fake.stages())
+	if len(sels) != 2 || len(fake.Stages()) != 2 {
+		t.Fatalf("after a week the old pair is gone: %v, %v", sels, fake.Stages())
 	}
 }
 
@@ -504,26 +395,24 @@ func parsePEMLeaf(p string) *x509.Certificate {
 func TestTheCertificateIsHandedOver(t *testing.T) {
 	m, _, _, stacks, _, _ := newTestModule(t)
 	ctx := context.Background()
-	fake := &dkimStalwart{keys: map[string]map[string]any{}, certs: map[string]map[string]any{}}
-	srv := httptest.NewServer(fake)
-	defer srv.Close()
-	c := NewClient(srv.URL, Basic("a", "b"))
+	c := memory.New()
+	held := func() int { cs, _ := c.Certificates(ctx); return len(cs) }
 	first := selfSigned(t, "mail.example.net", time.Now().Add(60*24*time.Hour).Truncate(time.Second))
 	certs := &fakeCerts{cert: first}
 	m.SetCerts(certs)
 	stacks.since = time.Now().Unix()
 
 	state, err := m.syncCertificate(ctx, c, "mail.example.net")
-	if err != nil || !strings.HasPrefix(state, "ok until") || stacks.restarts != 1 || len(fake.certs) != 1 {
-		t.Fatalf("the first: %q, %v; restarts %d, certificates %d", state, err, stacks.restarts, len(fake.certs))
+	if err != nil || !strings.HasPrefix(state, "ok until") || stacks.restarts != 1 || held() != 1 {
+		t.Fatalf("the first: %q, %v; restarts %d, certificates %d", state, err, stacks.restarts, held())
 	}
 	// The same certificate: nothing to do.
-	if _, err := m.syncCertificate(ctx, c, "mail.example.net"); err != nil || stacks.restarts != 1 || len(fake.certs) != 1 {
-		t.Fatalf("an unchanged certificate: restarts %d, certificates %d, %v", stacks.restarts, len(fake.certs), err)
+	if _, err := m.syncCertificate(ctx, c, "mail.example.net"); err != nil || stacks.restarts != 1 || held() != 1 {
+		t.Fatalf("an unchanged certificate: restarts %d, certificates %d, %v", stacks.restarts, held(), err)
 	}
 	// A renewal updates in place, with no restart.
 	certs.cert = selfSigned(t, "mail.example.net", time.Now().Add(90*24*time.Hour).Truncate(time.Second))
-	if _, err := m.syncCertificate(ctx, c, "mail.example.net"); err != nil || stacks.restarts != 1 || len(fake.certs) != 1 {
-		t.Fatalf("a renewal: restarts %d, certificates %d, %v", stacks.restarts, len(fake.certs), err)
+	if _, err := m.syncCertificate(ctx, c, "mail.example.net"); err != nil || stacks.restarts != 1 || held() != 1 {
+		t.Fatalf("a renewal: restarts %d, certificates %d, %v", stacks.restarts, held(), err)
 	}
 }

@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -34,38 +33,24 @@ func New(stacks, servicesRoot, gateUser string) *Host {
 	return &Host{Root: "/", Stacks: stacks, Services: servicesRoot, GateUser: gateUser, CPUInfo: "/proc/cpuinfo"}
 }
 
-// x86v2 are the flags of x86-64-v2 as /proc/cpuinfo names them (pni is SSE3).
-var x86v2 = []string{"pni", "ssse3", "sse4_1", "sse4_2", "popcnt", "cx16", "lahf_lm"}
-
-// CPU: Stalwart's x86 build needs x86-64-v2, and exits at once on less.
-func (h *Host) CPU() error {
-	if runtime.GOARCH != "amd64" {
-		return nil
-	}
+// CPU is the processor: its architecture and its /proc/cpuinfo flags (none
+// on an architecture whose cpuinfo names none). Whether the mail server runs
+// on it is its product's to say.
+func (h *Host) CPU() (string, map[string]bool, error) {
+	flags := map[string]bool{}
 	raw, err := os.ReadFile(h.CPUInfo)
 	if err != nil {
-		return err
+		return runtime.GOARCH, nil, err
 	}
-	var flags map[string]bool
 	for _, line := range strings.Split(string(raw), "\n") {
 		if k, v, ok := strings.Cut(line, ":"); ok && strings.TrimSpace(k) == "flags" {
-			flags = map[string]bool{}
 			for _, f := range strings.Fields(v) {
 				flags[f] = true
 			}
 			break
 		}
 	}
-	var missing []string
-	for _, f := range x86v2 {
-		if !flags[f] {
-			missing = append(missing, f)
-		}
-	}
-	if len(missing) > 0 {
-		return fmt.Errorf("the processor lacks %s (on a virtual machine, set its CPU type to host or x86-64-v2)", strings.Join(missing, ", "))
-	}
-	return nil
+	return runtime.GOARCH, flags, nil
 }
 
 // WriteDefinition writes the mail stack's compose.yaml, root's alone.
@@ -102,51 +87,24 @@ func (h *Host) StackUID(context.Context) (int, error) {
 	return strconv.Atoi(u.Uid)
 }
 
-// ErrNoPassword is a start that printed no one-time password: Stalwart is set
-// up already, or has not printed it yet.
-var ErrNoPassword = errors.New("mail: Stalwart printed no one-time password")
-
-// bannerPassword is the line of Stalwart's first-start banner that holds the
-// one-time password: "   password: <it>".
-var bannerPassword = regexp.MustCompile(`^\s*password:\s*(\S+)\s*$`)
-
-// FirstPassword reads the one-time password Stalwart printed at or after
-// since from the stack user's journal: the last one, which is the current
-// start's. It is never logged or kept; the caller uses it at once.
-func (h *Host) FirstPassword(ctx context.Context, since time.Time) (string, error) {
+// Journal is what the mail stack's user printed at or after since, line by
+// line. It may hold a secret (a first start's credential): the caller reads
+// it and keeps nothing.
+func (h *Host) Journal(ctx context.Context, since time.Time) ([]string, error) {
 	uid, err := h.StackUID(ctx)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	deadline := time.Now().Add(30 * time.Second) // the banner comes a moment after the start
-	for {
-		out, err := hostcmd.Run(ctx, hostcmd.Journalctl, "_UID="+strconv.Itoa(uid), "--since", "@"+strconv.FormatInt(since.Unix(), 10), "-o", "cat", "--no-pager")
-		if err != nil {
-			return "", err
-		}
-		found := ""
-		for _, line := range strings.Split(string(out), "\n") {
-			if m := bannerPassword.FindStringSubmatch(line); m != nil {
-				found = m[1]
-			}
-		}
-		if found != "" {
-			return found, nil
-		}
-		if time.Now().After(deadline) {
-			return "", ErrNoPassword
-		}
-		select {
-		case <-ctx.Done():
-			return "", ctx.Err()
-		case <-time.After(2 * time.Second):
-		}
+	out, err := hostcmd.Run(ctx, hostcmd.Journalctl, "_UID="+strconv.Itoa(uid), "--since", "@"+strconv.FormatInt(since.Unix(), 10), "-o", "cat", "--no-pager")
+	if err != nil {
+		return nil, err
 	}
+	return strings.Split(string(out), "\n"), nil
 }
 
-// ErrNotAlone is a mail stack network that holds more than Stalwart's
-// container: its subnet cannot be trusted.
-var ErrNotAlone = errors.New("mail: the mail stack's network holds containers other than Stalwart's")
+// ErrNotAlone is a mail stack network that holds more than the mail
+// server's container: its subnet cannot be trusted.
+var ErrNotAlone = errors.New("mail: the mail stack's network holds containers other than the mail server's")
 
 // ErrNoForwarder is a stack network Podman does not describe.
 var ErrNoForwarder = errors.New("mail: Podman names no subnet for the mail stack's network")

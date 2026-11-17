@@ -91,7 +91,7 @@ reaches only the container's own namespaces, and Stalwart binds no port below 10
 adds its findings to that stack's review, reserves its ports, and masks what its logs must not show.
 `core/services` imports nothing of mail's.
 
-**In the code:** `core/mail/stack.go` (`Compose`, `Ports`), `core/mail/module.go` (`Owns`,
+**In the code:** `core/mail/stack.go` (`compose`, `Ports`), `sdk/stalwart/product.go` (`Compose`), `core/mail/module.go` (`Owns`,
 `Review`, `Reserved`, `Mask`), `core/services/module.go` (`Guard`).
 
 ## Setting mail up is one transaction
@@ -159,8 +159,9 @@ only the core can reach the management port it works on.
 **Stalwart's administrator is not a mailbox:** it is how AutoPanel manages Stalwart. Mail's account
 verbs leave it out, and refuse to change or remove it (`mail.admin_account`).
 
-**In the code:** `core/mail/module.go` (`Run`, `bootstrap`), `core/mail/jmap.go`,
-`host/mail/host.go` (`FirstPassword`, `Forwarder`), `store/mail.go`,
+**In the code:** `core/mail/module.go` (`Run`, `bootstrap`), `core/mail/bootenv.go`,
+`sdk/stalwart/product.go` (`Bootstrap`), `sdk/stalwart/jmap.go`,
+`host/mail/host.go` (`Journal`, `Forwarder`), `store/mail.go`,
 `sql/deployments/*/000005_update_mail.sql`.
 
 ## Mail domains are registry domains
@@ -258,10 +259,47 @@ pass destroys expired ones, which otherwise count toward the account's limit.
 - The limit is 5 app passwords unless `quotas/maxAppPasswords` says otherwise; AutoPanel sets 20.
 - Stalwart keeps no last use of an app password, so the list shows the device and when it was made.
 
+**Copy, cleared on close:** Copy password puts the secret on the clipboard through the terminal
+(OSC 52), for a mail app on the computer the panel is used from; the panel holds the secret only
+while the dialog is open. Closing the dialog, by Done or Cancel, empties the clipboard if Copy was
+used, without reading it first: a terminal asked to read the clipboard may ask the user or refuse,
+and the dialog says closing empties it. A clipboard manager's history is beyond the panel's reach.
+
 **No expiry, no address limits:** a device far away whose app password expired could not be set up
 again without someone there; phones move between networks. Revocation is the control.
 
 **In the code:** `core/mail/apppassword.go` (the verbs, the strength check, the sweep),
-`core/mail/jmap.go` (`AddAppPassword`, `KeepAppPassword`, `RevokeAppPassword`, `SetSecret`),
+`sdk/stalwart/server.go` and `jmap.go` (`AddAppPassword`, `KeepAppPassword`, `RevokeAppPassword`, `SetSecret`),
 `internal/ui/apppassword.go` (the dialog and its QR code).
+
+## Mail's rules name no mail server
+
+**Decided:** mail's business logic (`core/mail`: the verbs, the setup transaction, DNS ownership,
+DKIM rotation, the app-password lifecycle, the store and the vault) reaches the mail server only
+through two interfaces of its own, in neutral terms (`core/mail/provider`):
+
+- **`Server`** is a running server: domains, the records a domain needs, accounts (a password
+  given as a hash), app passwords, DKIM keys, certificates. It answers the provider's errors
+  (`ErrRefused` with the server's words, `ErrOverLimit`, `ErrUnauthorized`).
+- **`Product`** is the server as AutoPanel runs it: its stack definition (with mail's loopback
+  ports), its CPU needs, the line of its first start that holds a one-time credential, what to
+  mask in its logs, its bootstrap (through an environment that reads the journal, restarts the
+  stack and seals values under `mail/`), and its client.
+
+Stalwart is one implementation, `sdk/stalwart`: JMAP, its image and inside ports, `x:Bootstrap`,
+the zone file and every quirk recorded above live there and nowhere else. The app's wiring
+(`app/core.go`) is the one place that names it. **Moving to another mail server is a new SDK
+package and no change to `core/mail`.** Moving the mailboxes themselves is its own design.
+
+**The contract is a test suite,** `core/mail/provider/conformance`. It runs against the server in
+memory (`provider/memory`, on which `core/mail`'s own tests run) and against a real Stalwart on a
+throwaway machine (`sdk/stalwart`'s `TestStalwartConforms`, `TestBootstrapAgainstStalwart`). A
+new SDK ships when it passes it against its real server.
+
+**The boundary is tested:** `core/mail/boundary_test.go` fails when `core/mail` or
+`core/mail/provider` depends on an `sdk/` package, or names a server in an identifier or a string.
+
+**Rules any server is held to, kept in `core/mail`:** an app password's secret of fewer than 128
+bits is destroyed and refused; an expired app password is never kept (a server may revive it); a
+mailbox's own password is a hash of one no one knows.
 

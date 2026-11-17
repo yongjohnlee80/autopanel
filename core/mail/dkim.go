@@ -11,12 +11,13 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/yongjohnlee80/autopanel/core/mail/provider"
 )
 
-// DKIM, ROTATED BY AUTOPANEL — Stalwart does not make DKIM keys on request,
-// and rotates them itself only when it publishes DNS itself. So the core makes
-// each key, hands it to Stalwart not yet signing, publishes its record, waits
-// until public resolvers answer it, and only then has Stalwart sign with it;
+// DKIM, ROTATED BY AUTOPANEL — the core makes each key, hands it to the mail
+// server not yet signing, publishes its record, waits until public resolvers
+// answer it, and only then has the server sign with it;
 // the old key's record stays published a week for mail in flight. A domain
 // signs nothing until its first key's record resolves.
 //
@@ -31,9 +32,9 @@ var (
 
 // The steps of a key's rotation, as mail_dkim keeps them.
 const (
-	stepCreated   = "created"   // in Stalwart, pending; its record not yet published
+	stepCreated   = "created"   // in the mail server, pending; its record not yet published
 	stepPublished = "published" // its record is in the zone; not signing
-	stepSigning   = "signing"   // Stalwart signs with it
+	stepSigning   = "signing"   // the mail server signs with it
 	stepRetired   = "retired"   // no longer signs; its record stays published for retireAfter
 )
 
@@ -45,29 +46,32 @@ type DKIMRow struct {
 }
 
 // algorithms are the key pair each rotation makes: one selector each (L2).
-var algorithms = []struct{ suffix, kind string }{
-	{"e", "Dkim1Ed25519Sha256"},
-	{"r", "Dkim1RsaSha256"},
+var algorithms = []struct {
+	suffix string
+	alg    provider.DKIMAlg
+}{
+	{"e", provider.Ed25519},
+	{"r", provider.RSA},
 }
 
-// newKey makes a private key of kind, PEM (PKCS #8).
-func newKey(kind string) (string, error) {
+// newKey makes a private key of alg, PEM (PKCS #8).
+func newKey(alg provider.DKIMAlg) (string, error) {
 	var key any
-	switch kind {
-	case "Dkim1Ed25519Sha256":
+	switch alg {
+	case provider.Ed25519:
 		_, k, err := ed25519.GenerateKey(rand.Reader)
 		if err != nil {
 			return "", err
 		}
 		key = k
-	case "Dkim1RsaSha256":
+	case provider.RSA:
 		k, err := rsa.GenerateKey(rand.Reader, 2048)
 		if err != nil {
 			return "", err
 		}
 		key = k
 	default:
-		return "", fmt.Errorf("mail: no key of kind %s", kind)
+		return "", fmt.Errorf("mail: no DKIM algorithm %s", alg)
 	}
 	der, err := x509.MarshalPKCS8PrivateKey(key)
 	if err != nil {
@@ -92,7 +96,7 @@ func selectorFor(now time.Time, suffix string, taken map[string]bool) string {
 
 // rotate moves one domain's keys along their rotation, and answers the
 // selectors whose records the zone must hold now.
-func (m *Module) rotate(ctx context.Context, c *Client, domain, domainID string, zone []Record) ([]string, error) {
+func (m *Module) rotate(ctx context.Context, c provider.Server, domain, domainID string, zone []Record) ([]string, error) {
 	rows, err := m.store.DKIM(ctx, domain)
 	if err != nil {
 		return nil, err
@@ -129,11 +133,11 @@ func (m *Module) rotate(ctx context.Context, c *Client, domain, domainID string,
 	if inFlight == 0 && (len(by[stepSigning]) == 0 || now.Sub(oldest(by[stepSigning])) >= rotateAfter) {
 		for _, a := range algorithms {
 			sel := selectorFor(now, a.suffix, taken)
-			pemKey, err := newKey(a.kind)
+			pemKey, err := newKey(a.alg)
 			if err != nil {
 				return nil, err
 			}
-			id, err := c.AddDKIM(ctx, domainID, sel, a.kind, pemKey)
+			id, err := c.AddDKIMKey(ctx, domainID, sel, a.alg, pemKey)
 			if err != nil {
 				return nil, fmt.Errorf("a DKIM key for %s: %w", domain, err)
 			}
@@ -172,12 +176,12 @@ func (m *Module) rotate(ctx context.Context, c *Client, domain, domainID string,
 		}
 		if ready {
 			for _, r := range pub {
-				if err := c.SetDKIMStage(ctx, keyID[r.Selector], "active"); err != nil {
+				if err := c.SetDKIMStage(ctx, keyID[r.Selector], provider.Active); err != nil {
 					return nil, err
 				}
 			}
 			for _, r := range by[stepSigning] {
-				if err := c.SetDKIMStage(ctx, keyID[r.Selector], "retiring"); err != nil {
+				if err := c.SetDKIMStage(ctx, keyID[r.Selector], provider.Retiring); err != nil {
 					return nil, err
 				}
 				r.Step, r.Since = stepRetired, now.Unix()
@@ -201,7 +205,7 @@ func (m *Module) rotate(ctx context.Context, c *Client, domain, domainID string,
 			continue
 		}
 		if id := keyID[r.Selector]; id != "" {
-			if err := c.RemoveDKIM(ctx, id); err != nil {
+			if err := c.RemoveDKIMKey(ctx, id); err != nil {
 				return nil, err
 			}
 		}

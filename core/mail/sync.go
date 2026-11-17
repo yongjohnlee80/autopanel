@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/yongjohnlee80/autopanel/core/mail/provider"
 )
 
 // THE MAIL HOST'S CERTIFICATE AND ITS RECORDS — once mail is set up, a pass
@@ -70,7 +72,7 @@ func (m *Module) syncAll(ctx context.Context, st State) Sync {
 	}
 	theirs, err := c.Domains(ctx)
 	if err != nil {
-		fail("Stalwart's domains", err)
+		fail("the mail server's domains", err)
 	}
 	ids := map[string]string{}
 	for _, d := range theirs {
@@ -79,15 +81,14 @@ func (m *Module) syncAll(ctx context.Context, st State) Sync {
 	for _, d := range domains {
 		id := ids[d]
 		if id == "" {
-			fail(d, errors.New("Stalwart does not hold the domain"))
+			fail(d, errors.New("the mail server does not hold the domain"))
 			continue
 		}
-		zoneText, err := c.ZoneFile(ctx, id)
+		zone, err := c.Records(ctx, id)
 		if err != nil {
 			fail(d, err)
 			continue
 		}
-		zone := parseZone(zoneText)
 		selectors, err := m.rotate(ctx, c, d, id, zone)
 		if err != nil {
 			fail(d+" DKIM", err)
@@ -95,9 +96,9 @@ func (m *Module) syncAll(ctx context.Context, st State) Sync {
 		if rows, err := m.store.DKIM(ctx, d); err == nil {
 			out.DKIM[d] = rows
 		}
-		if len(selectors) > 0 { // the zone file now lists the new keys too
-			if zoneText, err = c.ZoneFile(ctx, id); err == nil {
-				zone = parseZone(zoneText)
+		if len(selectors) > 0 { // the server's records now list the new keys too
+			if again, err := c.Records(ctx, id); err == nil {
+				zone = again
 			}
 		}
 		want := append(served(zone, d, st.Host, cfg.DMARC), dkimFromZone(zone, d, selectors)...)
@@ -153,7 +154,7 @@ func (m *Module) config(ctx context.Context) (Config, error) {
 // serve the one AutoPanel holds. The first one is made and Stalwart restarted,
 // since a new certificate is served only after a restart; a renewal is an
 // update, served at once after ReloadTlsCertificates.
-func (m *Module) syncCertificate(ctx context.Context, c *Client, host string) (string, error) {
+func (m *Module) syncCertificate(ctx context.Context, c provider.Server, host string) (string, error) {
 	cctx, cancel := context.WithTimeout(ctx, 90*time.Second)
 	defer cancel()
 	cert, err := m.certs.For(cctx, host)
@@ -182,17 +183,15 @@ func (m *Module) syncCertificate(ctx context.Context, c *Client, host string) (s
 	if err != nil {
 		return "unknown", err
 	}
-	newID, err := c.PutCertificate(ctx, id, chainPEM, keyPEM)
+	restart, err := c.ServeCertificate(ctx, id, chainPEM, keyPEM)
 	if err != nil {
 		return "not handed over", err
 	}
-	if id == "" {
-		m.log.Info("mail: the mail host's first certificate is handed to Stalwart; restarting it", "host", host, "id", newID)
+	if restart {
+		m.log.Info("mail: the mail host's certificate is handed to the mail server; restarting it", "host", host)
 		if _, err := m.restartWait(ctx); err != nil {
 			return "handed over, not served", err
 		}
-	} else if err := c.ReloadTLS(ctx); err != nil {
-		return "handed over, not served", err
 	}
 	return "ok until " + cert.Leaf.NotAfter.UTC().Format("2006-01-02"), nil
 }

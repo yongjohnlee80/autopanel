@@ -1,4 +1,4 @@
-package mail
+package stalwart
 
 import (
 	"bytes"
@@ -18,7 +18,7 @@ import (
 // Stalwart v1 is managed through JMAP: its objects are `x:` methods under the
 // urn:stalwart:jmap capability, at /jmap/.
 //
-// Decision: docs/decisions/mail.md#stalwart-is-managed-through-its-jmap-api
+// Decision: docs/decisions/mail.md#mails-rules-name-no-mail-server
 
 // usingCaps is every request's capability list.
 var usingCaps = []string{"urn:ietf:params:jmap:core", "urn:stalwart:jmap"}
@@ -452,20 +452,22 @@ type NewAccount struct {
 	DomainID string
 	Secret   string // the password's hash: Stalwart verifies it and never holds the password
 	Quota    int64  // bytes
+	// AppPasswords is the account's limit of app passwords; 0 leaves
+	// Stalwart's default of 5. One expired but not destroyed counts.
+	AppPasswords int64
 }
 
-// AppPasswordLimit is how many app passwords an account may have: Stalwart's
-// own default is 5, and one left pending (not yet kept) counts until it is
-// destroyed.
-const AppPasswordLimit = 20
-
 // AddAccount makes a user account with a password's hash, a disk quota and
-// room for AppPasswordLimit app passwords.
+// its limit of app passwords.
 func (c *Client) AddAccount(ctx context.Context, n NewAccount) (string, error) {
+	quotas := map[string]int64{"maxDiskQuota": n.Quota}
+	if n.AppPasswords > 0 {
+		quotas["maxAppPasswords"] = n.AppPasswords
+	}
 	a, err := c.set(ctx, "Account", map[string]any{"create": map[string]any{"a": map[string]any{
 		"@type": "User", "name": n.Name, "domainId": n.DomainID,
 		"credentials": map[string]any{"0": map[string]any{"@type": "Password", "secret": n.Secret}},
-		"quotas":      map[string]int64{"maxDiskQuota": n.Quota, "maxAppPasswords": AppPasswordLimit}}}})
+		"quotas":      quotas}}})
 	if err != nil {
 		return "", err
 	}

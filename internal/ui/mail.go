@@ -73,6 +73,8 @@ func (d *mailPanes) state() map[string]any {
 		"App.appPwText":             "",
 		"App.appPwIntro":            "",
 		"App.appPwNote":             "",
+		"App.appPwCopyNote":         "",
+		"App.appPwCopyShown":        false,
 		"App.mailServerRows":        d.server,
 		"App.dnsRows":               d.dns,
 		"App.dnsIntro":              "",

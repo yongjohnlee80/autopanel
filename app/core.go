@@ -27,6 +27,7 @@ import (
 	"github.com/yongjohnlee80/autopanel/internal/keyslot"
 	"github.com/yongjohnlee80/autopanel/internal/module"
 	"github.com/yongjohnlee80/autopanel/internal/sysinfo"
+	"github.com/yongjohnlee80/autopanel/sdk/stalwart"
 	"github.com/yongjohnlee80/autopanel/store"
 )
 
@@ -261,7 +262,7 @@ func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateContr
 	gm := gate.NewModule(st.Routes(), st.Domains(), reload)
 	svcs := services.NewModule(st.Services(), serviceHost(cfg))
 	mailMod := mail.NewModule(st.Mail(), mailVault{st: st, vault: vault}, st.Domains(), svcs,
-		hostmail.New(cfg.Stacks, cfg.Services, cfg.GateUser), switchStreams(streams), log)
+		hostmail.New(cfg.Stacks, cfg.Services, cfg.GateUser), stalwart.Product{}, switchStreams(streams), log) // the one mail server: the only place that names it
 	svcs.SetGuard(mailMod) // the stack named mail is AutoPanel's, and so are its loopback ports
 	gm.SetDomainUsers(mailMod)
 	mailMod.SetDNS(mailDNS{st: st, vault: vault})

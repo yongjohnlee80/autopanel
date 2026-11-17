@@ -1,4 +1,4 @@
-package mail
+package stalwart
 
 import (
 	"context"
@@ -7,10 +7,8 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
-	"time"
 )
 
 // fakeStalwart answers one JMAP method call with what answer gives, and keeps
@@ -150,97 +148,6 @@ func TestAddDomainIsManualThroughout(t *testing.T) {
 		if made[k].(map[string]any)["@type"] != "Manual" {
 			t.Errorf("%s = %v; want Manual", k, made[k])
 		}
-	}
-}
-
-// TestAgainstStalwart runs the client against a real Stalwart, on a throwaway
-// machine: AUTOPANEL_TEST_STALWART names its management URL and
-// AUTOPANEL_TEST_STALWART_KEY a file holding an API key. It adds and removes a
-// domain and an account of its own, and touches nothing else.
-func TestAgainstStalwart(t *testing.T) {
-	url, keyFile := os.Getenv("AUTOPANEL_TEST_STALWART"), os.Getenv("AUTOPANEL_TEST_STALWART_KEY")
-	if url == "" || keyFile == "" {
-		t.Skip("needs a throwaway Stalwart: AUTOPANEL_TEST_STALWART and AUTOPANEL_TEST_STALWART_KEY")
-	}
-	raw, err := os.ReadFile(keyFile)
-	if err != nil {
-		t.Fatal(err)
-	}
-	key := strings.TrimSpace(string(raw))
-	ctx := context.Background()
-	c := NewClient(url, Bearer(func(context.Context) (string, error) { return key, nil }))
-
-	d, err := c.AddDomain(ctx, "autopanel-test.example.net")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = c.RemoveDomain(context.Background(), d.ID) })
-	zone, err := c.ZoneFile(ctx, d.ID)
-	if err != nil || !strings.Contains(zone, "IN MX") || strings.Contains(zone, "_domainkey") {
-		t.Fatalf("a new manual domain's zone: %v\n%s", err, zone)
-	}
-	first, err := lockedSecret()
-	if err != nil {
-		t.Fatal(err)
-	}
-	id, err := c.AddAccount(ctx, NewAccount{Name: "probe", DomainID: d.ID, Secret: first, Quota: 1 << 30})
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = c.RemoveAccount(context.Background(), id) })
-
-	// App passwords: made with an expiry, kept, revoked; Stalwart's secret
-	// passes the strength check.
-	exp := time.Now().Add(pendingFor)
-	kept, secret, err := c.AddAppPassword(ctx, id, "probe phone", exp)
-	if err != nil || !strongSecret(secret) {
-		t.Fatalf("AddAppPassword: %v; strong %v", err, strongSecret(secret))
-	}
-	gone, _, err := c.AddAppPassword(ctx, id, "probe laptop", exp)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := c.KeepAppPassword(ctx, id, kept.ID); err != nil {
-		t.Fatal(err)
-	}
-	if err := c.RevokeAppPassword(ctx, id, gone.ID); err != nil {
-		t.Fatal(err)
-	}
-	ps, err := c.AppPasswords(ctx, id)
-	if err != nil || len(ps) != 1 || ps[0].ID != kept.ID || ps[0].ExpiresAt != nil || ps[0].Description != "probe phone" {
-		t.Fatalf("AppPasswords = %+v, %v", ps, err)
-	}
-
-	// A new password's hash, and a new quota: both patches, so the app
-	// password and the limit stay.
-	again, _ := lockedSecret()
-	if err := c.SetSecret(ctx, id, again); err != nil {
-		t.Fatal(err)
-	}
-	if err := c.SetQuota(ctx, id, 2<<30); err != nil {
-		t.Fatal(err)
-	}
-	if ps, err := c.AppPasswords(ctx, id); err != nil || len(ps) != 1 {
-		t.Fatalf("after SetSecret and SetQuota: %+v, %v", ps, err)
-	}
-	accounts, err := c.Accounts(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var found *Account
-	for i := range accounts {
-		if accounts[i].ID == id {
-			found = &accounts[i]
-		}
-	}
-	if found == nil || found.Address != "probe@autopanel-test.example.net" || found.Quota != 2<<30 || found.AppPasswordLimit != AppPasswordLimit {
-		t.Fatalf("the account as listed: %+v", found)
-	}
-	if err := c.RemoveAccount(ctx, id); err != nil {
-		t.Fatal(err)
-	}
-	if err := c.RemoveDomain(ctx, d.ID); err != nil {
-		t.Fatal(err)
 	}
 }
 

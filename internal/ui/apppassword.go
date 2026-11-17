@@ -25,9 +25,12 @@ import (
 // Decision: docs/decisions/mail.md#mail-apps-sign-in-with-app-passwords
 
 // shownAppPassword is the app password whose dialog is open: what Done keeps
-// and Cancel revokes. Never its secret, which is only in the dialog's text.
+// and Cancel revokes, and its secret for Copy, held only while the dialog is
+// open. copied: Copy put the secret on the clipboard, which closing empties.
 type shownAppPassword struct {
 	address, id, device string
+	secret              string
+	copied              bool
 }
 
 // loadAppPasswords reads the selected account's app passwords.
@@ -135,7 +138,7 @@ func (h *host) addAppPasswordFor(addr string) error {
 
 // showAppPassword opens the app password's dialog: its secret, once.
 func (h *host) showAppPassword(addr, device string, n mail.NewAppPassword) {
-	h.appShown = &shownAppPassword{address: addr, id: n.ID, device: device}
+	h.appShown = &shownAppPassword{address: addr, id: n.ID, device: device, secret: n.Secret}
 	settings := facts(h,
 		[2]string{"autopanel.label.mail.appUser", n.User},
 		[2]string{"autopanel.label.mail.appIMAP", n.Host + "  " + strconv.Itoa(n.IMAP) + "  SSL/TLS"},
@@ -148,12 +151,31 @@ func (h *host) showAppPassword(addr, device string, n mail.NewAppPassword) {
 		block = sideBySide(block, code, 3)
 	}
 	_ = h.p.SetMany(map[string]any{
-		"App.appPwTitle": h.trf("autopanel.title.dialog.appPassword", addr, device),
-		"App.appPwIntro": h.tr("autopanel.label.mail.appSecret"),
-		"App.appPwText":  block,
-		"App.appPwNote":  h.trf("autopanel.label.mail.appPending", time.Unix(n.ExpiresAt, 0).Format("15:04")),
+		"App.appPwTitle":     h.trf("autopanel.title.dialog.appPassword", addr, device),
+		"App.appPwIntro":     h.tr("autopanel.label.mail.appSecret"),
+		"App.appPwText":      block,
+		"App.appPwNote":      h.trf("autopanel.label.mail.appPending", time.Unix(n.ExpiresAt, 0).Format("15:04")),
+		"App.appPwCopyNote":  "",
+		"App.appPwCopyShown": false,
 	})
 	_ = h.p.Call("appPasswordDialog", "open")
+}
+
+// appPasswordCopy is Copy password: the secret on the clipboard, through the
+// terminal (OSC 52: over SSH, the clipboard of the computer the panel is used
+// from), for a mail app there. The dialog says closing it empties the
+// clipboard; a terminal that takes no copy is said so.
+func (h *host) appPasswordCopy() error {
+	shown := h.appShown
+	if shown == nil {
+		return nil
+	}
+	note := h.tr("autopanel.notice.mail.appNoClipboard")
+	if app := h.p.App(); app != nil && app.CopyToClipboard(shown.secret) {
+		shown.copied = true
+		note = h.tr("autopanel.notice.mail.appCopied")
+	}
+	return h.p.SetMany(map[string]any{"App.appPwCopyNote": note, "App.appPwCopyShown": true})
 }
 
 // appPasswordDone is Done: the device signed in, so the app password is kept.
@@ -198,12 +220,23 @@ func (h *host) appPasswordCancelled() error {
 	return nil
 }
 
-// clearAppPassword takes the secret off the screen and answers which app
-// password the dialog showed, once.
+// clearAppPassword takes the secret off the screen, and off the clipboard if
+// Copy put it there, and answers which app password the dialog showed, once.
+// The clipboard is emptied without being read first: a terminal asked to read
+// it may ask the user or refuse, and the dialog said closing empties it.
 func (h *host) clearAppPassword() *shownAppPassword {
 	shown := h.appShown
 	h.appShown = nil
-	_ = h.p.SetMany(map[string]any{"App.appPwText": "", "App.appPwIntro": "", "App.appPwTitle": "", "App.appPwNote": ""})
+	if shown != nil {
+		if shown.copied {
+			if app := h.p.App(); app != nil {
+				app.CopyToClipboard("")
+			}
+		}
+		shown.secret = ""
+	}
+	_ = h.p.SetMany(map[string]any{"App.appPwText": "", "App.appPwIntro": "", "App.appPwTitle": "", "App.appPwNote": "",
+		"App.appPwCopyNote": "", "App.appPwCopyShown": false})
 	return shown
 }
 

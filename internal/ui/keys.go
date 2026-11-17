@@ -157,6 +157,7 @@ var tips = map[string]string{
 	"App.tipMailAppAdd":        "autopanel.tip.mail.appAdd",
 	"App.tipMailAppRevoke":     "autopanel.tip.mail.appRevoke",
 	"App.tipAppPwDone":         "autopanel.tip.mail.appDone",
+	"App.tipAppPwCopy":         "autopanel.tip.mail.appCopy",
 	"App.tipMailAccountRemove": "autopanel.tip.mail.accountRemove",
 	"App.tipUsersAdd":          "autopanel.tip.users.add",
 	"App.tipUsersRole":         "autopanel.tip.users.role",

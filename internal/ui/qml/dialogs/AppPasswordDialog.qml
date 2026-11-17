@@ -1,7 +1,9 @@
 // AppPasswordDialog.qml — a new app password, shown once: its secret, a QR
 // code of it for a phone's camera (beside it, in the one text), and the settings a mail app needs. Done
-// keeps it once the device signs in; Cancel or Escape revokes it. The host
-// clears the secret from its source as the dialog closes, either way.
+// keeps it once the device signs in; Cancel or Escape revokes it. Copy
+// password puts it on the clipboard (through the terminal) for a mail app on
+// this computer. The host clears the secret from its source, and the
+// clipboard if it was copied, as the dialog closes, either way.
 
 Dialog {
     title: App.appPwTitle
@@ -13,8 +15,11 @@ Dialog {
         Text { text: " " }
         Text { text: App.appPwText; wrapMode: Tui.WordWrap }
         Text { text: App.appPwNote; wrapMode: Tui.WordWrap; color: Theme.syntax.alert }
+        Text { text: App.appPwCopyNote; visible: App.appPwCopyShown; wrapMode: Tui.WordWrap; color: Theme.syntax.alert }
     }
     DialogButtonBox {
+        Button { text: qsTrId("autopanel.button.mail.appCopy"); toolTipText: App.tipAppPwCopy; DialogButtonBox.buttonRole: DialogButtonBox.ActionRole
+                 onClicked: App.appPasswordCopy() }
         Button { text: qsTrId("autopanel.button.mail.appDone"); toolTipText: App.tipAppPwDone; DialogButtonBox.buttonRole: DialogButtonBox.AcceptRole }
         Button { text: qsTrId("autopanel.button.dialog.cancel"); toolTipText: App.tipDialogCancel; DialogButtonBox.buttonRole: DialogButtonBox.RejectRole }
     }
