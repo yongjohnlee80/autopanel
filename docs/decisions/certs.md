@@ -28,9 +28,11 @@ there is; the new one is ordered beside it.
 may name an earlier time; the renewal then starts at that time's next request. The panel's
 "renewing" state is the last third, whatever the service suggests.
 
-**The gate asks the core for a name's certificate once an hour,** so a renewal starts within an
-hour of the window opening on a busy name, and a renewed certificate is served within an hour of
-being obtained.
+**The gate asks the core for a name's certificate once an hour,** and again as the last third
+begins, so on a busy name the renewal starts with the first request of the window. A renewed
+certificate is served within an hour of being obtained.
+
+**In the code:** `host/gate/process.go` (`freshUntil`), `TestWhenTheGateAsksAgainForACertificate`.
 
 **Past its end,** the next request waits for a new certificate (a second or two) and is served
 with it.
@@ -65,8 +67,10 @@ anything, so opening the panel cannot spend a rate limit.
 to production, a name shows "none yet" until its first request, though its staging certificate is
 still in the store.
 
-**The last failure is kept in memory,** not in the store: it is gone after a restart, and cleared
-when an order for the name succeeds. The audit log keeps the history.
+**The last failure is kept in memory,** not in the store: it is gone after a restart, cleared
+when an order for the name succeeds, and forgotten when the certificate service is switched. The
+audit log keeps the history. A store that cannot be read shows its own error, never an older
+order's.
 
 **In the code:** `app/certstatus.go` (`rows`, `certState`), `internal/certs/certs.go` (`Stored`),
 `internal/ui/monitor.go` (`certDetail`); `TestStoredReadsTheStoreAndOrdersNothing`,

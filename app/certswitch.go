@@ -100,6 +100,9 @@ func (s *certSwitch) rebuild(ctx context.Context) error {
 	if old := s.cur.Swap(m); old != nil {
 		old.Stop()
 	}
+	if was, _ := s.ca.Load().(string); was != "" && was != ca {
+		s.events.reset() // the other service's failures say nothing of this one's
+	}
 	s.challenge.Store(challenge)
 	s.ca.Store(ca)
 	s.log.Info("certificates", "challenge", challenge, "ca", ca)

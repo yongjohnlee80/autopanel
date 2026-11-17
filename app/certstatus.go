@@ -63,11 +63,25 @@ func newCertEvents(audit func(ctx context.Context, actor, action, subject, detai
 	return &certEvents{audit: audit, now: time.Now, failed: map[string]failure{}, written: map[string]failure{}}
 }
 
-// auditEvery is how often a name's unchanged failure is written again.
-const auditEvery = time.Hour
+// auditEvery is how often a name's unchanged failure is written again;
+// auditWithin is how long one entry's write may take.
+const (
+	auditEvery  = time.Hour
+	auditWithin = 5 * time.Second
+)
+
+// reset forgets every failure: they were another certificate service's.
+func (e *certEvents) reset() {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.failed, e.written = map[string]failure{}, map[string]failure{}
+}
 
 func (e *certEvents) on(ev certs.Event) {
-	ctx := context.Background() // the order's own context may be ending
+	// The order's own context may be ending; and a store that is slow must
+	// not hold the order, or the handshake behind it.
+	ctx, cancel := context.WithTimeout(context.Background(), auditWithin)
+	defer cancel()
 	now := e.now()
 	e.mu.Lock()
 	if ev.Err == nil {
@@ -143,21 +157,28 @@ func (s *certSwitch) rows(ctx context.Context) []CertRow {
 	names := s.names()
 	out := make([]CertRow, 0, len(names))
 	for _, name := range names {
-		row := CertRow{Host: name}
 		c, ok, err := m.Stored(ctx, name)
-		row.State = certState(c, ok, err, now)
-		if ok {
-			row.Issuer, row.NotBefore, row.NotAfter, row.RenewFrom = c.Issuer, c.NotBefore.Unix(), c.NotAfter.Unix(), c.RenewFrom.Unix()
-		}
-		if err != nil {
-			row.Error = oneLine(err.Error())
-		}
-		if f, failed := s.events.last(name); failed {
-			row.Error, row.FailedAt = f.err, f.at.Unix()
-		}
-		out = append(out, row)
+		f, failed := s.events.last(name)
+		out = append(out, certRow(name, c, ok, err, f, failed, now))
 	}
 	return out
+}
+
+// certRow is a name's row: what the store holds, and the last order that
+// failed. A store that cannot be read says so itself: an older order's
+// failure would hide the reason, and is left out.
+func certRow(name string, c certs.Stored, ok bool, err error, f failure, failed bool, now time.Time) CertRow {
+	row := CertRow{Host: name, State: certState(c, ok, err, now)}
+	if ok {
+		row.Issuer, row.NotBefore, row.NotAfter, row.RenewFrom = c.Issuer, c.NotBefore.Unix(), c.NotAfter.Unix(), c.RenewFrom.Unix()
+	}
+	switch {
+	case err != nil:
+		row.Error = oneLine(err.Error())
+	case failed:
+		row.Error, row.FailedAt = f.err, f.at.Unix()
+	}
+	return row
 }
 
 func certState(c certs.Stored, ok bool, err error, now time.Time) string {

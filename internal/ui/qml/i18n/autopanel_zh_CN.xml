@@ -1784,8 +1784,8 @@
         <translation>这对 Cloudflare 令牌来说太短了：请完整粘贴</translation>
     </message>
     <message id="autopanel.notice.check.certExpiring">
-        <source>A certificate is renewed in the last third of its life, at a request for its name. One this close to its end has not been: Certs › Certificates shows the last failure. The name's DNS must point at this server, and ports 80 and 443 must reach it, or the Cloudflare token must reach the name's zone.</source>
-        <translation>证书在有效期的最后三分之一内、在对其名称的请求时续期。离到期如此之近的证书尚未续期：证书 › 证书 显示上次失败。名称的 DNS 必须指向此服务器，且 80 和 443 端口可达，或者 Cloudflare 令牌可访问该名称的区域。</translation>
+        <source>A certificate is renewed in the last third of its life, at a request for its name. One this close to its end has not been: its renewal fails, or nothing has asked for the name since. Certs › Certificates shows the last failure. The name's DNS must point at this server, and ports 80 and 443 must reach it, or the Cloudflare token must reach the name's zone.</source>
+        <translation>证书在有效期的最后三分之一内、在对其名称的请求时续期。离到期如此之近的证书尚未续期：续期失败，或此后没有对该名称的请求。证书 › 证书 显示上次失败。名称的 DNS 必须指向此服务器，且 80 和 443 端口可达，或者 Cloudflare 令牌可访问该名称的区域。</translation>
     </message>
     <message id="autopanel.notice.check.certFailing">
         <source>Certs › Certificates shows the reason for each name. An order is tried again at the next request for the name.</source>

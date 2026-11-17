@@ -1784,8 +1784,8 @@
         <translation>That is too short for a Cloudflare token: paste it whole</translation>
     </message>
     <message id="autopanel.notice.check.certExpiring">
-        <source>A certificate is renewed in the last third of its life, at a request for its name. One this close to its end has not been: Certs › Certificates shows the last failure. The name's DNS must point at this server, and ports 80 and 443 must reach it, or the Cloudflare token must reach the name's zone.</source>
-        <translation>A certificate is renewed in the last third of its life, at a request for its name. One this close to its end has not been: Certs › Certificates shows the last failure. The name's DNS must point at this server, and ports 80 and 443 must reach it, or the Cloudflare token must reach the name's zone.</translation>
+        <source>A certificate is renewed in the last third of its life, at a request for its name. One this close to its end has not been: its renewal fails, or nothing has asked for the name since. Certs › Certificates shows the last failure. The name's DNS must point at this server, and ports 80 and 443 must reach it, or the Cloudflare token must reach the name's zone.</source>
+        <translation>A certificate is renewed in the last third of its life, at a request for its name. One this close to its end has not been: its renewal fails, or nothing has asked for the name since. Certs › Certificates shows the last failure. The name's DNS must point at this server, and ports 80 and 443 must reach it, or the Cloudflare token must reach the name's zone.</translation>
     </message>
     <message id="autopanel.notice.check.certFailing">
         <source>Certs › Certificates shows the reason for each name. An order is tried again at the next request for the name.</source>

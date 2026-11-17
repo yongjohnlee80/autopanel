@@ -47,6 +47,23 @@ var ReportEvery = 5 * time.Second
 // not wait an hour.
 var certFresh = time.Hour
 
+// freshUntil is when the gate asks the core again for a certificate it got at
+// now: after certFresh, and no later than the certificate's end. A certificate
+// not yet in the last third of its life is asked for again as that third
+// begins, so the request that should start its renewal reaches the core then,
+// not up to certFresh later.
+func freshUntil(leaf *x509.Certificate, now time.Time) time.Time {
+	fresh := now.Add(certFresh)
+	if leaf.NotAfter.Before(fresh) {
+		fresh = leaf.NotAfter
+	}
+	renewFrom := leaf.NotAfter.Add(-leaf.NotAfter.Sub(leaf.NotBefore) / 3)
+	if now.Before(renewFrom) && renewFrom.Before(fresh) {
+		fresh = renewFrom
+	}
+	return fresh
+}
+
 // errReconfigured is a core that now names other listen addresses than the
 // gate is serving: the gate stops, and its unit starts it again on the new ones.
 var errReconfigured = errors.New("gate: the core's listen addresses changed")
@@ -496,11 +513,7 @@ func (cc *certCache) fetch(name string, f *flight) {
 	f.cert, f.err = cc.ask(ctx, Name{Name: name})
 	cc.mu.Lock()
 	if f.err == nil {
-		fresh := time.Now().Add(certFresh)
-		if na := f.cert.Leaf.NotAfter; na.Before(fresh) {
-			fresh = na
-		}
-		cc.held[name] = heldCert{cert: f.cert, fresh: fresh}
+		cc.held[name] = heldCert{cert: f.cert, fresh: freshUntil(f.cert.Leaf, time.Now())}
 	}
 	delete(cc.flights, name)
 	cc.mu.Unlock()
