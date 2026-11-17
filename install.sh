@@ -694,3 +694,6 @@ esac
 info "the panel's Certs menu shows the service in use, and changes it"
 info "behind Cloudflare's proxy: sudo autopanel --call certs.cloudflare.set '{\"token\":\"…\"}'"
 info "remove: sudo autopanel-uninstall --check"
+
+proof=$1
+echo $proof
