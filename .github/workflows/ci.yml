@@ -46,6 +46,65 @@ jobs:
       - name: build
         run: CGO_ENABLED=0 go build -trimpath -o /dev/null ./cmd/autopanel
 
+  # The coverage policy, on a pull request: the head's coverage against the
+  # base's. A change must cover 70% of the blocks it touches, and may not take
+  # the total or any one file down by more than a point. covercheck is golib's,
+  # at the version go.mod requires: no install step, nothing outside the
+  # module graph. The report is the job's summary.
+  coverage:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: ci-only-not-a-secret
+          POSTGRES_DB: autopanel_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d autopanel_test"
+          --health-interval 2s --health-timeout 5s --health-retries 30
+    env:
+      GOFLAGS: -mod=readonly
+      BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      AUTOPANEL_TEST_POSTGRES_DSN: postgres://postgres:ci-only-not-a-secret@localhost:5432/autopanel_test?sslmode=disable&search_path=autopanel
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: schema for the PostgreSQL tests
+        run: |
+          PGPASSWORD=ci-only-not-a-secret psql -h localhost -U postgres -d autopanel_test -c 'CREATE SCHEMA autopanel'
+      - name: head coverage
+        run: go test -count=1 -p 1 -covermode=atomic -coverpkg=./... -coverprofile="$RUNNER_TEMP/coverage-head.out" ./...
+      - name: base coverage
+        run: |
+          git worktree add --detach "$RUNNER_TEMP/coverage-base" "$BASE_SHA"
+          cd "$RUNNER_TEMP/coverage-base"
+          go test -count=1 -p 1 -covermode=atomic -coverpkg=./... -coverprofile="$RUNNER_TEMP/coverage-base.out" ./...
+      - name: coverage policy
+        run: |
+          set +e
+          go run github.com/yongjohnlee80/golib/cmd/covercheck \
+            --base-profile "$RUNNER_TEMP/coverage-base.out" \
+            --head-profile "$RUNNER_TEMP/coverage-head.out" \
+            --base-ref "$BASE_SHA" \
+            --head-ref "$HEAD_SHA" \
+            --minimum-changed 70 \
+            --maximum-total-regression 1 \
+            --maximum-file-regression 1 \
+            --require-changed-files \
+            --format markdown > "$RUNNER_TEMP/coverage-report.md"
+          status=$?
+          cat "$RUNNER_TEMP/coverage-report.md" >> "$GITHUB_STEP_SUMMARY"
+          cat "$RUNNER_TEMP/coverage-report.md"
+          exit "$status"
+
   vulncheck:
     runs-on: ubuntu-24.04
     steps:

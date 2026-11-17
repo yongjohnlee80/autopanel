@@ -11,6 +11,7 @@ import (
 
 	"github.com/yongjohnlee80/golib/tui/decl/decltest"
 
+	corefw "github.com/yongjohnlee80/autopanel/core/firewall"
 	"github.com/yongjohnlee80/autopanel/core/gate"
 	"github.com/yongjohnlee80/autopanel/core/mail"
 )
@@ -417,4 +418,42 @@ func TestTheDNSRecordsDialog(t *testing.T) {
 	waitFact(t, s, "Host", "mail")
 	run(t, h, func() error { return h.dnsCopy(2) })
 	s.WaitForText(t, "clipboard")
+}
+
+// TestTheMailServerShowsItsPortsAndOpensThem: Mail › Server lists mail's four
+// ports with the firewall's verdict, who allowed each, and the commands for
+// one AutoPanel cannot open; Open ports opens the ones it can, as mail's.
+func TestTheMailServerShowsItsPortsAndOpensThem(t *testing.T) {
+	f := withMail()
+	want := func(p int) corefw.Want { return corefw.Want{Proto: "tcp", From: p, To: p} }
+	f.mail.status.Ports = []corefw.PortState{
+		{Key: "tcp/25", Want: want(25), Verdict: "blocked", Needs: true, Managed: true},
+		{Key: "tcp/465", Want: want(465), Verdict: "allowed", By: "other"},
+		{Key: "tcp/587", Want: want(587), Verdict: "blocked", Needs: true, Commands: []string{"firewall-cmd --add-port=587/tcp"}},
+		{Key: "tcp/993", Want: want(993), Verdict: "allowed", By: "mail"},
+	}
+	f.mail.status.SyncErrors = []string{"example.com DNS: the token does not reach the zone", "the certificate: not issued"}
+	h, s := startHost(t, f)
+	s.WaitForText(t, "CA LE staging")
+	run(t, h, h.openMailServer)
+	for _, part := range []string{"Mail server", "tcp/25: blocked", "tcp/465: allowed · a rule not AutoPanel's", "tcp/587: blocked · firewall-cmd --add-port=587/tcp",
+		"tcp/993: allowed · mail", "example.com DNS: the token does not reach the zone", "the certificate: not issued", "Open ports"} {
+		s.WaitForText(t, part)
+	}
+	s.Keys(t, decltest.Rune('p'))
+	s.WaitForText(t, "Mail's ports are open in the firewall.")
+	if a := f.mailAsked(); len(a) == 0 || a[len(a)-1] != "ports 25" {
+		t.Fatalf("Open ports asked %v; want the one port AutoPanel can open", a)
+	}
+
+	// With nothing to open the button is gone, and its key does nothing.
+	f.mu.Lock()
+	f.mail.status.Ports = f.mail.status.Ports[1:2]
+	f.mu.Unlock()
+	s.Keys(t, decltest.Rune('r'))
+	gone(t, s, "Open ports")
+	s.Keys(t, decltest.Rune('p'))
+	if a := f.mailAsked(); a[len(a)-1] != "ports 25" {
+		t.Fatalf("Open ports with nothing to open asked %v", a)
+	}
 }
