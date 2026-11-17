@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	corefw "github.com/yongjohnlee80/autopanel/core/firewall"
 	"github.com/yongjohnlee80/autopanel/internal/module"
 )
 
@@ -160,6 +161,7 @@ var (
 	ErrNotApplied   = errors.New("services: the stack has not been applied")
 	ErrIncomplete   = errors.New("services: the apply did not finish")
 	ErrReserved     = errors.New("services: the name is AutoPanel's own")
+	ErrNotOwnPort   = errors.New("services: a port to open is not one the stack publishes on a public address")
 )
 
 // Guard is a module that owns a stack: mail owns the stack named mail, whose
@@ -201,7 +203,23 @@ type Module struct {
 	busy  map[string]bool
 	ports sync.Mutex
 	guard Guard // nil: no stack is anyone's
+	// firewall opens and closes the ports a stack chose to open; nil when
+	// this core drives no firewall.
+	firewall Firewall
 }
+
+// Firewall is the core's firewall as an owner of rules uses it.
+//
+// Decision: docs/decisions/firewall.md#owners
+type Firewall interface {
+	Review(ctx context.Context, owner string, wants []corefw.Want) ([]corefw.PortState, error)
+	Open(ctx context.Context, owner string, wants []corefw.Want) error
+	Close(ctx context.Context, owner string, wants []corefw.Want) error
+}
+
+// SetFirewall gives the module the firewall. It is set once, before the
+// verbs are served.
+func (m *Module) SetFirewall(f Firewall) { m.firewall = f }
 
 // SetGuard names the module that owns stacks of its own. It is set once,
 // before the verbs are served.
@@ -226,6 +244,7 @@ func (m *Module) Errors() []module.PublicError {
 		{Err: ErrLegacy, Code: -32186, Name: "services.legacy", Message: "the stack was deployed from a template by an older AutoPanel; remove it, and add it again as a stack"},
 		{Err: ErrNoService, Code: -32187, Name: "services.no_service", Message: "the stack has no such service"},
 		{Err: ErrReserved, Code: -32188, Name: "services.reserved", Message: "that stack is AutoPanel's own: it is written and changed from its menu (Mail), never imported"},
+		{Err: ErrNotOwnPort, Code: -32143, Name: "services.not_own_port", Message: "a port to open is not one the stack publishes on a public address"},
 		{Err: ErrNoDefinition, Code: -32190, Name: "services.no_definition", Message: "no folder of that name with a compose.yaml in it"},
 		{Err: ErrNotFound, Code: -32191, Name: "services.not_found", Message: "no such stack"},
 		{Err: ErrDuplicate, Code: -32192, Name: "services.duplicate", Message: "a stack of this name exists"},
@@ -279,6 +298,10 @@ type Ref struct {
 type Accept struct {
 	Name   string `json:"name"`
 	Accept string `json:"accept"` // the review's sha256
+	// Open are the ports to open in the host's firewall, of those the review
+	// lists: the administrator's choice at the moment, so not part of the
+	// definition. Each must be one the stack publishes on a public address.
+	Open []corefw.Want `json:"open,omitempty"`
 }
 
 // Remove is services.remove's param.
@@ -671,21 +694,41 @@ func (m *Module) restart(ctx context.Context, r Ref) (View, error) {
 }
 
 func (m *Module) remove(ctx context.Context, p Remove) (struct{}, error) {
+	if m.guard != nil && m.guard.Owns(p.Name) {
+		return struct{}{}, ErrReserved // its owner removes it, with what it keeps beside the stack
+	}
+	return struct{}{}, m.removeStack(ctx, p)
+}
+
+// RemoveOwned removes a stack another module owns, for that module: mail's
+// removal, which takes down what it keeps beside the stack first.
+func (m *Module) RemoveOwned(ctx context.Context, name string, purge bool) error {
+	return m.removeStack(ctx, Remove{Name: name, Purge: purge})
+}
+
+// removeStack closes the ports the stack opened, through the lockout guard,
+// before anything else: a refusal there leaves the stack as it was.
+func (m *Module) removeStack(ctx context.Context, p Remove) error {
 	if !ValidName(p.Name) {
-		return struct{}{}, ErrBadName
+		return ErrBadName
 	}
 	defer m.lock(p.Name)()
 	svc, err := m.store.Get(ctx, p.Name)
 	if err != nil {
-		return struct{}{}, err
+		return err
+	}
+	if m.firewall != nil {
+		if err := m.firewall.Close(ctx, corefw.StackOwner(svc.Name), nil); err != nil {
+			return err
+		}
 	}
 	if err := m.store.SetState(ctx, svc.Name, Removing); err != nil {
-		return struct{}{}, err
+		return err
 	}
 	if err := m.host.Uninstall(ctx, svc.Name, p.Purge); err != nil {
-		return struct{}{}, fmt.Errorf("services: removing %s: %w", svc.Name, err)
+		return fmt.Errorf("services: removing %s: %w", svc.Name, err)
 	}
-	return struct{}{}, m.store.Remove(ctx, svc.Name)
+	return m.store.Remove(ctx, svc.Name)
 }
 
 func (m *Module) logs(ctx context.Context, p LogsAsk) (Logs, error) {

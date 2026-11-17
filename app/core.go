@@ -275,6 +275,7 @@ func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateContr
 	if err := fwm.Settle(ctx); err != nil {
 		log.Warn("firewall: settling what an earlier change left", "err", err)
 	}
+	svcs.SetFirewall(fwm) // a stack's apply opens the ports it chose; its removal closes them
 	sys := &sysModule{cfg: cfg, sampler: sysinfo.NewSampler(), table: table, engine: st.Engine(), started: time.Now(), challenge: sw.Challenge, ca: sw.CA,
 		st: st, log: log, counts: counts, listeners: readListeners, sshLogins: readSSHLogins, firewall: fwm.Read, gate: gc, serviceUsers: svcs.Users}
 	am, err := auth.New(st.Users(), st, st, vault, func(ctx context.Context) {

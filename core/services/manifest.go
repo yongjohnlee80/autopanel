@@ -1,6 +1,7 @@
 package services
 
 import (
+	corefw "github.com/yongjohnlee80/autopanel/core/firewall"
 	"sort"
 	"strconv"
 	"strings"
@@ -79,6 +80,10 @@ type Applied struct {
 	Units    []UnitFile `json:"units"`
 	Data     []string   `json:"data"`  // the sources of its writable mounts
 	Roots    []string   `json:"roots"` // its env_files and the sources of its read-only mounts: files, or folders of them
+	// Open are the ports the apply chose to open, with their addresses,
+	// whether or not a rule had to be made for them: what Host checks finds
+	// blocked when the firewall changes since.
+	Open []corefw.Want `json:"open,omitempty"`
 }
 
 // managed is every path of the stack's folder that an apply put there: each
