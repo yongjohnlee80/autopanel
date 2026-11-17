@@ -40,6 +40,9 @@ type sysModule struct {
 	// firewall reads the host's firewall through its manager; nil when this
 	// core reads none (a development run).
 	firewall func(ctx context.Context) (sysinfo.Firewall, error)
+	// moreChecks are the host checks other modules know (a stack's state,
+	// mail's ports, a certificate's expiry); nil when none are wired.
+	moreChecks func(ctx context.Context) []Check
 	// sampler answers each metrics read with the host's rates since the read
 	// before it, whoever made that one.
 	sampler *sysinfo.Sampler
@@ -71,7 +74,7 @@ func (m *sysModule) Errors() []module.PublicError {
 func (m *sysModule) Verbs() []module.Verb {
 	return append([]module.Verb{module.Handle(module.Contract{Verb: "sys.status", Discloses: module.Plain, Since: 1,
 		Result: "{version, https, http, store, ca, challenge, routes, uptime}",
-		Doc:    "The running AutoPanel: its listeners, store, certificate issuer and route count."}, m.status)}, m.monitorVerbs()...)
+		Doc:    "The running AutoPanel: its listeners, store, certificate issuer and route count."}, m.status)}, append(m.monitorVerbs(), m.checkVerbs()...)...)
 }
 
 func (m *sysModule) status(context.Context, struct{}) (Status, error) {
