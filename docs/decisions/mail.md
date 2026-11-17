@@ -100,10 +100,13 @@ adds its findings to that stack's review, reserves its ports, and masks what its
 answers the mail stack's review, reviewed from the definition in memory; it writes nothing. The
 answers wait in the core's memory. **Add and start** on that review (`mail.setup.apply`, given the
 review's sha256) makes every write, in this order: the stack's user, the loopback rule, the
-definition in the stacks' directory, the stack added and started, the sealed settings, and last the
-`mail` row that makes mail set up. A step that fails undoes the ones before it (the rule and the
+definition in the stacks' directory, the stack added and started, mail's ports opened in the
+firewall (the ones the review ticked: [the firewall](firewall.md#mails-ports)), the sealed
+settings, and last the `mail` row that makes mail set up. A step that fails undoes the ones before it (the rule and the
 definition are taken off again). Once the stack is registered, its apply keeps its own journal and
-is not undone: asking again finishes it, and the record follows.
+is not undone: asking again finishes it, and the record follows. Asking again works after a core
+restart too: while mail is not recorded, Set up mail reviews the registered stack's definition
+(`services.Check`) instead of a draft, and the apply goes on from the steps done.
 
 - Leaving the review, quitting the panel or restarting the core leaves no trace: Set up mail opens
   again, and the panel offers the answers it was given.
@@ -271,6 +274,27 @@ again without someone there; phones move between networks. Revocation is the con
 **In the code:** `core/mail/apppassword.go` (the verbs, the strength check, the sweep),
 `sdk/stalwart/server.go` and `jmap.go` (`AddAppPassword`, `KeepAppPassword`, `RevokeAppPassword`, `SetSecret`),
 `internal/ui/apppassword.go` (the dialog and its QR code).
+
+## Removing mail
+
+**Decided:** `mail.remove` (`mail.admin`) takes mail down, each step one that asking again
+finishes. The accounts are checked while the server still runs: a removal is refused while mail
+has accounts, and once its stack is gone the check was passed. Then, in order:
+
+1. the gate's mail streams go off;
+2. mail's firewall rules are closed, each through the lockout guard;
+3. the stack is removed, and with `purge` its mailboxes too;
+4. the loopback rule, the definition, and the DNS records AutoPanel published for each domain and
+   the mail host;
+5. the settings;
+6. last, the record that says mail is set up.
+
+The server's API key stays unless `purge` is given, since its data stays too. `services.remove`
+refuses the mail stack: removed from Services, it would leave mail's record, loopback rule and
+firewall rules behind.
+
+**In the code:** `core/mail/module.go` (`remove`), `core/services/module.go` (`RemoveOwned`),
+`store/mail.go` (`Drop`); `TestMailIsRemovedWholeAndOnlyByMail`.
 
 ## Mail's rules name no mail server
 
