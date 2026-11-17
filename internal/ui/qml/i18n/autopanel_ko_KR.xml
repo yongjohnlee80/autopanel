@@ -67,6 +67,10 @@
         <source>&amp;New app password…</source>
         <translation>새 앱 비밀번호(&amp;n)…</translation>
     </message>
+    <message id="autopanel.button.mail.appCopy">
+        <source>Co&amp;py password</source>
+        <translation>비밀번호 복사(&amp;p)</translation>
+    </message>
     <message id="autopanel.button.mail.appDone">
         <source>&amp;Done: the device signed in</source>
         <translation>완료: 기기가 로그인함(&amp;d)</translation>
@@ -1659,6 +1663,10 @@
         <source>%1: the app password was revoked</source>
         <translation>%1: 앱 비밀번호를 취소했습니다</translation>
     </message>
+    <message id="autopanel.notice.mail.appCopied">
+        <source>The password is on the clipboard. It is cleared when this dialog closes: paste it before you press Done.</source>
+        <translation>비밀번호가 클립보드에 있습니다. 이 대화 상자가 닫히면 지워지니 완료를 누르기 전에 붙여 넣으세요.</translation>
+    </message>
     <message id="autopanel.notice.mail.appExpired">
         <source>%1: the app password expired before Done and was destroyed; make another</source>
         <translation>%1: 완료 전에 앱 비밀번호가 만료되어 폐기했습니다. 새로 만드세요</translation>
@@ -1666,6 +1674,10 @@
     <message id="autopanel.notice.mail.appKept">
         <source>%1: the app password is kept</source>
         <translation>%1: 앱 비밀번호를 유지합니다</translation>
+    </message>
+    <message id="autopanel.notice.mail.appNoClipboard">
+        <source>This terminal takes no clipboard copy: select the password with the mouse, or type it.</source>
+        <translation>이 터미널은 클립보드 복사를 받지 않습니다. 마우스로 비밀번호를 선택하거나 직접 입력하세요.</translation>
     </message>
     <message id="autopanel.notice.mail.appNotRevoked">
         <source>%1: the app password could not be revoked now; it stops working within ten minutes</source>
@@ -2034,6 +2046,10 @@
     <message id="autopanel.tip.mail.appAdd">
         <source>Make an app password for a device of the selected account, shown once</source>
         <translation>선택한 계정의 기기용 앱 비밀번호를 만듭니다. 한 번만 표시됩니다</translation>
+    </message>
+    <message id="autopanel.tip.mail.appCopy">
+        <source>Copy the password to the clipboard, for a mail app on this computer; it is cleared when the dialog closes</source>
+        <translation>이 컴퓨터의 메일 앱에 쓰도록 비밀번호를 클립보드에 복사합니다. 대화 상자가 닫히면 지워집니다</translation>
     </message>
     <message id="autopanel.tip.mail.appDone">
         <source>Keep the app password: press once the device has signed in</source>

@@ -67,6 +67,10 @@
         <source>&amp;New app password…</source>
         <translation>&amp;New app password…</translation>
     </message>
+    <message id="autopanel.button.mail.appCopy">
+        <source>Co&amp;py password</source>
+        <translation>Co&amp;py password</translation>
+    </message>
     <message id="autopanel.button.mail.appDone">
         <source>&amp;Done: the device signed in</source>
         <translation>&amp;Done: the device signed in</translation>
@@ -1659,6 +1663,10 @@
         <source>%1: the app password was revoked</source>
         <translation>%1: the app password was revoked</translation>
     </message>
+    <message id="autopanel.notice.mail.appCopied">
+        <source>The password is on the clipboard. It is cleared when this dialog closes: paste it before you press Done.</source>
+        <translation>The password is on the clipboard. It is cleared when this dialog closes: paste it before you press Done.</translation>
+    </message>
     <message id="autopanel.notice.mail.appExpired">
         <source>%1: the app password expired before Done and was destroyed; make another</source>
         <translation>%1: the app password expired before Done and was destroyed; make another</translation>
@@ -1666,6 +1674,10 @@
     <message id="autopanel.notice.mail.appKept">
         <source>%1: the app password is kept</source>
         <translation>%1: the app password is kept</translation>
+    </message>
+    <message id="autopanel.notice.mail.appNoClipboard">
+        <source>This terminal takes no clipboard copy: select the password with the mouse, or type it.</source>
+        <translation>This terminal takes no clipboard copy: select the password with the mouse, or type it.</translation>
     </message>
     <message id="autopanel.notice.mail.appNotRevoked">
         <source>%1: the app password could not be revoked now; it stops working within ten minutes</source>
@@ -2034,6 +2046,10 @@
     <message id="autopanel.tip.mail.appAdd">
         <source>Make an app password for a device of the selected account, shown once</source>
         <translation>Make an app password for a device of the selected account, shown once</translation>
+    </message>
+    <message id="autopanel.tip.mail.appCopy">
+        <source>Copy the password to the clipboard, for a mail app on this computer; it is cleared when the dialog closes</source>
+        <translation>Copy the password to the clipboard, for a mail app on this computer; it is cleared when the dialog closes</translation>
     </message>
     <message id="autopanel.tip.mail.appDone">
         <source>Keep the app password: press once the device has signed in</source>

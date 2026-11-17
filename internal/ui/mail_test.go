@@ -306,12 +306,27 @@ func TestAnAppPasswordIsShownOnceAndKeptOnDone(t *testing.T) {
 	s.WaitForText(t, "993")
 	s.WaitForText(t, "▀") // the QR code
 	s.WaitForText(t, "Shown once")
+	// Copy password: on the clipboard, and said to leave it as the dialog closes.
+	s.Keys(t, decltest.Type("p")...)
+	s.WaitForText(t, "The password is on the clipboard")
+	if got := string(s.Backend.Clipboard()); got != secret {
+		t.Fatalf("the clipboard holds %q, not the secret", got)
+	}
 	s.Keys(t, decltest.Type("d")...)
 	waitMailAsked(t, s, f, "app-keep p1")
 	s.WaitForText(t, "the app password is kept")
 	if strings.Contains(s.String(), secret) || strings.Contains(s.String(), "▀▀") {
 		t.Fatal("the secret stayed on the screen after Done")
 	}
+	if got := s.Backend.Clipboard(); len(got) != 0 {
+		t.Fatalf("the clipboard still holds %q after Done", got)
+	}
+	run(t, h, func() error { // on the loop, which owns it
+		if h.appShown != nil {
+			t.Error("the host still holds the app password after Done")
+		}
+		return nil
+	})
 
 	// A second, for the selected account, left with Escape: revoked at once.
 	run(t, h, func() error { return h.mailAddAppPassword(1) })

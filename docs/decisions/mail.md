@@ -259,6 +259,12 @@ pass destroys expired ones, which otherwise count toward the account's limit.
 - The limit is 5 app passwords unless `quotas/maxAppPasswords` says otherwise; AutoPanel sets 20.
 - Stalwart keeps no last use of an app password, so the list shows the device and when it was made.
 
+**Copy, cleared on close:** Copy password puts the secret on the clipboard through the terminal
+(OSC 52), for a mail app on the computer the panel is used from; the panel holds the secret only
+while the dialog is open. Closing the dialog, by Done or Cancel, empties the clipboard if Copy was
+used, without reading it first: a terminal asked to read the clipboard may ask the user or refuse,
+and the dialog says closing empties it. A clipboard manager's history is beyond the panel's reach.
+
 **No expiry, no address limits:** a device far away whose app password expired could not be set up
 again without someone there; phones move between networks. Revocation is the control.
 

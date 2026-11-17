@@ -67,6 +67,10 @@
         <source>&amp;New app password…</source>
         <translation>&amp;Nova senha de app…</translation>
     </message>
+    <message id="autopanel.button.mail.appCopy">
+        <source>Co&amp;py password</source>
+        <translation>Co&amp;piar a senha</translation>
+    </message>
     <message id="autopanel.button.mail.appDone">
         <source>&amp;Done: the device signed in</source>
         <translation>Pronto: o &amp;dispositivo entrou</translation>
@@ -1659,6 +1663,10 @@
         <source>%1: the app password was revoked</source>
         <translation>%1: a senha de app foi revogada</translation>
     </message>
+    <message id="autopanel.notice.mail.appCopied">
+        <source>The password is on the clipboard. It is cleared when this dialog closes: paste it before you press Done.</source>
+        <translation>A senha está na área de transferência. Ela é apagada quando este diálogo fecha: cole antes de apertar Pronto.</translation>
+    </message>
     <message id="autopanel.notice.mail.appExpired">
         <source>%1: the app password expired before Done and was destroyed; make another</source>
         <translation>%1: a senha de app expirou antes de Pronto e foi destruída; crie outra</translation>
@@ -1666,6 +1674,10 @@
     <message id="autopanel.notice.mail.appKept">
         <source>%1: the app password is kept</source>
         <translation>%1: a senha de app foi mantida</translation>
+    </message>
+    <message id="autopanel.notice.mail.appNoClipboard">
+        <source>This terminal takes no clipboard copy: select the password with the mouse, or type it.</source>
+        <translation>Este terminal não aceita cópia para a área de transferência: selecione a senha com o mouse, ou digite-a.</translation>
     </message>
     <message id="autopanel.notice.mail.appNotRevoked">
         <source>%1: the app password could not be revoked now; it stops working within ten minutes</source>
@@ -2034,6 +2046,10 @@
     <message id="autopanel.tip.mail.appAdd">
         <source>Make an app password for a device of the selected account, shown once</source>
         <translation>Cria uma senha de app para um dispositivo da conta selecionada, mostrada uma vez</translation>
+    </message>
+    <message id="autopanel.tip.mail.appCopy">
+        <source>Copy the password to the clipboard, for a mail app on this computer; it is cleared when the dialog closes</source>
+        <translation>Copia a senha para a área de transferência, para um app de e-mail deste computador; ela é apagada quando o diálogo fecha</translation>
     </message>
     <message id="autopanel.tip.mail.appDone">
         <source>Keep the app password: press once the device has signed in</source>

@@ -491,6 +491,8 @@ in with **app passwords**, one per device:
 2. The dialog shows the password once: as one line to type or paste, in groups of four to check
    it, and as a QR code a phone's camera can read. Beside it are the settings: the user name (the
    full address), IMAP on 993 (SSL/TLS), SMTP on 465 (SSL/TLS) or 587 (STARTTLS).
+   **Copy password** (`p`) puts it on the clipboard of the computer you use the panel from (the
+   terminal does the copy, so it works over SSH), and closing the dialog empties the clipboard.
 3. Set the device up, and once it signs in press **Done**. An app password not kept within ten
    minutes stops working; **Cancel** revokes it at once.
 
