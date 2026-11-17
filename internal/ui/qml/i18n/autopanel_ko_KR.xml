@@ -795,6 +795,38 @@
         <source>Path</source>
         <translation>경로</translation>
     </message>
+    <message id="autopanel.label.certs.error">
+        <source>Error</source>
+        <translation>오류</translation>
+    </message>
+    <message id="autopanel.label.certs.expires">
+        <source>Expires</source>
+        <translation>만료</translation>
+    </message>
+    <message id="autopanel.label.certs.failedAt">
+        <source>Last failure</source>
+        <translation>마지막 실패</translation>
+    </message>
+    <message id="autopanel.label.certs.host">
+        <source>Name</source>
+        <translation>이름</translation>
+    </message>
+    <message id="autopanel.label.certs.issued">
+        <source>Valid from</source>
+        <translation>유효 시작</translation>
+    </message>
+    <message id="autopanel.label.certs.issuer">
+        <source>Issued by</source>
+        <translation>발급자</translation>
+    </message>
+    <message id="autopanel.label.certs.renews">
+        <source>Renews from</source>
+        <translation>갱신 시작</translation>
+    </message>
+    <message id="autopanel.label.certs.state">
+        <source>State</source>
+        <translation>상태</translation>
+    </message>
     <message id="autopanel.label.domain.name">
         <source>Domain</source>
         <translation>도메인</translation>
@@ -1363,6 +1395,10 @@
         <source>&amp;Remove Cloudflare token…</source>
         <translation>Cloudflare 토큰 삭제(&amp;r)…</translation>
     </message>
+    <message id="autopanel.menu.certs.list">
+        <source>Certi&amp;ficates…</source>
+        <translation>인증서(&amp;f)…</translation>
+    </message>
     <message id="autopanel.menu.certs.production">
         <source>&amp;Production (trusted certificates)</source>
         <translation>프로덕션 (신뢰되는 인증서)(&amp;p)</translation>
@@ -1703,6 +1739,26 @@
         <source>No folder here holds a compose.yaml to import.</source>
         <translation>여기에는 가져올 compose.yaml이 든 폴더가 없습니다.</translation>
     </message>
+    <message id="autopanel.notice.certState.due">
+        <source>The certificate is valid and in its last third: the next request for the name renews it. If it stays so for days, the renewal is failing or the name gets no requests.</source>
+        <translation>인증서는 유효하며 마지막 3분의 1 기간에 있습니다. 이 이름에 대한 다음 요청이 갱신합니다. 며칠 동안 이 상태라면 갱신이 실패하고 있거나 이 이름에 요청이 없는 것입니다.</translation>
+    </message>
+    <message id="autopanel.notice.certState.expired">
+        <source>The certificate has expired. The next request for the name orders a new one first; until that works, browsers refuse the site.</source>
+        <translation>인증서가 만료되었습니다. 이 이름에 대한 다음 요청이 먼저 새 인증서를 주문합니다. 성공할 때까지 브라우저가 사이트를 거부합니다.</translation>
+    </message>
+    <message id="autopanel.notice.certState.none">
+        <source>No certificate is kept for this name under the service in use. The first HTTPS request for the name orders one.</source>
+        <translation>사용 중인 서비스에서 이 이름의 인증서가 보관되어 있지 않습니다. 이 이름에 대한 첫 HTTPS 요청이 인증서를 주문합니다.</translation>
+    </message>
+    <message id="autopanel.notice.certState.ok">
+        <source>The certificate is valid. It is renewed at a request for the name once its last third begins.</source>
+        <translation>인증서가 유효합니다. 유효 기간의 마지막 3분의 1이 시작되면 이 이름에 대한 요청 시 갱신됩니다.</translation>
+    </message>
+    <message id="autopanel.notice.certState.unknown">
+        <source>The stored certificate could not be read: the error says why. With the vault locked, log in as an admin first.</source>
+        <translation>보관된 인증서를 읽을 수 없습니다. 오류에 이유가 있습니다. 보관소가 잠겨 있으면 먼저 관리자로 로그인하세요.</translation>
+    </message>
     <message id="autopanel.notice.certs.caNow">
         <source>certificates now come from %1</source>
         <translation>이제 인증서는 %1에서 발급됩니다</translation>
@@ -1726,6 +1782,14 @@
     <message id="autopanel.notice.certs.cloudflareShort">
         <source>That is too short for a Cloudflare token: paste it whole</source>
         <translation>Cloudflare 토큰으로는 너무 짧습니다. 전체를 붙여 넣으세요</translation>
+    </message>
+    <message id="autopanel.notice.check.certExpiring">
+        <source>A certificate is renewed in the last third of its life, at a request for its name. One this close to its end has not been: Certs › Certificates shows the last failure. The name's DNS must point at this server, and ports 80 and 443 must reach it, or the Cloudflare token must reach the name's zone.</source>
+        <translation>인증서는 유효 기간의 마지막 3분의 1에, 해당 이름에 대한 요청 시 갱신됩니다. 만료가 이렇게 가까운 인증서는 갱신되지 않은 것입니다. 인증서 › 인증서에서 마지막 실패를 확인하세요. 이름의 DNS가 이 서버를 가리켜야 하고 80, 443 포트가 도달해야 하며, 또는 Cloudflare 토큰이 이름의 영역에 닿아야 합니다.</translation>
+    </message>
+    <message id="autopanel.notice.check.certFailing">
+        <source>Certs › Certificates shows the reason for each name. An order is tried again at the next request for the name.</source>
+        <translation>인증서 › 인증서에서 이름별 이유를 확인하세요. 주문은 해당 이름에 대한 다음 요청 시 다시 시도됩니다.</translation>
     </message>
     <message id="autopanel.notice.check.dockerGroup">
         <source>Remove users from the docker group unless they are meant to be root.</source>
@@ -2655,6 +2719,10 @@
         <source>Entries</source>
         <translation>항목</translation>
     </message>
+    <message id="autopanel.title.list.certs">
+        <source>Names</source>
+        <translation>이름</translation>
+    </message>
     <message id="autopanel.title.list.checks">
         <source>Findings</source>
         <translation>발견 사항</translation>
@@ -2750,6 +2818,10 @@
     <message id="autopanel.title.panel.audit">
         <source>Audit log</source>
         <translation>감사 로그</translation>
+    </message>
+    <message id="autopanel.title.panel.certs">
+        <source>Certificates</source>
+        <translation>인증서</translation>
     </message>
     <message id="autopanel.title.panel.checks">
         <source>Host checks</source>
@@ -2975,6 +3047,26 @@
         <source>LE staging</source>
         <translation>LE 스테이징</translation>
     </message>
+    <message id="autopanel.value.certState.due">
+        <source>renewing</source>
+        <translation>갱신 중</translation>
+    </message>
+    <message id="autopanel.value.certState.expired">
+        <source>expired</source>
+        <translation>만료됨</translation>
+    </message>
+    <message id="autopanel.value.certState.none">
+        <source>none yet</source>
+        <translation>아직 없음</translation>
+    </message>
+    <message id="autopanel.value.certState.ok">
+        <source>valid</source>
+        <translation>유효</translation>
+    </message>
+    <message id="autopanel.value.certState.unknown">
+        <source>unknown</source>
+        <translation>알 수 없음</translation>
+    </message>
     <message id="autopanel.value.certs.challenge">
         <source>Challenge: %1</source>
         <translation>챌린지: %1</translation>
@@ -2986,6 +3078,14 @@
     <message id="autopanel.value.check.alert">
         <source>alert</source>
         <translation>경고</translation>
+    </message>
+    <message id="autopanel.value.check.certExpiring">
+        <source>Certificates expired or about to: %1</source>
+        <translation>만료되었거나 곧 만료될 인증서: %1</translation>
+    </message>
+    <message id="autopanel.value.check.certFailing">
+        <source>The last certificate order failed for: %1</source>
+        <translation>마지막 인증서 주문이 실패한 이름: %1</translation>
     </message>
     <message id="autopanel.value.check.dockerGroup">
         <source>Users in the docker group, as good as root: %1</source>

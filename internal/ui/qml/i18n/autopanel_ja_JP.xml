@@ -795,6 +795,38 @@
         <source>Path</source>
         <translation>パス</translation>
     </message>
+    <message id="autopanel.label.certs.error">
+        <source>Error</source>
+        <translation>エラー</translation>
+    </message>
+    <message id="autopanel.label.certs.expires">
+        <source>Expires</source>
+        <translation>有効期限</translation>
+    </message>
+    <message id="autopanel.label.certs.failedAt">
+        <source>Last failure</source>
+        <translation>最後の失敗</translation>
+    </message>
+    <message id="autopanel.label.certs.host">
+        <source>Name</source>
+        <translation>名前</translation>
+    </message>
+    <message id="autopanel.label.certs.issued">
+        <source>Valid from</source>
+        <translation>有効期間の開始</translation>
+    </message>
+    <message id="autopanel.label.certs.issuer">
+        <source>Issued by</source>
+        <translation>発行者</translation>
+    </message>
+    <message id="autopanel.label.certs.renews">
+        <source>Renews from</source>
+        <translation>更新開始</translation>
+    </message>
+    <message id="autopanel.label.certs.state">
+        <source>State</source>
+        <translation>状態</translation>
+    </message>
     <message id="autopanel.label.domain.name">
         <source>Domain</source>
         <translation>ドメイン</translation>
@@ -1363,6 +1395,10 @@
         <source>&amp;Remove Cloudflare token…</source>
         <translation>Cloudflare トークンを削除(&amp;r)…</translation>
     </message>
+    <message id="autopanel.menu.certs.list">
+        <source>Certi&amp;ficates…</source>
+        <translation>証明書(&amp;f)…</translation>
+    </message>
     <message id="autopanel.menu.certs.production">
         <source>&amp;Production (trusted certificates)</source>
         <translation>本番 (信頼される証明書)(&amp;p)</translation>
@@ -1703,6 +1739,26 @@
         <source>No folder here holds a compose.yaml to import.</source>
         <translation>ここには、インポートできる compose.yaml を含むフォルダーがありません。</translation>
     </message>
+    <message id="autopanel.notice.certState.due">
+        <source>The certificate is valid and in its last third: the next request for the name renews it. If it stays so for days, the renewal is failing or the name gets no requests.</source>
+        <translation>証明書は有効で、有効期間の最後の3分の1にあります。この名前への次のリクエストで更新されます。何日もこの状態なら、更新が失敗しているか、この名前へのリクエストがありません。</translation>
+    </message>
+    <message id="autopanel.notice.certState.expired">
+        <source>The certificate has expired. The next request for the name orders a new one first; until that works, browsers refuse the site.</source>
+        <translation>証明書は期限切れです。この名前への次のリクエストでまず新しい証明書が注文されます。成功するまでブラウザーはサイトを拒否します。</translation>
+    </message>
+    <message id="autopanel.notice.certState.none">
+        <source>No certificate is kept for this name under the service in use. The first HTTPS request for the name orders one.</source>
+        <translation>使用中のサービスでは、この名前の証明書は保存されていません。この名前への最初の HTTPS リクエストで注文されます。</translation>
+    </message>
+    <message id="autopanel.notice.certState.ok">
+        <source>The certificate is valid. It is renewed at a request for the name once its last third begins.</source>
+        <translation>証明書は有効です。有効期間の最後の3分の1に入ると、この名前へのリクエスト時に更新されます。</translation>
+    </message>
+    <message id="autopanel.notice.certState.unknown">
+        <source>The stored certificate could not be read: the error says why. With the vault locked, log in as an admin first.</source>
+        <translation>保存された証明書を読み取れませんでした。理由はエラーに示されています。保管庫がロックされている場合は、まず管理者としてログインしてください。</translation>
+    </message>
     <message id="autopanel.notice.certs.caNow">
         <source>certificates now come from %1</source>
         <translation>証明書は %1 から発行されます</translation>
@@ -1726,6 +1782,14 @@
     <message id="autopanel.notice.certs.cloudflareShort">
         <source>That is too short for a Cloudflare token: paste it whole</source>
         <translation>Cloudflare トークンとしては短すぎます。全体を貼り付けてください</translation>
+    </message>
+    <message id="autopanel.notice.check.certExpiring">
+        <source>A certificate is renewed in the last third of its life, at a request for its name. One this close to its end has not been: Certs › Certificates shows the last failure. The name's DNS must point at this server, and ports 80 and 443 must reach it, or the Cloudflare token must reach the name's zone.</source>
+        <translation>証明書は有効期間の最後の3分の1に、その名前へのリクエスト時に更新されます。期限がここまで近いものは更新されていません。証明書 › 証明書 に最後の失敗が表示されます。名前の DNS がこのサーバーを指し、ポート 80 と 443 が到達できるか、Cloudflare トークンが名前のゾーンに届く必要があります。</translation>
+    </message>
+    <message id="autopanel.notice.check.certFailing">
+        <source>Certs › Certificates shows the reason for each name. An order is tried again at the next request for the name.</source>
+        <translation>証明書 › 証明書 に名前ごとの理由が表示されます。注文はその名前への次のリクエストで再試行されます。</translation>
     </message>
     <message id="autopanel.notice.check.dockerGroup">
         <source>Remove users from the docker group unless they are meant to be root.</source>
@@ -2655,6 +2719,10 @@
         <source>Entries</source>
         <translation>項目</translation>
     </message>
+    <message id="autopanel.title.list.certs">
+        <source>Names</source>
+        <translation>名前</translation>
+    </message>
     <message id="autopanel.title.list.checks">
         <source>Findings</source>
         <translation>検出事項</translation>
@@ -2750,6 +2818,10 @@
     <message id="autopanel.title.panel.audit">
         <source>Audit log</source>
         <translation>監査ログ</translation>
+    </message>
+    <message id="autopanel.title.panel.certs">
+        <source>Certificates</source>
+        <translation>証明書</translation>
     </message>
     <message id="autopanel.title.panel.checks">
         <source>Host checks</source>
@@ -2975,6 +3047,26 @@
         <source>LE staging</source>
         <translation>LE ステージング</translation>
     </message>
+    <message id="autopanel.value.certState.due">
+        <source>renewing</source>
+        <translation>更新中</translation>
+    </message>
+    <message id="autopanel.value.certState.expired">
+        <source>expired</source>
+        <translation>期限切れ</translation>
+    </message>
+    <message id="autopanel.value.certState.none">
+        <source>none yet</source>
+        <translation>未取得</translation>
+    </message>
+    <message id="autopanel.value.certState.ok">
+        <source>valid</source>
+        <translation>有効</translation>
+    </message>
+    <message id="autopanel.value.certState.unknown">
+        <source>unknown</source>
+        <translation>不明</translation>
+    </message>
     <message id="autopanel.value.certs.challenge">
         <source>Challenge: %1</source>
         <translation>チャレンジ: %1</translation>
@@ -2986,6 +3078,14 @@
     <message id="autopanel.value.check.alert">
         <source>alert</source>
         <translation>警告</translation>
+    </message>
+    <message id="autopanel.value.check.certExpiring">
+        <source>Certificates expired or about to: %1</source>
+        <translation>期限切れ、または期限が近い証明書: %1</translation>
+    </message>
+    <message id="autopanel.value.check.certFailing">
+        <source>The last certificate order failed for: %1</source>
+        <translation>最後の証明書の注文が失敗した名前: %1</translation>
     </message>
     <message id="autopanel.value.check.dockerGroup">
         <source>Users in the docker group, as good as root: %1</source>

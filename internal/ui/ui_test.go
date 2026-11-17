@@ -45,9 +45,11 @@ type fakeClient struct {
 	metricsReads int
 	domainAsks   []string // "add example.org" or "remove example.com"
 
-	mail fakeMail    // the Mail menu's verbs (mail_test.go)
-	fw   fakeFW      // System › Firewall and Host checks (firewall_test.go)
-	acct fakeAccount // users, two-factor and tokens (account_test.go)
+	certs    []Cert // Certs › Certificates
+	certsErr error
+	mail     fakeMail    // the Mail menu's verbs (mail_test.go)
+	fw       fakeFW      // System › Firewall and Host checks (firewall_test.go)
+	acct     fakeAccount // users, two-factor and tokens (account_test.go)
 
 	stacks    []services.View            // what Stacks answers
 	reviews   map[string]services.Review // what CheckStack answers, by stack
@@ -223,6 +225,12 @@ func (f *fakeClient) Metrics(context.Context) (Metrics, error) {
 		return Metrics{}, f.metricsErr
 	}
 	return someMetrics(), nil
+}
+
+func (f *fakeClient) Certificates(context.Context) ([]Cert, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]Cert(nil), f.certs...), f.certsErr
 }
 
 func (f *fakeClient) AuditLog(context.Context) ([]AuditEntry, error) {
@@ -1019,4 +1027,43 @@ func run(t *testing.T, h *host, fn func() error) {
 	if err := onLoop(h, fn); err != nil {
 		t.Fatal(err)
 	}
+}
+
+// TestCertificatesPanel: Certs › Certificates lists each name with its
+// certificate's state and end; the selected one's details say what the state
+// means and why the last order failed.
+func TestCertificatesPanel(t *testing.T) {
+	f := newFakeClient()
+	at := func(day int) int64 { return time.Date(2026, 3, day, 12, 0, 0, 0, time.Local).Unix() }
+	f.certs = []Cert{
+		{Host: "app.example.com", State: "ok", Issuer: "Let's Encrypt YE2", NotBefore: at(1), NotAfter: at(30), RenewFrom: at(20)},
+		{Host: "late.example.com", State: "due", Issuer: "Let's Encrypt YE2", NotBefore: at(1), NotAfter: at(9), RenewFrom: at(6),
+			Error: "429 too many certificates", FailedAt: at(7)},
+		{Host: "new.example.com", State: "none"},
+	}
+	s := start(t, f)
+	s.WaitForText(t, "CA LE staging")
+
+	s.Keys(t, decltest.Alt('c'))
+	s.WaitForText(t, "Certificates…")
+	s.Keys(t, decltest.Rune('f'))
+	for _, part := range []string{"Certificates", "Names · 3 · read at ", "app.example.com", "valid", "2026-03-30", "late.example.com", "renewing", "none yet"} {
+		s.WaitForText(t, part)
+	}
+	waitFact(t, s, "Issued by", "Let's Encrypt YE2")
+	s.WaitForText(t, "The certificate is valid. It is renewed at")
+	s.Keys(t, decltest.Rune('j'))
+	waitFact(t, s, "Error", "429 too many certificates")
+	s.WaitForText(t, "The certificate is valid and in its last")
+	s.Keys(t, decltest.Rune('j'))
+	s.WaitForText(t, "No certificate is kept for this name")
+	gone(t, s, "Issued by")
+
+	f.mu.Lock()
+	f.certs = f.certs[:1]
+	f.mu.Unlock()
+	s.Keys(t, decltest.Rune('r'))
+	s.WaitForText(t, "Names · 1 · read at ")
+	s.Keys(t, decltest.Rune('q'))
+	gone(t, s, "Names · 1")
 }

@@ -124,6 +124,7 @@ Window {
                 MenuItem { text: qsTrId("autopanel.menu.certs.production"); group: "ca"; checked: App.caProduction; onTriggered: App.setCA("production") }
                 MenuItem { text: qsTrId("autopanel.menu.certs.staging");    group: "ca"; checked: App.caStaging;    onTriggered: App.setCA("staging") }
             }
+            MenuItem { text: qsTrId("autopanel.menu.certs.list"); onTriggered: App.openMonitor("certList") }
             MenuItem { text: qsTrId("autopanel.menu.certs.cloudflare"); enabled: App.isAdmin; onTriggered: App.setCloudflare() }
             MenuItem { text: qsTrId("autopanel.menu.certs.cloudflareClear"); enabled: App.cloudflareClearable; onTriggered: App.clearCloudflare() }
         }
@@ -989,6 +990,53 @@ Window {
                 Button { text: qsTrId("autopanel.button.panel.reload"); toolTipText: App.tipMonitorReload; onClicked: App.reloadMonitor("metrics") }
                 Text { text: " " }
                 Button { text: qsTrId("autopanel.button.panel.close"); toolTipText: App.tipPanelClose; onClicked: App.closePanel("metrics") }
+                Text { text: " "; Layout.fillWidth: true }
+            }
+        }
+    }
+
+    // Certs › Certificates: each name AutoPanel serves on the left, with its
+    // certificate's state and end; the selected one whole on the right
+    Panel {
+        id: certListPanel
+        key: "certList"
+        heading: qsTrId("autopanel.title.panel.certs")
+        edge: Tui.Center; size: 90; length: 85
+        closeOnQ: true; maximizable: true; closable: true
+        onOpened: App.panelOpened("certList")
+        onClosed: App.panelClosed("certList")
+        onChanged: App.panelChanged("certList", operation)
+        Shortcut { sequence: "r"; onActivated: App.reloadMonitor("certList") }
+        Flex {
+            direction: Tui.Vertical
+            Split {
+                Layout.fillHeight: true
+                orientation: Tui.Horizontal
+                ratio: 0.55
+                Frame {
+                    title: App.certListTitle
+                    TableView {
+                        id: certListTable
+                        palette.highlight: Theme.document.highlight
+                        palette.highlightedText: Theme.document.highlightedText
+                        model: App.certList
+                        onCurrentIndexChanged: App.monitorMoved("certList", index)
+                        TableViewColumn { role: "host"; title: "NAME"; width: 0 }
+                        TableViewColumn { role: "state"; title: "STATE"; width: 12 }
+                        TableViewColumn { role: "expires"; title: "EXPIRES"; width: 11 }
+                    }
+                }
+                Frame {
+                    title: qsTrId("autopanel.title.pane.details")
+                    Text { text: App.certListDetail; wrapMode: Tui.WordWrap }
+                }
+            }
+            Flex {
+                direction: Tui.Horizontal
+                Text { text: " "; Layout.fillWidth: true }
+                Button { text: qsTrId("autopanel.button.panel.reload"); toolTipText: App.tipMonitorReload; onClicked: App.reloadMonitor("certList") }
+                Text { text: " " }
+                Button { text: qsTrId("autopanel.button.panel.close"); toolTipText: App.tipPanelClose; onClicked: App.closePanel("certList") }
                 Text { text: " "; Layout.fillWidth: true }
             }
         }

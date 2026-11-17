@@ -121,7 +121,7 @@ every key. `r` reads the screen again and `q` quits.
 | --- | --- |
 | System | **Metrics**, **Audit log**, **Login attempts**, **Open ports**, **Firewall**, **Host checks**; **Theme** and **Language** |
 | Routes | **Proxy routes**: the names AutoPanel serves and where each goes; **Domains**: the domains you own |
-| Certs | **Type**: which Let's Encrypt service issues the certificates, staging or production |
+| Certs | **Certificates**: each name's certificate, when it expires and why its last order failed; **Type**: which Let's Encrypt service issues them, staging or production; **Cloudflare token** |
 | Services | **Stacks** and **Add a stack**: your services, below |
 | Mail | **Set up mail**, **Domains**, **Accounts**, **Server**: mail with Stalwart, below |
 | Users | not built yet; its row is greyed out |
@@ -578,6 +578,31 @@ ends any login after 12 hours.
 **System → Theme** offers ten themes, and **System → Language** six languages: English, Korean,
 Japanese, Simplified Chinese, Spanish and Brazilian Portuguese. Both take effect at once and are
 kept in AutoPanel's store, so the panel opens the same way next time.
+
+### Certificates and their renewal
+
+**Certs → Certificates** lists every name AutoPanel serves, and the mail host, with the certificate
+it holds for each:
+
+| State | Means |
+| --- | --- |
+| none yet | no certificate yet: the first HTTPS request for the name orders one |
+| valid | nothing to do |
+| renewing | in the last third of its life: the next request for the name renews it |
+| expired | the next request must obtain a new one first; until that works, browsers refuse the site |
+| unknown | the stored certificate could not be read; with the vault locked, log in first |
+
+The right side shows who issued the selected certificate, when it expires, when its renewal
+starts, and, if the last order for the name failed, when and why. Opening the panel orders
+nothing. `sudo autopanel --call certs.list` prints the same.
+
+A certificate is renewed when a request for its name arrives in the last 30 days of its 90. A name
+nobody asks for is not renewed, and gets a new certificate at its next request.
+
+Every order is in the audit log (**System → Audit log**) as `certs.obtained`, `certs.renewed` or
+`certs.failed`. **System → Host checks** raises an alert when a certificate has expired or is
+within 7 days of its end, and a notice when a name's last order failed. See
+[docs/decisions/certs.md](docs/decisions/certs.md).
 
 ### Staging and production certificates
 

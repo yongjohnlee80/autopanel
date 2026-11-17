@@ -82,6 +82,19 @@ type Metrics struct {
 	Activity sysinfo.Sample `json:"activity"`
 }
 
+// Cert is one row of certs.list: a name AutoPanel serves and the certificate
+// the store holds for it.
+type Cert struct {
+	Host      string `json:"host"`
+	State     string `json:"state"` // none, ok, due, expired, unknown
+	Issuer    string `json:"issuer"`
+	NotBefore int64  `json:"not_before"`
+	NotAfter  int64  `json:"not_after"`
+	RenewFrom int64  `json:"renew_from"`
+	Error     string `json:"error"`
+	FailedAt  int64  `json:"failed_at"`
+}
+
 // AuditEntry is one row of sys.audit.list.
 type AuditEntry struct {
 	ID      int64  `json:"id"`
@@ -195,6 +208,7 @@ type Client interface {
 	Logins(ctx context.Context) (Logins, error)
 	Ports(ctx context.Context) ([]Port, error)
 	Checks(ctx context.Context) ([]Check, error)
+	Certificates(ctx context.Context) ([]Cert, error)
 
 	// System › Firewall (sys.firewall.*): an admin's.
 	Firewall(ctx context.Context) (sysinfo.Firewall, error)

@@ -795,6 +795,38 @@
         <source>Path</source>
         <translation>路径</translation>
     </message>
+    <message id="autopanel.label.certs.error">
+        <source>Error</source>
+        <translation>错误</translation>
+    </message>
+    <message id="autopanel.label.certs.expires">
+        <source>Expires</source>
+        <translation>过期时间</translation>
+    </message>
+    <message id="autopanel.label.certs.failedAt">
+        <source>Last failure</source>
+        <translation>上次失败</translation>
+    </message>
+    <message id="autopanel.label.certs.host">
+        <source>Name</source>
+        <translation>名称</translation>
+    </message>
+    <message id="autopanel.label.certs.issued">
+        <source>Valid from</source>
+        <translation>生效时间</translation>
+    </message>
+    <message id="autopanel.label.certs.issuer">
+        <source>Issued by</source>
+        <translation>颁发者</translation>
+    </message>
+    <message id="autopanel.label.certs.renews">
+        <source>Renews from</source>
+        <translation>续期开始</translation>
+    </message>
+    <message id="autopanel.label.certs.state">
+        <source>State</source>
+        <translation>状态</translation>
+    </message>
     <message id="autopanel.label.domain.name">
         <source>Domain</source>
         <translation>域名</translation>
@@ -1363,6 +1395,10 @@
         <source>&amp;Remove Cloudflare token…</source>
         <translation>删除 Cloudflare 令牌(&amp;r)…</translation>
     </message>
+    <message id="autopanel.menu.certs.list">
+        <source>Certi&amp;ficates…</source>
+        <translation>证书(&amp;f)…</translation>
+    </message>
     <message id="autopanel.menu.certs.production">
         <source>&amp;Production (trusted certificates)</source>
         <translation>生产 (受信任的证书)(&amp;p)</translation>
@@ -1703,6 +1739,26 @@
         <source>No folder here holds a compose.yaml to import.</source>
         <translation>此处没有包含 compose.yaml 的文件夹可导入。</translation>
     </message>
+    <message id="autopanel.notice.certState.due">
+        <source>The certificate is valid and in its last third: the next request for the name renews it. If it stays so for days, the renewal is failing or the name gets no requests.</source>
+        <translation>证书有效，且处于有效期的最后三分之一：对此名称的下一次请求会为它续期。若多日保持此状态，说明续期失败或此名称没有请求。</translation>
+    </message>
+    <message id="autopanel.notice.certState.expired">
+        <source>The certificate has expired. The next request for the name orders a new one first; until that works, browsers refuse the site.</source>
+        <translation>证书已过期。对此名称的下一次请求会先申请新证书；成功之前，浏览器会拒绝该站点。</translation>
+    </message>
+    <message id="autopanel.notice.certState.none">
+        <source>No certificate is kept for this name under the service in use. The first HTTPS request for the name orders one.</source>
+        <translation>当前使用的服务下没有保存此名称的证书。对此名称的第一次 HTTPS 请求会申请一个。</translation>
+    </message>
+    <message id="autopanel.notice.certState.ok">
+        <source>The certificate is valid. It is renewed at a request for the name once its last third begins.</source>
+        <translation>证书有效。进入有效期的最后三分之一后，对此名称的请求会为它续期。</translation>
+    </message>
+    <message id="autopanel.notice.certState.unknown">
+        <source>The stored certificate could not be read: the error says why. With the vault locked, log in as an admin first.</source>
+        <translation>无法读取保存的证书：错误信息说明了原因。若保险库已锁定，请先以管理员身份登录。</translation>
+    </message>
     <message id="autopanel.notice.certs.caNow">
         <source>certificates now come from %1</source>
         <translation>证书现在由 %1 签发</translation>
@@ -1726,6 +1782,14 @@
     <message id="autopanel.notice.certs.cloudflareShort">
         <source>That is too short for a Cloudflare token: paste it whole</source>
         <translation>这对 Cloudflare 令牌来说太短了：请完整粘贴</translation>
+    </message>
+    <message id="autopanel.notice.check.certExpiring">
+        <source>A certificate is renewed in the last third of its life, at a request for its name. One this close to its end has not been: Certs › Certificates shows the last failure. The name's DNS must point at this server, and ports 80 and 443 must reach it, or the Cloudflare token must reach the name's zone.</source>
+        <translation>证书在有效期的最后三分之一内、在对其名称的请求时续期。离到期如此之近的证书尚未续期：证书 › 证书 显示上次失败。名称的 DNS 必须指向此服务器，且 80 和 443 端口可达，或者 Cloudflare 令牌可访问该名称的区域。</translation>
+    </message>
+    <message id="autopanel.notice.check.certFailing">
+        <source>Certs › Certificates shows the reason for each name. An order is tried again at the next request for the name.</source>
+        <translation>证书 › 证书 显示每个名称的原因。对该名称的下一次请求会再次尝试申请。</translation>
     </message>
     <message id="autopanel.notice.check.dockerGroup">
         <source>Remove users from the docker group unless they are meant to be root.</source>
@@ -2655,6 +2719,10 @@
         <source>Entries</source>
         <translation>条目</translation>
     </message>
+    <message id="autopanel.title.list.certs">
+        <source>Names</source>
+        <translation>名称</translation>
+    </message>
     <message id="autopanel.title.list.checks">
         <source>Findings</source>
         <translation>发现</translation>
@@ -2750,6 +2818,10 @@
     <message id="autopanel.title.panel.audit">
         <source>Audit log</source>
         <translation>审计日志</translation>
+    </message>
+    <message id="autopanel.title.panel.certs">
+        <source>Certificates</source>
+        <translation>证书</translation>
     </message>
     <message id="autopanel.title.panel.checks">
         <source>Host checks</source>
@@ -2975,6 +3047,26 @@
         <source>LE staging</source>
         <translation>LE 预发布</translation>
     </message>
+    <message id="autopanel.value.certState.due">
+        <source>renewing</source>
+        <translation>续期中</translation>
+    </message>
+    <message id="autopanel.value.certState.expired">
+        <source>expired</source>
+        <translation>已过期</translation>
+    </message>
+    <message id="autopanel.value.certState.none">
+        <source>none yet</source>
+        <translation>尚无</translation>
+    </message>
+    <message id="autopanel.value.certState.ok">
+        <source>valid</source>
+        <translation>有效</translation>
+    </message>
+    <message id="autopanel.value.certState.unknown">
+        <source>unknown</source>
+        <translation>未知</translation>
+    </message>
     <message id="autopanel.value.certs.challenge">
         <source>Challenge: %1</source>
         <translation>验证方式：%1</translation>
@@ -2986,6 +3078,14 @@
     <message id="autopanel.value.check.alert">
         <source>alert</source>
         <translation>警告</translation>
+    </message>
+    <message id="autopanel.value.check.certExpiring">
+        <source>Certificates expired or about to: %1</source>
+        <translation>已过期或即将过期的证书：%1</translation>
+    </message>
+    <message id="autopanel.value.check.certFailing">
+        <source>The last certificate order failed for: %1</source>
+        <translation>上次证书申请失败的名称：%1</translation>
     </message>
     <message id="autopanel.value.check.dockerGroup">
         <source>Users in the docker group, as good as root: %1</source>

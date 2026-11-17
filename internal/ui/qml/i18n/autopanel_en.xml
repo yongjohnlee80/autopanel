@@ -795,6 +795,38 @@
         <source>Path</source>
         <translation>Path</translation>
     </message>
+    <message id="autopanel.label.certs.error">
+        <source>Error</source>
+        <translation>Error</translation>
+    </message>
+    <message id="autopanel.label.certs.expires">
+        <source>Expires</source>
+        <translation>Expires</translation>
+    </message>
+    <message id="autopanel.label.certs.failedAt">
+        <source>Last failure</source>
+        <translation>Last failure</translation>
+    </message>
+    <message id="autopanel.label.certs.host">
+        <source>Name</source>
+        <translation>Name</translation>
+    </message>
+    <message id="autopanel.label.certs.issued">
+        <source>Valid from</source>
+        <translation>Valid from</translation>
+    </message>
+    <message id="autopanel.label.certs.issuer">
+        <source>Issued by</source>
+        <translation>Issued by</translation>
+    </message>
+    <message id="autopanel.label.certs.renews">
+        <source>Renews from</source>
+        <translation>Renews from</translation>
+    </message>
+    <message id="autopanel.label.certs.state">
+        <source>State</source>
+        <translation>State</translation>
+    </message>
     <message id="autopanel.label.domain.name">
         <source>Domain</source>
         <translation>Domain</translation>
@@ -1363,6 +1395,10 @@
         <source>&amp;Remove Cloudflare token…</source>
         <translation>&amp;Remove Cloudflare token…</translation>
     </message>
+    <message id="autopanel.menu.certs.list">
+        <source>Certi&amp;ficates…</source>
+        <translation>Certi&amp;ficates…</translation>
+    </message>
     <message id="autopanel.menu.certs.production">
         <source>&amp;Production (trusted certificates)</source>
         <translation>&amp;Production (trusted certificates)</translation>
@@ -1703,6 +1739,26 @@
         <source>No folder here holds a compose.yaml to import.</source>
         <translation>No folder here holds a compose.yaml to import.</translation>
     </message>
+    <message id="autopanel.notice.certState.due">
+        <source>The certificate is valid and in its last third: the next request for the name renews it. If it stays so for days, the renewal is failing or the name gets no requests.</source>
+        <translation>The certificate is valid and in its last third: the next request for the name renews it. If it stays so for days, the renewal is failing or the name gets no requests.</translation>
+    </message>
+    <message id="autopanel.notice.certState.expired">
+        <source>The certificate has expired. The next request for the name orders a new one first; until that works, browsers refuse the site.</source>
+        <translation>The certificate has expired. The next request for the name orders a new one first; until that works, browsers refuse the site.</translation>
+    </message>
+    <message id="autopanel.notice.certState.none">
+        <source>No certificate is kept for this name under the service in use. The first HTTPS request for the name orders one.</source>
+        <translation>No certificate is kept for this name under the service in use. The first HTTPS request for the name orders one.</translation>
+    </message>
+    <message id="autopanel.notice.certState.ok">
+        <source>The certificate is valid. It is renewed at a request for the name once its last third begins.</source>
+        <translation>The certificate is valid. It is renewed at a request for the name once its last third begins.</translation>
+    </message>
+    <message id="autopanel.notice.certState.unknown">
+        <source>The stored certificate could not be read: the error says why. With the vault locked, log in as an admin first.</source>
+        <translation>The stored certificate could not be read: the error says why. With the vault locked, log in as an admin first.</translation>
+    </message>
     <message id="autopanel.notice.certs.caNow">
         <source>certificates now come from %1</source>
         <translation>certificates now come from %1</translation>
@@ -1726,6 +1782,14 @@
     <message id="autopanel.notice.certs.cloudflareShort">
         <source>That is too short for a Cloudflare token: paste it whole</source>
         <translation>That is too short for a Cloudflare token: paste it whole</translation>
+    </message>
+    <message id="autopanel.notice.check.certExpiring">
+        <source>A certificate is renewed in the last third of its life, at a request for its name. One this close to its end has not been: Certs › Certificates shows the last failure. The name's DNS must point at this server, and ports 80 and 443 must reach it, or the Cloudflare token must reach the name's zone.</source>
+        <translation>A certificate is renewed in the last third of its life, at a request for its name. One this close to its end has not been: Certs › Certificates shows the last failure. The name's DNS must point at this server, and ports 80 and 443 must reach it, or the Cloudflare token must reach the name's zone.</translation>
+    </message>
+    <message id="autopanel.notice.check.certFailing">
+        <source>Certs › Certificates shows the reason for each name. An order is tried again at the next request for the name.</source>
+        <translation>Certs › Certificates shows the reason for each name. An order is tried again at the next request for the name.</translation>
     </message>
     <message id="autopanel.notice.check.dockerGroup">
         <source>Remove users from the docker group unless they are meant to be root.</source>
@@ -2655,6 +2719,10 @@
         <source>Entries</source>
         <translation>Entries</translation>
     </message>
+    <message id="autopanel.title.list.certs">
+        <source>Names</source>
+        <translation>Names</translation>
+    </message>
     <message id="autopanel.title.list.checks">
         <source>Findings</source>
         <translation>Findings</translation>
@@ -2750,6 +2818,10 @@
     <message id="autopanel.title.panel.audit">
         <source>Audit log</source>
         <translation>Audit log</translation>
+    </message>
+    <message id="autopanel.title.panel.certs">
+        <source>Certificates</source>
+        <translation>Certificates</translation>
     </message>
     <message id="autopanel.title.panel.checks">
         <source>Host checks</source>
@@ -2975,6 +3047,26 @@
         <source>LE staging</source>
         <translation>LE staging</translation>
     </message>
+    <message id="autopanel.value.certState.due">
+        <source>renewing</source>
+        <translation>renewing</translation>
+    </message>
+    <message id="autopanel.value.certState.expired">
+        <source>expired</source>
+        <translation>expired</translation>
+    </message>
+    <message id="autopanel.value.certState.none">
+        <source>none yet</source>
+        <translation>none yet</translation>
+    </message>
+    <message id="autopanel.value.certState.ok">
+        <source>valid</source>
+        <translation>valid</translation>
+    </message>
+    <message id="autopanel.value.certState.unknown">
+        <source>unknown</source>
+        <translation>unknown</translation>
+    </message>
     <message id="autopanel.value.certs.challenge">
         <source>Challenge: %1</source>
         <translation>Challenge: %1</translation>
@@ -2986,6 +3078,14 @@
     <message id="autopanel.value.check.alert">
         <source>alert</source>
         <translation>alert</translation>
+    </message>
+    <message id="autopanel.value.check.certExpiring">
+        <source>Certificates expired or about to: %1</source>
+        <translation>Certificates expired or about to: %1</translation>
+    </message>
+    <message id="autopanel.value.check.certFailing">
+        <source>The last certificate order failed for: %1</source>
+        <translation>The last certificate order failed for: %1</translation>
     </message>
     <message id="autopanel.value.check.dockerGroup">
         <source>Users in the docker group, as good as root: %1</source>

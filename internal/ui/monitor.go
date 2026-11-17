@@ -12,7 +12,7 @@ import (
 )
 
 // THE SYSTEM MENU'S MONITORS — metrics, the audit log, login attempts and
-// open ports, each a panel. The metrics are a table of facts; the other three
+// open ports, each a panel; and Certs › Certificates, which is read the same way. The metrics are a table of facts; the other three
 // are two panes, the rows on the left and the selected row whole on the
 // right. Opening one reads it, and each is read again with the screen while
 // it is open. The list's frame says how many rows were read, and when.
@@ -20,12 +20,13 @@ import (
 // monitors are the panels' models, and the last answer of each, kept so a
 // change of language composes the rows again without another read.
 type monitors struct {
-	metrics, audit, logins, ports *tuidecl.ListModel
+	metrics, audit, logins, ports, certs *tuidecl.ListModel
 
 	lastMetrics *Metrics
 	lastAudit   []AuditEntry
 	lastLogins  *Logins
 	lastPorts   []Port
+	lastCerts   []Cert
 	readAt      map[string]time.Time // when each was last read, by panel
 	errs        map[string]error     // each one's last read that failed, by panel
 	at          map[string]int       // the row under each list's cursor, by panel
@@ -37,6 +38,7 @@ func newMonitors() monitors {
 		audit:   tuidecl.NewListModel("key", "time", "actor", "action"),
 		logins:  tuidecl.NewListModel("key", "time", "source", "user", "result"),
 		ports:   tuidecl.NewListModel("key", "proto", "port", "address", "firewall", "process"),
+		certs:   tuidecl.NewListModel("key", "host", "state", "expires"),
 		readAt:  map[string]time.Time{},
 		errs:    map[string]error{},
 		at:      map[string]int{},
@@ -46,19 +48,22 @@ func newMonitors() monitors {
 // state is the monitors' part of the App singleton's state.
 func (m *monitors) state() map[string]any {
 	return map[string]any{
-		"App.metrics":      m.metrics,
-		"App.audit":        m.audit,
-		"App.logins":       m.logins,
-		"App.ports":        m.ports,
-		"App.metricsTitle": "",
-		"App.auditTitle":   "",
-		"App.loginsTitle":  "",
-		"App.portsTitle":   "",
-		"App.auditDetail":  "",
-		"App.loginsDetail": "",
-		"App.portsDetail":  "",
-		"App.loginsNote":   "",
-		"App.loginsNoted":  false,
+		"App.metrics":        m.metrics,
+		"App.audit":          m.audit,
+		"App.logins":         m.logins,
+		"App.ports":          m.ports,
+		"App.certList":       m.certs,
+		"App.certListTitle":  "",
+		"App.certListDetail": "",
+		"App.metricsTitle":   "",
+		"App.auditTitle":     "",
+		"App.loginsTitle":    "",
+		"App.portsTitle":     "",
+		"App.auditDetail":    "",
+		"App.loginsDetail":   "",
+		"App.portsDetail":    "",
+		"App.loginsNote":     "",
+		"App.loginsNoted":    false,
 	}
 }
 
@@ -158,6 +163,43 @@ func auditDetail(w wording, e AuditEntry) string {
 		[2]string{"autopanel.label.audit.entry", "#" + strconv.FormatInt(e.ID, 10)})
 }
 
+// certStateText is a certificate's state in a word, for its row.
+func certStateText(w wording, state string) string {
+	switch state {
+	case "none", "ok", "due", "expired", "unknown":
+		return w.tr("autopanel.value.certState." + state)
+	}
+	return state
+}
+
+// certDetail is a name's certificate whole, for the details pane: what its
+// state means, then the facts, then the last order that failed.
+func certDetail(w wording, c Cert) string {
+	pairs := [][2]string{
+		{"autopanel.label.certs.host", c.Host},
+		{"autopanel.label.certs.state", certStateText(w, c.State)},
+	}
+	if c.NotAfter != 0 {
+		pairs = append(pairs,
+			[2]string{"autopanel.label.certs.issuer", orDash(c.Issuer)},
+			[2]string{"autopanel.label.certs.issued", stamp(c.NotBefore)},
+			[2]string{"autopanel.label.certs.expires", stamp(c.NotAfter)},
+			[2]string{"autopanel.label.certs.renews", stamp(c.RenewFrom)})
+	}
+	if c.FailedAt != 0 {
+		pairs = append(pairs, [2]string{"autopanel.label.certs.failedAt", stamp(c.FailedAt)})
+	}
+	if c.Error != "" {
+		pairs = append(pairs, [2]string{"autopanel.label.certs.error", c.Error})
+	}
+	out := facts(w, pairs...)
+	switch c.State {
+	case "none", "ok", "due", "expired", "unknown":
+		out += "\n\n" + w.tr("autopanel.notice.certState."+c.State)
+	}
+	return out
+}
+
 // loginDetail is a login attempt whole, for the details pane.
 func loginDetail(w wording, a LoginAttempt) string {
 	return facts(w,
@@ -255,6 +297,15 @@ func (m *monitors) render(h *host) {
 	}
 	vals["App.portsTitle"] = h.listTitle("ports", "autopanel.title.list.ports", len(m.lastPorts))
 	vals["App.portsDetail"] = m.portDetailAt(h, m.at["ports"])
+	if m.lastCerts != nil {
+		list := make([]tuidecl.Row, 0, len(m.lastCerts))
+		for _, c := range m.lastCerts {
+			list = append(list, tuidecl.Row{"key": c.Host, "host": c.Host, "state": certStateText(h, c.State), "expires": day(c.NotAfter)})
+		}
+		m.certs.Reset(list)
+	}
+	vals["App.certListTitle"] = h.listTitle("certList", "autopanel.title.list.certs", len(m.lastCerts))
+	vals["App.certListDetail"] = m.certDetailAt(h, m.at["certList"])
 	_ = h.p.SetMany(vals)
 }
 
@@ -279,6 +330,13 @@ func (m *monitors) portDetailAt(w wording, row int) string {
 	return portDetail(w, m.lastPorts[row])
 }
 
+func (m *monitors) certDetailAt(w wording, row int) string {
+	if row < 0 || row >= len(m.lastCerts) {
+		return ""
+	}
+	return certDetail(w, m.lastCerts[row])
+}
+
 // monitorMoved is a monitor list's cursor moved: its details pane follows.
 func (h *host) monitorMoved(panel string, row int) error {
 	m := &h.mon
@@ -290,6 +348,8 @@ func (h *host) monitorMoved(panel string, row int) error {
 		return h.p.Set("App.loginsDetail", m.loginDetailAt(h, row))
 	case "ports":
 		return h.p.Set("App.portsDetail", m.portDetailAt(h, row))
+	case "certList":
+		return h.p.Set("App.certListDetail", m.certDetailAt(h, row))
 	}
 	return fmt.Errorf("no monitor list %q", panel)
 }
@@ -302,6 +362,7 @@ func (h *host) load(panel string) {
 		audit   []AuditEntry
 		logins  Logins
 		ports   []Port
+		certs   []Cert
 	)
 	h.background(func(ctx context.Context) (err error) {
 		switch panel {
@@ -313,6 +374,8 @@ func (h *host) load(panel string) {
 			logins, err = h.client.Logins(ctx)
 		case "ports":
 			ports, err = h.client.Ports(ctx)
+		case "certList":
+			certs, err = h.client.Certificates(ctx)
 		}
 		return err
 	}, func(err error) {
@@ -328,6 +391,8 @@ func (h *host) load(panel string) {
 				h.mon.lastLogins = &logins
 			case "ports":
 				h.mon.lastPorts = orEmpty(ports)
+			case "certList":
+				h.mon.lastCerts = orEmpty(certs)
 			}
 		}
 		h.mon.render(h)
@@ -335,7 +400,8 @@ func (h *host) load(panel string) {
 }
 
 // monitorPanels are the System panels, by window key.
-var monitorPanels = map[string]bool{"metrics": true, "audit": true, "logins": true, "ports": true}
+// monitorPanels are the panels read this way, by window key.
+var monitorPanels = map[string]bool{"metrics": true, "audit": true, "logins": true, "ports": true, "certList": true}
 
 // openMonitor opens a System panel and reads it.
 func (h *host) openMonitor(panel string) error {
