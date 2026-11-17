@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/netip"
 )
 
 // Contract is a verb as every surface sees it. It is pure data.
@@ -180,4 +181,26 @@ func WithPrincipal(ctx context.Context, principal string) context.Context {
 func Principal(ctx context.Context) string {
 	p, _ := ctx.Value(principalKey{}).(string)
 	return p
+}
+
+// Login is the login a control connection's process belongs to, as the
+// kernel says: its audit session, and the address its SSH connection came
+// from. The control socket finds it from the peer's process, never from what
+// the caller sends; the firewall's lockout guard reads it.
+type Login struct {
+	Session string         // the audit session id; "" for a process no login made
+	From    netip.AddrPort // the SSH client's address and port; zero when not over SSH
+}
+
+type loginKey struct{}
+
+// WithLogin is ctx carrying the caller's login.
+func WithLogin(ctx context.Context, l Login) context.Context {
+	return context.WithValue(ctx, loginKey{}, l)
+}
+
+// LoginOf is the login ctx carries; the zero Login (a console, no SSH) for none.
+func LoginOf(ctx context.Context) Login {
+	l, _ := ctx.Value(loginKey{}).(Login)
+	return l
 }

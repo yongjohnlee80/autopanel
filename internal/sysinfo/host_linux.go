@@ -174,3 +174,33 @@ func NewSampler() *Sampler {
 		return cpu, cpus, ifaces, swapTotal, swapFree, uptime
 	}}
 }
+
+// LoginOf is the login process pid belongs to: its audit session, and the
+// SSH connection of the nearest process up its line (itself, its parent, and
+// so on to PID 1) whose environment names one. sudo's own process keeps the
+// caller's environment, so the line through sudo finds it. Under tmux the
+// line leads to the tmux server: the connection found is the one that
+// started it.
+//
+// Decision: docs/decisions/firewall.md#no-lockout
+func LoginOf(pid int) Login {
+	var l Login
+	if b, err := os.ReadFile(filepath.Join(procRoot, strconv.Itoa(pid), "sessionid")); err == nil {
+		if s := strings.TrimSpace(string(b)); s != "" && s != unsetSession {
+			l.Session = s
+		}
+	}
+	for p, hops := pid, 0; p > 1 && hops < 64; hops++ {
+		env, _ := os.ReadFile(filepath.Join(procRoot, strconv.Itoa(p), "environ"))
+		if c, s, ok := ParseSSHConnection(sshFromEnviron(env)); ok {
+			l.Client, l.Server = c, s
+			break
+		}
+		status, err := os.ReadFile(filepath.Join(procRoot, strconv.Itoa(p), "status"))
+		if err != nil {
+			break
+		}
+		p = ppidOf(status)
+	}
+	return l
+}
