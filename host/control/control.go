@@ -117,7 +117,7 @@ func Listen(path string, log *slog.Logger, acc Access, mods ...module.Module) (*
 			p := peer{name: "local:" + strconv.Itoa(peercred.PeerUID(nc))}
 			if pid, err := peercred.PeerPID(nc); err == nil {
 				l := loginOf(pid)
-				p.login = module.Login{Session: l.Session, From: l.Client}
+				p.login = module.Login{Session: l.Session, From: l.Client, To: l.Server}
 			}
 			return p
 		}),

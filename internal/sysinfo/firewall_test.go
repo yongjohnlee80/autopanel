@@ -273,3 +273,47 @@ func TestUfwTuplesThatDoNotParse(t *testing.T) {
 		t.Errorf("a logged rule = %+v", rs[5])
 	}
 }
+
+// TestAdmitsOneConnection: the guard's question, from one address to one
+// endpoint, sure or not.
+func TestAdmitsOneConnection(t *testing.T) {
+	f := ufwFixture(t, "active-variety")
+	ap := netip.MustParseAddrPort
+	cases := []struct {
+		src  string
+		dst  string
+		want string
+	}{
+		{"203.0.113.7", "192.0.2.10:22", Refuse}, // the inserted deny
+		{"192.0.2.20", "192.0.2.10:22", Admit},
+		{"2001:db8::9", "[2001:db8::10]:22", Admit},
+		{"192.0.2.20", "192.0.2.10:8082", Admit},     // from the allowed network
+		{"198.51.100.1", "192.0.2.10:8082", Refuse},  // from elsewhere: the default
+		{"198.51.100.1", "192.0.2.99:8083", Refuse},  // to another address than the rule's
+		{"198.51.100.1", "192.0.2.10:8085", Unknown}, // a rule bound to an interface
+		{"198.51.100.1", "192.0.2.10:2223", Admit},   // a rate limit admits
+		{"198.51.100.1", "192.0.2.10:8087", Refuse},  // a reject
+	}
+	for _, c := range cases {
+		if got := f.Admits("tcp", netip.MustParseAddr(c.src), ap(c.dst)); got != c.want {
+			t.Errorf("%s → %s: %s, want %s", c.src, c.dst, got, c.want)
+		}
+	}
+	src := netip.MustParseAddr("2001:db8::9")
+	if got := ufwFixture(t, "active-ipv6-no").Admits("tcp", src, ap("[2001:db8::10]:22")); got != Unknown {
+		t.Errorf("IPv6 not ufw's: %s", got)
+	}
+	if got := (Firewall{Manager: "ufw"}).Admits("tcp", src, ap("[2001:db8::10]:22")); got != Admit {
+		t.Errorf("off: %s", got)
+	}
+	if got := (Firewall{Manager: "unknown", Active: true}).Admits("tcp", src, ap("[2001:db8::10]:22")); got != Unknown {
+		t.Errorf("unknown: %s", got)
+	}
+	if got := (Firewall{Manager: "ufw", Active: true, Default: "allow"}).Admits("tcp", src, ap("[2001:db8::10]:22")); got != Admit {
+		t.Errorf("default allow: %s", got)
+	}
+	raw := Firewall{Manager: "firewalld", Active: true, Rules: []Rule{{Raw: "x", Runtime: true}}}
+	if got := raw.Admits("tcp", src, ap("[2001:db8::10]:22")); got != Unknown {
+		t.Errorf("not modelled: %s", got)
+	}
+}

@@ -190,6 +190,7 @@ func Principal(ctx context.Context) string {
 type Login struct {
 	Session string         // the audit session id; "" for a process no login made
 	From    netip.AddrPort // the SSH client's address and port; zero when not over SSH
+	To      netip.AddrPort // the address and port that SSH connection reached
 }
 
 type loginKey struct{}
