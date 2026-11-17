@@ -372,7 +372,7 @@ type Want struct {
 }
 
 // Key is the want as a plan names it: "tcp/993", "udp/49152-65535",
-// "tcp/10.10.10.1:8008".
+// "tcp/192.0.2.1:8008".
 func (w Want) Key() string {
 	k := w.Proto + "/"
 	if w.Addr.IsValid() {
