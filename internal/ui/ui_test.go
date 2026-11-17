@@ -1108,3 +1108,34 @@ func TestAPortsDetailsSayWhatTheFirewallDoes(t *testing.T) {
 		t.Errorf("an expired certificate's details:\n%s", expired)
 	}
 }
+
+// TestTheScreensPollReadsTheCertificatesAndKeepsOtherErrors: while Certs ›
+// Certificates is open the screen's poll reads it again; and a poll that did
+// not read a panel leaves that panel's last error as it was.
+func TestTheScreensPollReadsTheCertificatesAndKeepsOtherErrors(t *testing.T) {
+	f := newFakeClient()
+	f.certs = []Cert{{Host: "app.example.com", State: "ok"}, {Host: "new.example.com", State: "none"}}
+	h, s := startHost(t, f)
+	s.WaitForText(t, "CA LE staging")
+	run(t, h, func() error { return h.openMonitor("certList") })
+	s.WaitForText(t, "Names · 2 · read at ")
+
+	f.mu.Lock()
+	f.certs = f.certs[:1]
+	f.mu.Unlock()
+	run(t, h, func() error {
+		h.mon.errs["firewall"] = errors.New("the firewall could not be read")
+		h.poll()
+		return nil
+	})
+	s.WaitForText(t, "Names · 1 · read at ")
+	if err := onLoop(h, func() error { return h.mon.errs["firewall"] }); err == nil {
+		t.Error("a poll that did not read the firewall forgot its error")
+	}
+
+	f.mu.Lock()
+	f.certsErr = errors.New("the core is away")
+	f.mu.Unlock()
+	run(t, h, func() error { h.poll(); return nil })
+	s.WaitForText(t, "the core is away")
+}
