@@ -7,7 +7,7 @@ toolchain go1.27.4
 require (
 	github.com/caddyserver/certmagic v0.25.6
 	github.com/libdns/cloudflare v0.2.2
-	github.com/yongjohnlee80/golib v0.8.58
+	github.com/yongjohnlee80/golib v0.8.60
 	go.yaml.in/yaml/v3 v3.0.4
 	golang.org/x/crypto v0.57.0
 	golang.org/x/sys v0.49.0
@@ -41,5 +41,4 @@ require (
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.12.1 // indirect
 	modernc.org/sqlite v1.61.1 // indirect
-	rsc.io/qr v0.2.0 // indirect
 )
