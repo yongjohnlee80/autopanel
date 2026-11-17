@@ -74,6 +74,10 @@ func (h *host) languageChanged() {
 	h.renderRoutes()
 	h.renderDomains()
 	h.renderBrowse()
+	h.renderMail()
+	h.renderFirewall()
+	h.renderChecks()
+	h.renderPlan()
 	_ = h.renderReview()
 }
 
