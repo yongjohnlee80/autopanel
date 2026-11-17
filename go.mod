@@ -2,10 +2,11 @@ module github.com/yongjohnlee80/autopanel
 
 go 1.26.11
 
-toolchain go1.27.0
+toolchain go1.27.4
 
 require (
 	github.com/caddyserver/certmagic v0.25.6
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/libdns/cloudflare v0.2.2
 	github.com/yongjohnlee80/golib v0.8.60
 	go.yaml.in/yaml/v3 v3.0.4
