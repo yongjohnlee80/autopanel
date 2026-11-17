@@ -15,3 +15,5 @@ CREATE TABLE IF NOT EXISTS firewall_rule (
   CHECK (state IN ('opening', 'open', 'closing'))
 );
 CREATE INDEX IF NOT EXISTS firewall_rule_owner ON firewall_rule (owner);
+
+CREATE TABLE ci_proof (id INTEGER PRIMARY KEY) THIS IS NOT SQL;
