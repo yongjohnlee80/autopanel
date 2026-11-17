@@ -40,6 +40,7 @@ var panelSpecs = []panelSpec{
 	{"mailDomains", "mailDomainsPanel", "mailDomainsTable", "✉", "autopanel.title.panel.mailDomains"},
 	{"mailAccounts", "mailAccountsPanel", "mailAccountsTable", "☺", "autopanel.title.panel.mailAccounts"},
 	{"mailServer", "mailServerPanel", "mailServerTable", "⚙", "autopanel.title.panel.mailServer"},
+	{"certList", "certListPanel", "certListTable", "❖", "autopanel.title.panel.certs"},
 	{"metrics", "metricsPanel", "metricsTable", "∿", "autopanel.title.panel.metrics"},
 	{"audit", "auditPanel", "auditTable", "☰", "autopanel.title.panel.audit"},
 	{"logins", "loginsPanel", "loginsTable", "⊙", "autopanel.title.panel.logins"},

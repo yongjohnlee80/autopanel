@@ -177,6 +177,11 @@ func (u uiClient) Metrics(ctx context.Context) (ui.Metrics, error) {
 	return m, u.call(ctx, "sys.metrics", nil, &m)
 }
 
+func (u uiClient) Certificates(ctx context.Context) ([]ui.Cert, error) {
+	var cs []ui.Cert
+	return cs, u.call(ctx, "certs.list", nil, &cs)
+}
+
 func (u uiClient) AuditLog(ctx context.Context) ([]ui.AuditEntry, error) {
 	var es []ui.AuditEntry
 	return es, u.call(ctx, "sys.audit.list", nil, &es)
