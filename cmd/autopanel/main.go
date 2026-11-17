@@ -8,4 +8,4 @@ import (
 	"github.com/yongjohnlee80/autopanel/app"
 )
 
-func main() { os.Exit(app.Main(os.Args[1:], os.Stdout, os.Stderr)) }
+func main()   { os.Exit(app.Main(os.Args[1:], os.Stdout, os.Stderr)) }
