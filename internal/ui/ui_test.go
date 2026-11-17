@@ -1067,3 +1067,44 @@ func TestCertificatesPanel(t *testing.T) {
 	s.Keys(t, decltest.Rune('q'))
 	gone(t, s, "Names · 1")
 }
+
+// TestAPortsDetailsSayWhatTheFirewallDoes: an open port's details end with
+// the firewall's verdict and its reason; an allow rule nothing listens behind
+// is a row of its own, with its rule and what to do about it.
+func TestAPortsDetailsSayWhatTheFirewallDoes(t *testing.T) {
+	w := inEnglish{}
+	got := portDetail(w, Port{Proto: "tcp", Address: "0.0.0.0", Port: 22, Process: "sshd", PID: 612, User: "root",
+		Firewall: "limited", Why: "from 192.0.2.0/24"})
+	for _, part := range []string{"Port", "22", "sshd (612)", "limited (from 192.0.2.0/24)"} {
+		if !strings.Contains(got, part) {
+			t.Errorf("a limited port's details lack %q:\n%s", part, got)
+		}
+	}
+	if got := portDetail(w, Port{Proto: "udp", Port: 3478}); !strings.Contains(got, "Firewall") || strings.Contains(got, "(") {
+		t.Errorf("a port with no verdict:\n%s", got)
+	}
+	stale := portDetail(w, Port{Proto: "tcp", Port: 60000, To: 60010, Firewall: "rule: nothing listens", Why: "allow 60000:60010/tcp"})
+	for _, part := range []string{"60000-60010", "rule, nothing listens", "allow 60000:60010/tcp", "revoke it in System → Firewall"} {
+		if !strings.Contains(stale, part) {
+			t.Errorf("a stale rule's details lack %q:\n%s", part, stale)
+		}
+	}
+	for verdict, want := range map[string]string{"allowed": "allowed", "blocked": "blocked", "local": "local", "unknown": "unknown", "": "-", "new-one": "new-one"} {
+		if got := verdictText(w, verdict); got != want {
+			t.Errorf("verdictText(%q) = %q; want %q", verdict, got, want)
+		}
+	}
+	// A state or a result this panel does not know is shown as the daemon gave it.
+	if got := certStateText(w, "revoked"); got != "revoked" {
+		t.Errorf("certStateText of a new state = %q", got)
+	}
+	unknown := certDetail(w, Cert{Host: "a.example.com", State: "unknown", Error: "the vault is locked"})
+	for _, part := range []string{"a.example.com", "the vault is locked", "could not be read"} {
+		if !strings.Contains(unknown, part) {
+			t.Errorf("an unread certificate's details lack %q:\n%s", part, unknown)
+		}
+	}
+	if expired := certDetail(w, Cert{Host: "a.example.com", State: "expired", NotAfter: 1}); !strings.Contains(expired, "has expired") {
+		t.Errorf("an expired certificate's details:\n%s", expired)
+	}
+}
