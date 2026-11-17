@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/yongjohnlee80/autopanel/internal/hostcmd"
 	"github.com/yongjohnlee80/autopanel/internal/module"
@@ -110,6 +111,9 @@ func (m *sysModule) checks(ctx context.Context, _ struct{}) ([]Check, error) {
 	}
 	if sshdSays(ctx, "passwordauthentication", "yes") {
 		add("ssh-password", alert, "")
+	}
+	if m.certRows != nil {
+		out = append(out, certChecks(m.certRows(ctx), time.Now())...)
 	}
 	if m.moreChecks != nil && fwErr == nil {
 		out = append(out, m.moreChecks(ctx, fw)...)

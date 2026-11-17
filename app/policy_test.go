@@ -34,6 +34,7 @@ func TestEveryVerbHasADecision(t *testing.T) {
 		"gate.domain.remove": {"gate", true, false},
 
 		"certs.ca.set": {"certs", true, false}, "certs.cloudflare.set": {"certs", true, false}, "certs.cloudflare.clear": {"certs", true, false},
+		"certs.list": {"certs", false, true},
 
 		"sys.status": {"sys", false, true}, "sys.metrics": {"sys", false, true}, "sys.ports": {"sys", false, true}, "sys.checks": {"sys", false, true},
 		"sys.prefs.get": {"sys", false, true}, "sys.prefs.set": {"sys", true, false},

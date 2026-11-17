@@ -254,7 +254,7 @@ func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateContr
 		}
 		log.Warn("the vault stays locked until root logs in", "err", err)
 	}
-	sw := &certSwitch{cfg: cfg, st: st, vault: vault, table: table, log: log}
+	sw := &certSwitch{cfg: cfg, st: st, vault: vault, table: table, log: log, events: newCertEvents(st.Audit)}
 	if err := sw.rebuild(ctx); err != nil {
 		return err
 	}
@@ -269,6 +269,7 @@ func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateContr
 	mailMod.SetDNS(mailDNS{st: st, vault: vault})
 	mailMod.SetCerts(mailCerts{sw: sw})
 	sw.also = mailMod.IsHost // the mail host has a certificate, though no route names it
+	sw.extra = func() []string { return []string{mailMod.HostName()} }
 	// The firewall: one lock for every change, and what a change left when
 	// the core stopped in it settled before anything else changes it.
 	mailOn := func(ctx context.Context) bool { _, ok, _ := st.Mail().State(ctx); return ok }
@@ -280,7 +281,7 @@ func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateContr
 	mailMod.SetFirewall(fwm) // mail's set-up opens its four ports; mail.remove closes them
 	sys := &sysModule{cfg: cfg, sampler: sysinfo.NewSampler(), table: table, engine: st.Engine(), started: time.Now(), challenge: sw.Challenge, ca: sw.CA,
 		st: st, log: log, counts: counts, listeners: readListeners, sshLogins: readSSHLogins, firewall: fwm.Read, gate: gc, serviceUsers: svcs.Users,
-		moreChecks: ownerChecks(mailOn, st.Services(), st)}
+		moreChecks: ownerChecks(mailOn, st.Services(), st), certRows: sw.rows}
 	am, err := auth.New(st.Users(), st, st, vault, func(ctx context.Context) {
 		if err := sw.rebuild(ctx); err != nil {
 			log.Error("certificates after unlock", "err", err)
