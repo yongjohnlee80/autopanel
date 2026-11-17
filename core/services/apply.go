@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	corefw "github.com/yongjohnlee80/autopanel/core/firewall"
 )
 
 // REVIEW, THEN APPLY. A review stages the definition (reads each of its files
@@ -37,6 +39,10 @@ type Review struct {
 	Containers []Planned `json:"containers"`
 	Findings   []Finding `json:"findings"`
 	Removes    []string  `json:"removes"` // the services an apply would stop and remove
+	// Firewall is each port the stack publishes on a public address, with
+	// the firewall's verdict on it and whether it needs a rule; empty when
+	// this core drives no firewall.
+	Firewall []corefw.PortState `json:"firewall"`
 }
 
 // reviewed is a staged definition, read and checked.
@@ -217,7 +223,68 @@ func (m *Module) checkDraft(ctx context.Context, name string, draft []byte) (Rev
 			out.Removes = append(out.Removes, u.Service)
 		}
 	}
+	out.Firewall = []corefw.PortState{}
+	if m.firewall != nil {
+		if out.Firewall, err = m.firewall.Review(ctx, corefw.StackOwner(name), PublicWants(rev.stack)); err != nil {
+			return Review{}, err
+		}
+	}
 	return out, nil
+}
+
+// PublicWants are the ports a stack publishes on a public address, and the
+// declared ports of a host-network service: what it may ask the firewall to
+// open. A port published on one address keeps it.
+//
+// Decision: docs/decisions/firewall.md#owners
+func PublicWants(st Stack) []corefw.Want {
+	var out []corefw.Want
+	seen := map[string]bool{}
+	for _, s := range st.Services {
+		for _, p := range s.Ports {
+			if !p.Public() {
+				continue
+			}
+			w := corefw.Want{Proto: p.Proto, From: p.HostFrom, To: p.HostTo}
+			if p.Addr.IsValid() && !p.Addr.IsUnspecified() {
+				w.Addr = p.Addr
+			}
+			if !seen[w.Key()] {
+				seen[w.Key()] = true
+				out = append(out, w)
+			}
+		}
+	}
+	return out
+}
+
+// ownWants checks that every port to open is one of the stack's own.
+func ownWants(st Stack, open []corefw.Want) error {
+	mine := map[string]bool{}
+	for _, w := range PublicWants(st) {
+		mine[w.Key()] = true
+	}
+	for _, w := range open {
+		if !mine[w.Key()] {
+			return with(ErrNotOwnPort, w.Key())
+		}
+	}
+	return nil
+}
+
+// dropped are the ports the last apply opened that open no longer has.
+func dropped(before, open []corefw.Want) []corefw.Want {
+	keep := map[string]bool{}
+	for _, w := range open {
+		keep[w.Key()] = true
+	}
+	var out []corefw.Want
+	for _, w := range before {
+		if !keep[w.Key()] {
+			out = append(out, w)
+		}
+	}
+	return out
 }
 
 func (m *Module) prepare(ctx context.Context, p Accept) (View, error) {
@@ -265,6 +332,9 @@ func (m *Module) run(ctx context.Context, p Accept, first, prepareOnly bool) (Vi
 		err = ErrChanged
 	}
 	if err == nil {
+		err = ownWants(rev.stack, p.Open)
+	}
+	if err == nil {
 		for _, f := range rev.findings {
 			if f.Severity == Refused {
 				err = with(ErrRefused, strings.TrimSpace(f.ID+" "+f.Service+" "+f.Detail))
@@ -278,7 +348,7 @@ func (m *Module) run(ctx context.Context, p Accept, first, prepareOnly bool) (Vi
 	}
 	before, managedBefore := base(svc)
 	next, _ := units(p.Name, rev.stack, nil)
-	plan := Applied{Manifest: rev.manifest, Units: next, Data: dataPaths(rev.stack), Roots: managedPaths(rev.stack)}
+	plan := Applied{Manifest: rev.manifest, Units: next, Data: dataPaths(rev.stack), Roots: managedPaths(rev.stack), Open: p.Open}
 	pend := Pending{Step: "user"}
 	pend.Applied, pend.Managed = union(before, managedBefore, plan, nil)
 	// The row first, then the plan: a crash from here on leaves a row the
@@ -379,6 +449,13 @@ func (m *Module) run(ctx context.Context, p Accept, first, prepareOnly bool) (Vi
 			return fail("remove", err)
 		}
 	}
+	// The ports the last apply opened that this one does not: closed through
+	// the lockout guard, before anything new starts.
+	if gone := dropped(svc.Applied.Open, p.Open); m.firewall != nil && len(gone) > 0 {
+		if err := m.firewall.Close(ctx, corefw.StackOwner(p.Name), gone); err != nil {
+			return fail("firewall", err)
+		}
+	}
 	if err := m.host.Commit(ctx, p.Name, commit); err != nil {
 		return fail("files", err)
 	}
@@ -427,6 +504,13 @@ func (m *Module) run(ctx context.Context, p Accept, first, prepareOnly bool) (Vi
 	if len(fresh) > 0 {
 		if err := m.host.Start(ctx, p.Name, systemdNames(next, fresh)); err != nil {
 			return fail("start", err)
+		}
+	}
+	// Opening is the last change before the record: after the containers are
+	// up, so a failed apply leaves no port open with nothing behind it.
+	if m.firewall != nil && len(p.Open) > 0 {
+		if err := m.firewall.Open(ctx, corefw.StackOwner(p.Name), p.Open); err != nil {
+			return fail("firewall", err)
 		}
 	}
 	applied := plan
