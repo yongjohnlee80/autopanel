@@ -47,6 +47,10 @@ type certSwitch struct {
 	// also admits names no route holds that may still have a certificate: the
 	// mail host. Set once, before the first certificate is asked for.
 	also func(host string) bool
+	// extra are those names, for the list of certificates. Set with also.
+	extra func() []string
+	// events hears each order's end. Set once, before the first rebuild.
+	events *certEvents
 
 	mu        sync.Mutex // orders rebuilds
 	cur       atomic.Pointer[certs.Manager]
@@ -76,7 +80,7 @@ func (s *certSwitch) rebuild(ctx context.Context) error {
 		return err
 	}
 	allowed := func(host string) bool { return s.table.Holds(host) || (s.also != nil && s.also(host)) }
-	opts := certs.Options{Blobs: s.st.Blobs(s.vault), Allowed: allowed, CA: ca, Email: s.cfg.Email}
+	opts := certs.Options{Blobs: s.st.Blobs(s.vault), Allowed: allowed, CA: ca, Email: s.cfg.Email, Event: s.events.on}
 	challenge := "http-01, tls-alpn-01"
 	if !s.vault.Unlocked() {
 		challenge = "locked: log in to unlock"
@@ -202,6 +206,9 @@ func (m *certsModule) Verbs() []module.Verb {
 			Doc: "Checks a Cloudflare API token (Zone.Zone:Read and Zone.DNS:Edit) with Cloudflare, then seals it in the store; every certificate then uses DNS-01, and mail's records are published through it. Takes effect at once."}, m.set),
 		module.Handle(module.Contract{Verb: "certs.cloudflare.clear", Since: 1, Result: "{challenge, ca}", Mutates: true,
 			Doc: "Forgets the Cloudflare token; certificates go back to HTTP-01 and TLS-ALPN-01."}, m.clear),
+		module.Handle(module.Contract{Verb: "certs.list", Discloses: module.Plain, Since: 7,
+			Result: "[{host, state, issuer, not_before, not_after, renew_from, error, failed_at}]",
+			Doc:    "Each name AutoPanel serves and the certificate the store holds for it under the service in use: none, ok, due (the next request renews it), expired or unknown, with the last order's failure. Orders nothing."}, m.list),
 	}
 }
 

@@ -216,6 +216,11 @@ func TestTheCoreAndTheGateEndToEnd(t *testing.T) {
 		t.Fatalf("status = %+v, %v", st, err)
 	}
 
+	var certRows []CertRow
+	if err := c.Call(ctx, "certs.list", nil, &certRows); err != nil || len(certRows) != 0 {
+		t.Fatalf("certs.list with no route = %+v, %v; want none", certRows, err)
+	}
+
 	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = io.WriteString(w, "upstream") }))
 	defer up.Close()
 	// The link socket, as the gate sees it: its configuration, the table held
@@ -274,6 +279,11 @@ func TestTheCoreAndTheGateEndToEnd(t *testing.T) {
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("the held link.routes never answered the added route")
+	}
+	// The route's name is listed with no certificate, and listing ordered none.
+	if err := c.Call(ctx, "certs.list", nil, &certRows); err != nil || len(certRows) != 1 || certRows[0].Host != "app.example.com" ||
+		certRows[0].State != certNone || certRows[0].NotAfter != 0 || certRows[0].Error != "" {
+		t.Fatalf("certs.list = %+v, %v; want app.example.com with none", certRows, err)
 	}
 
 	noRedirect := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }, Timeout: 5 * time.Second}

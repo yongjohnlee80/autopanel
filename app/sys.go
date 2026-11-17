@@ -43,6 +43,9 @@ type sysModule struct {
 	// moreChecks are the host checks other modules know (a stack's state,
 	// mail's ports, a certificate's expiry); nil when none are wired.
 	moreChecks func(ctx context.Context, fw sysinfo.Firewall) []Check
+	// certRows are the certificates' states, for their host checks; nil
+	// when none are wired.
+	certRows func(ctx context.Context) []CertRow
 	// sampler answers each metrics read with the host's rates since the read
 	// before it, whoever made that one.
 	sampler *sysinfo.Sampler

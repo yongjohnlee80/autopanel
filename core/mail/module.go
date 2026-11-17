@@ -275,6 +275,12 @@ func (m *Module) IsHost(name string) bool {
 	return h != "" && h == name
 }
 
+// HostName is the mail host, or "" before mail is set up.
+func (m *Module) HostName() string {
+	h, _ := m.hostName.Load().(string)
+	return h
+}
+
 func (m *Module) Name() string { return "mail" }
 
 func (m *Module) Errors() []module.PublicError {

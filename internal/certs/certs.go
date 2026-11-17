@@ -12,7 +12,9 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/pem"
 	"errors"
+	"io/fs"
 	"net"
 	"net/http"
 	"net/url"
@@ -37,6 +39,15 @@ type Options struct {
 	CA      string                 // the ACME directory: certmagic.LetsEncryptStagingCA first, then LetsEncryptProductionCA
 	Email   string                 // the ACME account's contact
 	DNS     certmagic.DNSProvider  // nil: HTTP-01 and TLS-ALPN-01; set: DNS-01 for every name
+	Event   func(Event)            // told each certificate obtained, renewed or refused; may be nil
+}
+
+// Event is one order's end: a certificate obtained or renewed for Name, or
+// the failure to.
+type Event struct {
+	Name    string
+	Renewal bool
+	Err     error // nil: the certificate is in the store
 }
 
 // Manager serves certificates to the gate's TLS listener and obtains them on
@@ -62,6 +73,7 @@ func New(opts Options) (*Manager, error) {
 	magic = certmagic.New(cache, certmagic.Config{
 		Storage:  &storage{blobs: opts.Blobs, locks: newLocks()},
 		OnDemand: &certmagic.OnDemandConfig{DecisionFunc: m.decide},
+		OnEvent:  m.onEvent,
 	})
 	tmpl := certmagic.ACMEIssuer{CA: opts.CA, Email: opts.Email, Agreed: true}
 	if opts.DNS != nil {
@@ -81,6 +93,59 @@ func (m *Manager) decide(_ context.Context, name string) error {
 		return ErrUnknownHost
 	}
 	return nil
+}
+
+// onEvent tells Options.Event of CertMagic's two order endings. It never
+// refuses an event: an order goes on whatever the listener does with it.
+func (m *Manager) onEvent(_ context.Context, event string, data map[string]any) error {
+	if m.opts.Event == nil || (event != "cert_obtained" && event != "cert_failed") {
+		return nil
+	}
+	e := Event{}
+	e.Name, _ = data["identifier"].(string)
+	e.Renewal, _ = data["renewal"].(bool)
+	if event == "cert_failed" {
+		if e.Err, _ = data["error"].(error); e.Err == nil {
+			e.Err = errors.New("certs: the order failed")
+		}
+	}
+	m.opts.Event(e)
+	return nil
+}
+
+// Stored is a certificate as the store holds it.
+type Stored struct {
+	Issuer    string // the issuing CA's name
+	NotBefore time.Time
+	NotAfter  time.Time
+	RenewFrom time.Time // from then on, the next handshake for the name renews it
+}
+
+// Stored reads the certificate the store holds for name under the CA in use,
+// and orders nothing. ok is false when there is none yet.
+func (m *Manager) Stored(ctx context.Context, name string) (Stored, bool, error) {
+	raw, err := m.magic.Storage.Load(ctx, certmagic.StorageKeys.SiteCert(m.issuer.IssuerKey(), name))
+	if errors.Is(err, fs.ErrNotExist) {
+		return Stored{}, false, nil
+	}
+	if err != nil {
+		return Stored{}, false, err
+	}
+	block, _ := pem.Decode(raw)
+	if block == nil {
+		return Stored{}, false, errors.New("certs: the stored certificate is not PEM")
+	}
+	leaf, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return Stored{}, false, err
+	}
+	issuer := leaf.Issuer.CommonName
+	if len(leaf.Issuer.Organization) > 0 {
+		issuer = leaf.Issuer.Organization[0] + " " + issuer
+	}
+	life := leaf.NotAfter.Sub(leaf.NotBefore)
+	return Stored{Issuer: issuer, NotBefore: leaf.NotBefore, NotAfter: leaf.NotAfter,
+		RenewFrom: leaf.NotAfter.Add(-time.Duration(float64(life) * certmagic.DefaultRenewalWindowRatio))}, true, nil
 }
 
 // TLSConfig is the gate's TLS listener configuration. CertMagic's own offers
