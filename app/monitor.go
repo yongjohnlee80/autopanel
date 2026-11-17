@@ -281,6 +281,13 @@ func upstreamPort(upstream string) int {
 // AutoPanel's own when it is on one of the gate's two ports and its process is
 // the gate, or is not known: another program on port 443 is named as itself.
 func (m *sysModule) ports(ctx context.Context, _ struct{}) ([]Port, error) {
+	fw, err := m.firewallRead(ctx)
+	return m.portRows(ctx, fw, err)
+}
+
+// portRows are sys.ports' rows against fw, the firewall as read (fwErr when
+// it could not be).
+func (m *sysModule) portRows(ctx context.Context, fw sysinfo.Firewall, fwErr error) ([]Port, error) {
 	ls, err := m.listeners(ctx)
 	if err != nil {
 		return nil, err
@@ -331,7 +338,7 @@ func (m *sysModule) ports(ctx context.Context, _ struct{}) ([]Port, error) {
 		}
 		out = append(out, p)
 	}
-	return m.withFirewall(ctx, out), nil
+	return m.withFirewall(fw, fwErr, out), nil
 }
 
 // firewallRead is the firewall's read on this core: none in a development
@@ -349,8 +356,7 @@ const whyUnread = "firewall-unread"
 // withFirewall gives each port the firewall's verdict, and adds a row for
 // each allow rule no socket uses. A firewall that cannot be read makes every
 // verdict unknown, said as such: the panel never guesses.
-func (m *sysModule) withFirewall(ctx context.Context, ports []Port) []Port {
-	fw, err := m.firewallRead(ctx)
+func (m *sysModule) withFirewall(fw sysinfo.Firewall, err error, ports []Port) []Port {
 	if err != nil {
 		if !errors.Is(err, hostfirewall.ErrUnsupported) {
 			m.log.Warn("reading the firewall", "err", err)
