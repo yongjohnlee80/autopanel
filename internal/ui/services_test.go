@@ -685,3 +685,49 @@ func TestStackPortsFillTheUpstream(t *testing.T) {
 		t.Errorf("stackOfUpstream = %q", got)
 	}
 }
+
+// TestAReviewsPortsAreChosenBeforeTheApply: a port the stack publishes is a
+// row of its review. One the firewall blocks is ticked to be opened, and can
+// be left as it is; one AutoPanel cannot open here is given as commands. The
+// apply carries the ports left ticked.
+func TestAReviewsPortsAreChosenBeforeTheApply(t *testing.T) {
+	f := withStacks()
+	r := f.reviews["web"]
+	r.Firewall = []corefw.PortState{
+		{Key: "tcp/8443", Want: corefw.Want{Proto: "tcp", From: 8443, To: 8443}, Verdict: "blocked", Why: "default deny", Needs: true, Managed: true},
+		{Key: "udp/3478", Want: corefw.Want{Proto: "udp", From: 3478, To: 3478}, Verdict: "blocked", Needs: true, Commands: []string{"firewall-cmd --add-port=3478/udp"}},
+		{Key: "tcp/8080", Want: corefw.Want{Proto: "tcp", From: 8080, To: 8080}, Verdict: "allowed", By: "other", Managed: true},
+	}
+	f.reviews["web"] = r
+	s := start(t, f)
+	openStacks(t, s, "web*")
+	s.Keys(t, decltest.Rune('j'), decltest.Rune('j'), decltest.Rune('p'))
+	s.WaitForText(t, "Apply stack web: review")
+	for _, part := range []string{"[x] open it", "[!] by hand", "allowed already"} {
+		s.WaitForText(t, part)
+	}
+
+	s.Keys(t, decltest.Rune('j')) // the first port, after the one container
+	waitFact(t, s, "Port", "tcp/8443")
+	waitFact(t, s, "Firewall now", "blocked (default deny)")
+	waitFact(t, s, "Needs a rule", "yes")
+	s.WaitForText(t, "<server> 8443")
+	s.WaitForText(t, "Leave it as it is")
+	s.Keys(t, decltest.Rune('l'))
+	s.WaitForText(t, "[ ] leave it")
+	s.Keys(t, decltest.Rune('o'))
+	s.WaitForText(t, "[x] open it")
+
+	s.Keys(t, decltest.Rune('j')) // the port AutoPanel cannot open: its commands, and no tick
+	waitFact(t, s, "Port", "udp/3478")
+	s.WaitForText(t, "firewall-cmd --add-port=3478/udp")
+	s.Keys(t, decltest.Rune('y'))
+	s.WaitForText(t, "clipboard")
+
+	s.Keys(t, decltest.Rune('j')) // allowed by a rule that is not AutoPanel's: nothing to do
+	waitFact(t, s, "Rule made for", "a rule not AutoPanel's")
+
+	s.Keys(t, decltest.Rune('a'))
+	s.WaitForText(t, "web is applied")
+	same(t, "applies", f.asked().applies, []string{"apply web " + webSHA + " open tcp/8443"})
+}
