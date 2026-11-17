@@ -243,6 +243,29 @@ func applyAndCheck(t *testing.T, db dao.DataConn) {
 	if err := exec("INSERT INTO recovery_code(user_id, hash) SELECT id, '\\x03' FROM app_user WHERE name = 'root'"); err != nil {
 		t.Fatal(err)
 	}
+	// 000007: the rules AutoPanel created, each with its owner and state.
+	if err := exec("INSERT INTO firewall_rule(id, owner, rule, state, created_at) VALUES ('a1', 'mail', '{}', 'open', 0)"); err != nil {
+		t.Fatal(err)
+	}
+	if err := exec("INSERT INTO firewall_rule(id, owner, rule, state, created_at) VALUES ('a2', 'stack:chat', '{}', 'opening', 0)"); err != nil {
+		t.Fatal(err)
+	}
+	for what, q := range map[string]string{
+		"a rule twice":         "INSERT INTO firewall_rule(id, owner, rule, state, created_at) VALUES ('a1', 'mail', '{}', 'open', 0)",
+		"an owner of no kind":  "INSERT INTO firewall_rule(id, owner, rule, state, created_at) VALUES ('a3', 'admin', '{}', 'open', 0)",
+		"a stack with no name": "INSERT INTO firewall_rule(id, owner, rule, state, created_at) VALUES ('a4', 'stack:', '{}', 'open', 0)",
+		"a state of no kind":   "INSERT INTO firewall_rule(id, owner, rule, state, created_at) VALUES ('a5', 'mail', '{}', 'shut', 0)",
+	} {
+		if err := exec(q); err == nil {
+			t.Errorf("the store accepted %s", what)
+		}
+	}
+	if name, err := deployments.Runner().Revert(ctx, db, 7); err != nil {
+		t.Fatalf("reverting 000007 = %q, %v", name, err)
+	}
+	if err := exec("SELECT owner FROM firewall_rule"); err == nil {
+		t.Fatal("the firewall_rule table outlived its revert")
+	}
 	if name, err := deployments.Runner().Revert(ctx, db, 6); err != nil {
 		t.Fatalf("reverting 000006 = %q, %v", name, err)
 	}
