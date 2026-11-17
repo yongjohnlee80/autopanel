@@ -1,12 +1,13 @@
 # AutoPanel
 
 A lightweight control plane for self-hosted web services, written in Go: a reverse-proxy gate with
-automatic TLS certificates first, with mail, storage and container deploys planned to follow.
+automatic TLS certificates, your own services as compose stacks under rootless Podman, and mail
+with Stalwart, all run from one terminal panel.
 
-**Status: early.** The first slice runs: the proxy gate, automatic certificates, the control socket,
-an admin TUI and an installer, stacks under rootless Podman, and mail with Stalwart. Its interfaces
-will change before the beta. Decisions
-are recorded under [docs/decisions](docs/decisions/README.md) as they are made.
+**Status: early, and in daily use on a real server.** It serves sites over HTTPS with certificates
+it obtains itself, runs stacks, and sends and receives mail that passes SPF, DKIM and DMARC. Its
+interfaces will change before the beta (v0.3.0). [Progress](#progress) lists what is built and what
+is next. Decisions are recorded under [docs/decisions](docs/decisions/README.md) as they are made.
 
 ## Install
 
@@ -121,10 +122,10 @@ every key. `r` reads the screen again and `q` quits.
 | --- | --- |
 | System | **Metrics**, **Audit log**, **Login attempts**, **Open ports**, **Firewall**, **Host checks**; **Theme** and **Language** |
 | Routes | **Proxy routes**: the names AutoPanel serves and where each goes; **Domains**: the domains you own |
-| Certs | **Certificates**: each name's certificate, when it expires and why its last order failed; **Type**: which Let's Encrypt service issues them, staging or production; **Cloudflare token** |
+| Certs | **Certificates**: each name's certificate, when it expires and why its last order failed; **Type**: which Let's Encrypt service issues them, staging or production; **Cloudflare token**: lets AutoPanel write DNS records |
 | Services | **Stacks** and **Add a stack**: your services, below |
 | Mail | **Set up mail**, **Domains**, **Accounts**, **Server**: mail with Stalwart, below |
-| Users | not built yet; its row is greyed out |
+| Users | **Manage users**, **Passphrase**, **Two-factor**, **API tokens**, below |
 | Go | **Terminal**: shells on the server, a tab each |
 | View | the widgets, the status bar, and the layout |
 | Help | **Keys** and **About** |
@@ -364,8 +365,11 @@ AutoPanel runs [Stalwart](https://stalw.art) as a stack of its own, behind the g
 25, 465, 587 and 993 and forwards each connection to Stalwart with a PROXY header, so Stalwart sees
 each client's real address. Every key and setting of mail is sealed under the master key, and DKIM
 keys rotate by themselves. The DNS records mail needs are published and kept for you when the
-domain's DNS is at Cloudflare; anywhere else, the panel lists them for you to enter. See
-[docs/decisions/mail.md](docs/decisions/mail.md).
+domain's DNS is at Cloudflare; anywhere else, the panel lists them for you to enter.
+
+**[MAIL.md](MAIL.md) is the full guide:** every Mail screen and key, taking over DNS records a
+domain already has, setting up a mail app, checking from outside, and troubleshooting. The reasons
+behind the design are in [docs/decisions/mail.md](docs/decisions/mail.md).
 
 **Before you start:**
 
@@ -660,14 +664,36 @@ sudo autopanel-uninstall --purge     # removes everything, after backing the sto
 A deployed service is stopped by `--apply`, and its user and directory are deleted by `--purge`.
 `--keep-services` leaves the deployed services running, with their users and directories.
 
-## Planned first features
+## Progress
 
-1. **A proxy gate:** a reverse proxy whose routes can change without dropping requests in flight.
-2. **Certificates:** ACME (Let's Encrypt, ZeroSSL), including DNS-01 for wildcard certificates.
-3. **Authentication** for the panel and its API: users with roles, a second factor, login limits
-   and scoped API tokens (done for the console; the HTTPS surface brings cookie sessions and
-   passkeys).
-4. **An internal store:** SQLite by default, with PostgreSQL as an option.
+**Built and released** (v0.2.11):
+
+| Area | What works |
+| --- | --- |
+| Proxy gate | routes by host and path, changed without a restart; a request in flight finishes on the route it started with. HTTP/2, WebSocket upgrades, streamed answers and large uploads pass through. Behind Cloudflare, the client's address is believed only from Cloudflare's ranges |
+| Certificates | Let's Encrypt, staging or production, by HTTP-01 and TLS-ALPN-01, or by DNS-01 with a Cloudflare token. Kept in the store. A name no route holds gets no certificate |
+| Two processes | a sandboxed gate that faces the network, and a core that listens on no network and holds the store and the keys. The gate keeps serving while the core restarts |
+| Store | SQLite by default, PostgreSQL as an option; migrations for both, tested on both |
+| Users | four roles, two-factor codes with recovery codes, lockout after failed logins, API tokens for scripts |
+| Stacks | a compose file, reviewed before it runs, under rootless Podman as a user of its own |
+| Mail | Stalwart behind the gate; DNS records published and kept through Cloudflare, or listed to enter by hand; DKIM keys rotated; app passwords per device. See [MAIL.md](MAIL.md) |
+| Monitoring | metrics, the audit log, login attempts, open ports and who holds them |
+| Panel | a terminal UI over SSH: menus, movable panels, a dashboard, shells in tabs, themes, six languages |
+| Install | one line, from a release with its checksum verified; upgrade and uninstall scripts |
+
+**In progress:**
+
+1. **The server's firewall** from the panel (ufw first, then firewalld): what is allowed and why,
+   a guard against locking yourself out of SSH, ports opened for mail and for stacks, and host
+   checks.
+2. Tests that prove the gate's promises under load.
+
+**Next:**
+
+1. A public HTTPS surface for the panel and its API, with cookie sessions and passkeys.
+2. Port forwarding (TCP and UDP) through the gate.
+3. Certificate expiry and renewals shown in the panel; health checks per upstream.
+4. For mail: webmail, aliases and forwarding from the panel, and repairing a broken setup.
 
 ## Design principles
 
