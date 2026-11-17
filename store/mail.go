@@ -55,6 +55,18 @@ func (ms mailStore) Create(ctx context.Context, host, firstDomain string) error 
 	})
 }
 
+// Drop drops mail's rows, whatever its state: mail.remove's last step.
+func (ms mailStore) Drop(ctx context.Context) error {
+	return ms.s.tx(ctx, func(tx dao.TxConn) error {
+		for _, table := range []string{"mail_dkim", "mail_record", "mail_domain", "mail"} {
+			if _, err := tx.ExecContext(ctx, "DELETE FROM "+table); err != nil {
+				return err
+			}
+		}
+		return ms.audit(ctx, tx, "mail.remove", "mail")
+	})
+}
+
 func (ms mailStore) Forget(ctx context.Context) error {
 	return ms.s.tx(ctx, func(tx dao.TxConn) error {
 		var host string

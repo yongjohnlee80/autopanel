@@ -122,10 +122,16 @@ func TestHostChecksOnTheFirewallsState(t *testing.T) {
 		}
 	}
 	m := checkModule(sysinfo.Firewall{}, errors.New("unreadable"), nil)
-	m.moreChecks = func(context.Context) []Check {
+	m.moreChecks = func(context.Context, sysinfo.Firewall) []Check {
 		return []Check{{ID: "cert-expiring", Severity: notice, Detail: "example.com"}}
 	}
+	if got, _ := m.checks(ctx, struct{}{}); len(got) != 0 {
+		t.Errorf("an unreadable firewall gives the others nothing to judge: %q", ids(got))
+	}
+	m.firewall = func(context.Context) (sysinfo.Firewall, error) {
+		return sysinfo.Firewall{Manager: "unknown", Active: true}, nil
+	}
 	if got, _ := m.checks(ctx, struct{}{}); !reflect.DeepEqual(ids(got), []string{"cert-expiring=example.com"}) {
-		t.Errorf("unreadable firewall, one more check: %q", ids(got))
+		t.Errorf("one more check: %q", ids(got))
 	}
 }

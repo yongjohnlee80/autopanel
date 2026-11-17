@@ -111,8 +111,8 @@ func (m *sysModule) checks(ctx context.Context, _ struct{}) ([]Check, error) {
 	if sshdSays(ctx, "passwordauthentication", "yes") {
 		add("ssh-password", alert, "")
 	}
-	if m.moreChecks != nil {
-		out = append(out, m.moreChecks(ctx)...)
+	if m.moreChecks != nil && fwErr == nil {
+		out = append(out, m.moreChecks(ctx, fw)...)
 	}
 	sort.SliceStable(out, func(i, j int) bool { return out[i].Severity == alert && out[j].Severity != alert })
 	return out, nil

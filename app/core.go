@@ -271,13 +271,16 @@ func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateContr
 	sw.also = mailMod.IsHost // the mail host has a certificate, though no route names it
 	// The firewall: one lock for every change, and what a change left when
 	// the core stopped in it settled before anything else changes it.
-	fwm := corefw.New(firewallHost(), st, readListeners, firewallUses(cfg), log)
+	mailOn := func(ctx context.Context) bool { _, ok, _ := st.Mail().State(ctx); return ok }
+	fwm := corefw.New(firewallHost(), st, readListeners, firewallUses(cfg, mailOn, st.Services()), log)
 	if err := fwm.Settle(ctx); err != nil {
 		log.Warn("firewall: settling what an earlier change left", "err", err)
 	}
-	svcs.SetFirewall(fwm) // a stack's apply opens the ports it chose; its removal closes them
+	svcs.SetFirewall(fwm)    // a stack's apply opens the ports it chose; its removal closes them
+	mailMod.SetFirewall(fwm) // mail's set-up opens its four ports; mail.remove closes them
 	sys := &sysModule{cfg: cfg, sampler: sysinfo.NewSampler(), table: table, engine: st.Engine(), started: time.Now(), challenge: sw.Challenge, ca: sw.CA,
-		st: st, log: log, counts: counts, listeners: readListeners, sshLogins: readSSHLogins, firewall: fwm.Read, gate: gc, serviceUsers: svcs.Users}
+		st: st, log: log, counts: counts, listeners: readListeners, sshLogins: readSSHLogins, firewall: fwm.Read, gate: gc, serviceUsers: svcs.Users,
+		moreChecks: ownerChecks(mailOn, st.Services(), st)}
 	am, err := auth.New(st.Users(), st, st, vault, func(ctx context.Context) {
 		if err := sw.rebuild(ctx); err != nil {
 			log.Error("certificates after unlock", "err", err)
