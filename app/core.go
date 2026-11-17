@@ -269,7 +269,7 @@ func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateContr
 	mailMod.SetCerts(mailCerts{sw: sw})
 	sw.also = mailMod.IsHost // the mail host has a certificate, though no route names it
 	sys := &sysModule{cfg: cfg, sampler: sysinfo.NewSampler(), table: table, engine: st.Engine(), started: time.Now(), challenge: sw.Challenge, ca: sw.CA,
-		st: st, log: log, counts: counts, listeners: readListeners, sshLogins: readSSHLogins, gate: gc, serviceUsers: svcs.Users}
+		st: st, log: log, counts: counts, listeners: readListeners, sshLogins: readSSHLogins, firewall: readFirewall, gate: gc, serviceUsers: svcs.Users}
 	am, err := auth.New(st.Users(), st, st, vault, func(ctx context.Context) {
 		if err := sw.rebuild(ctx); err != nil {
 			log.Error("certificates after unlock", "err", err)

@@ -14,6 +14,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	hostfirewall "github.com/yongjohnlee80/autopanel/host/firewall"
 	hostgate "github.com/yongjohnlee80/autopanel/host/gate"
 	"github.com/yongjohnlee80/autopanel/internal/module"
 	"github.com/yongjohnlee80/autopanel/internal/sysinfo"
@@ -30,6 +31,7 @@ import (
 var (
 	readListeners = sysinfo.Listeners
 	readSSHLogins = sysinfo.SSHLogins
+	readFirewall  = func(ctx context.Context) (sysinfo.Firewall, error) { return hostfirewall.New().Read(ctx) }
 )
 
 // counters are what the gate last reported over the link (link.report): its
@@ -133,6 +135,15 @@ type Port struct {
 	PID     int    `json:"pid"`     // 0 when the host does not say
 	User    string `json:"user"`    // the user it belongs to; "" when the host does not say
 	Use     string `json:"use"`
+	// What the host's firewall does to a new connection from anywhere: one
+	// of sysinfo's verdicts. Why names the sources, addresses or interface of
+	// a "limited", the reason of an "unknown", and the rule of a "rule:
+	// nothing listens" row, which is an allow rule no socket uses.
+	//
+	// Decision: docs/decisions/firewall.md#verdicts
+	Firewall string `json:"firewall"`
+	Why      string `json:"why"`
+	To       int    `json:"to,omitempty"` // a stale rule's last port, when it is a range
 }
 
 // Prefs are the panel's preferences, kept in the store so every panel on this
@@ -320,7 +331,85 @@ func (m *sysModule) ports(ctx context.Context, _ struct{}) ([]Port, error) {
 		}
 		out = append(out, p)
 	}
-	return out, nil
+	return m.withFirewall(ctx, out), nil
+}
+
+// firewallRead is the firewall's read on this core: none in a development
+// run, which every port then reads as unknown.
+func (m *sysModule) firewallRead(ctx context.Context) (sysinfo.Firewall, error) {
+	if m.firewall == nil {
+		return sysinfo.Firewall{}, hostfirewall.ErrUnsupported
+	}
+	return m.firewall(ctx)
+}
+
+// whyUnread is a port's why when the firewall could not be read at all.
+const whyUnread = "firewall-unread"
+
+// withFirewall gives each port the firewall's verdict, and adds a row for
+// each allow rule no socket uses. A firewall that cannot be read makes every
+// verdict unknown, said as such: the panel never guesses.
+func (m *sysModule) withFirewall(ctx context.Context, ports []Port) []Port {
+	fw, err := m.firewallRead(ctx)
+	if err != nil {
+		if !errors.Is(err, hostfirewall.ErrUnsupported) {
+			m.log.Warn("reading the firewall", "err", err)
+		}
+		for i := range ports {
+			ports[i].Firewall, ports[i].Why = sysinfo.VerdictUnknown, whyUnread
+		}
+		return ports
+	}
+	for i, p := range ports {
+		addr, err := netip.ParseAddr(p.Address)
+		switch {
+		case err != nil:
+			ports[i].Firewall, ports[i].Why = sysinfo.VerdictUnknown, whyUnread
+		case p.Process == "docker-proxy" && !addr.IsLoopback():
+			ports[i].Firewall, ports[i].Why = sysinfo.VerdictUnknown, sysinfo.LimitDocker // Docker filters what it publishes itself
+		default:
+			ports[i].Firewall, ports[i].Why = fw.Verdict(p.Proto, addr, p.Port)
+		}
+	}
+	return append(ports, staleRules(fw, ports)...)
+}
+
+// staleRules are fw's incoming allow rules that no listening socket uses: a
+// rule for a port or a range that nothing listens on, of its protocol and at
+// its address. They are stale rules, not a claim that the port is reachable.
+func staleRules(fw sysinfo.Firewall, ports []Port) []Port {
+	var out []Port
+	for _, r := range fw.Rules {
+		if !r.Modelled || r.Direction != "in" || r.From == 0 || (r.Action != "allow" && r.Action != "limit") {
+			continue
+		}
+		used := false
+		for _, p := range ports {
+			addr, err := netip.ParseAddr(p.Address)
+			if err != nil || (r.Proto != "" && r.Proto != p.Proto) || p.Port < r.From || p.Port > r.To {
+				continue
+			}
+			if r.Dest == "" || addr.IsUnspecified() || sysinfo.NormalAddr(p.Address) == r.Dest || prefixHolds(r.Dest, addr) {
+				used = true
+				break
+			}
+		}
+		if used {
+			continue
+		}
+		row := Port{Proto: r.Proto, Address: r.Dest, Port: r.From, Use: r.By, Firewall: sysinfo.VerdictStale, Why: r.Raw}
+		if r.To != r.From {
+			row.To = r.To
+		}
+		out = append(out, row)
+	}
+	return out
+}
+
+// prefixHolds reports whether the prefix s holds addr.
+func prefixHolds(s string, addr netip.Addr) bool {
+	p, err := netip.ParsePrefix(s)
+	return err == nil && p.Contains(addr.Unmap())
 }
 
 func (m *sysModule) prefs(ctx context.Context, _ struct{}) (Prefs, error) {
@@ -383,7 +472,7 @@ func (m *sysModule) monitorVerbs() []module.Verb {
 			Doc: "The newest audit entries, newest first: 200 unless limit says, 1000 at most. outcome is set on a privileged action's entry: attempt until it ends, then ok or the error's name."}, m.auditLog),
 		module.Handle(module.Contract{Verb: "sys.logins", Since: 1, Param: "{limit?}", Result: "{attempts: [{at, source, user, from, result, detail}], ssh_note}",
 			Doc: "Login attempts, newest first: to the panel, from the audit log, and to the host over SSH, from the journal. ssh_note says why when the journal could not be read."}, m.logins),
-		module.Handle(module.Contract{Verb: "sys.ports", Discloses: module.Plain, Since: 1, Result: "[{proto, address, port, process, pid, user, use}]",
+		module.Handle(module.Contract{Verb: "sys.ports", Discloses: module.Plain, Since: 1, Result: "[{proto, address, port, process, pid, user, use, firewall, why, to?}]",
 			Doc: "The host's listening TCP sockets and bound UDP sockets, each with the process and the user that hold it when the host says. use names AutoPanel's own, a route's upstream, or, for a socket whose process is not known, the port's usual service."}, m.ports),
 		module.Handle(module.Contract{Verb: "sys.prefs.get", Discloses: module.Plain, Since: 1, Result: "{theme, language}",
 			Doc: "The panel's preferences; an empty one was never chosen."}, m.prefs),
