@@ -84,6 +84,7 @@ PASSFILE=""
 START=1
 PODMAN=1
 RESTART=always
+FIREWALL=""       # --firewall yes|no|ask; a first install asks, an upgrade leaves the firewall alone
 
 say()  { printf '%s\n' "$*"; }
 info() { printf '  %s\n' "$*"; }
@@ -115,6 +116,10 @@ OPTIONS:
                            on-failure: only after a crash;  no: never restart on its own
   --no-start               Install and initialize, but don't start the services
   --no-podman              Don't install Podman. Stacks answer services.no_podman until the host has it
+  --firewall yes|no|ask    On a host with no firewall on: install ufw (firewalld with dnf) if none is,
+                           allow SSH and the gate's ports, and turn it on. A first install asks
+                           (Enter is yes); with no terminal, or on an upgrade, the answer is no
+                           unless this says yes. A firewall that is on is never changed
   -h, --help               This text
 USAGE
 }
@@ -133,6 +138,7 @@ while [ $# -gt 0 ]; do
     --restart) RESTART=${2:?}; shift 2 ;;
     --no-start) START=0; shift ;;
     --no-podman) PODMAN=0; shift ;;
+    --firewall) FIREWALL=${2:?}; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) usage >&2; die "unknown option: $1" ;;
   esac
@@ -148,6 +154,7 @@ case "$RELEASE" in *[!A-Za-z0-9._-]*) die "--version is a release tag such as v0
 [ -z "$BINARY" ] || [ "$FROM$RELEASE" = autolatest ] || die "--binary can't be combined with --version or --source"
 case "$CA" in ""|staging|production) ;; *) die "--ca is staging or production" ;; esac
 case "$RESTART" in always|on-failure|no) ;; *) die "--restart is always, on-failure or no" ;; esac
+case "$FIREWALL" in ""|yes|no|ask) ;; *) die "--firewall is yes, no or ask" ;; esac
 
 # What a first install needs is checked here, before anything is changed: a
 # refused install leaves the host as it was.
@@ -215,6 +222,29 @@ if [ ! -f "$ENV_FILE" ] && [ -z "$CA" ]; then
     ask_ca
   else
     CA=staging # no terminal to ask on: the safe one, and the closing lines say so
+  fi
+fi
+# The firewall: asked on a first install, before anything changes, and only
+# when no firewall is on. A firewall that is on is the administrator's.
+firewall_on() {
+  { command -v ufw >/dev/null 2>&1 && LC_ALL=C ufw status 2>/dev/null | grep -q '^Status: active'; } ||
+    { command -v firewall-cmd >/dev/null 2>&1 && [ "$(firewall-cmd --state 2>/dev/null)" = running ]; }
+}
+port_of() { printf '%s' "${1##*:}"; }
+ask_firewall() {
+  printf '\nNo firewall is on. Turn one on, allowing only SSH and the panel'"'"'s ports (%s, %s)?\n' \
+    "$(port_of "$HTTP_ADDR")" "$(port_of "$HTTPS_ADDR")" >/dev/tty
+  printf '  System → Firewall changes it later. [Y/n] ' >/dev/tty
+  IFS= read -r answer </dev/tty || answer=n
+  case "$answer" in ""|y|Y|yes|Yes) FIREWALL=yes ;; *) FIREWALL=no ;; esac
+}
+if [ -z "$FIREWALL" ] || [ "$FIREWALL" = ask ]; then
+  if firewall_on; then
+    FIREWALL=no
+  elif [ "$FIREWALL" = ask ] || [ ! -f "$ENV_FILE" ]; then
+    if have_tty; then ask_firewall; else FIREWALL=no; fi
+  else
+    FIREWALL=no # an upgrade never touches the firewall unless asked
   fi
 fi
 if [ ! -f "$KEYFILE" ]; then
@@ -485,6 +515,30 @@ if [ "$PODMAN" -eq 1 ]; then
   ensure_podman
 else
   info "Podman was not installed (--no-podman)"
+fi
+
+# --- 3c. the firewall -------------------------------------------------------------
+
+# The step is the binary's (--firewall-setup): it finds SSH's ports the way
+# the panel's lockout guard does, allows them and the gate's, and turns the
+# firewall on; any step that fails takes back what it made and leaves it off.
+# Only the package is the installer's: the distribution's own manager.
+firewall_step() {
+  if ! command -v ufw >/dev/null 2>&1 && ! command -v firewall-cmd >/dev/null 2>&1; then
+    if command -v dnf >/dev/null 2>&1; then pkg=firewalld; else pkg=ufw; fi
+    say "Installing $pkg, the firewall"
+    if ! pkg_install "$pkg"; then
+      warn "$pkg could not be installed; no firewall was turned on"
+      return 0
+    fi
+  fi
+  say "Turning the firewall on"
+  if ! "$PREFIX_BIN/autopanel" --firewall-setup --ports "$(port_of "$HTTP_ADDR"),$(port_of "$HTTPS_ADDR")"; then
+    warn "the firewall was left off; System → Firewall turns it on once AutoPanel runs"
+  fi
+}
+if [ "$FIREWALL" = yes ]; then
+  firewall_step
 fi
 
 # --- 4. the root user and the master key -------------------------------------

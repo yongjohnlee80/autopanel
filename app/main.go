@@ -40,6 +40,9 @@ const usage = `usage:
                                     the same, logged in with the API token the file holds (0600, the caller's own)
   autopanel --ui                    open the admin TUI on the running core
   autopanel --contracts             print every verb's contract (no daemon needed)
+  autopanel --firewall-setup --ports 80,443
+                                    install.sh's firewall step: on a host where no firewall is on, allow SSH
+                                    and these ports, then turn it on
   autopanel --version
 `
 
@@ -102,6 +105,8 @@ func Main(args []string, stdout, stderr io.Writer) int {
 		return call(args[1], args[2:], tokenFile, stdout, stderr)
 	case "--ui":
 		return runUI(stderr)
+	case "--firewall-setup":
+		return firewallSetup(args[1:], stdout, stderr)
 	default:
 		fmt.Fprint(stderr, usage)
 		return 2
