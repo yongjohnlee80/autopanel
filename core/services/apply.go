@@ -170,6 +170,12 @@ func (m *Module) check(ctx context.Context, r Ref) (Review, error) {
 	return m.checkDraft(ctx, r.Name, nil)
 }
 
+// Check is services.check for another module: the review of name's
+// definition as it is written, registered or not.
+func (m *Module) Check(ctx context.Context, name string) (Review, error) {
+	return m.check(ctx, Ref{Name: name})
+}
+
 // CheckDraft reviews compose as name's definition without writing it where
 // it takes effect: a stack AutoPanel makes (mail) is reviewed from memory,
 // and its definition is written only when the administrator applies it. The

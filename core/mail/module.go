@@ -13,6 +13,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	corefw "github.com/yongjohnlee80/autopanel/core/firewall"
 	"github.com/yongjohnlee80/autopanel/core/gate"
 	"github.com/yongjohnlee80/autopanel/core/mail/provider"
 	"github.com/yongjohnlee80/autopanel/core/services"
@@ -34,6 +35,9 @@ type Store interface {
 	// domains: what a v0.2.6 setup left when its review was quit. ErrSetUp
 	// once Stalwart has taken it.
 	Forget(ctx context.Context) error
+	// Drop drops mail's record, its domains, records and DKIM rows, whatever
+	// its state: mail.remove's last step.
+	Drop(ctx context.Context) error
 	SetBootstrapped(ctx context.Context, at int64) error
 	Domains(ctx context.Context) ([]string, error)
 	AddDomain(ctx context.Context, name string) error
@@ -72,6 +76,46 @@ type Stacks interface {
 	// applies the stack written since, given the review's sha256.
 	CheckDraft(ctx context.Context, name string, compose []byte) (services.Review, error)
 	Add(ctx context.Context, name, accept string) error
+	// Check reviews the registered stack's definition as it is written: a
+	// set-up that failed after its stack was added is resumed from it.
+	Check(ctx context.Context, name string) (services.Review, error)
+	// RemoveOwned removes the stack, for mail.remove.
+	RemoveOwned(ctx context.Context, name string, purge bool) error
+}
+
+// Firewall is the core's firewall as mail, an owner of rules, uses it: the
+// gate's mail ports are mail's.
+//
+// Decision: docs/decisions/firewall.md#mails-ports
+type Firewall interface {
+	Review(ctx context.Context, owner string, wants []corefw.Want) ([]corefw.PortState, error)
+	Open(ctx context.Context, owner string, wants []corefw.Want) error
+	Close(ctx context.Context, owner string, wants []corefw.Want) error
+}
+
+// SetFirewall gives mail the firewall. It is set once, before the verbs are
+// served.
+func (m *Module) SetFirewall(f Firewall) { m.firewall = f }
+
+// wants are the firewall openings of public mail ports: all of them for nil.
+func wants(ports []int) ([]corefw.Want, error) {
+	if ports == nil {
+		for _, p := range Ports {
+			ports = append(ports, p.Public)
+		}
+	}
+	var out []corefw.Want
+	for _, n := range ports {
+		ok := false
+		for _, p := range Ports {
+			ok = ok || p.Public == n
+		}
+		if !ok {
+			return nil, ErrNotMailPort
+		}
+		out = append(out, corefw.Want{Proto: "tcp", From: n, To: n})
+	}
+	return out, nil
 }
 
 // Host is the machine side of mail (host/mail).
@@ -140,6 +184,9 @@ var (
 	ErrDomainExists      = errors.New("mail: the domain receives mail already")
 	ErrNoDomain          = errors.New("mail: the domain does not receive mail")
 	ErrDomainHasAccounts = errors.New("mail: the domain has accounts")
+	ErrNotMailPort       = errors.New("mail: a port to open is not one of mail's")
+	ErrNotOurs           = errors.New("mail: the mail stack's definition is not AutoPanel's")
+	ErrHasAccounts       = errors.New("mail: mail still has accounts")
 	ErrBadAddress        = errors.New("mail: not a mail address of a mail domain")
 	ErrNoAccount         = errors.New("mail: no such account")
 	ErrAccountExists     = errors.New("mail: the account exists")
@@ -165,6 +212,7 @@ type Module struct {
 	registry Registry
 	stacks   Stacks
 	host     Host
+	firewall Firewall         // nil: this core drives no firewall
 	product  provider.Product // the mail server: its stack, its first start, its API
 	streams  Streams
 	log      *slog.Logger
@@ -243,6 +291,9 @@ func (m *Module) Errors() []module.PublicError {
 		{Err: ErrDomainExists, Code: -32137, Name: "mail.domain_exists", Message: "the domain receives mail already"},
 		{Err: ErrNoDomain, Code: -32138, Name: "mail.no_domain", Message: "the domain does not receive mail"},
 		{Err: ErrDomainHasAccounts, Code: -32139, Name: "mail.domain_has_accounts", Message: "the domain has accounts: remove them first"},
+		{Err: ErrNotMailPort, Code: -32215, Name: "mail.not_mail_port", Message: "a port to open is not one of mail's (25, 465, 587, 993)"},
+		{Err: ErrNotOurs, Code: -32216, Name: "mail.not_ours", Message: "the mail stack's definition is not AutoPanel's: Mail cannot go on from it"},
+		{Err: ErrHasAccounts, Code: -32217, Name: "mail.has_accounts", Message: "mail still has accounts: remove them first"},
 		{Err: ErrBadAddress, Code: -32140, Name: "mail.bad_address", Message: "an address is a local part (letters, digits, . _ + -) and a domain that receives mail"},
 		{Err: ErrNoAccount, Code: -32141, Name: "mail.no_account", Message: "no such account"},
 		{Err: ErrAccountExists, Code: -32142, Name: "mail.account_exists", Message: "that account exists"},
@@ -271,12 +322,16 @@ func adminChange(verb, param, doc string) module.Contract {
 
 func (m *Module) Verbs() []module.Verb {
 	return []module.Verb{
-		module.Handle(module.Contract{Verb: "mail.status", Discloses: module.Plain, Since: 6, Result: "{set_up, host, bootstrapped, stack, step, error, at, loopback, domains}",
+		module.Handle(module.Contract{Verb: "mail.status", Discloses: module.Plain, Since: 6, Result: "{set_up, host, bootstrapped, stack, step, error, at, loopback, domains, ports: [{key, verdict, why, needs, by, managed, commands}]}",
 			Doc: "Whether mail is set up, how far the mail server's setting up got, the mail stack's state, the loopback rule's, and the mail domains."}, m.status),
 		module.Handle(adminChange("mail.setup", "{host, domain}",
 			"Answers the review of the mail stack (the mail server, pinned) for this host and first domain, and holds the answers until mail.setup.apply. It writes nothing: a setup left here leaves no trace, and may be asked again."), m.setup),
-		module.Handle(adminChange("mail.setup.apply", "{accept}",
-			"Applies the setup mail.setup reviewed, as one transaction: the stack's user, the loopback rule, its definition, the stack added and started, then the record of the host and first domain. A step that fails undoes the ones before it; the stack's own apply, once begun, is finished by asking again. Refused unless accept is the review's sha256."), m.apply),
+		module.Handle(adminChange("mail.setup.apply", "{accept, open?: [port]}",
+			"Applies the setup mail.setup reviewed, as one transaction: the stack's user, the loopback rule, its definition, the stack added and started, the ports chosen opened in the firewall, then the record of the host and first domain. A step that fails undoes the ones before it; the stack's own apply, once begun, is finished by asking again. Refused unless accept is the review's sha256."), m.apply),
+		module.Handle(adminChange("mail.ports.open", "{ports: [port]}",
+			"Opens mail's public ports in the firewall, as mail's: for a host where they were not opened at set-up. Closes nothing."), m.portsOpen),
+		module.Handle(adminChange("mail.remove", "{purge?}",
+			"Removes mail: its ports closed (each through the lockout guard), its stack (with purge, its mailboxes too), the loopback rule, the definition, the DNS records AutoPanel published, and its record. Refused while it has accounts. A step that fails says which; asking again finishes."), m.remove),
 		module.Handle(module.Contract{Verb: "mail.domain.list", Discloses: module.Plain, Since: 6, Result: "[{name}]", Doc: "The domains that receive mail."}, m.domainList),
 		module.Handle(change("mail.domain.add", "{name}", "Has a registry domain receive mail."), m.domainAdd),
 		module.Handle(change("mail.domain.remove", "{name}", "Stops a domain receiving mail; refused while it has accounts."), m.domainRemove),
@@ -362,8 +417,11 @@ type Status struct {
 	Stack        string   `json:"stack"`
 	Domains      []string `json:"domains"`
 	Certificate  string   `json:"certificate"` // the mail host's, as Stalwart serves it
-	SyncedAt     int64    `json:"synced_at"`   // the last DNS and certificate pass
-	SyncErrors   []string `json:"sync_errors"`
+	// Ports are mail's public ports, each with the firewall's verdict, who
+	// allowed it, and the commands when AutoPanel will not open it.
+	Ports      []corefw.PortState `json:"ports"`
+	SyncedAt   int64              `json:"synced_at"` // the last DNS and certificate pass
+	SyncErrors []string           `json:"sync_errors"`
 	Progress
 }
 
@@ -385,6 +443,13 @@ func (m *Module) status(ctx context.Context, _ struct{}) (Status, error) {
 	if out.Domains, err = m.store.Domains(ctx); err != nil {
 		return Status{}, err
 	}
+	out.Ports = []corefw.PortState{}
+	if m.firewall != nil {
+		all, _ := wants(nil)
+		if ports, err := m.firewall.Review(ctx, corefw.OwnerMail, all); err == nil {
+			out.Ports = ports
+		}
+	}
 	last := m.lastSync()
 	out.Certificate, out.SyncedAt, out.SyncErrors = last.Certificate, last.At, last.Errors
 	if out.SyncErrors == nil {
@@ -405,11 +470,25 @@ type Setup struct {
 	Stack  string          `json:"stack"`
 	SHA256 string          `json:"sha256"` // the review's: what mail.setup.apply must be given
 	Review services.Review `json:"review"`
+	// Ports are mail's four public ports, each with the firewall's verdict and
+	// whether it needs a rule: the ones to tick are those that need one.
+	Ports []corefw.PortState `json:"ports"`
 }
 
 // Accept is mail.setup.apply's param.
 type Accept struct {
 	Accept string `json:"accept"`
+	Open   []int  `json:"open,omitempty"` // public ports to open in the firewall, of the review's
+}
+
+// Ports is mail.ports.open's param.
+type PortsAsk struct {
+	Ports []int `json:"ports"`
+}
+
+// RemoveAsk is mail.remove's param.
+type RemoveAsk struct {
+	Purge bool `json:"purge,omitempty"` // also the stack's data: its mailboxes
 }
 
 // setup checks the answers and reviews the mail stack from memory. It writes
@@ -452,12 +531,37 @@ func (m *Module) setup(ctx context.Context, p SetupAsk) (Setup, error) {
 			return Setup{}, err
 		}
 	}
-	rev, err := m.stacks.CheckDraft(ctx, Stack, m.compose())
+	// A set-up that failed after its stack was added left the stack
+	// registered and mail not recorded: it is reviewed from the definition
+	// written, and the apply goes on from the steps done.
+	var rev services.Review
+	if _, _, upErr := m.stacks.Up(ctx, Stack); errors.Is(upErr, services.ErrNotFound) {
+		rev, err = m.stacks.CheckDraft(ctx, Stack, m.compose())
+	} else if rev, err = m.stacks.Check(ctx, Stack); err == nil && refused(rev.Findings) {
+		return Setup{}, ErrNotOurs
+	}
 	if err != nil {
 		return Setup{}, err
 	}
+	out := Setup{Stack: Stack, SHA256: rev.SHA256, Review: rev, Ports: []corefw.PortState{}}
+	if m.firewall != nil {
+		all, _ := wants(nil)
+		if out.Ports, err = m.firewall.Review(ctx, corefw.OwnerMail, all); err != nil {
+			return Setup{}, err
+		}
+	}
 	m.pending = &pendingSetup{host: host, domain: domain, accept: rev.SHA256}
-	return Setup{Stack: Stack, SHA256: rev.SHA256, Review: rev}, nil
+	return out, nil
+}
+
+// refused reports whether a review refuses the stack.
+func refused(fs []services.Finding) bool {
+	for _, f := range fs {
+		if f.Severity == services.Refused {
+			return true
+		}
+	}
+	return false
 }
 
 // apply makes the setup setup reviewed, as one transaction. Every write is
@@ -479,6 +583,13 @@ func (m *Module) apply(ctx context.Context, p Accept) (Setup, error) {
 	}
 	if p.Accept != pend.accept {
 		return Setup{}, ErrChanged
+	}
+	var open []corefw.Want
+	if p.Open != nil {
+		var err error
+		if open, err = wants(p.Open); err != nil {
+			return Setup{}, err
+		}
 	}
 	if _, recorded, err := m.store.State(ctx); err != nil {
 		return Setup{}, err
@@ -522,6 +633,13 @@ func (m *Module) apply(ctx context.Context, p Accept) (Setup, error) {
 	undo = append(undo, m.host.RemoveDefinition)
 	if err := m.stacks.Add(ctx, Stack, pend.accept); err != nil && !errors.Is(err, services.ErrDuplicate) {
 		return fail(err)
+	}
+	// Mail's ports, after its stack and before the record that makes mail set
+	// up. A failure here leaves the stack registered: asking again finishes.
+	if len(open) > 0 && m.firewall != nil {
+		if err := m.firewall.Open(ctx, corefw.OwnerMail, open); err != nil {
+			return fail(err)
+		}
 	}
 	cfg, _ := json.Marshal(Config{Host: pend.host, FirstDomain: pend.domain, QuotaDefault: defaultQuota, DMARC: "quarantine"})
 	if err := m.vault.Put(ctx, sealedConfig, cfg); err != nil {
@@ -1163,4 +1281,102 @@ func (m *Module) syncNow(ctx context.Context, _ struct{}) (Sync, error) {
 	}
 	m.kickSync()
 	return m.lastSync(), nil
+}
+
+// portsOpen opens mail's public ports as mail's, for a host where they were
+// not opened at set-up: unticked then, a firewall turned on since, or mail set
+// up before the firewall work.
+//
+// Decision: docs/decisions/firewall.md#mails-ports
+func (m *Module) portsOpen(ctx context.Context, p PortsAsk) (struct{}, error) {
+	if _, ok, err := m.store.State(ctx); err != nil {
+		return struct{}{}, err
+	} else if !ok {
+		return struct{}{}, ErrNotSetUp
+	}
+	open, err := wants(p.Ports)
+	if err != nil || len(p.Ports) == 0 {
+		if err == nil {
+			err = ErrNotMailPort
+		}
+		return struct{}{}, err
+	}
+	if m.firewall == nil {
+		return struct{}{}, ErrNotSetUp
+	}
+	return struct{}{}, m.firewall.Open(ctx, corefw.OwnerMail, open)
+}
+
+// remove takes mail down, each step one that asking again finishes: the
+// accounts checked while the server still runs (once its stack is gone the
+// check was passed), the gate's mail streams off, mail's firewall rules closed
+// through the lockout guard, the stack, the loopback rule, the definition,
+// the DNS records AutoPanel published for each domain and the mail host, the
+// settings, and last the record that says mail is set up.
+//
+// Decision: docs/decisions/mail.md#removing-mail
+func (m *Module) remove(ctx context.Context, p RemoveAsk) (struct{}, error) {
+	m.pendMu.Lock()
+	defer m.pendMu.Unlock()
+	st, ok, err := m.store.State(ctx)
+	switch {
+	case err != nil:
+		return struct{}{}, err
+	case !ok:
+		return struct{}{}, ErrNotSetUp
+	}
+	_, _, upErr := m.stacks.Up(ctx, Stack)
+	present := !errors.Is(upErr, services.ErrNotFound)
+	if present && st.Bootstrapped != 0 {
+		accounts, err := m.client().Accounts(ctx)
+		if err != nil {
+			return struct{}{}, serverErr(err)
+		}
+		if len(accounts) > 0 {
+			return struct{}{}, ErrHasAccounts
+		}
+	}
+	m.streams(false)
+	if m.firewall != nil {
+		if err := m.firewall.Close(ctx, corefw.OwnerMail, nil); err != nil {
+			return struct{}{}, err
+		}
+	}
+	uid, uidErr := m.host.StackUID(ctx) // before the stack's user goes
+	if present {
+		if err := m.stacks.RemoveOwned(ctx, Stack, p.Purge); err != nil {
+			return struct{}{}, err
+		}
+	}
+	if uidErr == nil {
+		if err := m.host.RemoveLoopback(ctx, uid); err != nil {
+			return struct{}{}, err
+		}
+	}
+	if err := m.host.RemoveDefinition(ctx); err != nil {
+		return struct{}{}, err
+	}
+	domains, err := m.store.Domains(ctx)
+	if err != nil {
+		return struct{}{}, err
+	}
+	for _, owner := range append(domains, st.Host) {
+		if _, err := m.keep(ctx, owner, nil); err != nil && !errors.Is(err, ErrNoDNS) {
+			return struct{}{}, err // a record left published would be a stranger's later
+		}
+	}
+	for _, name := range []string{sealedConfig, sealedKey} {
+		if name == sealedKey && !p.Purge {
+			continue // the server's data stays, and so does the key that opens it
+		}
+		if err := m.vault.Delete(ctx, name); err != nil && !errors.Is(err, ErrNoSecret) {
+			return struct{}{}, err
+		}
+	}
+	if err := m.store.Drop(ctx); err != nil {
+		return struct{}{}, err
+	}
+	m.hostName.Store("")
+	m.note("", "")
+	return struct{}{}, nil
 }

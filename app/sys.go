@@ -42,7 +42,7 @@ type sysModule struct {
 	firewall func(ctx context.Context) (sysinfo.Firewall, error)
 	// moreChecks are the host checks other modules know (a stack's state,
 	// mail's ports, a certificate's expiry); nil when none are wired.
-	moreChecks func(ctx context.Context) []Check
+	moreChecks func(ctx context.Context, fw sysinfo.Firewall) []Check
 	// sampler answers each metrics read with the host's rates since the read
 	// before it, whoever made that one.
 	sampler *sysinfo.Sampler

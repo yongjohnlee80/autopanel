@@ -133,10 +133,14 @@ func (f *fakeHost) run(_ context.Context, tool hostcmd.Tool, args ...string) ([]
 			return nil, err
 		}
 	}
-	for prefix, out := range f.answers {
-		if strings.HasPrefix(call, prefix) {
-			return []byte(out), nil
+	best, found := "", false // the longest prefix that matches: map order is random
+	for prefix := range f.answers {
+		if strings.HasPrefix(call, prefix) && len(prefix) >= len(best) {
+			best, found = prefix, true
 		}
+	}
+	if found {
+		return []byte(f.answers[best]), nil
 	}
 	return nil, errors.New("exit status 1")
 }

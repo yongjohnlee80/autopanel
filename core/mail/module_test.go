@@ -47,6 +47,12 @@ func (f *fakeStore) Create(_ context.Context, host, d string) error {
 	f.domains = append(f.domains, d)
 	return nil
 }
+func (f *fakeStore) Drop(context.Context) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.state, f.domains = nil, nil
+	return nil
+}
 func (f *fakeStore) Forget(context.Context) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -209,6 +215,20 @@ func (s *fakeStacks) Add(_ context.Context, _ string, accept string) error {
 	return nil
 }
 
+func (s *fakeStacks) Check(context.Context, string) (services.Review, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.absent {
+		return services.Review{}, services.ErrNotFound
+	}
+	return services.Review{SHA256: "reviewed-compose", Findings: []services.Finding{}}, nil
+}
+func (s *fakeStacks) RemoveOwned(context.Context, string, bool) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.absent = true
+	return nil
+}
 func (s *fakeStacks) EnsureUser(context.Context, string) error { s.user = true; return nil }
 func (s *fakeStacks) Up(context.Context, string) (string, int64, error) {
 	s.mu.Lock()

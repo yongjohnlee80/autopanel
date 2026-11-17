@@ -307,3 +307,11 @@ func TestASetupLeftOpenClosesTheGuardWhenItEnds(t *testing.T) {
 		t.Fatal("a setup waiting to be applied left the guard closed")
 	}
 }
+
+func (h *machine) Uninstall(_ context.Context, name string, _ bool) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	delete(h.users, name)
+	h.units = map[string]bool{}
+	return nil
+}
