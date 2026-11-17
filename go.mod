@@ -2,7 +2,7 @@ module github.com/yongjohnlee80/autopanel
 
 go 1.26.11
 
-toolchain go1.27.4
+toolchain go1.27.0
 
 require (
 	github.com/caddyserver/certmagic v0.25.6
