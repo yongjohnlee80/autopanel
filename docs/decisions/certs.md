@@ -24,6 +24,17 @@ background, and need the DNS challenge.
 its life (the last 30 days of a 90-day certificate). The request is served with the certificate
 there is; the new one is ordered beside it.
 
+**Earlier when the certificate service asks.** A service that publishes renewal information (ARI)
+may name an earlier time; the renewal then starts at that time's next request. The panel's
+"renewing" state is the last third, whatever the service suggests.
+
+**The gate asks the core for a name's certificate once an hour,** so a renewal starts within an
+hour of the window opening on a busy name, and a renewed certificate is served within an hour of
+being obtained.
+
+**Past its end,** the next request waits for a new certificate (a second or two) and is served
+with it.
+
 **What follows:** a name that gets no request is not renewed. Its certificate expires quietly, and
 the first request after that waits for a new one. Nothing is lost by it: a name nobody asks for
 serves nobody.
