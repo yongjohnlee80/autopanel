@@ -66,7 +66,13 @@ func firewallSetup(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "autopanel --firewall-setup: reading the listeners:", err)
 		return 1
 	}
-	eps, _ := corefw.Endpoints(h.SSHFacts(ctx, ls))
+	eps, complete := corefw.Endpoints(h.SSHFacts(ctx, ls))
+	if !complete && len(eps) > 0 {
+		// An sshd listener the configuration does not explain may be the one
+		// the administrator is on: turning the firewall on could cut it.
+		fmt.Fprintln(stderr, "autopanel --firewall-setup: SSH's ports could not all be found; the firewall is left off")
+		return 1
+	}
 	ports := map[int]bool{}
 	var sshPorts []int
 	for _, e := range eps {
@@ -89,7 +95,12 @@ func firewallSetup(args []string, stdout, stderr io.Writer) int {
 	sort.Ints(all)
 
 	var made []string // identities this run made
+	previous := ""    // the incoming default before this run, when it changed it
 	undo := func() {
+		if previous != "" {
+			now, _ := h.Read(context.WithoutCancel(ctx))
+			_, _ = h.Default(context.WithoutCancel(ctx), now, previous)
+		}
 		now, err := h.Read(context.WithoutCancel(ctx))
 		if err != nil {
 			return
@@ -126,6 +137,30 @@ func firewallSetup(args []string, stdout, stderr io.Writer) int {
 			return 1
 		}
 		made, fw = append(made, id), after
+	}
+	// Turned on, the firewall must refuse what no rule allows, and let every
+	// one of these ports in: a deny saved earlier in the rules could shadow an
+	// allow added after it.
+	if fw.Default != "deny" && fw.Default != "reject" {
+		prev, err := h.Default(ctx, fw, "deny")
+		if err != nil {
+			undo()
+			fmt.Fprintln(stderr, "autopanel --firewall-setup: setting the default:", err, "; the firewall is left off")
+			return 1
+		}
+		previous = prev
+		if fw, err = h.Read(ctx); err != nil {
+			undo()
+			fmt.Fprintln(stderr, "autopanel --firewall-setup: reading the firewall:", err, "; it is left off")
+			return 1
+		}
+	}
+	for _, p := range all {
+		if fw.NeedsRule("tcp", any, p) {
+			undo()
+			fmt.Fprintf(stderr, "autopanel --firewall-setup: a rule already there would still block tcp/%d; the firewall is left off\n", p)
+			return 1
+		}
 	}
 	if err := h.Enable(ctx, fw, true); err != nil {
 		undo()

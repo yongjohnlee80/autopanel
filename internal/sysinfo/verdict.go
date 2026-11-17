@@ -58,7 +58,11 @@ func (f Firewall) NeedsRule(proto string, addr netip.Addr, port int) bool {
 	// A rule naming its sources says nothing of a connection from anywhere
 	// else: a deny from one address does not make an owner's rule needless.
 	kept := func(r Rule) bool { return r.Permanent && (r.Runtime || !f.Active) && r.Source == "" }
-	v, why := f.judge(kept, "deny", proto, addr.Unmap(), port)
+	addr = addr.Unmap()
+	if addr.Is6() && addr.IsUnspecified() && f.Has(LimitIPv6Unmanaged) {
+		addr = netip.IPv4Unspecified() // IPv6 is not ufw's to open: the IPv4 half is the whole rule
+	}
+	v, why := f.judge(kept, "deny", proto, addr, port)
 	return !(v == VerdictAllowed || (v == VerdictLimited && why == WhyRateLimit))
 }
 
@@ -252,4 +256,71 @@ func (f Firewall) Admits(proto string, src netip.Addr, dst netip.AddrPort) strin
 		return Admit
 	}
 	return Refuse
+}
+
+// Kept is r as this firewall's manager keeps it: an allow of both families
+// is kept for IPv4 alone where ufw leaves IPv6 to itself (IPV6=no), so its
+// identity is the IPv4 rule's.
+//
+// Decision: docs/decisions/firewall.md#what-is-read
+func (f Firewall) Kept(r Rule) Rule {
+	if r.Family == "both" && f.Has(LimitIPv6Unmanaged) {
+		r.Family = "v4"
+	}
+	return r
+}
+
+// NeedsRuleRange is NeedsRule for every port of from..to: a rule is needed
+// when any of them needs one. A decision changes only where a rule's range
+// starts or ends, so those ports, and the range's own ends, are all that is
+// judged.
+func (f Firewall) NeedsRuleRange(proto string, addr netip.Addr, from, to int) bool {
+	for _, p := range f.boundaries(from, to) {
+		if f.NeedsRule(proto, addr, p) {
+			return true
+		}
+	}
+	return false
+}
+
+// VerdictRange is the verdict of the range's worst port: the first port
+// judged that is not allowed, else allowed.
+func (f Firewall) VerdictRange(proto string, addr netip.Addr, from, to int) (string, string) {
+	var first, firstWhy string
+	for i, p := range f.boundaries(from, to) {
+		v, why := f.Verdict(proto, addr, p)
+		if i == 0 {
+			first, firstWhy = v, why
+		}
+		if v != VerdictAllowed {
+			return v, why
+		}
+	}
+	return first, firstWhy
+}
+
+// boundaries are the ports of from..to where a decision may change.
+func (f Firewall) boundaries(from, to int) []int {
+	if to < from {
+		to = from
+	}
+	seen := map[int]bool{}
+	var out []int
+	add := func(p int) {
+		if p >= from && p <= to && !seen[p] {
+			seen[p] = true
+			out = append(out, p)
+		}
+	}
+	add(from)
+	add(to)
+	for _, r := range f.Rules {
+		if r.From != 0 {
+			add(r.From)
+			add(r.To)
+			add(r.From - 1)
+			add(r.To + 1)
+		}
+	}
+	return out
 }
