@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"strings"
@@ -21,6 +22,7 @@ import (
 	"github.com/yongjohnlee80/autopanel/internal/keyslot"
 	"github.com/yongjohnlee80/autopanel/internal/module"
 	"github.com/yongjohnlee80/autopanel/internal/peercred"
+	"github.com/yongjohnlee80/autopanel/internal/sysinfo"
 )
 
 var cheap = keyslot.Params{Time: 1, MemKiB: 1024, Threads: 1}
@@ -480,4 +482,49 @@ type allowAll struct{}
 
 func (allowAll) Authorize(context.Context, string, time.Time, module.Contract) (string, error) {
 	return "", nil
+}
+
+// loginModule answers the login its verb's context carries.
+type loginModule struct{}
+
+func (loginModule) Name() string                 { return "who" }
+func (loginModule) Errors() []module.PublicError { return nil }
+func (loginModule) Verbs() []module.Verb {
+	return []module.Verb{module.Handle(module.Contract{Verb: "who.login", Open: true},
+		func(ctx context.Context, _ struct{}) (map[string]string, error) {
+			l := module.LoginOf(ctx)
+			return map[string]string{"session": l.Session, "from": l.From.String()}, nil
+		})}
+}
+
+// TestAVerbKnowsItsCallersLogin: the login is found from the peer's process
+// by the kernel's record, never from what the caller sends.
+func TestAVerbKnowsItsCallersLogin(t *testing.T) {
+	old := loginOf
+	t.Cleanup(func() { loginOf = old })
+	var asked int
+	loginOf = func(pid int) sysinfo.Login {
+		asked = pid
+		return sysinfo.Login{Session: "43", Client: netip.MustParseAddrPort("192.0.2.20:54042")}
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	sock := filepath.Join(t.TempDir(), "c.sock")
+	srv, err := Listen(sock, slog.New(slog.NewTextHandler(io.Discard, nil)), Access{}, loginModule{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	go func() { _ = srv.Run(ctx) }()
+	c, err := Dial(ctx, sock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	var got map[string]string
+	if err := c.Call(ctx, "who.login", nil, &got); err != nil {
+		t.Fatal(err)
+	}
+	if asked != os.Getpid() || got["session"] != "43" || got["from"] != "192.0.2.20:54042" {
+		t.Fatalf("pid %d, login %v", asked, got)
+	}
 }

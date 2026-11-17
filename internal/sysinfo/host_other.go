@@ -20,3 +20,6 @@ func ReadHost(string) Host { return Host{} }
 func NewSampler() *Sampler {
 	return &Sampler{now: time.Now, read: func() (CPUTime, int, []Iface, uint64, uint64, int64) { return CPUTime{}, 0, nil, 0, 0, 0 }}
 }
+
+// LoginOf has no source on this platform: no session, no SSH connection.
+func LoginOf(int) Login { return Login{} }

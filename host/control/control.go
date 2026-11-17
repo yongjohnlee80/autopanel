@@ -24,6 +24,7 @@ import (
 	"github.com/yongjohnlee80/autopanel/core/audit"
 	"github.com/yongjohnlee80/autopanel/internal/module"
 	"github.com/yongjohnlee80/autopanel/internal/peercred"
+	"github.com/yongjohnlee80/autopanel/internal/sysinfo"
 )
 
 // Server serves every module's verbs on the socket.
@@ -110,8 +111,16 @@ func Listen(path string, log *slog.Logger, acc Access, mods ...module.Module) (*
 	refused := func(err error) { log.Warn("control: refused a connection", "socket", path, "err", err) }
 	opts := []rpc.Option{
 		rpc.WithListener(peercred.ListenerFor(ln, peercred.Allow(acc.peers()...), refused)),
-		// The peer's user, from the kernel's record: what the audit log names.
-		rpc.WithSessionAttach(func(nc net.Conn) any { return "local:" + strconv.Itoa(peercred.PeerUID(nc)) }),
+		// The peer's user, from the kernel's record: what the audit log names;
+		// and the login its process belongs to, for the firewall's guard.
+		rpc.WithSessionAttach(func(nc net.Conn) any {
+			p := peer{name: "local:" + strconv.Itoa(peercred.PeerUID(nc))}
+			if pid, err := peercred.PeerPID(nc); err == nil {
+				l := loginOf(pid)
+				p.login = module.Login{Session: l.Session, From: l.Client}
+			}
+			return p
+		}),
 	}
 	if acc.Concurrent > 0 {
 		opts = append(opts, rpc.MaxConcurrent(acc.Concurrent))
@@ -139,6 +148,16 @@ func Listen(path string, log *slog.Logger, acc Access, mods ...module.Module) (*
 	}
 	return &Server{rpc: srv, path: path}, nil
 }
+
+// peer is a connection's caller: its user, by the kernel's record, and the
+// login its process belongs to.
+type peer struct {
+	name  string // "local:<uid>"
+	login module.Login
+}
+
+// loginOf finds a process's login; a test gives its own.
+var loginOf = sysinfo.LoginOf
 
 // The session values a successful login sets: the principal ("user:7",
 // "token:3"), its name for the audit log, and when it logged in. A login on a
@@ -171,7 +190,8 @@ func allErrs(mods []module.Module) []module.PublicError {
 func handler(v module.Verb, errs []module.PublicError, log *slog.Logger, acc Access) rpc.Handler {
 	aud := acc.Audit
 	return func(ctx context.Context, req *rpc.Request) (any, error) {
-		local, _ := req.Session.Attachment().(string)
+		who, _ := req.Session.Attachment().(peer)
+		local := who.name
 		actor := local
 		principal, _ := req.Session.Value(sessionUser).(string)
 		switch {
@@ -208,7 +228,7 @@ func handler(v module.Verb, errs []module.PublicError, log *slog.Logger, acc Acc
 			}
 			attempt = id
 		}
-		res, err := v.Call(module.WithPrincipal(audit.WithActor(ctx, actor), principal), req.Params)
+		res, err := v.Call(module.WithLogin(module.WithPrincipal(audit.WithActor(ctx, actor), principal), who.login), req.Params)
 		if v.Privileged {
 			// The caller may be gone by now: the outcome is recorded regardless.
 			if aerr := aud.AuditResult(context.WithoutCancel(ctx), attempt, outcome(err, errs)); aerr != nil {
