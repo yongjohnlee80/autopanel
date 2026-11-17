@@ -36,7 +36,7 @@ func newMonitors() monitors {
 		metrics: tuidecl.NewListModel("key", "name", "value"),
 		audit:   tuidecl.NewListModel("key", "time", "actor", "action"),
 		logins:  tuidecl.NewListModel("key", "time", "source", "user", "result"),
-		ports:   tuidecl.NewListModel("key", "proto", "port", "address", "process"),
+		ports:   tuidecl.NewListModel("key", "proto", "port", "address", "firewall", "process"),
 		readAt:  map[string]time.Time{},
 		errs:    map[string]error{},
 		at:      map[string]int{},
@@ -169,15 +169,32 @@ func loginDetail(w wording, a LoginAttempt) string {
 		[2]string{"autopanel.label.logins.detail", orDash(a.Detail)})
 }
 
-// portDetail is a listening socket whole, for the details pane.
+// portDetail is a listening socket whole, for the details pane; or a rule
+// nothing listens behind.
 func portDetail(w wording, p Port) string {
+	if p.Firewall == "rule: nothing listens" {
+		port := strconv.Itoa(p.Port)
+		if p.To > p.Port {
+			port += "-" + strconv.Itoa(p.To)
+		}
+		return facts(w,
+			[2]string{"autopanel.label.ports.protocol", orDash(p.Proto)},
+			[2]string{"autopanel.label.ports.port", port},
+			[2]string{"autopanel.label.ports.firewall", verdictText(w, p.Firewall)},
+			[2]string{"autopanel.label.firewall.rule", orDash(p.Why)}) + "\n\n" + w.tr("autopanel.notice.ports.stale")
+	}
+	verdict := verdictText(w, p.Firewall)
+	if p.Why != "" {
+		verdict += " (" + p.Why + ")"
+	}
 	return facts(w,
 		[2]string{"autopanel.label.ports.protocol", p.Proto},
 		[2]string{"autopanel.label.ports.port", strconv.Itoa(p.Port)},
 		[2]string{"autopanel.label.ports.address", orDash(p.Address)},
 		[2]string{"autopanel.label.ports.process", holder(p)},
 		[2]string{"autopanel.label.ports.user", orDash(p.User)},
-		[2]string{"autopanel.label.ports.use", orDash(p.Use)})
+		[2]string{"autopanel.label.ports.use", orDash(p.Use)},
+		[2]string{"autopanel.label.ports.firewall", verdict})
 }
 
 // listTitle is a list frame's title: what it shows, how many rows, and when
@@ -231,7 +248,8 @@ func (m *monitors) render(h *host) {
 	if m.lastPorts != nil {
 		list := make([]tuidecl.Row, 0, len(m.lastPorts))
 		for _, p := range m.lastPorts {
-			list = append(list, tuidecl.Row{"key": portKey(p), "proto": p.Proto, "port": p.Port, "address": p.Address, "process": holder(p)})
+			list = append(list, tuidecl.Row{"key": portKey(p), "proto": p.Proto, "port": p.Port, "address": p.Address,
+				"firewall": verdictText(h, p.Firewall), "process": holder(p)})
 		}
 		m.ports.Reset(list)
 	}

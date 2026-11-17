@@ -12,6 +12,7 @@ import (
 
 	"github.com/yongjohnlee80/golib/tui/decl/decltest"
 
+	corefw "github.com/yongjohnlee80/autopanel/core/firewall"
 	"github.com/yongjohnlee80/autopanel/core/services"
 )
 
@@ -154,10 +155,14 @@ func (f *fakeClient) CheckStack(_ context.Context, name string) (services.Review
 
 // ApplyStack records the ask. A new stack it adds or prepares is then in the
 // list, and a prepared one it adds is deployed.
-func (f *fakeClient) ApplyStack(_ context.Context, verb, name, accept string) error {
+func (f *fakeClient) ApplyStack(_ context.Context, verb, name, accept string, open []corefw.Want) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.applies = append(f.applies, verb+" "+name+" "+accept)
+	ask := verb + " " + name + " " + accept
+	for _, w := range open {
+		ask += " open " + w.Key()
+	}
+	f.applies = append(f.applies, ask)
 	if len(f.applyErrs) > 0 {
 		err := f.applyErrs[0]
 		f.applyErrs = f.applyErrs[1:]
@@ -403,7 +408,7 @@ func TestReviewList(t *testing.T) {
 		{ID: "no-memory-limit", Severity: services.Warning, Service: "app"},
 		{ID: "symlink", Severity: services.Refused, Detail: "site/link"},
 	}
-	rows, names, _, texts := reviewList(inEnglish{}, r)
+	rows, names, _, texts := reviewList(inEnglish{}, r, nil)
 	var got []string
 	for _, row := range rows {
 		got = append(got, fmt.Sprint(row["kind"])+": "+fmt.Sprint(row["name"])+" "+fmt.Sprint(row["text"]))
@@ -418,7 +423,7 @@ func TestReviewList(t *testing.T) {
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("reviewList = %q, want %q", got, want)
 	}
-	if names[0] != (reviewRow{container: 0, finding: -1}) || names[2] != (reviewRow{container: -1, finding: 1}) || len(texts) != 4 {
+	if names[0] != (reviewRow{container: 0, finding: -1, port: -1}) || names[2] != (reviewRow{container: -1, finding: 1, port: -1}) || len(texts) != 4 {
 		t.Errorf("names = %+v, texts = %q", names, texts)
 	}
 }

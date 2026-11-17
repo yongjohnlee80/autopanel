@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -47,10 +48,25 @@ func (f *fakeClient) MailSetup(_ context.Context, host, domain string) (mail.Set
 	return mail.Setup{Stack: mail.Stack, SHA256: webSHA, Review: warned(webSHA)}, nil
 }
 
-func (f *fakeClient) MailSetupApply(_ context.Context, accept string) error {
+func (f *fakeClient) MailPortsOpen(_ context.Context, ports []int) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.mail.asks = append(f.mail.asks, "apply "+accept)
+	ask := "ports"
+	for _, p := range ports {
+		ask += " " + strconv.Itoa(p)
+	}
+	f.mail.asks = append(f.mail.asks, ask)
+	return nil
+}
+
+func (f *fakeClient) MailSetupApply(_ context.Context, accept string, open []int) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	ask := "apply " + accept
+	for _, p := range open {
+		ask += " open " + strconv.Itoa(p)
+	}
+	f.mail.asks = append(f.mail.asks, ask)
 	if f.mail.pending == "" {
 		return mail.ErrNoPending
 	}

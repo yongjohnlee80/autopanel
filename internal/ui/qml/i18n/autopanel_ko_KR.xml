@@ -47,6 +47,30 @@
         <source>&amp;Remove…</source>
         <translation>제거(&amp;r)…</translation>
     </message>
+    <message id="autopanel.button.firewall.allow">
+        <source>&amp;Allow…</source>
+        <translation>허용(&amp;a)…</translation>
+    </message>
+    <message id="autopanel.button.firewall.confirm">
+        <source>&amp;Confirm</source>
+        <translation>확인(&amp;c)</translation>
+    </message>
+    <message id="autopanel.button.firewall.copy">
+        <source>Cop&amp;y commands</source>
+        <translation>명령 복사(&amp;y)</translation>
+    </message>
+    <message id="autopanel.button.firewall.off">
+        <source>Turn o&amp;ff…</source>
+        <translation>끄기(&amp;f)…</translation>
+    </message>
+    <message id="autopanel.button.firewall.on">
+        <source>Turn &amp;on…</source>
+        <translation>켜기(&amp;o)…</translation>
+    </message>
+    <message id="autopanel.button.firewall.revoke">
+        <source>Re&amp;voke…</source>
+        <translation>취소(&amp;v)…</translation>
+    </message>
     <message id="autopanel.button.form.save">
         <source>&amp;Save</source>
         <translation>저장(&amp;s)</translation>
@@ -91,6 +115,10 @@
         <source>L&amp;ock password…</source>
         <translation>비밀번호 잠금(&amp;o)…</translation>
     </message>
+    <message id="autopanel.button.mail.openPorts">
+        <source>Open &amp;ports</source>
+        <translation>포트 열기(&amp;p)</translation>
+    </message>
     <message id="autopanel.button.mail.reload">
         <source>&amp;Reload</source>
         <translation>다시 읽기(&amp;r)</translation>
@@ -115,6 +143,18 @@
         <source>&amp;Reload</source>
         <translation>다시 읽기(&amp;r)</translation>
     </message>
+    <message id="autopanel.button.plan.allow">
+        <source>&amp;Allow it</source>
+        <translation>허용(&amp;a)</translation>
+    </message>
+    <message id="autopanel.button.plan.block">
+        <source>&amp;Leave it blocked</source>
+        <translation>차단 유지(&amp;l)</translation>
+    </message>
+    <message id="autopanel.button.plan.enable">
+        <source>Turn &amp;on</source>
+        <translation>켜기(&amp;o)</translation>
+    </message>
     <message id="autopanel.button.review.add">
         <source>&amp;Add and start</source>
         <translation>추가하고 시작(&amp;a)</translation>
@@ -122,6 +162,18 @@
     <message id="autopanel.button.review.apply">
         <source>&amp;Apply</source>
         <translation>적용(&amp;a)</translation>
+    </message>
+    <message id="autopanel.button.review.copy">
+        <source>Cop&amp;y commands</source>
+        <translation>명령 복사(&amp;y)</translation>
+    </message>
+    <message id="autopanel.button.review.leave">
+        <source>&amp;Leave it as it is</source>
+        <translation>그대로 두기(&amp;l)</translation>
+    </message>
+    <message id="autopanel.button.review.open">
+        <source>&amp;Open it</source>
+        <translation>열기(&amp;o)</translation>
     </message>
     <message id="autopanel.button.review.prepare">
         <source>&amp;Prepare only</source>
@@ -435,6 +487,34 @@
         <source>read the screen again now</source>
         <translation>지금 화면을 다시 읽기</translation>
     </message>
+    <message id="autopanel.key.firewall.allow">
+        <source>allow a port</source>
+        <translation>포트 허용</translation>
+    </message>
+    <message id="autopanel.key.firewall.confirm">
+        <source>confirm an enable, from a new login</source>
+        <translation>새 로그인에서 켜기 확인</translation>
+    </message>
+    <message id="autopanel.key.firewall.copy">
+        <source>copy a refusal's commands</source>
+        <translation>거부된 변경의 명령 복사</translation>
+    </message>
+    <message id="autopanel.key.firewall.off">
+        <source>turn the firewall off</source>
+        <translation>방화벽 끄기</translation>
+    </message>
+    <message id="autopanel.key.firewall.on">
+        <source>turn the firewall on (planned first)</source>
+        <translation>방화벽 켜기 (먼저 계획)</translation>
+    </message>
+    <message id="autopanel.key.firewall.reload">
+        <source>read the firewall again</source>
+        <translation>방화벽 다시 읽기</translation>
+    </message>
+    <message id="autopanel.key.firewall.revoke">
+        <source>revoke the selected rule</source>
+        <translation>선택한 규칙 취소</translation>
+    </message>
     <message id="autopanel.key.monitors.reload">
         <source>read it again</source>
         <translation>다시 읽기</translation>
@@ -498,6 +578,10 @@
     <message id="autopanel.key.section.everywhere">
         <source>EVERYWHERE</source>
         <translation>어디서나</translation>
+    </message>
+    <message id="autopanel.key.section.firewall">
+        <source>System › Firewall</source>
+        <translation>시스템 › 방화벽</translation>
     </message>
     <message id="autopanel.key.section.monitors">
         <source>METRICS, AUDIT LOG, LOGIN ATTEMPTS, OPEN PORTS</source>
@@ -723,6 +807,42 @@
         <source>The routes under it:</source>
         <translation>이 도메인의 라우트:</translation>
     </message>
+    <message id="autopanel.label.firewall.allowedBy">
+        <source>Rule made for</source>
+        <translation>규칙의 주인</translation>
+    </message>
+    <message id="autopanel.label.firewall.family">
+        <source>Family</source>
+        <translation>주소 체계</translation>
+    </message>
+    <message id="autopanel.label.firewall.id">
+        <source>Identity</source>
+        <translation>식별자</translation>
+    </message>
+    <message id="autopanel.label.firewall.needs">
+        <source>Needs a rule</source>
+        <translation>규칙 필요</translation>
+    </message>
+    <message id="autopanel.label.firewall.note">
+        <source>Comment</source>
+        <translation>주석</translation>
+    </message>
+    <message id="autopanel.label.firewall.now">
+        <source>Firewall now</source>
+        <translation>현재 방화벽</translation>
+    </message>
+    <message id="autopanel.label.firewall.opening">
+        <source>On apply</source>
+        <translation>적용 시</translation>
+    </message>
+    <message id="autopanel.label.firewall.port">
+        <source>Port</source>
+        <translation>포트</translation>
+    </message>
+    <message id="autopanel.label.firewall.rule">
+        <source>Rule</source>
+        <translation>규칙</translation>
+    </message>
     <message id="autopanel.label.form.host">
         <source>Host: a subdomain, and the domain it is under</source>
         <translation>호스트: 하위 도메인과 그 상위 도메인</translation>
@@ -879,6 +999,10 @@
         <source>Port</source>
         <translation>포트</translation>
     </message>
+    <message id="autopanel.label.mail.ports">
+        <source>Ports</source>
+        <translation>포트</translation>
+    </message>
     <message id="autopanel.label.mail.priority">
         <source>Priority</source>
         <translation>우선순위</translation>
@@ -975,9 +1099,21 @@
         <source>Service uptime</source>
         <translation>서비스 가동 시간</translation>
     </message>
+    <message id="autopanel.label.plan.ruleFor">
+        <source>Rule made for</source>
+        <translation>규칙의 주인</translation>
+    </message>
+    <message id="autopanel.label.plan.use">
+        <source>Used by</source>
+        <translation>사용처</translation>
+    </message>
     <message id="autopanel.label.ports.address">
         <source>Listens on</source>
         <translation>수신 주소</translation>
+    </message>
+    <message id="autopanel.label.ports.firewall">
+        <source>Firewall</source>
+        <translation>방화벽</translation>
     </message>
     <message id="autopanel.label.ports.port">
         <source>Port</source>
@@ -1010,6 +1146,10 @@
     <message id="autopanel.label.prompt.domain">
         <source>The domain's name, a name and a suffix:</source>
         <translation>도메인 이름 (이름과 접미사):</translation>
+    </message>
+    <message id="autopanel.label.prompt.firewallAllow">
+        <source>Protocol/port, and an optional source (tcp/8443, udp/49152-49160, tcp/22 from 192.0.2.0/24)</source>
+        <translation>프로토콜/포트와 필요하면 출발지 (tcp/8443, udp/49152-49160, tcp/22 from 192.0.2.0/24)</translation>
     </message>
     <message id="autopanel.label.prompt.mailAccount">
         <source>Its address (name@domain):</source>
@@ -1315,6 +1455,14 @@
         <source>&amp;Audit log…</source>
         <translation>감사 로그(&amp;a)…</translation>
     </message>
+    <message id="autopanel.menu.system.checks">
+        <source>Host c&amp;hecks…</source>
+        <translation>호스트 점검(&amp;h)…</translation>
+    </message>
+    <message id="autopanel.menu.system.firewall">
+        <source>&amp;Firewall…</source>
+        <translation>방화벽(&amp;f)…</translation>
+    </message>
     <message id="autopanel.menu.system.language">
         <source>Lan&amp;guage</source>
         <translation>언어(&amp;g)</translation>
@@ -1579,6 +1727,70 @@
         <source>That is too short for a Cloudflare token: paste it whole</source>
         <translation>Cloudflare 토큰으로는 너무 짧습니다. 전체를 붙여 넣으세요</translation>
     </message>
+    <message id="autopanel.notice.check.dockerGroup">
+        <source>Remove users from the docker group unless they are meant to be root.</source>
+        <translation>root여야 하는 사용자가 아니면 docker 그룹에서 빼세요.</translation>
+    </message>
+    <message id="autopanel.notice.check.dockerPresent">
+        <source>AutoPanel runs stacks under Podman; remove Docker once nothing needs it.</source>
+        <translation>AutoPanel은 Podman으로 스택을 실행합니다. Docker가 필요 없어지면 제거하세요.</translation>
+    </message>
+    <message id="autopanel.notice.check.firewallOff">
+        <source>System → Firewall → Turn on shows what it would block before it does.</source>
+        <translation>시스템 → 방화벽 → 켜기는 켜기 전에 무엇을 막을지 보여 줍니다.</translation>
+    </message>
+    <message id="autopanel.notice.check.firewallOwnedMissing">
+        <source>Open them again from their owner, or leave them closed: the record goes when the owner closes them.</source>
+        <translation>주인에서 다시 열거나 닫힌 채로 두세요. 주인이 닫으면 기록도 사라집니다.</translation>
+    </message>
+    <message id="autopanel.notice.check.firewallPartial">
+        <source>Rules outside the manager also filter: Open ports' verdicts cannot see them.</source>
+        <translation>관리자 밖의 규칙도 거릅니다. 열린 포트의 판정은 그것을 보지 못합니다.</translation>
+    </message>
+    <message id="autopanel.notice.check.firewallStale">
+        <source>If nothing is meant to listen there, revoke the rule in System → Firewall.</source>
+        <translation>그곳에서 대기할 것이 없다면 시스템 → 방화벽에서 규칙을 취소하세요.</translation>
+    </message>
+    <message id="autopanel.notice.check.firewallUnconfirmed">
+        <source>Log in again in a second terminal and confirm in System → Firewall, or it is undone.</source>
+        <translation>두 번째 터미널에서 다시 로그인해 시스템 → 방화벽에서 확인하세요. 그러지 않으면 되돌려집니다.</translation>
+    </message>
+    <message id="autopanel.notice.check.gatePortBlocked">
+        <source>Allow them in System → Firewall: without them the sites cannot be reached and certificates cannot renew.</source>
+        <translation>시스템 → 방화벽에서 허용하세요. 없으면 사이트에 닿을 수 없고 인증서를 갱신할 수 없습니다.</translation>
+    </message>
+    <message id="autopanel.notice.check.mailPortBlocked">
+        <source>Open them from Mail → Server, or allow them in System → Firewall: until then no mail arrives.</source>
+        <translation>메일 → 서버에서 열거나 시스템 → 방화벽에서 허용하세요. 그 전까지 메일이 오지 않습니다.</translation>
+    </message>
+    <message id="autopanel.notice.check.podmanSystemSocket">
+        <source>Each stack runs as its own user: disable podman.socket unless something needs it.</source>
+        <translation>스택마다 자기 사용자로 실행됩니다. 필요한 것이 없으면 podman.socket을 비활성화하세요.</translation>
+    </message>
+    <message id="autopanel.notice.check.rebootRequired">
+        <source>Reboot the host when its services can stop for a minute.</source>
+        <translation>서비스가 1분 멈춰도 될 때 호스트를 재부팅하세요.</translation>
+    </message>
+    <message id="autopanel.notice.check.sshPassword">
+        <source>Use keys: set PasswordAuthentication no in sshd's configuration and reload sshd.</source>
+        <translation>키를 쓰세요. sshd 설정에서 PasswordAuthentication no로 하고 sshd를 다시 읽으세요.</translation>
+    </message>
+    <message id="autopanel.notice.check.stackPortBlocked">
+        <source>Apply the stack again with its ports ticked, or allow them in System → Firewall.</source>
+        <translation>포트를 체크하고 스택을 다시 적용하거나 시스템 → 방화벽에서 허용하세요.</translation>
+    </message>
+    <message id="autopanel.notice.check.ufwIpv6Off">
+        <source>Set IPV6=yes in /etc/default/ufw and reload ufw, then check the IPv6 rules: a reload with IPV6=no drops them.</source>
+        <translation>/etc/default/ufw에서 IPV6=yes로 바꾸고 ufw를 다시 읽은 뒤 IPv6 규칙을 확인하세요. IPV6=no로 다시 읽으면 지워집니다.</translation>
+    </message>
+    <message id="autopanel.notice.check.unitFailed">
+        <source>Read each unit's log (journalctl -u &lt;unit&gt;), and fix it or disable it.</source>
+        <translation>각 유닛의 로그를 읽고(journalctl -u &lt;유닛&gt;) 고치거나 비활성화하세요.</translation>
+    </message>
+    <message id="autopanel.notice.checks.none">
+        <source>Nothing to report: none of the checks holds now.</source>
+        <translation>보고할 것이 없습니다. 지금 해당하는 점검이 없습니다.</translation>
+    </message>
     <message id="autopanel.notice.domains.added">
         <source>domain %1 added</source>
         <translation>도메인 %1 추가됨</translation>
@@ -1610,6 +1822,54 @@
     <message id="autopanel.notice.domains.removed">
         <source>domain %1 removed</source>
         <translation>도메인 %1 제거됨</translation>
+    </message>
+    <message id="autopanel.notice.firewall.allowed">
+        <source>The rule is in place.</source>
+        <translation>규칙이 적용되었습니다.</translation>
+    </message>
+    <message id="autopanel.notice.firewall.armed">
+        <source>The firewall is on. Log in again in a second terminal and confirm there (System → Firewall → Confirm) before %1, or it turns itself off.</source>
+        <translation>방화벽이 켜졌습니다. %1 전에 두 번째 터미널에서 다시 로그인하여 거기서 확인하세요 (시스템 → 방화벽 → 확인). 그러지 않으면 스스로 꺼집니다.</translation>
+    </message>
+    <message id="autopanel.notice.firewall.badAllow">
+        <source>Write a protocol and a port, as tcp/8443 or udp/49152-49160, and optionally “from” and a network.</source>
+        <translation>tcp/8443이나 udp/49152-49160처럼 프로토콜과 포트를 쓰고, 필요하면 “from”과 네트워크를 붙이세요.</translation>
+    </message>
+    <message id="autopanel.notice.firewall.byHand">
+        <source>AutoPanel did not make this change. These commands would:</source>
+        <translation>AutoPanel이 이 변경을 하지 않았습니다. 다음 명령으로 할 수 있습니다:</translation>
+    </message>
+    <message id="autopanel.notice.firewall.confirmed">
+        <source>The firewall stays on.</source>
+        <translation>방화벽이 켜진 채로 유지됩니다.</translation>
+    </message>
+    <message id="autopanel.notice.firewall.copied">
+        <source>The commands are on the clipboard.</source>
+        <translation>명령이 클립보드에 있습니다.</translation>
+    </message>
+    <message id="autopanel.notice.firewall.noClipboard">
+        <source>This terminal takes no clipboard copy: select the commands with the mouse.</source>
+        <translation>이 터미널은 클립보드 복사를 받지 않습니다. 마우스로 명령을 선택하세요.</translation>
+    </message>
+    <message id="autopanel.notice.firewall.notModelled">
+        <source>AutoPanel cannot read this rule whole: it is shown as the manager wrote it, and ports it may match read as unknown.</source>
+        <translation>AutoPanel은 이 규칙을 전부 읽을 수 없습니다. 관리자가 쓴 그대로 보여 주며, 걸릴 수 있는 포트는 알 수 없음으로 표시됩니다.</translation>
+    </message>
+    <message id="autopanel.notice.firewall.off">
+        <source>The firewall is off.</source>
+        <translation>방화벽이 꺼졌습니다.</translation>
+    </message>
+    <message id="autopanel.notice.firewall.provider">
+        <source>If your provider has a firewall in front of this server (a security group, a cloud firewall), allow the same ports there too: AutoPanel cannot see it.</source>
+        <translation>공급자가 이 서버 앞에 방화벽(보안 그룹, 클라우드 방화벽)을 두고 있다면 거기서도 같은 포트를 허용하세요. AutoPanel은 그것을 볼 수 없습니다.</translation>
+    </message>
+    <message id="autopanel.notice.firewall.revoked">
+        <source>The rule is gone.</source>
+        <translation>규칙을 지웠습니다.</translation>
+    </message>
+    <message id="autopanel.notice.firewall.test">
+        <source>To check it, run from another machine: %1</source>
+        <translation>확인하려면 다른 컴퓨터에서 실행하세요: %1</translation>
     </message>
     <message id="autopanel.notice.form.noDomain">
         <source>The host is under no registered domain. Add the domain in Routes › Domains first.</source>
@@ -1751,6 +2011,10 @@
         <source>Mail is not set up: Mail › Set up mail</source>
         <translation>메일이 설정되지 않았습니다: 메일 › 메일 설정</translation>
     </message>
+    <message id="autopanel.notice.mail.portsOpened">
+        <source>Mail's ports are open in the firewall.</source>
+        <translation>메일 포트가 방화벽에서 열렸습니다.</translation>
+    </message>
     <message id="autopanel.notice.mail.setUp">
         <source>mail is set up already</source>
         <translation>메일은 이미 설정되어 있습니다</translation>
@@ -1774,6 +2038,22 @@
     <message id="autopanel.notice.mail.weakSecret">
         <source>Stalwart made an app password weaker than 128 bits; it was destroyed, and none is handed out until Stalwart is fixed</source>
         <translation>Stalwart가 128비트보다 약한 앱 비밀번호를 만들어 폐기했습니다. Stalwart가 고쳐질 때까지 발급하지 않습니다</translation>
+    </message>
+    <message id="autopanel.notice.plan.blocked">
+        <source>Turned on, the firewall blocks this port unless you allow it here.</source>
+        <translation>켜면 여기서 허용하지 않는 한 방화벽이 이 포트를 막습니다.</translation>
+    </message>
+    <message id="autopanel.notice.plan.incomplete">
+        <source>SSH's ports could not all be found, so turning the firewall on is refused: it could lock you out.</source>
+        <translation>SSH 포트를 모두 찾지 못해 방화벽 켜기가 거부됩니다. 접속이 막힐 수 있습니다.</translation>
+    </message>
+    <message id="autopanel.notice.plan.none">
+        <source>Nothing that listens would be blocked.</source>
+        <translation>대기 중인 것 중 막히는 것은 없습니다.</translation>
+    </message>
+    <message id="autopanel.notice.ports.stale">
+        <source>An allow rule nothing listens behind. It does not say the port is reachable: revoke it in System → Firewall if nothing is meant to listen there.</source>
+        <translation>뒤에서 아무것도 대기하지 않는 허용 규칙입니다. 포트에 닿을 수 있다는 뜻은 아닙니다. 그곳에서 대기할 것이 없다면 시스템 → 방화벽에서 취소하세요.</translation>
     </message>
     <message id="autopanel.notice.prefs.notKept">
         <source>the choice is shown but was not kept: %1</source>
@@ -1907,6 +2187,14 @@
         <source>Remove the domain %1? Its routes stay; the removal is refused while a route would be left under no domain.</source>
         <translation>도메인 %1을(를) 제거할까요? 라우트는 남습니다. 도메인이 없는 라우트가 남게 되면 제거가 거부됩니다.</translation>
     </message>
+    <message id="autopanel.question.firewall.off">
+        <source>Turn the firewall off? Every port that listens is then open to anyone who can reach this host.</source>
+        <translation>방화벽을 끌까요? 그러면 대기 중인 모든 포트가 이 호스트에 닿는 누구에게나 열립니다.</translation>
+    </message>
+    <message id="autopanel.question.firewall.revoke">
+        <source>Delete the rule “%1”? A rule a stack or mail made goes from its records too.</source>
+        <translation>규칙 “%1”을(를) 지울까요? 스택이나 메일이 만든 규칙이면 그 기록에서도 지워집니다.</translation>
+    </message>
     <message id="autopanel.question.mail.appFirst">
         <source>%1 is made. Its devices sign in with app passwords: make one for its first device now?</source>
         <translation>%1을(를) 만들었습니다. 기기는 앱 비밀번호로 로그인합니다. 첫 기기용으로 지금 만들까요?</translation>
@@ -2007,6 +2295,30 @@
         <source>Remove the selected domain</source>
         <translation>선택한 도메인을 제거합니다</translation>
     </message>
+    <message id="autopanel.tip.firewall.allow">
+        <source>Allow incoming connections to a port or range, from anywhere or from one network</source>
+        <translation>포트나 범위로 들어오는 연결을 어디서나 또는 한 네트워크에서 허용합니다</translation>
+    </message>
+    <message id="autopanel.tip.firewall.confirm">
+        <source>Keep the firewall on: press it from a new login, in a second terminal</source>
+        <translation>방화벽을 켠 채로 둡니다. 두 번째 터미널의 새 로그인에서 누르세요</translation>
+    </message>
+    <message id="autopanel.tip.firewall.copy">
+        <source>Copy the commands that would make the change by hand</source>
+        <translation>직접 바꾸는 명령을 복사합니다</translation>
+    </message>
+    <message id="autopanel.tip.firewall.off">
+        <source>Turn the firewall off: nothing is filtered until it is on again</source>
+        <translation>방화벽을 끕니다. 다시 켤 때까지 아무것도 걸러지지 않습니다</translation>
+    </message>
+    <message id="autopanel.tip.firewall.on">
+        <source>See what turning the firewall on would block, choose what to allow, then turn it on</source>
+        <translation>방화벽을 켜면 무엇이 막히는지 보고, 허용할 것을 고른 뒤 켭니다</translation>
+    </message>
+    <message id="autopanel.tip.firewall.revoke">
+        <source>Delete the selected rule; refused when new SSH logins from your address would no longer get in</source>
+        <translation>선택한 규칙을 지웁니다. 내 주소에서 새 SSH 로그인이 막히게 되면 거부됩니다</translation>
+    </message>
     <message id="autopanel.tip.form.domain">
         <source>The registered domain the host is under</source>
         <translation>호스트가 속한 등록된 도메인</translation>
@@ -2075,6 +2387,10 @@
         <source>Stop receiving mail for the selected domain</source>
         <translation>선택한 도메인의 메일 수신을 멈춥니다</translation>
     </message>
+    <message id="autopanel.tip.mail.openPorts">
+        <source>Open mail's blocked ports in the firewall, as mail's: they close when mail is removed</source>
+        <translation>막힌 메일 포트를 메일 소유로 방화벽에서 엽니다. 메일을 제거하면 닫힙니다</translation>
+    </message>
     <message id="autopanel.tip.mail.reload">
         <source>Read mail's state again</source>
         <translation>메일 상태를 다시 읽습니다</translation>
@@ -2095,9 +2411,21 @@
         <source>Read it again now</source>
         <translation>지금 다시 읽습니다</translation>
     </message>
+    <message id="autopanel.tip.plan.enable">
+        <source>Turn the firewall on as shown; it turns itself off unless a new login confirms it</source>
+        <translation>보이는 대로 방화벽을 켭니다. 새 로그인이 확인하지 않으면 스스로 꺼집니다</translation>
+    </message>
+    <message id="autopanel.tip.plan.toggle">
+        <source>Allow the selected port when the firewall turns on, or leave it blocked</source>
+        <translation>방화벽을 켤 때 선택한 포트를 허용하거나 차단된 채로 둡니다</translation>
+    </message>
     <message id="autopanel.tip.prompt.ok">
         <source>Take this answer</source>
         <translation>이 답을 사용합니다</translation>
+    </message>
+    <message id="autopanel.tip.review.copy">
+        <source>Copy the commands that would open this port by hand</source>
+        <translation>이 포트를 직접 여는 명령을 복사합니다</translation>
     </message>
     <message id="autopanel.tip.review.go">
         <source>Do what the review shows; nothing changes before</source>
@@ -2106,6 +2434,10 @@
     <message id="autopanel.tip.review.prepare">
         <source>Put the user, the files and the images in place, and start nothing</source>
         <translation>사용자, 파일, 이미지를 준비하고 아무것도 시작하지 않습니다</translation>
+    </message>
+    <message id="autopanel.tip.review.toggle">
+        <source>Open the selected port in the firewall when this is applied, or leave the firewall as it is</source>
+        <translation>적용할 때 선택한 포트를 방화벽에서 열거나 방화벽을 그대로 둡니다</translation>
     </message>
     <message id="autopanel.tip.routes.add">
         <source>Add a route</source>
@@ -2219,6 +2551,14 @@
         <source>Remove the Cloudflare token</source>
         <translation>Cloudflare 토큰 삭제</translation>
     </message>
+    <message id="autopanel.title.confirm.firewallOff">
+        <source>Turn the firewall off</source>
+        <translation>방화벽 끄기</translation>
+    </message>
+    <message id="autopanel.title.confirm.firewallRevoke">
+        <source>Revoke the rule</source>
+        <translation>규칙 취소</translation>
+    </message>
     <message id="autopanel.title.confirm.mailLock">
         <source>Lock the mailbox's password</source>
         <translation>메일함 비밀번호 잠금</translation>
@@ -2287,6 +2627,10 @@
         <source>Records to enter at your DNS provider</source>
         <translation>DNS 제공자에 입력할 레코드</translation>
     </message>
+    <message id="autopanel.title.dialog.plan">
+        <source>Turn the firewall on</source>
+        <translation>방화벽 켜기</translation>
+    </message>
     <message id="autopanel.title.dialog.recovery">
         <source>Recovery codes</source>
         <translation>복구 코드</translation>
@@ -2311,6 +2655,10 @@
         <source>Entries</source>
         <translation>항목</translation>
     </message>
+    <message id="autopanel.title.list.checks">
+        <source>Findings</source>
+        <translation>발견 사항</translation>
+    </message>
     <message id="autopanel.title.list.count">
         <source>%1 · %2 · read at %3</source>
         <translation>%1 · %2 · %3에 읽음</translation>
@@ -2322,6 +2670,10 @@
     <message id="autopanel.title.list.failed">
         <source>%1 · the read failed: %2</source>
         <translation>%1 · 읽기 실패: %2</translation>
+    </message>
+    <message id="autopanel.title.list.firewall">
+        <source>Rules</source>
+        <translation>규칙</translation>
     </message>
     <message id="autopanel.title.list.journal">
         <source>%1 · %2 lines · read at %3</source>
@@ -2383,6 +2735,10 @@
         <source>Entry</source>
         <translation>항목</translation>
     </message>
+    <message id="autopanel.title.pane.planPorts">
+        <source>What it would block</source>
+        <translation>막게 될 것</translation>
+    </message>
     <message id="autopanel.title.pane.review">
         <source>Containers and findings</source>
         <translation>컨테이너와 검토 결과</translation>
@@ -2395,9 +2751,17 @@
         <source>Audit log</source>
         <translation>감사 로그</translation>
     </message>
+    <message id="autopanel.title.panel.checks">
+        <source>Host checks</source>
+        <translation>호스트 점검</translation>
+    </message>
     <message id="autopanel.title.panel.domains">
         <source>Domains</source>
         <translation>도메인</translation>
+    </message>
+    <message id="autopanel.title.panel.firewall">
+        <source>Firewall</source>
+        <translation>방화벽</translation>
     </message>
     <message id="autopanel.title.panel.logins">
         <source>Login attempts</source>
@@ -2458,6 +2822,10 @@
     <message id="autopanel.title.prompt.cloudflare">
         <source>Cloudflare token</source>
         <translation>Cloudflare 토큰</translation>
+    </message>
+    <message id="autopanel.title.prompt.firewallAllow">
+        <source>Allow a port</source>
+        <translation>포트 허용</translation>
     </message>
     <message id="autopanel.title.prompt.import">
         <source>Import a stack</source>
@@ -2615,9 +2983,145 @@
         <source>Issuer: %1</source>
         <translation>발급자: %1</translation>
     </message>
+    <message id="autopanel.value.check.alert">
+        <source>alert</source>
+        <translation>경고</translation>
+    </message>
+    <message id="autopanel.value.check.dockerGroup">
+        <source>Users in the docker group, as good as root: %1</source>
+        <translation>root와 같은 docker 그룹의 사용자: %1</translation>
+    </message>
+    <message id="autopanel.value.check.dockerPresent">
+        <source>Docker is installed or running</source>
+        <translation>Docker가 설치되었거나 실행 중입니다</translation>
+    </message>
+    <message id="autopanel.value.check.firewallOff">
+        <source>No firewall is on (%1)</source>
+        <translation>켜진 방화벽이 없습니다 (%1)</translation>
+    </message>
+    <message id="autopanel.value.check.firewallOwnedMissing">
+        <source>Rules AutoPanel made were removed by hand: %1</source>
+        <translation>AutoPanel이 만든 규칙이 직접 지워졌습니다: %1</translation>
+    </message>
+    <message id="autopanel.value.check.firewallPartial">
+        <source>Something filters that this view cannot read: %1</source>
+        <translation>이 화면이 읽을 수 없는 것이 거르고 있습니다: %1</translation>
+    </message>
+    <message id="autopanel.value.check.firewallStale">
+        <source>Firewall rules nothing listens behind: %1</source>
+        <translation>뒤에서 대기하는 것이 없는 방화벽 규칙: %1</translation>
+    </message>
+    <message id="autopanel.value.check.firewallUnconfirmed">
+        <source>The firewall was turned on and is not confirmed yet</source>
+        <translation>방화벽을 켰지만 아직 확인되지 않았습니다</translation>
+    </message>
+    <message id="autopanel.value.check.gatePortBlocked">
+        <source>The firewall blocks AutoPanel's web ports: %1</source>
+        <translation>방화벽이 AutoPanel의 웹 포트를 막고 있습니다: %1</translation>
+    </message>
+    <message id="autopanel.value.check.mailPortBlocked">
+        <source>The firewall blocks mail's ports: %1</source>
+        <translation>방화벽이 메일 포트를 막고 있습니다: %1</translation>
+    </message>
+    <message id="autopanel.value.check.notice">
+        <source>notice</source>
+        <translation>알림</translation>
+    </message>
+    <message id="autopanel.value.check.podmanSystemSocket">
+        <source>Podman's system-wide socket is on</source>
+        <translation>Podman의 시스템 전체 소켓이 켜져 있습니다</translation>
+    </message>
+    <message id="autopanel.value.check.rebootRequired">
+        <source>A reboot is waiting: an update needs it</source>
+        <translation>재부팅이 대기 중입니다. 업데이트에 필요합니다</translation>
+    </message>
+    <message id="autopanel.value.check.sshPassword">
+        <source>SSH takes passwords</source>
+        <translation>SSH가 비밀번호를 받습니다</translation>
+    </message>
+    <message id="autopanel.value.check.stackPortBlocked">
+        <source>The firewall blocks ports a stack opened: %1</source>
+        <translation>방화벽이 스택이 연 포트를 막고 있습니다: %1</translation>
+    </message>
+    <message id="autopanel.value.check.ufwIpv6Off">
+        <source>ufw leaves IPv6 alone (IPV6=no)</source>
+        <translation>ufw가 IPv6를 다루지 않습니다 (IPV6=no)</translation>
+    </message>
+    <message id="autopanel.value.check.unitFailed">
+        <source>System units failed: %1</source>
+        <translation>실패한 시스템 유닛: %1</translation>
+    </message>
     <message id="autopanel.value.domain.noRoutes">
         <source>No route is under it.</source>
         <translation>속한 라우트가 없습니다.</translation>
+    </message>
+    <message id="autopanel.value.firewall.allowed">
+        <source>allowed</source>
+        <translation>허용</translation>
+    </message>
+    <message id="autopanel.value.firewall.blocked">
+        <source>blocked</source>
+        <translation>차단</translation>
+    </message>
+    <message id="autopanel.value.firewall.byAdministrator">
+        <source>the administrator (no owner removes it)</source>
+        <translation>관리자 (어떤 소유자도 지우지 않음)</translation>
+    </message>
+    <message id="autopanel.value.firewall.byNobody">
+        <source>no rule</source>
+        <translation>규칙 없음</translation>
+    </message>
+    <message id="autopanel.value.firewall.byOther">
+        <source>a rule not AutoPanel's</source>
+        <translation>AutoPanel이 만들지 않은 규칙</translation>
+    </message>
+    <message id="autopanel.value.firewall.limited">
+        <source>limited</source>
+        <translation>제한</translation>
+    </message>
+    <message id="autopanel.value.firewall.local">
+        <source>local</source>
+        <translation>로컬</translation>
+    </message>
+    <message id="autopanel.value.firewall.off">
+        <source>off</source>
+        <translation>꺼짐</translation>
+    </message>
+    <message id="autopanel.value.firewall.on">
+        <source>on, incoming %1 by default</source>
+        <translation>켜짐, 들어오는 연결 기본값 %1</translation>
+    </message>
+    <message id="autopanel.value.firewall.stale">
+        <source>rule, nothing listens</source>
+        <translation>규칙, 대기 없음</translation>
+    </message>
+    <message id="autopanel.value.firewall.summary">
+        <source>Manager: %1 · %2 · %3 rules</source>
+        <translation>관리자: %1 · %2 · 규칙 %3개</translation>
+    </message>
+    <message id="autopanel.value.firewall.unknown">
+        <source>unknown</source>
+        <translation>알 수 없음</translation>
+    </message>
+    <message id="autopanel.value.firewallLimit.dockerRules">
+        <source>Docker filters what it publishes apart from the manager: its ports read as unknown.</source>
+        <translation>Docker는 게시하는 포트를 관리자와 따로 거릅니다. 그 포트는 알 수 없음으로 표시됩니다.</translation>
+    </message>
+    <message id="autopanel.value.firewallLimit.ipv6Unmanaged">
+        <source>ufw leaves IPv6 alone (IPV6=no): IPv6 ports read as unknown.</source>
+        <translation>ufw가 IPv6를 다루지 않습니다 (IPV6=no). IPv6 포트는 알 수 없음으로 표시됩니다.</translation>
+    </message>
+    <message id="autopanel.value.firewallLimit.otherTables">
+        <source>Rules outside the manager also filter, and this view cannot read them.</source>
+        <translation>관리자 밖의 규칙도 거르며, 이 화면은 그것을 읽을 수 없습니다.</translation>
+    </message>
+    <message id="autopanel.value.firewallLimit.twoManagers">
+        <source>ufw and firewalld are both running: AutoPanel changes neither.</source>
+        <translation>ufw와 firewalld가 둘 다 실행 중입니다. AutoPanel은 어느 것도 바꾸지 않습니다.</translation>
+    </message>
+    <message id="autopanel.value.firewallLimit.unparsedRules">
+        <source>Some rules could not be read: ports they might match read as unknown.</source>
+        <translation>일부 규칙을 읽을 수 없습니다. 그 규칙에 걸릴 수 있는 포트는 알 수 없음으로 표시됩니다.</translation>
     </message>
     <message id="autopanel.value.host.cpu">
         <source>%1% of %2 CPUs</source>
@@ -2699,6 +3203,18 @@
         <source>%1 · %2 · %3 (1, 5 and 15 minutes)</source>
         <translation>%1 · %2 · %3 (1분, 5분, 15분)</translation>
     </message>
+    <message id="autopanel.value.plan.allow">
+        <source>allow</source>
+        <translation>허용</translation>
+    </message>
+    <message id="autopanel.value.plan.block">
+        <source>blocked</source>
+        <translation>차단</translation>
+    </message>
+    <message id="autopanel.value.plan.summary">
+        <source>With %1. SSH stays allowed from anywhere: %2. Unless a new login confirms it within %3 seconds, the firewall turns itself off again.</source>
+        <translation>%1 사용. SSH는 어디서나 계속 허용됩니다: %2. %3초 안에 새 로그인이 확인하지 않으면 방화벽은 다시 꺼집니다.</translation>
+    </message>
     <message id="autopanel.value.review.container">
         <source>container</source>
         <translation>컨테이너</translation>
@@ -2714,6 +3230,26 @@
     <message id="autopanel.value.review.noMemoryLimit">
         <source>none</source>
         <translation>없음</translation>
+    </message>
+    <message id="autopanel.value.review.port">
+        <source>port</source>
+        <translation>포트</translation>
+    </message>
+    <message id="autopanel.value.review.portAllowed">
+        <source>allowed already</source>
+        <translation>이미 허용됨</translation>
+    </message>
+    <message id="autopanel.value.review.portByHand">
+        <source>[!] by hand</source>
+        <translation>[!] 직접</translation>
+    </message>
+    <message id="autopanel.value.review.portLeave">
+        <source>[ ] leave it</source>
+        <translation>[ ] 그대로</translation>
+    </message>
+    <message id="autopanel.value.review.portOpen">
+        <source>[x] open it</source>
+        <translation>[x] 열기</translation>
     </message>
     <message id="autopanel.value.review.refused">
         <source>refused</source>

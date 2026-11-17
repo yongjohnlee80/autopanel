@@ -47,6 +47,30 @@
         <source>&amp;Remove…</source>
         <translation>削除(&amp;r)…</translation>
     </message>
+    <message id="autopanel.button.firewall.allow">
+        <source>&amp;Allow…</source>
+        <translation>許可(&amp;a)…</translation>
+    </message>
+    <message id="autopanel.button.firewall.confirm">
+        <source>&amp;Confirm</source>
+        <translation>確定(&amp;c)</translation>
+    </message>
+    <message id="autopanel.button.firewall.copy">
+        <source>Cop&amp;y commands</source>
+        <translation>コマンドをコピー(&amp;y)</translation>
+    </message>
+    <message id="autopanel.button.firewall.off">
+        <source>Turn o&amp;ff…</source>
+        <translation>オフ(&amp;f)…</translation>
+    </message>
+    <message id="autopanel.button.firewall.on">
+        <source>Turn &amp;on…</source>
+        <translation>オン(&amp;o)…</translation>
+    </message>
+    <message id="autopanel.button.firewall.revoke">
+        <source>Re&amp;voke…</source>
+        <translation>取り消し(&amp;v)…</translation>
+    </message>
     <message id="autopanel.button.form.save">
         <source>&amp;Save</source>
         <translation>保存(&amp;s)</translation>
@@ -91,6 +115,10 @@
         <source>L&amp;ock password…</source>
         <translation>パスワードをロック(&amp;o)…</translation>
     </message>
+    <message id="autopanel.button.mail.openPorts">
+        <source>Open &amp;ports</source>
+        <translation>ポートを開く(&amp;p)</translation>
+    </message>
     <message id="autopanel.button.mail.reload">
         <source>&amp;Reload</source>
         <translation>再読み込み(&amp;r)</translation>
@@ -115,6 +143,18 @@
         <source>&amp;Reload</source>
         <translation>再読み込み(&amp;r)</translation>
     </message>
+    <message id="autopanel.button.plan.allow">
+        <source>&amp;Allow it</source>
+        <translation>許可する(&amp;a)</translation>
+    </message>
+    <message id="autopanel.button.plan.block">
+        <source>&amp;Leave it blocked</source>
+        <translation>ブロックのまま(&amp;l)</translation>
+    </message>
+    <message id="autopanel.button.plan.enable">
+        <source>Turn &amp;on</source>
+        <translation>オンにする(&amp;o)</translation>
+    </message>
     <message id="autopanel.button.review.add">
         <source>&amp;Add and start</source>
         <translation>追加して開始(&amp;a)</translation>
@@ -122,6 +162,18 @@
     <message id="autopanel.button.review.apply">
         <source>&amp;Apply</source>
         <translation>適用(&amp;a)</translation>
+    </message>
+    <message id="autopanel.button.review.copy">
+        <source>Cop&amp;y commands</source>
+        <translation>コマンドをコピー(&amp;y)</translation>
+    </message>
+    <message id="autopanel.button.review.leave">
+        <source>&amp;Leave it as it is</source>
+        <translation>そのままにする(&amp;l)</translation>
+    </message>
+    <message id="autopanel.button.review.open">
+        <source>&amp;Open it</source>
+        <translation>開く(&amp;o)</translation>
     </message>
     <message id="autopanel.button.review.prepare">
         <source>&amp;Prepare only</source>
@@ -435,6 +487,34 @@
         <source>read the screen again now</source>
         <translation>画面を今すぐ再読み込み</translation>
     </message>
+    <message id="autopanel.key.firewall.allow">
+        <source>allow a port</source>
+        <translation>ポートを許可</translation>
+    </message>
+    <message id="autopanel.key.firewall.confirm">
+        <source>confirm an enable, from a new login</source>
+        <translation>新しいログインからオンを確定</translation>
+    </message>
+    <message id="autopanel.key.firewall.copy">
+        <source>copy a refusal's commands</source>
+        <translation>拒否された変更のコマンドをコピー</translation>
+    </message>
+    <message id="autopanel.key.firewall.off">
+        <source>turn the firewall off</source>
+        <translation>ファイアウォールをオフ</translation>
+    </message>
+    <message id="autopanel.key.firewall.on">
+        <source>turn the firewall on (planned first)</source>
+        <translation>ファイアウォールをオン (先に計画)</translation>
+    </message>
+    <message id="autopanel.key.firewall.reload">
+        <source>read the firewall again</source>
+        <translation>ファイアウォールを読み直す</translation>
+    </message>
+    <message id="autopanel.key.firewall.revoke">
+        <source>revoke the selected rule</source>
+        <translation>選んだ規則を取り消す</translation>
+    </message>
     <message id="autopanel.key.monitors.reload">
         <source>read it again</source>
         <translation>再読み込み</translation>
@@ -498,6 +578,10 @@
     <message id="autopanel.key.section.everywhere">
         <source>EVERYWHERE</source>
         <translation>全画面共通</translation>
+    </message>
+    <message id="autopanel.key.section.firewall">
+        <source>System › Firewall</source>
+        <translation>システム › ファイアウォール</translation>
     </message>
     <message id="autopanel.key.section.monitors">
         <source>METRICS, AUDIT LOG, LOGIN ATTEMPTS, OPEN PORTS</source>
@@ -723,6 +807,42 @@
         <source>The routes under it:</source>
         <translation>配下のルート:</translation>
     </message>
+    <message id="autopanel.label.firewall.allowedBy">
+        <source>Rule made for</source>
+        <translation>規則の所有者</translation>
+    </message>
+    <message id="autopanel.label.firewall.family">
+        <source>Family</source>
+        <translation>アドレス種別</translation>
+    </message>
+    <message id="autopanel.label.firewall.id">
+        <source>Identity</source>
+        <translation>識別子</translation>
+    </message>
+    <message id="autopanel.label.firewall.needs">
+        <source>Needs a rule</source>
+        <translation>規則が必要</translation>
+    </message>
+    <message id="autopanel.label.firewall.note">
+        <source>Comment</source>
+        <translation>コメント</translation>
+    </message>
+    <message id="autopanel.label.firewall.now">
+        <source>Firewall now</source>
+        <translation>現在のファイアウォール</translation>
+    </message>
+    <message id="autopanel.label.firewall.opening">
+        <source>On apply</source>
+        <translation>適用時</translation>
+    </message>
+    <message id="autopanel.label.firewall.port">
+        <source>Port</source>
+        <translation>ポート</translation>
+    </message>
+    <message id="autopanel.label.firewall.rule">
+        <source>Rule</source>
+        <translation>規則</translation>
+    </message>
     <message id="autopanel.label.form.host">
         <source>Host: a subdomain, and the domain it is under</source>
         <translation>ホスト: サブドメインと、それが属するドメイン</translation>
@@ -879,6 +999,10 @@
         <source>Port</source>
         <translation>ポート</translation>
     </message>
+    <message id="autopanel.label.mail.ports">
+        <source>Ports</source>
+        <translation>ポート</translation>
+    </message>
     <message id="autopanel.label.mail.priority">
         <source>Priority</source>
         <translation>優先度</translation>
@@ -975,9 +1099,21 @@
         <source>Service uptime</source>
         <translation>サービス稼働時間</translation>
     </message>
+    <message id="autopanel.label.plan.ruleFor">
+        <source>Rule made for</source>
+        <translation>規則の所有者</translation>
+    </message>
+    <message id="autopanel.label.plan.use">
+        <source>Used by</source>
+        <translation>使用元</translation>
+    </message>
     <message id="autopanel.label.ports.address">
         <source>Listens on</source>
         <translation>待ち受けアドレス</translation>
+    </message>
+    <message id="autopanel.label.ports.firewall">
+        <source>Firewall</source>
+        <translation>ファイアウォール</translation>
     </message>
     <message id="autopanel.label.ports.port">
         <source>Port</source>
@@ -1010,6 +1146,10 @@
     <message id="autopanel.label.prompt.domain">
         <source>The domain's name, a name and a suffix:</source>
         <translation>ドメイン名 (名前とサフィックス):</translation>
+    </message>
+    <message id="autopanel.label.prompt.firewallAllow">
+        <source>Protocol/port, and an optional source (tcp/8443, udp/49152-49160, tcp/22 from 192.0.2.0/24)</source>
+        <translation>プロトコル/ポートと、必要なら送信元 (tcp/8443, udp/49152-49160, tcp/22 from 192.0.2.0/24)</translation>
     </message>
     <message id="autopanel.label.prompt.mailAccount">
         <source>Its address (name@domain):</source>
@@ -1315,6 +1455,14 @@
         <source>&amp;Audit log…</source>
         <translation>監査ログ(&amp;a)…</translation>
     </message>
+    <message id="autopanel.menu.system.checks">
+        <source>Host c&amp;hecks…</source>
+        <translation>ホストの点検(&amp;h)…</translation>
+    </message>
+    <message id="autopanel.menu.system.firewall">
+        <source>&amp;Firewall…</source>
+        <translation>ファイアウォール(&amp;f)…</translation>
+    </message>
     <message id="autopanel.menu.system.language">
         <source>Lan&amp;guage</source>
         <translation>言語(&amp;g)</translation>
@@ -1579,6 +1727,70 @@
         <source>That is too short for a Cloudflare token: paste it whole</source>
         <translation>Cloudflare トークンとしては短すぎます。全体を貼り付けてください</translation>
     </message>
+    <message id="autopanel.notice.check.dockerGroup">
+        <source>Remove users from the docker group unless they are meant to be root.</source>
+        <translation>root であるべきでないユーザーは docker グループから外してください。</translation>
+    </message>
+    <message id="autopanel.notice.check.dockerPresent">
+        <source>AutoPanel runs stacks under Podman; remove Docker once nothing needs it.</source>
+        <translation>AutoPanel は Podman でスタックを動かします。不要になったら Docker を削除してください。</translation>
+    </message>
+    <message id="autopanel.notice.check.firewallOff">
+        <source>System → Firewall → Turn on shows what it would block before it does.</source>
+        <translation>システム → ファイアウォール → オン は、オンにする前に何をブロックするかを示します。</translation>
+    </message>
+    <message id="autopanel.notice.check.firewallOwnedMissing">
+        <source>Open them again from their owner, or leave them closed: the record goes when the owner closes them.</source>
+        <translation>所有者から開き直すか、閉じたままにしてください。所有者が閉じると記録も消えます。</translation>
+    </message>
+    <message id="autopanel.notice.check.firewallPartial">
+        <source>Rules outside the manager also filter: Open ports' verdicts cannot see them.</source>
+        <translation>管理ツール以外の規則もフィルタしています。開いているポートの判定からは見えません。</translation>
+    </message>
+    <message id="autopanel.notice.check.firewallStale">
+        <source>If nothing is meant to listen there, revoke the rule in System → Firewall.</source>
+        <translation>そこで待ち受けるものがなければ、システム → ファイアウォールで規則を取り消してください。</translation>
+    </message>
+    <message id="autopanel.notice.check.firewallUnconfirmed">
+        <source>Log in again in a second terminal and confirm in System → Firewall, or it is undone.</source>
+        <translation>2 つ目の端末で再ログインし、システム → ファイアウォールで確定してください。しなければ元に戻ります。</translation>
+    </message>
+    <message id="autopanel.notice.check.gatePortBlocked">
+        <source>Allow them in System → Firewall: without them the sites cannot be reached and certificates cannot renew.</source>
+        <translation>システム → ファイアウォールで許可してください。ないとサイトに届かず、証明書も更新できません。</translation>
+    </message>
+    <message id="autopanel.notice.check.mailPortBlocked">
+        <source>Open them from Mail → Server, or allow them in System → Firewall: until then no mail arrives.</source>
+        <translation>メール → サーバー から開くか、システム → ファイアウォールで許可してください。それまでメールは届きません。</translation>
+    </message>
+    <message id="autopanel.notice.check.podmanSystemSocket">
+        <source>Each stack runs as its own user: disable podman.socket unless something needs it.</source>
+        <translation>スタックはそれぞれ専用ユーザーで動きます。必要なものがなければ podman.socket を無効にしてください。</translation>
+    </message>
+    <message id="autopanel.notice.check.rebootRequired">
+        <source>Reboot the host when its services can stop for a minute.</source>
+        <translation>サービスが 1 分止まってもよいときにホストを再起動してください。</translation>
+    </message>
+    <message id="autopanel.notice.check.sshPassword">
+        <source>Use keys: set PasswordAuthentication no in sshd's configuration and reload sshd.</source>
+        <translation>鍵を使ってください。sshd の設定で PasswordAuthentication no にして sshd を再読み込みします。</translation>
+    </message>
+    <message id="autopanel.notice.check.stackPortBlocked">
+        <source>Apply the stack again with its ports ticked, or allow them in System → Firewall.</source>
+        <translation>ポートにチェックを入れてスタックを再適用するか、システム → ファイアウォールで許可してください。</translation>
+    </message>
+    <message id="autopanel.notice.check.ufwIpv6Off">
+        <source>Set IPV6=yes in /etc/default/ufw and reload ufw, then check the IPv6 rules: a reload with IPV6=no drops them.</source>
+        <translation>/etc/default/ufw で IPV6=yes にして ufw を再読み込みし、IPv6 の規則を確認してください。IPV6=no で再読み込みすると消えます。</translation>
+    </message>
+    <message id="autopanel.notice.check.unitFailed">
+        <source>Read each unit's log (journalctl -u &lt;unit&gt;), and fix it or disable it.</source>
+        <translation>各ユニットのログを読み (journalctl -u &lt;ユニット&gt;)、直すか無効にしてください。</translation>
+    </message>
+    <message id="autopanel.notice.checks.none">
+        <source>Nothing to report: none of the checks holds now.</source>
+        <translation>報告することはありません。いま当てはまる点検はありません。</translation>
+    </message>
     <message id="autopanel.notice.domains.added">
         <source>domain %1 added</source>
         <translation>ドメイン %1 を追加しました</translation>
@@ -1610,6 +1822,54 @@
     <message id="autopanel.notice.domains.removed">
         <source>domain %1 removed</source>
         <translation>ドメイン %1 を削除しました</translation>
+    </message>
+    <message id="autopanel.notice.firewall.allowed">
+        <source>The rule is in place.</source>
+        <translation>規則を設定しました。</translation>
+    </message>
+    <message id="autopanel.notice.firewall.armed">
+        <source>The firewall is on. Log in again in a second terminal and confirm there (System → Firewall → Confirm) before %1, or it turns itself off.</source>
+        <translation>ファイアウォールはオンです。%1 までに 2 つ目の端末で再ログインし、そこで確定してください (システム → ファイアウォール → 確定)。しなければ自動でオフに戻ります。</translation>
+    </message>
+    <message id="autopanel.notice.firewall.badAllow">
+        <source>Write a protocol and a port, as tcp/8443 or udp/49152-49160, and optionally “from” and a network.</source>
+        <translation>tcp/8443 や udp/49152-49160 のようにプロトコルとポートを書き、必要なら “from” とネットワークを付けてください。</translation>
+    </message>
+    <message id="autopanel.notice.firewall.byHand">
+        <source>AutoPanel did not make this change. These commands would:</source>
+        <translation>AutoPanel はこの変更を行いませんでした。次のコマンドで行えます:</translation>
+    </message>
+    <message id="autopanel.notice.firewall.confirmed">
+        <source>The firewall stays on.</source>
+        <translation>ファイアウォールはオンのままです。</translation>
+    </message>
+    <message id="autopanel.notice.firewall.copied">
+        <source>The commands are on the clipboard.</source>
+        <translation>コマンドはクリップボードにあります。</translation>
+    </message>
+    <message id="autopanel.notice.firewall.noClipboard">
+        <source>This terminal takes no clipboard copy: select the commands with the mouse.</source>
+        <translation>この端末はクリップボードへのコピーに対応していません。マウスでコマンドを選択してください。</translation>
+    </message>
+    <message id="autopanel.notice.firewall.notModelled">
+        <source>AutoPanel cannot read this rule whole: it is shown as the manager wrote it, and ports it may match read as unknown.</source>
+        <translation>AutoPanel はこの規則を完全には読めません。管理ツールが書いたとおりに表示し、当たりうるポートは不明と表示します。</translation>
+    </message>
+    <message id="autopanel.notice.firewall.off">
+        <source>The firewall is off.</source>
+        <translation>ファイアウォールはオフです。</translation>
+    </message>
+    <message id="autopanel.notice.firewall.provider">
+        <source>If your provider has a firewall in front of this server (a security group, a cloud firewall), allow the same ports there too: AutoPanel cannot see it.</source>
+        <translation>プロバイダーがこのサーバーの前にファイアウォール (セキュリティグループ、クラウドのファイアウォール) を置いているなら、そこでも同じポートを許可してください。AutoPanel からは見えません。</translation>
+    </message>
+    <message id="autopanel.notice.firewall.revoked">
+        <source>The rule is gone.</source>
+        <translation>規則を削除しました。</translation>
+    </message>
+    <message id="autopanel.notice.firewall.test">
+        <source>To check it, run from another machine: %1</source>
+        <translation>確かめるには、別のマシンで実行してください: %1</translation>
     </message>
     <message id="autopanel.notice.form.noDomain">
         <source>The host is under no registered domain. Add the domain in Routes › Domains first.</source>
@@ -1751,6 +2011,10 @@
         <source>Mail is not set up: Mail › Set up mail</source>
         <translation>メールは未設定です: メール › メールを設定</translation>
     </message>
+    <message id="autopanel.notice.mail.portsOpened">
+        <source>Mail's ports are open in the firewall.</source>
+        <translation>メールのポートをファイアウォールで開きました。</translation>
+    </message>
     <message id="autopanel.notice.mail.setUp">
         <source>mail is set up already</source>
         <translation>メールは設定済みです</translation>
@@ -1774,6 +2038,22 @@
     <message id="autopanel.notice.mail.weakSecret">
         <source>Stalwart made an app password weaker than 128 bits; it was destroyed, and none is handed out until Stalwart is fixed</source>
         <translation>Stalwart が 128 ビット未満のアプリパスワードを作ったため破棄しました。Stalwart が直るまで発行しません</translation>
+    </message>
+    <message id="autopanel.notice.plan.blocked">
+        <source>Turned on, the firewall blocks this port unless you allow it here.</source>
+        <translation>オンにすると、ここで許可しない限りファイアウォールはこのポートをブロックします。</translation>
+    </message>
+    <message id="autopanel.notice.plan.incomplete">
+        <source>SSH's ports could not all be found, so turning the firewall on is refused: it could lock you out.</source>
+        <translation>SSH のポートをすべては見つけられなかったため、ファイアウォールをオンにすることは拒否されます。締め出されるおそれがあります。</translation>
+    </message>
+    <message id="autopanel.notice.plan.none">
+        <source>Nothing that listens would be blocked.</source>
+        <translation>待ち受けているもので、ブロックされるものはありません。</translation>
+    </message>
+    <message id="autopanel.notice.ports.stale">
+        <source>An allow rule nothing listens behind. It does not say the port is reachable: revoke it in System → Firewall if nothing is meant to listen there.</source>
+        <translation>待ち受けのない許可規則です。ポートに届くという意味ではありません。そこで待ち受けるものがなければ、システム → ファイアウォールで取り消してください。</translation>
     </message>
     <message id="autopanel.notice.prefs.notKept">
         <source>the choice is shown but was not kept: %1</source>
@@ -1907,6 +2187,14 @@
         <source>Remove the domain %1? Its routes stay; the removal is refused while a route would be left under no domain.</source>
         <translation>ドメイン %1 を削除しますか? ルートは残ります。どのドメインにも属さないルートが残る場合、削除は拒否されます。</translation>
     </message>
+    <message id="autopanel.question.firewall.off">
+        <source>Turn the firewall off? Every port that listens is then open to anyone who can reach this host.</source>
+        <translation>ファイアウォールをオフにしますか? 待ち受けているすべてのポートが、このホストに届く誰にでも開かれます。</translation>
+    </message>
+    <message id="autopanel.question.firewall.revoke">
+        <source>Delete the rule “%1”? A rule a stack or mail made goes from its records too.</source>
+        <translation>規則「%1」を削除しますか? スタックやメールが作った規則なら、その記録からも消えます。</translation>
+    </message>
     <message id="autopanel.question.mail.appFirst">
         <source>%1 is made. Its devices sign in with app passwords: make one for its first device now?</source>
         <translation>%1 を作りました。端末はアプリパスワードでサインインします。最初の端末用に今作りますか？</translation>
@@ -2007,6 +2295,30 @@
         <source>Remove the selected domain</source>
         <translation>選択したドメインを削除</translation>
     </message>
+    <message id="autopanel.tip.firewall.allow">
+        <source>Allow incoming connections to a port or range, from anywhere or from one network</source>
+        <translation>ポートまたは範囲への着信接続を、どこからでも、または一つのネットワークから許可します</translation>
+    </message>
+    <message id="autopanel.tip.firewall.confirm">
+        <source>Keep the firewall on: press it from a new login, in a second terminal</source>
+        <translation>ファイアウォールをオンのままにします。2 つ目の端末の新しいログインから押してください</translation>
+    </message>
+    <message id="autopanel.tip.firewall.copy">
+        <source>Copy the commands that would make the change by hand</source>
+        <translation>手作業で変更するためのコマンドをコピーします</translation>
+    </message>
+    <message id="autopanel.tip.firewall.off">
+        <source>Turn the firewall off: nothing is filtered until it is on again</source>
+        <translation>ファイアウォールをオフにします。再びオンにするまで何もフィルタされません</translation>
+    </message>
+    <message id="autopanel.tip.firewall.on">
+        <source>See what turning the firewall on would block, choose what to allow, then turn it on</source>
+        <translation>ファイアウォールをオンにすると何がブロックされるかを見て、許可するものを選んでからオンにします</translation>
+    </message>
+    <message id="autopanel.tip.firewall.revoke">
+        <source>Delete the selected rule; refused when new SSH logins from your address would no longer get in</source>
+        <translation>選んだ規則を削除します。あなたのアドレスからの新しい SSH ログインが入れなくなる場合は拒否されます</translation>
+    </message>
     <message id="autopanel.tip.form.domain">
         <source>The registered domain the host is under</source>
         <translation>ホストが属する登録済みのドメイン</translation>
@@ -2075,6 +2387,10 @@
         <source>Stop receiving mail for the selected domain</source>
         <translation>選択したドメインのメール受信をやめます</translation>
     </message>
+    <message id="autopanel.tip.mail.openPorts">
+        <source>Open mail's blocked ports in the firewall, as mail's: they close when mail is removed</source>
+        <translation>ブロックされたメールのポートを、メールのものとしてファイアウォールで開きます。メールを削除すると閉じます</translation>
+    </message>
     <message id="autopanel.tip.mail.reload">
         <source>Read mail's state again</source>
         <translation>メールの状態を再読み込みします</translation>
@@ -2095,9 +2411,21 @@
         <source>Read it again now</source>
         <translation>今すぐ再読み込み</translation>
     </message>
+    <message id="autopanel.tip.plan.enable">
+        <source>Turn the firewall on as shown; it turns itself off unless a new login confirms it</source>
+        <translation>表示どおりにファイアウォールをオンにします。新しいログインが確定しなければ自動でオフに戻ります</translation>
+    </message>
+    <message id="autopanel.tip.plan.toggle">
+        <source>Allow the selected port when the firewall turns on, or leave it blocked</source>
+        <translation>ファイアウォールをオンにするとき、選んだポートを許可するか、ブロックのままにします</translation>
+    </message>
     <message id="autopanel.tip.prompt.ok">
         <source>Take this answer</source>
         <translation>この回答で確定</translation>
+    </message>
+    <message id="autopanel.tip.review.copy">
+        <source>Copy the commands that would open this port by hand</source>
+        <translation>このポートを手作業で開くコマンドをコピーします</translation>
     </message>
     <message id="autopanel.tip.review.go">
         <source>Do what the review shows; nothing changes before</source>
@@ -2106,6 +2434,10 @@
     <message id="autopanel.tip.review.prepare">
         <source>Put the user, the files and the images in place, and start nothing</source>
         <translation>ユーザー、ファイル、イメージを配置し、何も開始しない</translation>
+    </message>
+    <message id="autopanel.tip.review.toggle">
+        <source>Open the selected port in the firewall when this is applied, or leave the firewall as it is</source>
+        <translation>適用するときに選んだポートをファイアウォールで開くか、そのままにします</translation>
     </message>
     <message id="autopanel.tip.routes.add">
         <source>Add a route</source>
@@ -2219,6 +2551,14 @@
         <source>Remove the Cloudflare token</source>
         <translation>Cloudflare トークンの削除</translation>
     </message>
+    <message id="autopanel.title.confirm.firewallOff">
+        <source>Turn the firewall off</source>
+        <translation>ファイアウォールをオフにする</translation>
+    </message>
+    <message id="autopanel.title.confirm.firewallRevoke">
+        <source>Revoke the rule</source>
+        <translation>規則の取り消し</translation>
+    </message>
     <message id="autopanel.title.confirm.mailLock">
         <source>Lock the mailbox's password</source>
         <translation>メールボックスのパスワードをロック</translation>
@@ -2287,6 +2627,10 @@
         <source>Records to enter at your DNS provider</source>
         <translation>DNS プロバイダーに入力するレコード</translation>
     </message>
+    <message id="autopanel.title.dialog.plan">
+        <source>Turn the firewall on</source>
+        <translation>ファイアウォールをオンにする</translation>
+    </message>
     <message id="autopanel.title.dialog.recovery">
         <source>Recovery codes</source>
         <translation>リカバリーコード</translation>
@@ -2311,6 +2655,10 @@
         <source>Entries</source>
         <translation>項目</translation>
     </message>
+    <message id="autopanel.title.list.checks">
+        <source>Findings</source>
+        <translation>検出事項</translation>
+    </message>
     <message id="autopanel.title.list.count">
         <source>%1 · %2 · read at %3</source>
         <translation>%1 · %2 · %3 に読み込み</translation>
@@ -2322,6 +2670,10 @@
     <message id="autopanel.title.list.failed">
         <source>%1 · the read failed: %2</source>
         <translation>%1 · 読み込みに失敗: %2</translation>
+    </message>
+    <message id="autopanel.title.list.firewall">
+        <source>Rules</source>
+        <translation>規則</translation>
     </message>
     <message id="autopanel.title.list.journal">
         <source>%1 · %2 lines · read at %3</source>
@@ -2383,6 +2735,10 @@
         <source>Entry</source>
         <translation>項目</translation>
     </message>
+    <message id="autopanel.title.pane.planPorts">
+        <source>What it would block</source>
+        <translation>ブロックされるもの</translation>
+    </message>
     <message id="autopanel.title.pane.review">
         <source>Containers and findings</source>
         <translation>コンテナと検出事項</translation>
@@ -2395,9 +2751,17 @@
         <source>Audit log</source>
         <translation>監査ログ</translation>
     </message>
+    <message id="autopanel.title.panel.checks">
+        <source>Host checks</source>
+        <translation>ホストの点検</translation>
+    </message>
     <message id="autopanel.title.panel.domains">
         <source>Domains</source>
         <translation>ドメイン</translation>
+    </message>
+    <message id="autopanel.title.panel.firewall">
+        <source>Firewall</source>
+        <translation>ファイアウォール</translation>
     </message>
     <message id="autopanel.title.panel.logins">
         <source>Login attempts</source>
@@ -2458,6 +2822,10 @@
     <message id="autopanel.title.prompt.cloudflare">
         <source>Cloudflare token</source>
         <translation>Cloudflare トークン</translation>
+    </message>
+    <message id="autopanel.title.prompt.firewallAllow">
+        <source>Allow a port</source>
+        <translation>ポートを許可</translation>
     </message>
     <message id="autopanel.title.prompt.import">
         <source>Import a stack</source>
@@ -2615,9 +2983,145 @@
         <source>Issuer: %1</source>
         <translation>発行者: %1</translation>
     </message>
+    <message id="autopanel.value.check.alert">
+        <source>alert</source>
+        <translation>警告</translation>
+    </message>
+    <message id="autopanel.value.check.dockerGroup">
+        <source>Users in the docker group, as good as root: %1</source>
+        <translation>root 同等の docker グループのユーザー: %1</translation>
+    </message>
+    <message id="autopanel.value.check.dockerPresent">
+        <source>Docker is installed or running</source>
+        <translation>Docker がインストールされているか動いています</translation>
+    </message>
+    <message id="autopanel.value.check.firewallOff">
+        <source>No firewall is on (%1)</source>
+        <translation>オンのファイアウォールがありません (%1)</translation>
+    </message>
+    <message id="autopanel.value.check.firewallOwnedMissing">
+        <source>Rules AutoPanel made were removed by hand: %1</source>
+        <translation>AutoPanel が作った規則が手作業で削除されました: %1</translation>
+    </message>
+    <message id="autopanel.value.check.firewallPartial">
+        <source>Something filters that this view cannot read: %1</source>
+        <translation>この画面で読めないものがフィルタしています: %1</translation>
+    </message>
+    <message id="autopanel.value.check.firewallStale">
+        <source>Firewall rules nothing listens behind: %1</source>
+        <translation>待ち受けのない規則: %1</translation>
+    </message>
+    <message id="autopanel.value.check.firewallUnconfirmed">
+        <source>The firewall was turned on and is not confirmed yet</source>
+        <translation>ファイアウォールをオンにしましたが、まだ確定されていません</translation>
+    </message>
+    <message id="autopanel.value.check.gatePortBlocked">
+        <source>The firewall blocks AutoPanel's web ports: %1</source>
+        <translation>ファイアウォールが AutoPanel の Web ポートをブロックしています: %1</translation>
+    </message>
+    <message id="autopanel.value.check.mailPortBlocked">
+        <source>The firewall blocks mail's ports: %1</source>
+        <translation>ファイアウォールがメールのポートをブロックしています: %1</translation>
+    </message>
+    <message id="autopanel.value.check.notice">
+        <source>notice</source>
+        <translation>注意</translation>
+    </message>
+    <message id="autopanel.value.check.podmanSystemSocket">
+        <source>Podman's system-wide socket is on</source>
+        <translation>Podman のシステム全体のソケットがオンです</translation>
+    </message>
+    <message id="autopanel.value.check.rebootRequired">
+        <source>A reboot is waiting: an update needs it</source>
+        <translation>再起動が保留中です。更新に必要です</translation>
+    </message>
+    <message id="autopanel.value.check.sshPassword">
+        <source>SSH takes passwords</source>
+        <translation>SSH がパスワードを受け付けます</translation>
+    </message>
+    <message id="autopanel.value.check.stackPortBlocked">
+        <source>The firewall blocks ports a stack opened: %1</source>
+        <translation>ファイアウォールがスタックの開いたポートをブロックしています: %1</translation>
+    </message>
+    <message id="autopanel.value.check.ufwIpv6Off">
+        <source>ufw leaves IPv6 alone (IPV6=no)</source>
+        <translation>ufw は IPv6 を扱いません (IPV6=no)</translation>
+    </message>
+    <message id="autopanel.value.check.unitFailed">
+        <source>System units failed: %1</source>
+        <translation>失敗したシステムユニット: %1</translation>
+    </message>
     <message id="autopanel.value.domain.noRoutes">
         <source>No route is under it.</source>
         <translation>配下のルートはありません。</translation>
+    </message>
+    <message id="autopanel.value.firewall.allowed">
+        <source>allowed</source>
+        <translation>許可</translation>
+    </message>
+    <message id="autopanel.value.firewall.blocked">
+        <source>blocked</source>
+        <translation>ブロック</translation>
+    </message>
+    <message id="autopanel.value.firewall.byAdministrator">
+        <source>the administrator (no owner removes it)</source>
+        <translation>管理者 (所有者が削除することはない)</translation>
+    </message>
+    <message id="autopanel.value.firewall.byNobody">
+        <source>no rule</source>
+        <translation>規則なし</translation>
+    </message>
+    <message id="autopanel.value.firewall.byOther">
+        <source>a rule not AutoPanel's</source>
+        <translation>AutoPanel 以外の規則</translation>
+    </message>
+    <message id="autopanel.value.firewall.limited">
+        <source>limited</source>
+        <translation>制限付き</translation>
+    </message>
+    <message id="autopanel.value.firewall.local">
+        <source>local</source>
+        <translation>ローカル</translation>
+    </message>
+    <message id="autopanel.value.firewall.off">
+        <source>off</source>
+        <translation>オフ</translation>
+    </message>
+    <message id="autopanel.value.firewall.on">
+        <source>on, incoming %1 by default</source>
+        <translation>オン、着信の既定は %1</translation>
+    </message>
+    <message id="autopanel.value.firewall.stale">
+        <source>rule, nothing listens</source>
+        <translation>規則、待ち受けなし</translation>
+    </message>
+    <message id="autopanel.value.firewall.summary">
+        <source>Manager: %1 · %2 · %3 rules</source>
+        <translation>管理ツール: %1 · %2 · 規則 %3 件</translation>
+    </message>
+    <message id="autopanel.value.firewall.unknown">
+        <source>unknown</source>
+        <translation>不明</translation>
+    </message>
+    <message id="autopanel.value.firewallLimit.dockerRules">
+        <source>Docker filters what it publishes apart from the manager: its ports read as unknown.</source>
+        <translation>Docker は公開するポートを管理ツールとは別にフィルタします。それらのポートは不明と表示されます。</translation>
+    </message>
+    <message id="autopanel.value.firewallLimit.ipv6Unmanaged">
+        <source>ufw leaves IPv6 alone (IPV6=no): IPv6 ports read as unknown.</source>
+        <translation>ufw は IPv6 を扱いません (IPV6=no)。IPv6 のポートは不明と表示されます。</translation>
+    </message>
+    <message id="autopanel.value.firewallLimit.otherTables">
+        <source>Rules outside the manager also filter, and this view cannot read them.</source>
+        <translation>管理ツール以外の規則もフィルタしており、この画面では読めません。</translation>
+    </message>
+    <message id="autopanel.value.firewallLimit.twoManagers">
+        <source>ufw and firewalld are both running: AutoPanel changes neither.</source>
+        <translation>ufw と firewalld が両方動いています。AutoPanel はどちらも変更しません。</translation>
+    </message>
+    <message id="autopanel.value.firewallLimit.unparsedRules">
+        <source>Some rules could not be read: ports they might match read as unknown.</source>
+        <translation>読めない規則があります。それに当たりうるポートは不明と表示されます。</translation>
     </message>
     <message id="autopanel.value.host.cpu">
         <source>%1% of %2 CPUs</source>
@@ -2699,6 +3203,18 @@
         <source>%1 · %2 · %3 (1, 5 and 15 minutes)</source>
         <translation>%1 · %2 · %3 (1 分、5 分、15 分)</translation>
     </message>
+    <message id="autopanel.value.plan.allow">
+        <source>allow</source>
+        <translation>許可</translation>
+    </message>
+    <message id="autopanel.value.plan.block">
+        <source>blocked</source>
+        <translation>ブロック</translation>
+    </message>
+    <message id="autopanel.value.plan.summary">
+        <source>With %1. SSH stays allowed from anywhere: %2. Unless a new login confirms it within %3 seconds, the firewall turns itself off again.</source>
+        <translation>%1 を使用。SSH はどこからでも許可されたままです: %2。%3 秒以内に新しいログインが確定しなければ、ファイアウォールは再びオフになります。</translation>
+    </message>
     <message id="autopanel.value.review.container">
         <source>container</source>
         <translation>コンテナ</translation>
@@ -2714,6 +3230,26 @@
     <message id="autopanel.value.review.noMemoryLimit">
         <source>none</source>
         <translation>なし</translation>
+    </message>
+    <message id="autopanel.value.review.port">
+        <source>port</source>
+        <translation>ポート</translation>
+    </message>
+    <message id="autopanel.value.review.portAllowed">
+        <source>allowed already</source>
+        <translation>許可済み</translation>
+    </message>
+    <message id="autopanel.value.review.portByHand">
+        <source>[!] by hand</source>
+        <translation>[!] 手作業</translation>
+    </message>
+    <message id="autopanel.value.review.portLeave">
+        <source>[ ] leave it</source>
+        <translation>[ ] そのまま</translation>
+    </message>
+    <message id="autopanel.value.review.portOpen">
+        <source>[x] open it</source>
+        <translation>[x] 開く</translation>
     </message>
     <message id="autopanel.value.review.refused">
         <source>refused</source>

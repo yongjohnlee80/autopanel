@@ -47,6 +47,30 @@
         <source>&amp;Remove…</source>
         <translation>移除(&amp;r)…</translation>
     </message>
+    <message id="autopanel.button.firewall.allow">
+        <source>&amp;Allow…</source>
+        <translation>允许(&amp;a)…</translation>
+    </message>
+    <message id="autopanel.button.firewall.confirm">
+        <source>&amp;Confirm</source>
+        <translation>确认(&amp;c)</translation>
+    </message>
+    <message id="autopanel.button.firewall.copy">
+        <source>Cop&amp;y commands</source>
+        <translation>复制命令(&amp;y)</translation>
+    </message>
+    <message id="autopanel.button.firewall.off">
+        <source>Turn o&amp;ff…</source>
+        <translation>关闭(&amp;f)…</translation>
+    </message>
+    <message id="autopanel.button.firewall.on">
+        <source>Turn &amp;on…</source>
+        <translation>开启(&amp;o)…</translation>
+    </message>
+    <message id="autopanel.button.firewall.revoke">
+        <source>Re&amp;voke…</source>
+        <translation>撤销(&amp;v)…</translation>
+    </message>
     <message id="autopanel.button.form.save">
         <source>&amp;Save</source>
         <translation>保存(&amp;s)</translation>
@@ -91,6 +115,10 @@
         <source>L&amp;ock password…</source>
         <translation>锁定密码(&amp;o)…</translation>
     </message>
+    <message id="autopanel.button.mail.openPorts">
+        <source>Open &amp;ports</source>
+        <translation>打开端口(&amp;p)</translation>
+    </message>
     <message id="autopanel.button.mail.reload">
         <source>&amp;Reload</source>
         <translation>重新读取(&amp;r)</translation>
@@ -115,6 +143,18 @@
         <source>&amp;Reload</source>
         <translation>重新读取(&amp;r)</translation>
     </message>
+    <message id="autopanel.button.plan.allow">
+        <source>&amp;Allow it</source>
+        <translation>允许(&amp;a)</translation>
+    </message>
+    <message id="autopanel.button.plan.block">
+        <source>&amp;Leave it blocked</source>
+        <translation>保持阻止(&amp;l)</translation>
+    </message>
+    <message id="autopanel.button.plan.enable">
+        <source>Turn &amp;on</source>
+        <translation>开启(&amp;o)</translation>
+    </message>
     <message id="autopanel.button.review.add">
         <source>&amp;Add and start</source>
         <translation>添加并启动(&amp;a)</translation>
@@ -122,6 +162,18 @@
     <message id="autopanel.button.review.apply">
         <source>&amp;Apply</source>
         <translation>应用(&amp;a)</translation>
+    </message>
+    <message id="autopanel.button.review.copy">
+        <source>Cop&amp;y commands</source>
+        <translation>复制命令(&amp;y)</translation>
+    </message>
+    <message id="autopanel.button.review.leave">
+        <source>&amp;Leave it as it is</source>
+        <translation>保持原样(&amp;l)</translation>
+    </message>
+    <message id="autopanel.button.review.open">
+        <source>&amp;Open it</source>
+        <translation>打开(&amp;o)</translation>
     </message>
     <message id="autopanel.button.review.prepare">
         <source>&amp;Prepare only</source>
@@ -435,6 +487,34 @@
         <source>read the screen again now</source>
         <translation>立即重新读取屏幕</translation>
     </message>
+    <message id="autopanel.key.firewall.allow">
+        <source>allow a port</source>
+        <translation>允许端口</translation>
+    </message>
+    <message id="autopanel.key.firewall.confirm">
+        <source>confirm an enable, from a new login</source>
+        <translation>从新登录确认开启</translation>
+    </message>
+    <message id="autopanel.key.firewall.copy">
+        <source>copy a refusal's commands</source>
+        <translation>复制被拒更改的命令</translation>
+    </message>
+    <message id="autopanel.key.firewall.off">
+        <source>turn the firewall off</source>
+        <translation>关闭防火墙</translation>
+    </message>
+    <message id="autopanel.key.firewall.on">
+        <source>turn the firewall on (planned first)</source>
+        <translation>开启防火墙（先看计划）</translation>
+    </message>
+    <message id="autopanel.key.firewall.reload">
+        <source>read the firewall again</source>
+        <translation>重新读取防火墙</translation>
+    </message>
+    <message id="autopanel.key.firewall.revoke">
+        <source>revoke the selected rule</source>
+        <translation>撤销所选规则</translation>
+    </message>
     <message id="autopanel.key.monitors.reload">
         <source>read it again</source>
         <translation>重新读取</translation>
@@ -498,6 +578,10 @@
     <message id="autopanel.key.section.everywhere">
         <source>EVERYWHERE</source>
         <translation>全局</translation>
+    </message>
+    <message id="autopanel.key.section.firewall">
+        <source>System › Firewall</source>
+        <translation>系统 › 防火墙</translation>
     </message>
     <message id="autopanel.key.section.monitors">
         <source>METRICS, AUDIT LOG, LOGIN ATTEMPTS, OPEN PORTS</source>
@@ -723,6 +807,42 @@
         <source>The routes under it:</source>
         <translation>其下的路由：</translation>
     </message>
+    <message id="autopanel.label.firewall.allowedBy">
+        <source>Rule made for</source>
+        <translation>规则所属</translation>
+    </message>
+    <message id="autopanel.label.firewall.family">
+        <source>Family</source>
+        <translation>地址族</translation>
+    </message>
+    <message id="autopanel.label.firewall.id">
+        <source>Identity</source>
+        <translation>标识</translation>
+    </message>
+    <message id="autopanel.label.firewall.needs">
+        <source>Needs a rule</source>
+        <translation>需要规则</translation>
+    </message>
+    <message id="autopanel.label.firewall.note">
+        <source>Comment</source>
+        <translation>注释</translation>
+    </message>
+    <message id="autopanel.label.firewall.now">
+        <source>Firewall now</source>
+        <translation>当前防火墙</translation>
+    </message>
+    <message id="autopanel.label.firewall.opening">
+        <source>On apply</source>
+        <translation>应用时</translation>
+    </message>
+    <message id="autopanel.label.firewall.port">
+        <source>Port</source>
+        <translation>端口</translation>
+    </message>
+    <message id="autopanel.label.firewall.rule">
+        <source>Rule</source>
+        <translation>规则</translation>
+    </message>
     <message id="autopanel.label.form.host">
         <source>Host: a subdomain, and the domain it is under</source>
         <translation>主机：子域名及其所属域名</translation>
@@ -879,6 +999,10 @@
         <source>Port</source>
         <translation>端口</translation>
     </message>
+    <message id="autopanel.label.mail.ports">
+        <source>Ports</source>
+        <translation>端口</translation>
+    </message>
     <message id="autopanel.label.mail.priority">
         <source>Priority</source>
         <translation>优先级</translation>
@@ -975,9 +1099,21 @@
         <source>Service uptime</source>
         <translation>服务运行时间</translation>
     </message>
+    <message id="autopanel.label.plan.ruleFor">
+        <source>Rule made for</source>
+        <translation>规则所属</translation>
+    </message>
+    <message id="autopanel.label.plan.use">
+        <source>Used by</source>
+        <translation>用途</translation>
+    </message>
     <message id="autopanel.label.ports.address">
         <source>Listens on</source>
         <translation>监听地址</translation>
+    </message>
+    <message id="autopanel.label.ports.firewall">
+        <source>Firewall</source>
+        <translation>防火墙</translation>
     </message>
     <message id="autopanel.label.ports.port">
         <source>Port</source>
@@ -1010,6 +1146,10 @@
     <message id="autopanel.label.prompt.domain">
         <source>The domain's name, a name and a suffix:</source>
         <translation>域名，由名称和后缀组成：</translation>
+    </message>
+    <message id="autopanel.label.prompt.firewallAllow">
+        <source>Protocol/port, and an optional source (tcp/8443, udp/49152-49160, tcp/22 from 192.0.2.0/24)</source>
+        <translation>协议/端口，以及可选的来源（tcp/8443、udp/49152-49160、tcp/22 from 192.0.2.0/24）</translation>
     </message>
     <message id="autopanel.label.prompt.mailAccount">
         <source>Its address (name@domain):</source>
@@ -1315,6 +1455,14 @@
         <source>&amp;Audit log…</source>
         <translation>审计日志(&amp;a)…</translation>
     </message>
+    <message id="autopanel.menu.system.checks">
+        <source>Host c&amp;hecks…</source>
+        <translation>主机检查(&amp;h)…</translation>
+    </message>
+    <message id="autopanel.menu.system.firewall">
+        <source>&amp;Firewall…</source>
+        <translation>防火墙(&amp;f)…</translation>
+    </message>
     <message id="autopanel.menu.system.language">
         <source>Lan&amp;guage</source>
         <translation>语言(&amp;g)</translation>
@@ -1579,6 +1727,70 @@
         <source>That is too short for a Cloudflare token: paste it whole</source>
         <translation>这对 Cloudflare 令牌来说太短了：请完整粘贴</translation>
     </message>
+    <message id="autopanel.notice.check.dockerGroup">
+        <source>Remove users from the docker group unless they are meant to be root.</source>
+        <translation>除非用户本应拥有 root 权限，否则请将其移出 docker 组。</translation>
+    </message>
+    <message id="autopanel.notice.check.dockerPresent">
+        <source>AutoPanel runs stacks under Podman; remove Docker once nothing needs it.</source>
+        <translation>AutoPanel 使用 Podman 运行堆栈；不再需要时请移除 Docker。</translation>
+    </message>
+    <message id="autopanel.notice.check.firewallOff">
+        <source>System → Firewall → Turn on shows what it would block before it does.</source>
+        <translation>系统 → 防火墙 → 开启 会在开启前显示将阻止什么。</translation>
+    </message>
+    <message id="autopanel.notice.check.firewallOwnedMissing">
+        <source>Open them again from their owner, or leave them closed: the record goes when the owner closes them.</source>
+        <translation>从其所有者重新打开，或保持关闭：所有者关闭时记录也会消失。</translation>
+    </message>
+    <message id="autopanel.notice.check.firewallPartial">
+        <source>Rules outside the manager also filter: Open ports' verdicts cannot see them.</source>
+        <translation>管理器之外的规则也在过滤：开放端口的判断看不到它们。</translation>
+    </message>
+    <message id="autopanel.notice.check.firewallStale">
+        <source>If nothing is meant to listen there, revoke the rule in System → Firewall.</source>
+        <translation>若那里不应有监听，请在系统 → 防火墙中撤销该规则。</translation>
+    </message>
+    <message id="autopanel.notice.check.firewallUnconfirmed">
+        <source>Log in again in a second terminal and confirm in System → Firewall, or it is undone.</source>
+        <translation>请在第二个终端重新登录并在系统 → 防火墙中确认，否则将被撤销。</translation>
+    </message>
+    <message id="autopanel.notice.check.gatePortBlocked">
+        <source>Allow them in System → Firewall: without them the sites cannot be reached and certificates cannot renew.</source>
+        <translation>请在系统 → 防火墙中允许：否则网站无法访问，证书也无法续期。</translation>
+    </message>
+    <message id="autopanel.notice.check.mailPortBlocked">
+        <source>Open them from Mail → Server, or allow them in System → Firewall: until then no mail arrives.</source>
+        <translation>请在邮件 → 服务器中打开，或在系统 → 防火墙中允许：在此之前收不到邮件。</translation>
+    </message>
+    <message id="autopanel.notice.check.podmanSystemSocket">
+        <source>Each stack runs as its own user: disable podman.socket unless something needs it.</source>
+        <translation>每个堆栈以自己的用户运行：除非有需要，请禁用 podman.socket。</translation>
+    </message>
+    <message id="autopanel.notice.check.rebootRequired">
+        <source>Reboot the host when its services can stop for a minute.</source>
+        <translation>在服务可以停一分钟时重启主机。</translation>
+    </message>
+    <message id="autopanel.notice.check.sshPassword">
+        <source>Use keys: set PasswordAuthentication no in sshd's configuration and reload sshd.</source>
+        <translation>请使用密钥：在 sshd 配置中设置 PasswordAuthentication no 并重新加载 sshd。</translation>
+    </message>
+    <message id="autopanel.notice.check.stackPortBlocked">
+        <source>Apply the stack again with its ports ticked, or allow them in System → Firewall.</source>
+        <translation>勾选端口后重新应用堆栈，或在系统 → 防火墙中允许。</translation>
+    </message>
+    <message id="autopanel.notice.check.ufwIpv6Off">
+        <source>Set IPV6=yes in /etc/default/ufw and reload ufw, then check the IPv6 rules: a reload with IPV6=no drops them.</source>
+        <translation>在 /etc/default/ufw 中设置 IPV6=yes 并重新加载 ufw，然后检查 IPv6 规则：在 IPV6=no 下重新加载会删除它们。</translation>
+    </message>
+    <message id="autopanel.notice.check.unitFailed">
+        <source>Read each unit's log (journalctl -u &lt;unit&gt;), and fix it or disable it.</source>
+        <translation>阅读每个单元的日志（journalctl -u &lt;单元&gt;），修复或禁用它。</translation>
+    </message>
+    <message id="autopanel.notice.checks.none">
+        <source>Nothing to report: none of the checks holds now.</source>
+        <translation>没有需要报告的：目前没有检查项成立。</translation>
+    </message>
     <message id="autopanel.notice.domains.added">
         <source>domain %1 added</source>
         <translation>已添加域名 %1</translation>
@@ -1610,6 +1822,54 @@
     <message id="autopanel.notice.domains.removed">
         <source>domain %1 removed</source>
         <translation>已移除域名 %1</translation>
+    </message>
+    <message id="autopanel.notice.firewall.allowed">
+        <source>The rule is in place.</source>
+        <translation>规则已生效。</translation>
+    </message>
+    <message id="autopanel.notice.firewall.armed">
+        <source>The firewall is on. Log in again in a second terminal and confirm there (System → Firewall → Confirm) before %1, or it turns itself off.</source>
+        <translation>防火墙已开启。请在 %1 之前于第二个终端重新登录并在那里确认（系统 → 防火墙 → 确认），否则它会自动关闭。</translation>
+    </message>
+    <message id="autopanel.notice.firewall.badAllow">
+        <source>Write a protocol and a port, as tcp/8443 or udp/49152-49160, and optionally “from” and a network.</source>
+        <translation>请写出协议和端口，如 tcp/8443 或 udp/49152-49160，可选再加 “from” 和网络。</translation>
+    </message>
+    <message id="autopanel.notice.firewall.byHand">
+        <source>AutoPanel did not make this change. These commands would:</source>
+        <translation>AutoPanel 没有进行此更改。以下命令可以完成：</translation>
+    </message>
+    <message id="autopanel.notice.firewall.confirmed">
+        <source>The firewall stays on.</source>
+        <translation>防火墙保持开启。</translation>
+    </message>
+    <message id="autopanel.notice.firewall.copied">
+        <source>The commands are on the clipboard.</source>
+        <translation>命令已在剪贴板中。</translation>
+    </message>
+    <message id="autopanel.notice.firewall.noClipboard">
+        <source>This terminal takes no clipboard copy: select the commands with the mouse.</source>
+        <translation>此终端不支持复制到剪贴板：请用鼠标选择命令。</translation>
+    </message>
+    <message id="autopanel.notice.firewall.notModelled">
+        <source>AutoPanel cannot read this rule whole: it is shown as the manager wrote it, and ports it may match read as unknown.</source>
+        <translation>AutoPanel 无法完整读取此规则：按管理器写入的样子显示，它可能影响的端口显示为未知。</translation>
+    </message>
+    <message id="autopanel.notice.firewall.off">
+        <source>The firewall is off.</source>
+        <translation>防火墙已关闭。</translation>
+    </message>
+    <message id="autopanel.notice.firewall.provider">
+        <source>If your provider has a firewall in front of this server (a security group, a cloud firewall), allow the same ports there too: AutoPanel cannot see it.</source>
+        <translation>如果你的服务商在此服务器前面有防火墙（安全组、云防火墙），也请在那里允许相同的端口：AutoPanel 看不到它。</translation>
+    </message>
+    <message id="autopanel.notice.firewall.revoked">
+        <source>The rule is gone.</source>
+        <translation>规则已删除。</translation>
+    </message>
+    <message id="autopanel.notice.firewall.test">
+        <source>To check it, run from another machine: %1</source>
+        <translation>要检查，请在另一台机器上运行：%1</translation>
     </message>
     <message id="autopanel.notice.form.noDomain">
         <source>The host is under no registered domain. Add the domain in Routes › Domains first.</source>
@@ -1751,6 +2011,10 @@
         <source>Mail is not set up: Mail › Set up mail</source>
         <translation>邮件尚未设置：邮件 › 设置邮件</translation>
     </message>
+    <message id="autopanel.notice.mail.portsOpened">
+        <source>Mail's ports are open in the firewall.</source>
+        <translation>邮件端口已在防火墙中打开。</translation>
+    </message>
     <message id="autopanel.notice.mail.setUp">
         <source>mail is set up already</source>
         <translation>邮件已设置</translation>
@@ -1774,6 +2038,22 @@
     <message id="autopanel.notice.mail.weakSecret">
         <source>Stalwart made an app password weaker than 128 bits; it was destroyed, and none is handed out until Stalwart is fixed</source>
         <translation>Stalwart 生成的应用密码弱于 128 位，已销毁；在 Stalwart 修复前不再发放</translation>
+    </message>
+    <message id="autopanel.notice.plan.blocked">
+        <source>Turned on, the firewall blocks this port unless you allow it here.</source>
+        <translation>开启后，除非在此允许，防火墙会阻止此端口。</translation>
+    </message>
+    <message id="autopanel.notice.plan.incomplete">
+        <source>SSH's ports could not all be found, so turning the firewall on is refused: it could lock you out.</source>
+        <translation>未能找到 SSH 的全部端口，因此拒绝开启防火墙：这可能会把你锁在外面。</translation>
+    </message>
+    <message id="autopanel.notice.plan.none">
+        <source>Nothing that listens would be blocked.</source>
+        <translation>没有正在监听的会被阻止。</translation>
+    </message>
+    <message id="autopanel.notice.ports.stale">
+        <source>An allow rule nothing listens behind. It does not say the port is reachable: revoke it in System → Firewall if nothing is meant to listen there.</source>
+        <translation>一条后面没有任何监听的允许规则。这并不表示端口可达：若那里不应有监听，请在系统 → 防火墙中撤销。</translation>
     </message>
     <message id="autopanel.notice.prefs.notKept">
         <source>the choice is shown but was not kept: %1</source>
@@ -1907,6 +2187,14 @@
         <source>Remove the domain %1? Its routes stay; the removal is refused while a route would be left under no domain.</source>
         <translation>移除域名 %1？其路由会保留；若会有路由不属于任何域名，则拒绝移除。</translation>
     </message>
+    <message id="autopanel.question.firewall.off">
+        <source>Turn the firewall off? Every port that listens is then open to anyone who can reach this host.</source>
+        <translation>关闭防火墙？之后所有监听的端口都会对能访问此主机的任何人开放。</translation>
+    </message>
+    <message id="autopanel.question.firewall.revoke">
+        <source>Delete the rule “%1”? A rule a stack or mail made goes from its records too.</source>
+        <translation>删除规则“%1”？若是堆栈或邮件创建的规则，也会从其记录中删除。</translation>
+    </message>
     <message id="autopanel.question.mail.appFirst">
         <source>%1 is made. Its devices sign in with app passwords: make one for its first device now?</source>
         <translation>%1 已创建。其设备用应用密码登录：现在为第一台设备创建一个吗？</translation>
@@ -2007,6 +2295,30 @@
         <source>Remove the selected domain</source>
         <translation>移除所选域名</translation>
     </message>
+    <message id="autopanel.tip.firewall.allow">
+        <source>Allow incoming connections to a port or range, from anywhere or from one network</source>
+        <translation>允许来自任意位置或某个网络的入站连接访问端口或端口范围</translation>
+    </message>
+    <message id="autopanel.tip.firewall.confirm">
+        <source>Keep the firewall on: press it from a new login, in a second terminal</source>
+        <translation>保持防火墙开启：请在第二个终端的新登录中按下</translation>
+    </message>
+    <message id="autopanel.tip.firewall.copy">
+        <source>Copy the commands that would make the change by hand</source>
+        <translation>复制手动完成更改的命令</translation>
+    </message>
+    <message id="autopanel.tip.firewall.off">
+        <source>Turn the firewall off: nothing is filtered until it is on again</source>
+        <translation>关闭防火墙：在重新开启之前不过滤任何连接</translation>
+    </message>
+    <message id="autopanel.tip.firewall.on">
+        <source>See what turning the firewall on would block, choose what to allow, then turn it on</source>
+        <translation>查看开启防火墙会阻止什么，选择要允许的，然后开启</translation>
+    </message>
+    <message id="autopanel.tip.firewall.revoke">
+        <source>Delete the selected rule; refused when new SSH logins from your address would no longer get in</source>
+        <translation>删除所选规则；若会使来自你地址的新 SSH 登录无法进入，则拒绝</translation>
+    </message>
     <message id="autopanel.tip.form.domain">
         <source>The registered domain the host is under</source>
         <translation>主机所属的已注册域名</translation>
@@ -2075,6 +2387,10 @@
         <source>Stop receiving mail for the selected domain</source>
         <translation>停止为所选域名接收邮件</translation>
     </message>
+    <message id="autopanel.tip.mail.openPorts">
+        <source>Open mail's blocked ports in the firewall, as mail's: they close when mail is removed</source>
+        <translation>以邮件的名义在防火墙中打开被阻止的邮件端口：删除邮件时会关闭</translation>
+    </message>
     <message id="autopanel.tip.mail.reload">
         <source>Read mail's state again</source>
         <translation>重新读取邮件状态</translation>
@@ -2095,9 +2411,21 @@
         <source>Read it again now</source>
         <translation>立即重新读取</translation>
     </message>
+    <message id="autopanel.tip.plan.enable">
+        <source>Turn the firewall on as shown; it turns itself off unless a new login confirms it</source>
+        <translation>按所示开启防火墙；除非新登录确认，否则会自动关闭</translation>
+    </message>
+    <message id="autopanel.tip.plan.toggle">
+        <source>Allow the selected port when the firewall turns on, or leave it blocked</source>
+        <translation>开启防火墙时允许所选端口，或保持阻止</translation>
+    </message>
     <message id="autopanel.tip.prompt.ok">
         <source>Take this answer</source>
         <translation>确认此回答</translation>
+    </message>
+    <message id="autopanel.tip.review.copy">
+        <source>Copy the commands that would open this port by hand</source>
+        <translation>复制手动打开此端口的命令</translation>
     </message>
     <message id="autopanel.tip.review.go">
         <source>Do what the review shows; nothing changes before</source>
@@ -2106,6 +2434,10 @@
     <message id="autopanel.tip.review.prepare">
         <source>Put the user, the files and the images in place, and start nothing</source>
         <translation>准备好用户、文件和镜像，不启动任何内容</translation>
+    </message>
+    <message id="autopanel.tip.review.toggle">
+        <source>Open the selected port in the firewall when this is applied, or leave the firewall as it is</source>
+        <translation>应用时在防火墙中打开所选端口，或保持防火墙原样</translation>
     </message>
     <message id="autopanel.tip.routes.add">
         <source>Add a route</source>
@@ -2219,6 +2551,14 @@
         <source>Remove the Cloudflare token</source>
         <translation>删除 Cloudflare 令牌</translation>
     </message>
+    <message id="autopanel.title.confirm.firewallOff">
+        <source>Turn the firewall off</source>
+        <translation>关闭防火墙</translation>
+    </message>
+    <message id="autopanel.title.confirm.firewallRevoke">
+        <source>Revoke the rule</source>
+        <translation>撤销规则</translation>
+    </message>
     <message id="autopanel.title.confirm.mailLock">
         <source>Lock the mailbox's password</source>
         <translation>锁定邮箱密码</translation>
@@ -2287,6 +2627,10 @@
         <source>Records to enter at your DNS provider</source>
         <translation>需在 DNS 服务商处填写的记录</translation>
     </message>
+    <message id="autopanel.title.dialog.plan">
+        <source>Turn the firewall on</source>
+        <translation>开启防火墙</translation>
+    </message>
     <message id="autopanel.title.dialog.recovery">
         <source>Recovery codes</source>
         <translation>恢复码</translation>
@@ -2311,6 +2655,10 @@
         <source>Entries</source>
         <translation>条目</translation>
     </message>
+    <message id="autopanel.title.list.checks">
+        <source>Findings</source>
+        <translation>发现</translation>
+    </message>
     <message id="autopanel.title.list.count">
         <source>%1 · %2 · read at %3</source>
         <translation>%1 · %2 · 读取于 %3</translation>
@@ -2322,6 +2670,10 @@
     <message id="autopanel.title.list.failed">
         <source>%1 · the read failed: %2</source>
         <translation>%1 · 读取失败：%2</translation>
+    </message>
+    <message id="autopanel.title.list.firewall">
+        <source>Rules</source>
+        <translation>规则</translation>
     </message>
     <message id="autopanel.title.list.journal">
         <source>%1 · %2 lines · read at %3</source>
@@ -2383,6 +2735,10 @@
         <source>Entry</source>
         <translation>条目</translation>
     </message>
+    <message id="autopanel.title.pane.planPorts">
+        <source>What it would block</source>
+        <translation>将被阻止的</translation>
+    </message>
     <message id="autopanel.title.pane.review">
         <source>Containers and findings</source>
         <translation>容器与检查结果</translation>
@@ -2395,9 +2751,17 @@
         <source>Audit log</source>
         <translation>审计日志</translation>
     </message>
+    <message id="autopanel.title.panel.checks">
+        <source>Host checks</source>
+        <translation>主机检查</translation>
+    </message>
     <message id="autopanel.title.panel.domains">
         <source>Domains</source>
         <translation>域名</translation>
+    </message>
+    <message id="autopanel.title.panel.firewall">
+        <source>Firewall</source>
+        <translation>防火墙</translation>
     </message>
     <message id="autopanel.title.panel.logins">
         <source>Login attempts</source>
@@ -2458,6 +2822,10 @@
     <message id="autopanel.title.prompt.cloudflare">
         <source>Cloudflare token</source>
         <translation>Cloudflare 令牌</translation>
+    </message>
+    <message id="autopanel.title.prompt.firewallAllow">
+        <source>Allow a port</source>
+        <translation>允许端口</translation>
     </message>
     <message id="autopanel.title.prompt.import">
         <source>Import a stack</source>
@@ -2615,9 +2983,145 @@
         <source>Issuer: %1</source>
         <translation>签发者：%1</translation>
     </message>
+    <message id="autopanel.value.check.alert">
+        <source>alert</source>
+        <translation>警告</translation>
+    </message>
+    <message id="autopanel.value.check.dockerGroup">
+        <source>Users in the docker group, as good as root: %1</source>
+        <translation>docker 组中的用户（等同 root）：%1</translation>
+    </message>
+    <message id="autopanel.value.check.dockerPresent">
+        <source>Docker is installed or running</source>
+        <translation>Docker 已安装或正在运行</translation>
+    </message>
+    <message id="autopanel.value.check.firewallOff">
+        <source>No firewall is on (%1)</source>
+        <translation>没有开启的防火墙（%1）</translation>
+    </message>
+    <message id="autopanel.value.check.firewallOwnedMissing">
+        <source>Rules AutoPanel made were removed by hand: %1</source>
+        <translation>AutoPanel 创建的规则被手动删除：%1</translation>
+    </message>
+    <message id="autopanel.value.check.firewallPartial">
+        <source>Something filters that this view cannot read: %1</source>
+        <translation>有此视图无法读取的过滤：%1</translation>
+    </message>
+    <message id="autopanel.value.check.firewallStale">
+        <source>Firewall rules nothing listens behind: %1</source>
+        <translation>后面无监听的防火墙规则：%1</translation>
+    </message>
+    <message id="autopanel.value.check.firewallUnconfirmed">
+        <source>The firewall was turned on and is not confirmed yet</source>
+        <translation>防火墙已开启但尚未确认</translation>
+    </message>
+    <message id="autopanel.value.check.gatePortBlocked">
+        <source>The firewall blocks AutoPanel's web ports: %1</source>
+        <translation>防火墙阻止了 AutoPanel 的 Web 端口：%1</translation>
+    </message>
+    <message id="autopanel.value.check.mailPortBlocked">
+        <source>The firewall blocks mail's ports: %1</source>
+        <translation>防火墙阻止了邮件端口：%1</translation>
+    </message>
+    <message id="autopanel.value.check.notice">
+        <source>notice</source>
+        <translation>提示</translation>
+    </message>
+    <message id="autopanel.value.check.podmanSystemSocket">
+        <source>Podman's system-wide socket is on</source>
+        <translation>Podman 的全系统套接字已开启</translation>
+    </message>
+    <message id="autopanel.value.check.rebootRequired">
+        <source>A reboot is waiting: an update needs it</source>
+        <translation>有待重启：更新需要重启</translation>
+    </message>
+    <message id="autopanel.value.check.sshPassword">
+        <source>SSH takes passwords</source>
+        <translation>SSH 接受密码登录</translation>
+    </message>
+    <message id="autopanel.value.check.stackPortBlocked">
+        <source>The firewall blocks ports a stack opened: %1</source>
+        <translation>防火墙阻止了堆栈打开的端口：%1</translation>
+    </message>
+    <message id="autopanel.value.check.ufwIpv6Off">
+        <source>ufw leaves IPv6 alone (IPV6=no)</source>
+        <translation>ufw 不管理 IPv6（IPV6=no）</translation>
+    </message>
+    <message id="autopanel.value.check.unitFailed">
+        <source>System units failed: %1</source>
+        <translation>失败的系统单元：%1</translation>
+    </message>
     <message id="autopanel.value.domain.noRoutes">
         <source>No route is under it.</source>
         <translation>其下没有路由。</translation>
+    </message>
+    <message id="autopanel.value.firewall.allowed">
+        <source>allowed</source>
+        <translation>允许</translation>
+    </message>
+    <message id="autopanel.value.firewall.blocked">
+        <source>blocked</source>
+        <translation>阻止</translation>
+    </message>
+    <message id="autopanel.value.firewall.byAdministrator">
+        <source>the administrator (no owner removes it)</source>
+        <translation>管理员（不会被任何所有者移除）</translation>
+    </message>
+    <message id="autopanel.value.firewall.byNobody">
+        <source>no rule</source>
+        <translation>无规则</translation>
+    </message>
+    <message id="autopanel.value.firewall.byOther">
+        <source>a rule not AutoPanel's</source>
+        <translation>非 AutoPanel 的规则</translation>
+    </message>
+    <message id="autopanel.value.firewall.limited">
+        <source>limited</source>
+        <translation>受限</translation>
+    </message>
+    <message id="autopanel.value.firewall.local">
+        <source>local</source>
+        <translation>本地</translation>
+    </message>
+    <message id="autopanel.value.firewall.off">
+        <source>off</source>
+        <translation>关闭</translation>
+    </message>
+    <message id="autopanel.value.firewall.on">
+        <source>on, incoming %1 by default</source>
+        <translation>开启，入站默认 %1</translation>
+    </message>
+    <message id="autopanel.value.firewall.stale">
+        <source>rule, nothing listens</source>
+        <translation>规则，无监听</translation>
+    </message>
+    <message id="autopanel.value.firewall.summary">
+        <source>Manager: %1 · %2 · %3 rules</source>
+        <translation>管理器：%1 · %2 · %3 条规则</translation>
+    </message>
+    <message id="autopanel.value.firewall.unknown">
+        <source>unknown</source>
+        <translation>未知</translation>
+    </message>
+    <message id="autopanel.value.firewallLimit.dockerRules">
+        <source>Docker filters what it publishes apart from the manager: its ports read as unknown.</source>
+        <translation>Docker 在管理器之外过滤其发布的端口：这些端口显示为未知。</translation>
+    </message>
+    <message id="autopanel.value.firewallLimit.ipv6Unmanaged">
+        <source>ufw leaves IPv6 alone (IPV6=no): IPv6 ports read as unknown.</source>
+        <translation>ufw 不管理 IPv6（IPV6=no）：IPv6 端口显示为未知。</translation>
+    </message>
+    <message id="autopanel.value.firewallLimit.otherTables">
+        <source>Rules outside the manager also filter, and this view cannot read them.</source>
+        <translation>管理器之外的规则也在过滤，而此视图无法读取它们。</translation>
+    </message>
+    <message id="autopanel.value.firewallLimit.twoManagers">
+        <source>ufw and firewalld are both running: AutoPanel changes neither.</source>
+        <translation>ufw 和 firewalld 同时在运行：AutoPanel 不会更改其中任何一个。</translation>
+    </message>
+    <message id="autopanel.value.firewallLimit.unparsedRules">
+        <source>Some rules could not be read: ports they might match read as unknown.</source>
+        <translation>部分规则无法读取：它们可能影响的端口显示为未知。</translation>
     </message>
     <message id="autopanel.value.host.cpu">
         <source>%1% of %2 CPUs</source>
@@ -2699,6 +3203,18 @@
         <source>%1 · %2 · %3 (1, 5 and 15 minutes)</source>
         <translation>%1 · %2 · %3 (1、5、15 分钟)</translation>
     </message>
+    <message id="autopanel.value.plan.allow">
+        <source>allow</source>
+        <translation>允许</translation>
+    </message>
+    <message id="autopanel.value.plan.block">
+        <source>blocked</source>
+        <translation>阻止</translation>
+    </message>
+    <message id="autopanel.value.plan.summary">
+        <source>With %1. SSH stays allowed from anywhere: %2. Unless a new login confirms it within %3 seconds, the firewall turns itself off again.</source>
+        <translation>使用 %1。SSH 仍允许从任意位置访问：%2。若 %3 秒内没有新登录确认，防火墙会再次关闭。</translation>
+    </message>
     <message id="autopanel.value.review.container">
         <source>container</source>
         <translation>容器</translation>
@@ -2714,6 +3230,26 @@
     <message id="autopanel.value.review.noMemoryLimit">
         <source>none</source>
         <translation>无</translation>
+    </message>
+    <message id="autopanel.value.review.port">
+        <source>port</source>
+        <translation>端口</translation>
+    </message>
+    <message id="autopanel.value.review.portAllowed">
+        <source>allowed already</source>
+        <translation>已允许</translation>
+    </message>
+    <message id="autopanel.value.review.portByHand">
+        <source>[!] by hand</source>
+        <translation>[!] 手动</translation>
+    </message>
+    <message id="autopanel.value.review.portLeave">
+        <source>[ ] leave it</source>
+        <translation>[ ] 保持</translation>
+    </message>
+    <message id="autopanel.value.review.portOpen">
+        <source>[x] open it</source>
+        <translation>[x] 打开</translation>
     </message>
     <message id="autopanel.value.review.refused">
         <source>refused</source>

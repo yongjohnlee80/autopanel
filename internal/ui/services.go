@@ -11,6 +11,7 @@ import (
 
 	tuidecl "github.com/yongjohnlee80/golib/tui/decl"
 
+	corefw "github.com/yongjohnlee80/autopanel/core/firewall"
 	"github.com/yongjohnlee80/autopanel/core/services"
 )
 
@@ -49,6 +50,7 @@ type stackRow struct {
 type reviewRow struct {
 	container int // the container's place in the review, or -1
 	finding   int // the finding's place in findingTexts, or -1
+	port      int // the port's place in the review's Firewall, or -1
 }
 
 // stacks is the stacks panel's models and what they were last filled from.
@@ -80,6 +82,9 @@ type stacks struct {
 	// and start applies it (mail.setup.apply), not of a stack on disk.
 	// nextDraft marks the next showReview so.
 	draft, nextDraft bool
+	// opens are the ports ticked to open in the firewall, by key: at first
+	// those that need a rule and that AutoPanel can open.
+	opens map[string]bool
 }
 
 func newStacks() stacks {
@@ -112,6 +117,11 @@ func (d *stacks) state() map[string]any {
 		"App.reviewAllowed":     false,
 		"App.reviewNew":         false,
 		"App.reviewMayPrepare":  false,
+		"App.reviewOnPort":      false,
+		"App.reviewToggleText":  englishText("autopanel.button.review.open"),
+		"App.reviewHasCommands": false,
+		"App.reviewCopyNote":    "",
+		"App.reviewCopyShown":   false,
 	}
 }
 
@@ -552,18 +562,89 @@ func orderedFindings(w wording, findings []services.Finding) (levels, texts []st
 
 // reviewList is the review's list: each container it would run, then each
 // finding, refusals first.
-func reviewList(w wording, r services.Review) (rows []tuidecl.Row, names []reviewRow, levels, texts []string) {
+func reviewList(w wording, r services.Review, opens map[string]bool) (rows []tuidecl.Row, names []reviewRow, levels, texts []string) {
 	kind := w.tr("autopanel.value.review.container")
 	for i, c := range r.Containers {
 		rows = append(rows, tuidecl.Row{"key": "c" + strconv.Itoa(i), "kind": kind, "name": c.Service, "text": shortImage(c.Image)})
-		names = append(names, reviewRow{container: i, finding: -1})
+		names = append(names, reviewRow{container: i, finding: -1, port: -1})
+	}
+	port := w.tr("autopanel.value.review.port")
+	for i, p := range r.Firewall {
+		rows = append(rows, tuidecl.Row{"key": "p" + strconv.Itoa(i), "kind": port, "name": p.Key, "text": firewallChoice(w, p, opens[p.Key])})
+		names = append(names, reviewRow{container: -1, finding: -1, port: i})
 	}
 	levels, texts = orderedFindings(w, r.Findings)
 	for i, t := range texts {
 		rows = append(rows, tuidecl.Row{"key": "f" + strconv.Itoa(i), "kind": levels[i], "name": "", "text": t})
-		names = append(names, reviewRow{container: -1, finding: i})
+		names = append(names, reviewRow{container: -1, finding: i, port: -1})
 	}
 	return rows, names, levels, texts
+}
+
+// verdictText is a firewall verdict in the UI's language.
+func verdictText(w wording, verdict string) string {
+	switch verdict {
+	case "allowed", "limited", "blocked", "local", "unknown":
+		return w.tr("autopanel.value.firewall." + verdict)
+	case "rule: nothing listens":
+		return w.tr("autopanel.value.firewall.stale")
+	case "":
+		return "-"
+	}
+	return verdict
+}
+
+// firewallChoice is a port's row in a review: what will be done with it, and the
+// firewall's verdict on it now.
+func firewallChoice(w wording, p corefw.PortState, open bool) string {
+	what := "autopanel.value.review.portLeave"
+	switch {
+	case !p.Managed && p.Needs:
+		what = "autopanel.value.review.portByHand"
+	case open:
+		what = "autopanel.value.review.portOpen"
+	case !p.Needs:
+		what = "autopanel.value.review.portAllowed"
+	}
+	return w.tr(what) + " · " + verdictText(w, p.Verdict)
+}
+
+// portDetailOf is a review's port whole: its verdict now, whether it needs a
+// rule and who allowed it, and, when AutoPanel will not open it, the
+// commands that would, with the provider's line and a test from elsewhere.
+func portDetailOf(w wording, p corefw.PortState, open bool) string {
+	by := w.tr("autopanel.value.firewall.byNobody")
+	switch p.By {
+	case "":
+	case "other":
+		by = w.tr("autopanel.value.firewall.byOther")
+	default:
+		by = p.By
+	}
+	needs := w.tr("autopanel.value.review.no")
+	if p.Needs {
+		needs = w.tr("autopanel.value.review.yes")
+	}
+	now := verdictText(w, p.Verdict)
+	if p.Why != "" {
+		now += " (" + p.Why + ")"
+	}
+	out := facts(w,
+		[2]string{"autopanel.label.firewall.port", p.Key},
+		[2]string{"autopanel.label.firewall.now", now},
+		[2]string{"autopanel.label.firewall.needs", needs},
+		[2]string{"autopanel.label.firewall.allowedBy", by},
+		[2]string{"autopanel.label.firewall.opening", firewallChoice(w, p, open)})
+	if len(p.Commands) > 0 {
+		out += "\n\n" + w.tr("autopanel.notice.firewall.byHand") + "\n  " + strings.Join(p.Commands, "\n  ")
+	}
+	if p.Needs || len(p.Commands) > 0 {
+		out += "\n\n" + w.tr("autopanel.notice.firewall.provider")
+		if proto, port, ok := strings.Cut(p.Key, "/"); ok && proto == "tcp" && !strings.Contains(port, "-") && !strings.Contains(port, ":") {
+			out += "\n" + w.trf("autopanel.notice.firewall.test", "nc -vz <server> "+port)
+		}
+	}
+	return out
 }
 
 // plannedDetail is a container a review would run, whole.
@@ -610,7 +691,60 @@ func (h *host) reviewDetailAt(row int) string {
 	if r.finding >= 0 && r.finding < len(d.findingTexts) {
 		return facts(h, [2]string{"autopanel.label.review.level", d.findingLevel[r.finding]}) + "\n\n" + d.findingTexts[r.finding]
 	}
+	if r.port >= 0 && r.port < len(d.reviewed.Firewall) {
+		p := d.reviewed.Firewall[r.port]
+		return portDetailOf(h, p, d.opens[p.Key])
+	}
 	return ""
+}
+
+// reviewPort is the review's port under the cursor, if the row is one.
+func (h *host) reviewPort() (corefw.PortState, bool) {
+	d := &h.stk
+	if d.reviewAt < 0 || d.reviewAt >= len(d.reviewRows) {
+		return corefw.PortState{}, false
+	}
+	r := d.reviewRows[d.reviewAt]
+	if r.port < 0 || r.port >= len(d.reviewed.Firewall) {
+		return corefw.PortState{}, false
+	}
+	return d.reviewed.Firewall[r.port], true
+}
+
+// reviewToggle is "Open it" on a review's port: ticked, the apply opens it in
+// the firewall; unticked, the firewall is left as it is. A port AutoPanel
+// cannot open here is given as commands instead, and cannot be ticked.
+func (h *host) reviewToggle() error {
+	p, ok := h.reviewPort()
+	if !ok || !p.Managed {
+		return nil
+	}
+	h.stk.opens[p.Key] = !h.stk.opens[p.Key]
+	return h.renderReview()
+}
+
+// reviewCopy copies the selected port's commands to the clipboard.
+func (h *host) reviewCopy() error {
+	p, ok := h.reviewPort()
+	if !ok || len(p.Commands) == 0 {
+		return nil
+	}
+	note := h.tr("autopanel.notice.firewall.noClipboard")
+	if app := h.p.App(); app != nil && app.CopyToClipboard(strings.Join(p.Commands, "\n")+"\n") {
+		note = h.tr("autopanel.notice.firewall.copied")
+	}
+	return h.p.SetMany(map[string]any{"App.reviewCopyNote": note, "App.reviewCopyShown": true})
+}
+
+// reviewOpens are the review's ticked ports, in its order.
+func (h *host) reviewOpens() []corefw.Want {
+	var out []corefw.Want
+	for _, p := range h.stk.reviewed.Firewall {
+		if p.Managed && h.stk.opens[p.Key] {
+			out = append(out, p.Want)
+		}
+	}
+	return out
 }
 
 // showReview fills the review dialog with r and opens it. A refused stack's
@@ -619,6 +753,11 @@ func (h *host) showReview(name, mode string, r services.Review, again bool) erro
 	d := &h.stk
 	d.reviewName, d.reviewMode, d.reviewed, d.again, d.reviewAt = name, mode, r, again, 0
 	d.draft, d.nextDraft = d.nextDraft, false
+	d.opens = map[string]bool{}
+	for _, p := range r.Firewall {
+		d.opens[p.Key] = p.Managed && p.Needs
+	}
+	_ = h.p.SetMany(map[string]any{"App.reviewCopyNote": "", "App.reviewCopyShown": false})
 	if err := h.renderReview(); err != nil {
 		return err
 	}
@@ -632,7 +771,7 @@ func (h *host) renderReview() error {
 		return nil
 	}
 	r := d.reviewed
-	rows, names, levels, texts := reviewList(h, r)
+	rows, names, levels, texts := reviewList(h, r, d.opens)
 	d.reviewRows, d.findingLevel, d.findingTexts = names, levels, texts
 	d.review.Reset(rows)
 	allowed := !refused(r)
@@ -643,7 +782,7 @@ func (h *host) renderReview() error {
 	if !allowed {
 		notice = append(notice, h.tr("autopanel.notice.review.refused"))
 	}
-	return h.p.SetMany(map[string]any{
+	return h.p.SetMany(merge(map[string]any{
 		"App.reviewTitle":       h.trf("autopanel.title.review."+d.reviewMode, d.reviewName),
 		"App.reviewSummary":     h.trf("autopanel.value.review.summary", shortSHA(r.SHA256), len(r.Files), len(r.Containers)),
 		"App.reviewNotice":      strings.Join(notice, " "),
@@ -655,14 +794,38 @@ func (h *host) renderReview() error {
 		"App.reviewAllowed":     allowed,
 		"App.reviewNew":         d.reviewMode == reviewAdd,
 		"App.reviewMayPrepare":  allowed && d.reviewMode == reviewAdd && !d.draft,
-	})
+	}, h.reviewPortState()))
+}
+
+// reviewPortState is what the review's buttons for the selected port show.
+func (h *host) reviewPortState() map[string]any {
+	p, ok := h.reviewPort()
+	toggle := "autopanel.button.review.open"
+	if ok && h.stk.opens[p.Key] {
+		toggle = "autopanel.button.review.leave"
+	}
+	return map[string]any{
+		"App.reviewOnPort":      ok && p.Managed,
+		"App.reviewToggleText":  h.tr(toggle),
+		"App.reviewHasCommands": ok && len(p.Commands) > 0,
+	}
 }
 
 // reviewMoved is the review list's cursor moved: the right pane shows that
 // row whole.
 func (h *host) reviewMoved(row int) error {
 	h.stk.reviewAt = row
-	return h.p.Set("App.reviewDetail", h.reviewDetailAt(row))
+	vals := h.reviewPortState()
+	vals["App.reviewDetail"], vals["App.reviewCopyShown"] = h.reviewDetailAt(row), false
+	return h.p.SetMany(vals)
+}
+
+// merge is a with b's keys added.
+func merge(a, b map[string]any) map[string]any {
+	for k, v := range b {
+		a[k] = v
+	}
+	return a
 }
 
 // reviewAccept is the review confirmed: the stack is added and started,
@@ -670,7 +833,11 @@ func (h *host) reviewMoved(row int) error {
 func (h *host) reviewAccept() error {
 	if h.stk.draft {
 		if !refused(h.stk.reviewed) {
-			h.runMailSetup(h.stk.reviewed.SHA256)
+			var open []int
+			for _, w := range h.reviewOpens() {
+				open = append(open, w.From)
+			}
+			h.runMailSetup(h.stk.reviewed.SHA256, open)
 		}
 		return nil
 	}
@@ -698,7 +865,7 @@ func (h *host) reviewPrepare() error {
 // and the new review says so. Any other end is said on the status bar, and
 // the stacks are read again: an apply that failed half-way left a row.
 func (h *host) runReviewed(verb, done string) {
-	name, mode, r := h.stk.reviewName, h.stk.reviewMode, h.stk.reviewed
+	name, mode, r, open := h.stk.reviewName, h.stk.reviewMode, h.stk.reviewed, h.reviewOpens()
 	if name == "" || refused(r) {
 		return
 	}
@@ -708,7 +875,7 @@ func (h *host) runReviewed(verb, done string) {
 	}
 	h.busy = true
 	h.say(h.trf("autopanel.notice.stacks.working", name))
-	h.background(func(ctx context.Context) error { return h.client.ApplyStack(ctx, verb, name, r.SHA256) }, func(err error) {
+	h.background(func(ctx context.Context) error { return h.client.ApplyStack(ctx, verb, name, r.SHA256, open) }, func(err error) {
 		h.busy = false
 		switch {
 		case errors.Is(err, services.ErrChanged):

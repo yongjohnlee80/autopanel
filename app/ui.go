@@ -9,11 +9,13 @@ import (
 
 	"github.com/yongjohnlee80/golib/server/rpc"
 
+	corefw "github.com/yongjohnlee80/autopanel/core/firewall"
 	"github.com/yongjohnlee80/autopanel/core/gate"
 	"github.com/yongjohnlee80/autopanel/core/mail"
 	"github.com/yongjohnlee80/autopanel/core/services"
 	hostcontrol "github.com/yongjohnlee80/autopanel/host/control"
 	"github.com/yongjohnlee80/autopanel/internal/auth"
+	"github.com/yongjohnlee80/autopanel/internal/sysinfo"
 	"github.com/yongjohnlee80/autopanel/internal/ui"
 )
 
@@ -190,6 +192,45 @@ func (u uiClient) Ports(ctx context.Context) ([]ui.Port, error) {
 	return ps, u.call(ctx, "sys.ports", nil, &ps)
 }
 
+func (u uiClient) Checks(ctx context.Context) ([]ui.Check, error) {
+	var cs []ui.Check
+	return cs, u.call(ctx, "sys.checks", nil, &cs)
+}
+
+func (u uiClient) Firewall(ctx context.Context) (sysinfo.Firewall, error) {
+	var fw sysinfo.Firewall
+	return fw, u.call(ctx, "sys.firewall.get", nil, &fw)
+}
+
+func (u uiClient) FirewallPlan(ctx context.Context) (corefw.EnablePlan, error) {
+	var p corefw.EnablePlan
+	return p, u.call(ctx, "sys.firewall.plan", nil, &p)
+}
+
+func (u uiClient) FirewallAllow(ctx context.Context, a corefw.AllowAsk) error {
+	return u.call(ctx, "sys.firewall.allow", a, nil)
+}
+
+func (u uiClient) FirewallRevoke(ctx context.Context, id string) error {
+	return u.call(ctx, "sys.firewall.revoke", RevokeAsk{ID: id}, nil)
+}
+
+func (u uiClient) FirewallEnable(ctx context.Context, plan string, allow []string) (corefw.Armed, error) {
+	var a corefw.Armed
+	if allow == nil {
+		allow = []string{}
+	}
+	return a, u.call(ctx, "sys.firewall.enable", corefw.EnableAsk{Plan: plan, Allow: allow}, &a)
+}
+
+func (u uiClient) FirewallConfirm(ctx context.Context) error {
+	return u.call(ctx, "sys.firewall.confirm", nil, nil)
+}
+
+func (u uiClient) FirewallDisable(ctx context.Context) error {
+	return u.call(ctx, "sys.firewall.disable", nil, nil)
+}
+
 func (u uiClient) Stacks(ctx context.Context) ([]services.View, error) {
 	var vs []services.View
 	return vs, u.call(ctx, "services.list", nil, &vs)
@@ -220,14 +261,14 @@ func (u uiClient) CheckStack(ctx context.Context, name string) (services.Review,
 	return r, u.call(ctx, "services.check", services.Ref{Name: name}, &r)
 }
 
-func (u uiClient) ApplyStack(ctx context.Context, verb, name, accept string) error {
+func (u uiClient) ApplyStack(ctx context.Context, verb, name, accept string, open []corefw.Want) error {
 	switch verb {
 	case "prepare", "add", "apply":
 	default:
 		return fmt.Errorf("no apply verb %q", verb)
 	}
 	// services.changed is told apart: the panel reviews the definition again.
-	return u.call(ctx, "services."+verb, services.Accept{Name: name, Accept: accept}, nil)
+	return u.call(ctx, "services."+verb, services.Accept{Name: name, Accept: accept, Open: open}, nil)
 }
 
 func (u uiClient) PullStack(ctx context.Context, name, service string) error {
@@ -289,8 +330,12 @@ func (u uiClient) MailSetup(ctx context.Context, host, domain string) (mail.Setu
 	return s, u.call(ctx, "mail.setup", mail.SetupAsk{Host: host, Domain: domain}, &s)
 }
 
-func (u uiClient) MailSetupApply(ctx context.Context, accept string) error {
-	return u.call(ctx, "mail.setup.apply", mail.Accept{Accept: accept}, nil)
+func (u uiClient) MailPortsOpen(ctx context.Context, ports []int) error {
+	return u.call(ctx, "mail.ports.open", mail.PortsAsk{Ports: ports}, nil)
+}
+
+func (u uiClient) MailSetupApply(ctx context.Context, accept string, open []int) error {
+	return u.call(ctx, "mail.setup.apply", mail.Accept{Accept: accept, Open: open}, nil)
 }
 
 func (u uiClient) MailAddDomain(ctx context.Context, name string) error {

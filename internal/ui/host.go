@@ -82,6 +82,7 @@ type host struct {
 	themes *tuidecl.ListModel // App.themes: System › Theme's rows
 	mon    monitors           // the System panels' models and last answers (monitor.go)
 	stk    stacks             // the stacks panel's models and last answers (services.go)
+	fw     firewallView       // System › Firewall and Host checks (firewall.go)
 	wid    widgets            // the main screen's widgets (widgets.go)
 	brw    browser            // the file browser (browse.go)
 	form   routeForm          // the route form (routes.go)
@@ -129,6 +130,7 @@ func newHost(ctx context.Context, c Client, version string) *host {
 		domainModel: tuidecl.NewListModel("key", "name", "routes"),
 		themes:      tuidecl.NewListModel("key", "label", "checked"),
 		mon:         newMonitors(),
+		fw:          newFirewallView(),
 		stk:         newStacks(),
 		wid:         newWidgets(),
 		brw:         newBrowser(),
@@ -229,7 +231,7 @@ func (h *host) state() map[string]any {
 	for name, v := range languageChecks(h.language) {
 		s[name] = v
 	}
-	for _, part := range []map[string]any{h.mon.state(), h.stk.state(), h.wid.state(), h.brw.state(), h.form.state(),
+	for _, part := range []map[string]any{h.mon.state(), h.stk.state(), h.fw.state(), h.wid.state(), h.brw.state(), h.form.state(),
 		h.mail.state(), h.acct.state(), h.layoutState(), tipState(inEnglish{})} {
 		for name, v := range part {
 			s[name] = v

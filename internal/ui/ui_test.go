@@ -46,6 +46,7 @@ type fakeClient struct {
 	domainAsks   []string // "add example.org" or "remove example.com"
 
 	mail fakeMail    // the Mail menu's verbs (mail_test.go)
+	fw   fakeFW      // System › Firewall and Host checks (firewall_test.go)
 	acct fakeAccount // users, two-factor and tokens (account_test.go)
 
 	stacks    []services.View            // what Stacks answers

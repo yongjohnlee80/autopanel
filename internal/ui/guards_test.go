@@ -192,8 +192,10 @@ func TestNoHelpLineOnAnyScreen(t *testing.T) {
 func TestEveryButtonHasAnAccessKeyAndATooltip(t *testing.T) {
 	marked := func(id string) bool { return strings.Contains(englishText(id), "&") }
 	bySource := map[string][]string{ // the host's text, and the messages it is
-		"App.reviewGo":     {"autopanel.button.review.add", "autopanel.button.review.apply", "autopanel.button.review.start"},
-		"App.confirmOther": {"autopanel.button.confirm.purge"},
+		"App.reviewGo":         {"autopanel.button.review.add", "autopanel.button.review.apply", "autopanel.button.review.start"},
+		"App.confirmOther":     {"autopanel.button.confirm.purge"},
+		"App.planToggleText":   {"autopanel.button.plan.allow", "autopanel.button.plan.block"},
+		"App.reviewToggleText": {"autopanel.button.review.open", "autopanel.button.review.leave"},
 	}
 	textRe := regexp.MustCompile(`text:\s*(qsTrId\("([^"]+)"\)|App\.[A-Za-z]+|model\.[a-z]+)`)
 	n := 0
