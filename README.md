@@ -10,8 +10,9 @@ are recorded under [docs/decisions](docs/decisions/README.md) as they are made.
 
 ## Install
 
-AutoPanel runs on a Linux server with systemd. Point a name's DNS at the server and open ports 80
-and 443 first.
+AutoPanel runs on a Linux server with systemd. Point a name's DNS at the server and make sure
+ports 80 and 443 reach it. On a server with no firewall on, a first install offers to turn one on,
+allowing only SSH and those two ports (`--firewall yes|no` answers it ahead).
 
 **Install or upgrade, in one line:**
 
@@ -118,7 +119,7 @@ every key. `r` reads the screen again and `q` quits.
 
 | Menu | What it holds |
 | --- | --- |
-| System | **Metrics**, **Audit log**, **Login attempts**, **Open ports**; **Theme** and **Language** |
+| System | **Metrics**, **Audit log**, **Login attempts**, **Open ports**, **Firewall**, **Host checks**; **Theme** and **Language** |
 | Routes | **Proxy routes**: the names AutoPanel serves and where each goes; **Domains**: the domains you own |
 | Certs | **Type**: which Let's Encrypt service issues the certificates, staging or production |
 | Services | **Stacks** and **Add a stack**: your services, below |
@@ -152,7 +153,9 @@ it again.
 | Metrics | the core's uptime and memory; the gate's request counts since it started, its process and its memory, or that it is not reporting; the host's load, memory, and the disk the store is on |
 | Audit log | the newest 200 changes made through AutoPanel: who, what, and when |
 | Login attempts | logins to the panel, and logins to the server over SSH: accepted, failed, and closed before logging in |
-| Open ports | every listening TCP port and bound UDP port, the address it listens on, the process that holds it (named by its executable, with its number) and the user it belongs to, and what it is for when AutoPanel knows: its own listeners, a route's upstream, or, for a socket whose process could not be read, the port's usual service |
+| Open ports | every listening TCP port and bound UDP port, the address it listens on, the process that holds it (named by its executable, with its number) and the user it belongs to, and what it is for when AutoPanel knows: its own listeners, a route's upstream, or, for a socket whose process could not be read, the port's usual service. Each says what the firewall does to a new connection from anywhere: allowed, limited (to whom), blocked, local, or unknown when AutoPanel cannot tell; an allow rule nothing listens behind is a row of its own |
+| Firewall | the host's firewall through ufw (a host running firewalld is shown as such, its verdicts unknown, until firewalld is supported): its rules, and whom AutoPanel made each for. Allow a port, revoke a rule, turn it on or off. Turning it on shows first what it would block, and undoes itself after 120 seconds unless you confirm from a new login in a second terminal. A change that would stop new SSH logins from your address is refused, with the commands for doing it by hand if you are sure. An admin's |
+| Host checks | the server's posture: a pending reboot, failed units, the firewall off or partial, ports the gate, mail or a stack need that the firewall blocks, Docker and its group, SSH taking passwords, and what to do about each |
 
 SSH logins come from the system journal, which the core reads. The gate has no access to it.
 
@@ -458,8 +461,13 @@ to Cloudflare (its free plan is enough), which takes the work away.
 
 **Mail → Set up mail** asks the mail host and the first domain, and opens the mail stack's review.
 Nothing is written until you confirm it: leave the review, or quit, and Set up mail opens again with
-your answers. **Add and start** makes the whole setup at once (the stack's user, its firewall rule,
-its files, the stack started, and the record); if a step fails, the ones before it are undone.
+your answers. The review lists mail's four ports (25, 465, 587, 993) with what the firewall does to
+each, ticked when they need a rule; where AutoPanel cannot open them it shows the commands that
+would, with a Copy button, and a reminder that a provider's firewall in front of the server needs
+them too. **Add and start** makes the whole setup at once (the stack's user, its loopback rule,
+its files, the stack started, the ticked ports opened, and the record); if a step fails, the ones
+before it are undone. **Mail → Server** shows each port, and **Open ports** opens the blocked ones
+for a server where they were not opened at set-up.
 AutoPanel then sets Stalwart up through its API, by itself, within a minute or two: **Mail → Server**
 says `ready` when it is done, and from then on the gate forwards the mail ports.
 
