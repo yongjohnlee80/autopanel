@@ -33,7 +33,19 @@ var (
 	Podman     = Tool{"/usr/bin/podman"}
 	Runuser    = Tool{"/usr/sbin/runuser"}
 	Nft        = Tool{"/usr/sbin/nft"}
+
+	// The firewall's: its managers, sshd's effective configuration (the
+	// lockout guard's), and systemd-run, which runs a manager's change
+	// outside the core's sandbox and arms the enable's undo timer.
+	Ufw                = Tool{"/usr/sbin/ufw"}
+	FirewallCmd        = Tool{"/usr/bin/firewall-cmd"}
+	FirewallOfflineCmd = Tool{"/usr/bin/firewall-offline-cmd"}
+	Sshd               = Tool{"/usr/sbin/sshd"}
+	SystemdRun         = Tool{"/usr/bin/systemd-run"}
 )
+
+// Path is the tool's absolute path: what a transient unit is told to run.
+func (t Tool) Path() string { return t.path }
 
 const (
 	// deadline bounds a run whose context has none.
