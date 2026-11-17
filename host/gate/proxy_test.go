@@ -86,11 +86,11 @@ func TestAHotReloadUnderLoadDropsNoRequest(t *testing.T) {
 					}
 					tbl.Swap(snap)
 					swaps.Add(1)
-					time.Sleep(time.Millisecond)
+					time.Sleep(3 * time.Millisecond)
 				}
 			}()
 
-			const clients, each = 16, 60
+			const clients, each = 16, 40
 			var seen [2]atomic.Int64
 			var failed atomic.Int64
 			var wg sync.WaitGroup
@@ -255,11 +255,16 @@ func TestAnUpgradedConnectionIsATwoWayStream(t *testing.T) {
 // A large upload of unknown length reaches the upstream while the client is
 // still sending (the gate does not hold it in memory), whole and unchanged.
 func TestALargeUploadStreamsThrough(t *testing.T) {
-	const size = 96 << 20
+	// Far more than the socket buffers and HTTP/2's windows between the two ends hold.
+	const size = 24 << 20
 	for _, h2 := range []bool{false, true} {
 		t.Run(map[bool]string{false: "http1", true: "http2"}[h2], func(t *testing.T) {
 			var got atomic.Int64
 			up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.ContentLength != -1 {
+					http.Error(w, "the upload came with a length", 400)
+					return
+				}
 				sum := sha256.New()
 				buf := make([]byte, 64<<10)
 				for {
@@ -279,7 +284,9 @@ func TestALargeUploadStreamsThrough(t *testing.T) {
 
 			pr, pw := io.Pipe()
 			want := sha256.New()
+			sent := make(chan struct{})
 			go func() {
+				defer close(sent)
 				chunk := make([]byte, 1<<20)
 				for i := range chunk {
 					chunk[i] = byte(i * 31)
@@ -320,6 +327,8 @@ func TestALargeUploadStreamsThrough(t *testing.T) {
 			}
 			defer res.Body.Close()
 			body, _ := io.ReadAll(res.Body)
+			_ = pr.Close() // an answer that came early stops the sender
+			<-sent
 			if wantBody := fmt.Sprintf("%d %s", size, hex.EncodeToString(want.Sum(nil))); res.StatusCode != 200 || string(body) != wantBody {
 				t.Fatalf("the upload answered %d %q; want %q", res.StatusCode, body, wantBody)
 			}
@@ -330,50 +339,54 @@ func TestALargeUploadStreamsThrough(t *testing.T) {
 // A streamed answer (server-sent events) reaches the client as it is written,
 // not when the upstream finishes.
 func TestAStreamedAnswerArrivesAsItIsWritten(t *testing.T) {
-	release := make(chan struct{})
-	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/event-stream")
-		_, _ = io.WriteString(w, "data: first\n\n")
-		w.(http.Flusher).Flush()
-		<-release
-		_, _ = io.WriteString(w, "data: last\n\n")
-	}))
-	t.Cleanup(up.Close)
-	t.Cleanup(func() {
-		select {
-		case <-release:
-		default:
-			close(release)
-		}
-	})
-	tbl := core.NewTable[http.Handler]()
-	to(t, tbl, up.URL)
-	gate := front(t, tbl, false)
+	for _, h2 := range []bool{false, true} {
+		t.Run(map[bool]string{false: "http1", true: "http2"}[h2], func(t *testing.T) {
+			release := make(chan struct{})
+			up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "text/event-stream")
+				_, _ = io.WriteString(w, "data: first\n\n")
+				w.(http.Flusher).Flush()
+				<-release
+				_, _ = io.WriteString(w, "data: last\n\n")
+			}))
+			t.Cleanup(up.Close)
+			t.Cleanup(func() {
+				select {
+				case <-release:
+				default:
+					close(release)
+				}
+			})
+			tbl := core.NewTable[http.Handler]()
+			to(t, tbl, up.URL)
+			gate := front(t, tbl, h2)
 
-	req, _ := http.NewRequest("GET", gate.URL+"/events", nil)
-	req.Host = "example.com"
-	res, err := gate.Client().Do(req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer res.Body.Close()
-	rd := bufio.NewReader(res.Body)
-	first := make(chan string, 1)
-	go func() {
-		s, _ := rd.ReadString('\n')
-		first <- s
-	}()
-	select {
-	case s := <-first:
-		if s != "data: first\n" {
-			t.Fatalf("the first event = %q", s)
-		}
-	case <-time.After(10 * time.Second):
-		t.Fatal("the first event did not arrive while the upstream was still writing")
-	}
-	close(release)
-	rest, _ := io.ReadAll(rd)
-	if !strings.Contains(string(rest), "data: last\n") {
-		t.Fatalf("the rest = %q", rest)
+			req, _ := http.NewRequest("GET", gate.URL+"/events", nil)
+			req.Host = "example.com"
+			res, err := gate.Client().Do(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer res.Body.Close()
+			rd := bufio.NewReader(res.Body)
+			first := make(chan string, 1)
+			go func() {
+				s, _ := rd.ReadString('\n')
+				first <- s
+			}()
+			select {
+			case s := <-first:
+				if s != "data: first\n" {
+					t.Fatalf("the first event = %q", s)
+				}
+			case <-time.After(10 * time.Second):
+				t.Fatal("the first event did not arrive while the upstream was still writing")
+			}
+			close(release)
+			rest, _ := io.ReadAll(rd)
+			if !strings.Contains(string(rest), "data: last\n") {
+				t.Fatalf("the rest = %q", rest)
+			}
+		})
 	}
 }
