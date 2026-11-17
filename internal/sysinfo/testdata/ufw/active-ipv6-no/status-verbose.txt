@@ -1,0 +1,32 @@
+Status: active
+Logging: on (low)
+Default: deny (incoming), allow (outgoing), deny (routed)
+New profiles: skip
+
+To                         Action      From
+--                         ------      ----
+Anywhere                   DENY IN     203.0.113.7               
+22/tcp                     ALLOW IN    Anywhere                  
+2222/tcp                   ALLOW IN    Anywhere                  
+8081/tcp                   ALLOW IN    Anywhere                  
+8082/tcp                   ALLOW IN    192.0.2.0/24           
+192.0.2.10 8083/tcp     ALLOW IN    Anywhere                  
+60000:60010/udp            ALLOW IN    Anywhere                  
+2223/tcp                   LIMIT IN    Anywhere                  
+8087/tcp                   REJECT IN   Anywhere                  
+8085/tcp on eth0           ALLOW IN    Anywhere                  
+22/tcp (OpenSSH)           ALLOW IN    Anywhere                  
+8086/tcp                   ALLOW IN    Anywhere                   # a note here
+8088/tcp                   ALLOW IN    Anywhere                  
+8089                       ALLOW IN    Anywhere                  
+192.0.2.10 8090:8092/udp ALLOW IN    192.0.2.20             
+8093/tcp                   DENY IN     192.0.2.0/24           
+8093/tcp                   ALLOW IN    Anywhere                  
+8108/tcp                   ALLOW IN    Anywhere                  
+8109/tcp                   ALLOW IN    10.0.0.0/8                
+8114/tcp                   DENY IN     Anywhere                  
+
+6667/tcp                   DENY OUT    Anywhere                  
+
+198.51.100.2 80/tcp on br0 ALLOW FWD   Anywhere on eth0          
+

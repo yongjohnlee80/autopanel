@@ -1,0 +1,43 @@
+Status: active
+Logging: on (low)
+Default: deny (incoming), allow (outgoing), deny (routed)
+New profiles: skip
+
+To                         Action      From
+--                         ------      ----
+Anywhere                   DENY IN     203.0.113.7               
+22/tcp                     ALLOW IN    Anywhere                  
+2222/tcp                   ALLOW IN    Anywhere                  
+8081/tcp                   ALLOW IN    Anywhere                  
+8082/tcp                   ALLOW IN    192.0.2.0/24           
+192.0.2.10 8083/tcp     ALLOW IN    Anywhere                  
+60000:60010/udp            ALLOW IN    Anywhere                  
+2223/tcp                   LIMIT IN    Anywhere                  
+8087/tcp                   REJECT IN   Anywhere                  
+8085/tcp on eth0           ALLOW IN    Anywhere                  
+22/tcp (OpenSSH)           ALLOW IN    Anywhere                  
+8086/tcp                   ALLOW IN    Anywhere                   # a note here
+8088/tcp                   ALLOW IN    Anywhere                  
+8089                       ALLOW IN    Anywhere                  
+192.0.2.10 8090:8092/udp ALLOW IN    192.0.2.20             
+8093/tcp                   DENY IN     192.0.2.0/24           
+8093/tcp                   ALLOW IN    Anywhere                  
+22/tcp (v6)                ALLOW IN    Anywhere (v6)             
+2222/tcp (v6)              ALLOW IN    Anywhere (v6)             
+8081/tcp (v6)              ALLOW IN    Anywhere (v6)             
+60000:60010/udp (v6)       ALLOW IN    Anywhere (v6)             
+2223/tcp (v6)              LIMIT IN    Anywhere (v6)             
+8087/tcp (v6)              REJECT IN   Anywhere (v6)             
+8084/tcp                   ALLOW IN    2001:db8::/32             
+8085/tcp (v6) on eth0      ALLOW IN    Anywhere (v6)             
+22/tcp (OpenSSH (v6))      ALLOW IN    Anywhere (v6)             
+8086/tcp (v6)              ALLOW IN    Anywhere (v6)              # a note here
+8088/tcp (v6)              ALLOW IN    Anywhere (v6)             
+8089 (v6)                  ALLOW IN    Anywhere (v6)             
+8093/tcp (v6)              ALLOW IN    Anywhere (v6)             
+
+6667/tcp                   DENY OUT    Anywhere                  
+6667/tcp (v6)              DENY OUT    Anywhere (v6)             
+
+198.51.100.2 80/tcp on br0 ALLOW FWD   Anywhere on eth0          
+
