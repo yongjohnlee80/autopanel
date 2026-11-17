@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/yongjohnlee80/golib/qr"
 	"github.com/yongjohnlee80/golib/tui"
 	tuidecl "github.com/yongjohnlee80/golib/tui/decl"
 	"github.com/yongjohnlee80/golib/tui/decl/themes"
-	"rsc.io/qr"
 
 	"github.com/yongjohnlee80/autopanel/core/mail"
 )
