@@ -228,7 +228,9 @@ func (h *host) firewallMoved(row int) error {
 
 // firewallChange runs one change off the loop. A refusal is shown in the
 // details pane, with its commands; the firewall is read again either way.
-func (h *host) firewallChange(done string, call func(ctx context.Context) error) {
+// call runs off the loop and touches nothing of the host's: what a change
+// that worked leaves in the host is done by after, on the loop.
+func (h *host) firewallChange(done string, call func(ctx context.Context) error, after ...func()) {
 	if h.busy {
 		h.say(h.tr("autopanel.notice.app.busy"))
 		return
@@ -240,8 +242,13 @@ func (h *host) firewallChange(done string, call func(ctx context.Context) error)
 		if err != nil {
 			h.fw.refusal, h.fw.commands = h.trf("autopanel.notice.app.error", err.Error()), commandsIn(err)
 			h.failed(err)
-		} else if done != "" {
-			h.say(h.tr(done))
+		} else {
+			for _, fn := range after {
+				fn()
+			}
+			if done != "" {
+				h.say(h.tr(done))
+			}
 		}
 		h.loadFirewall()
 	})
@@ -317,13 +324,8 @@ func (h *host) firewallDisable() error {
 
 // firewallConfirm is Confirm: it keeps an enable, from another login.
 func (h *host) firewallConfirm() error {
-	h.firewallChange("autopanel.notice.firewall.confirmed", func(ctx context.Context) error {
-		err := h.client.FirewallConfirm(ctx)
-		if err == nil {
-			h.fw.confirmBy = 0
-		}
-		return err
-	})
+	h.firewallChange("autopanel.notice.firewall.confirmed", func(ctx context.Context) error { return h.client.FirewallConfirm(ctx) },
+		func() { h.fw.confirmBy = 0 })
 	return nil
 }
 
@@ -438,11 +440,10 @@ func (h *host) planAccept() error {
 	var armed corefw.Armed
 	h.firewallChange("", func(ctx context.Context) (err error) {
 		armed, err = h.client.FirewallEnable(ctx, plan, allow)
-		if err == nil {
-			f.confirmBy = armed.ConfirmBy
-			h.say(h.trf("autopanel.notice.firewall.armed", time.Unix(armed.ConfirmBy, 0).Format("15:04:05")))
-		}
 		return err
+	}, func() {
+		f.confirmBy = armed.ConfirmBy
+		h.say(h.trf("autopanel.notice.firewall.armed", time.Unix(armed.ConfirmBy, 0).Format("15:04:05")))
 	})
 	return nil
 }

@@ -410,13 +410,16 @@ func (h *host) poll() {
 	wantPorts := h.shown("portsWidget") || h.panelShown("ports")
 	wantAudit := h.shown("activityWidget") || h.panelShown("audit")
 	wantLogins := h.panelShown("logins")
+	wantCerts := h.panelShown("certList")
 	var (
 		metrics                                           Metrics
 		views                                             []services.View
 		ports                                             []Port
 		audit                                             []AuditEntry
 		logins                                            Logins
+		certs                                             []Cert
 		metricsErr, stacksErr, portsErr, auditErr, logErr error
+		certsErr                                          error
 	)
 	h.polling = true
 	h.background(func(ctx context.Context) error {
@@ -434,6 +437,9 @@ func (h *host) poll() {
 		}
 		if wantLogins {
 			logins, logErr = h.client.Logins(ctx)
+		}
+		if wantCerts {
+			certs, certsErr = h.client.Certificates(ctx)
 		}
 		return nil
 	}, func(error) {
@@ -473,7 +479,20 @@ func (h *host) poll() {
 		if wantLogins && logErr == nil {
 			h.mon.lastLogins, h.mon.readAt["logins"] = &logins, now
 		}
-		h.mon.errs = map[string]error{"metrics": metricsErr, "ports": portsErr, "audit": auditErr, "logins": logErr}
+		if wantCerts && certsErr == nil {
+			h.mon.lastCerts, h.mon.readAt["certList"] = orEmpty(certs), now
+		}
+		// Only what this poll read: a panel it did not read keeps its own
+		// last error (the firewall's, the checks').
+		for panel, read := range map[string]struct {
+			want bool
+			err  error
+		}{"metrics": {wantMetrics, metricsErr}, "ports": {wantPorts, portsErr}, "audit": {wantAudit, auditErr},
+			"logins": {wantLogins, logErr}, "certList": {wantCerts, certsErr}} {
+			if read.want {
+				h.mon.errs[panel] = read.err
+			}
+		}
 		h.mon.render(h)
 	})
 }

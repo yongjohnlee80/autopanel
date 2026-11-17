@@ -1784,8 +1784,8 @@
         <translation>Cloudflare 토큰으로는 너무 짧습니다. 전체를 붙여 넣으세요</translation>
     </message>
     <message id="autopanel.notice.check.certExpiring">
-        <source>A certificate is renewed in the last third of its life, at a request for its name. One this close to its end has not been: Certs › Certificates shows the last failure. The name's DNS must point at this server, and ports 80 and 443 must reach it, or the Cloudflare token must reach the name's zone.</source>
-        <translation>인증서는 유효 기간의 마지막 3분의 1에, 해당 이름에 대한 요청 시 갱신됩니다. 만료가 이렇게 가까운 인증서는 갱신되지 않은 것입니다. 인증서 › 인증서에서 마지막 실패를 확인하세요. 이름의 DNS가 이 서버를 가리켜야 하고 80, 443 포트가 도달해야 하며, 또는 Cloudflare 토큰이 이름의 영역에 닿아야 합니다.</translation>
+        <source>A certificate is renewed in the last third of its life, at a request for its name. One this close to its end has not been: its renewal fails, or nothing has asked for the name since. Certs › Certificates shows the last failure. The name's DNS must point at this server, and ports 80 and 443 must reach it, or the Cloudflare token must reach the name's zone.</source>
+        <translation>인증서는 유효 기간의 마지막 3분의 1에, 해당 이름에 대한 요청 시 갱신됩니다. 만료가 이렇게 가까운 인증서는 갱신되지 않은 것입니다. 갱신이 실패하고 있거나 그동안 이 이름에 대한 요청이 없었습니다. 인증서 › 인증서에서 마지막 실패를 확인하세요. 이름의 DNS가 이 서버를 가리켜야 하고 80, 443 포트가 도달해야 하며, 또는 Cloudflare 토큰이 이름의 영역에 닿아야 합니다.</translation>
     </message>
     <message id="autopanel.notice.check.certFailing">
         <source>Certs › Certificates shows the reason for each name. An order is tried again at the next request for the name.</source>

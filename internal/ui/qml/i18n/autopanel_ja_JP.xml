@@ -1784,8 +1784,8 @@
         <translation>Cloudflare トークンとしては短すぎます。全体を貼り付けてください</translation>
     </message>
     <message id="autopanel.notice.check.certExpiring">
-        <source>A certificate is renewed in the last third of its life, at a request for its name. One this close to its end has not been: Certs › Certificates shows the last failure. The name's DNS must point at this server, and ports 80 and 443 must reach it, or the Cloudflare token must reach the name's zone.</source>
-        <translation>証明書は有効期間の最後の3分の1に、その名前へのリクエスト時に更新されます。期限がここまで近いものは更新されていません。証明書 › 証明書 に最後の失敗が表示されます。名前の DNS がこのサーバーを指し、ポート 80 と 443 が到達できるか、Cloudflare トークンが名前のゾーンに届く必要があります。</translation>
+        <source>A certificate is renewed in the last third of its life, at a request for its name. One this close to its end has not been: its renewal fails, or nothing has asked for the name since. Certs › Certificates shows the last failure. The name's DNS must point at this server, and ports 80 and 443 must reach it, or the Cloudflare token must reach the name's zone.</source>
+        <translation>証明書は有効期間の最後の3分の1に、その名前へのリクエスト時に更新されます。期限がここまで近いものは更新されていません。更新が失敗しているか、その間この名前へのリクエストがありませんでした。証明書 › 証明書 に最後の失敗が表示されます。名前の DNS がこのサーバーを指し、ポート 80 と 443 が到達できるか、Cloudflare トークンが名前のゾーンに届く必要があります。</translation>
     </message>
     <message id="autopanel.notice.check.certFailing">
         <source>Certs › Certificates shows the reason for each name. An order is tried again at the next request for the name.</source>

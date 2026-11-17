@@ -471,3 +471,25 @@ func TestTheGateForwardsTheCoresStreams(t *testing.T) {
 		return true
 	})
 }
+
+// A certificate in hand is asked for again after an hour, at its end, or as
+// the last third of its life begins, whichever is first.
+func TestWhenTheGateAsksAgainForACertificate(t *testing.T) {
+	from := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	leaf := &x509.Certificate{NotBefore: from, NotAfter: from.Add(90 * 24 * time.Hour)}
+	day := func(n int) time.Time { return from.Add(time.Duration(n) * 24 * time.Hour) }
+	for _, tc := range []struct {
+		name string
+		now  time.Time
+		want time.Time
+	}{
+		{"young: an hour", day(10), day(10).Add(time.Hour)},
+		{"the last third begins within the hour: then", day(60).Add(-20 * time.Minute), day(60)},
+		{"in the last third: an hour", day(61), day(61).Add(time.Hour)},
+		{"its end is within the hour: its end", day(90).Add(-10 * time.Minute), day(90)},
+	} {
+		if got := freshUntil(leaf, tc.now); !got.Equal(tc.want) {
+			t.Errorf("%s: asked again at %v; want %v", tc.name, got, tc.want)
+		}
+	}
+}

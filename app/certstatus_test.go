@@ -110,3 +110,62 @@ func TestCertificateChecks(t *testing.T) {
 		t.Errorf("healthy certificates = %+v; want no check", got)
 	}
 }
+
+func TestACertificatesRow(t *testing.T) {
+	from := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	c := certs.Stored{Issuer: "Test CA T1", NotBefore: from, NotAfter: from.Add(90 * 24 * time.Hour), RenewFrom: from.Add(60 * 24 * time.Hour)}
+	now := from.Add(24 * time.Hour)
+	f := failure{err: "429 too many certificates", at: now.Add(-time.Hour)}
+
+	got := certRow("a.example.com", c, true, nil, f, true, now)
+	if got.State != certOK || got.Issuer != "Test CA T1" || got.NotAfter != c.NotAfter.Unix() || got.RenewFrom != c.RenewFrom.Unix() ||
+		got.Error != f.err || got.FailedAt != f.at.Unix() {
+		t.Errorf("a stored certificate whose last order failed = %+v", got)
+	}
+	if got := certRow("a.example.com", c, true, nil, failure{}, false, now); got.Error != "" || got.FailedAt != 0 {
+		t.Errorf("with no failure = %+v", got)
+	}
+	// The store unread: its own error, not an older order's, and no failing check from it.
+	got = certRow("a.example.com", certs.Stored{}, false, errors.New("the vault\n is locked"), f, true, now)
+	if got.State != certUnknown || got.Error != "the vault is locked" || got.FailedAt != 0 {
+		t.Errorf("an unread store = %+v; want its own error alone", got)
+	}
+	if checks := certChecks([]CertRow{got}, now); len(checks) != 0 {
+		t.Errorf("an unread store raised %+v", checks)
+	}
+}
+
+func TestAnotherServicesFailuresAreForgotten(t *testing.T) {
+	e := newCertEvents(func(context.Context, string, string, string, string) error { return nil })
+	e.on(certs.Event{Name: "a.example.com", Err: errors.New("refused")})
+	if _, ok := e.last("a.example.com"); !ok {
+		t.Fatal("the failure was not kept")
+	}
+	e.reset()
+	if _, ok := e.last("a.example.com"); ok {
+		t.Error("a failure outlived the switch to another certificate service")
+	}
+	// After the reset the same failure is written to the audit log again: it is this service's now.
+	var lines int
+	e.audit = func(context.Context, string, string, string, string) error { lines++; return nil }
+	e.on(certs.Event{Name: "a.example.com", Err: errors.New("refused")})
+	if lines != 1 {
+		t.Errorf("after the switch, the failure was written %d times; want once", lines)
+	}
+}
+
+func TestAnAuditWriteThatHangsDoesNotHoldTheOrder(t *testing.T) {
+	var deadline time.Duration
+	e := newCertEvents(func(ctx context.Context, _, _, _, _ string) error {
+		d, ok := ctx.Deadline()
+		if !ok {
+			t.Error("the audit write has no deadline")
+		}
+		deadline = time.Until(d)
+		return nil
+	})
+	e.on(certs.Event{Name: "a.example.com"})
+	if deadline <= 0 || deadline > auditWithin {
+		t.Errorf("the audit write may take %v; want at most %v", deadline, auditWithin)
+	}
+}
