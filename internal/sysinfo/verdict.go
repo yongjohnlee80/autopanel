@@ -200,3 +200,56 @@ func joinWhy(a, b string) string {
 	}
 	return a + "; " + b
 }
+
+// The answers of Admits.
+const (
+	Admit   = "admit"
+	Refuse  = "refuse"
+	Unknown = "unknown"
+)
+
+// Admits is what f does to one new connection: from src, to dst's port over
+// proto. It is the lockout guard's question, so it answers Unknown wherever
+// it cannot be sure: a rule it does not model, a rule bound to an interface
+// (which one the packet arrives on is not known here), IPv6 that is not the
+// manager's, a manager it cannot read.
+//
+// Decision: docs/decisions/firewall.md#no-lockout
+func (f Firewall) Admits(proto string, src netip.Addr, dst netip.AddrPort) string {
+	src, addr, port := src.Unmap(), dst.Addr().Unmap(), int(dst.Port())
+	switch {
+	case f.Manager == "unknown":
+		return Unknown
+	case !f.Active:
+		return Admit
+	}
+	fam := "v4"
+	if addr.Is6() {
+		fam = "v6"
+	}
+	if fam == "v6" && f.Has(LimitIPv6Unmanaged) {
+		return Unknown
+	}
+	for _, r := range f.inOrder(fam, func(r Rule) bool { return r.Runtime }) {
+		if !r.Modelled {
+			return Unknown
+		}
+		if (r.Proto != "" && r.Proto != proto) || (r.From != 0 && (port < r.From || port > r.To)) {
+			continue
+		}
+		if (r.Dest != "" && !covers(r.Dest, addr)) || (r.Source != "" && !covers(r.Source, src)) {
+			continue
+		}
+		if r.Scope != "" {
+			return Unknown
+		}
+		if r.Action == "allow" || r.Action == "limit" {
+			return Admit
+		}
+		return Refuse
+	}
+	if f.Default == "allow" {
+		return Admit
+	}
+	return Refuse
+}
