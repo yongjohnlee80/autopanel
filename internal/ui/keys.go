@@ -71,6 +71,15 @@ var keySections = []keySection{
 	{"autopanel.key.section.monitors", []keyRow{
 		{"r", "autopanel.key.monitors.reload"},
 	}},
+	{"autopanel.key.section.firewall", []keyRow{
+		{"a", "autopanel.key.firewall.allow"},
+		{"v", "autopanel.key.firewall.revoke"},
+		{"o", "autopanel.key.firewall.on"},
+		{"c", "autopanel.key.firewall.confirm"},
+		{"f", "autopanel.key.firewall.off"},
+		{"y", "autopanel.key.firewall.copy"},
+		{"r", "autopanel.key.firewall.reload"},
+	}},
 	{"autopanel.key.section.browser", []keyRow{
 		{"Enter", "autopanel.key.browser.enter"},
 		{"Backspace, u", "autopanel.key.browser.up"},
@@ -129,6 +138,17 @@ func (h *host) openKeys() error {
 var tips = map[string]string{
 	"App.tipPanelClose":        "autopanel.tip.panel.close",
 	"App.tipMonitorReload":     "autopanel.tip.panel.reload",
+	"App.tipFirewallAllow":     "autopanel.tip.firewall.allow",
+	"App.tipMailOpenPorts":     "autopanel.tip.mail.openPorts",
+	"App.tipFirewallRevoke":    "autopanel.tip.firewall.revoke",
+	"App.tipFirewallOn":        "autopanel.tip.firewall.on",
+	"App.tipFirewallConfirm":   "autopanel.tip.firewall.confirm",
+	"App.tipFirewallOff":       "autopanel.tip.firewall.off",
+	"App.tipFirewallCopy":      "autopanel.tip.firewall.copy",
+	"App.tipPlanToggle":        "autopanel.tip.plan.toggle",
+	"App.tipPlanEnable":        "autopanel.tip.plan.enable",
+	"App.tipReviewToggle":      "autopanel.tip.review.toggle",
+	"App.tipReviewCopy":        "autopanel.tip.review.copy",
 	"App.tipLogsReload":        "autopanel.tip.logs.reload",
 	"App.tipStacksAdd":         "autopanel.tip.stacks.add",
 	"App.tipStacksApply":       "autopanel.tip.stacks.apply",

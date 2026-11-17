@@ -47,6 +47,30 @@
         <source>&amp;Remove…</source>
         <translation>&amp;Remove…</translation>
     </message>
+    <message id="autopanel.button.firewall.allow">
+        <source>&amp;Allow…</source>
+        <translation>&amp;Allow…</translation>
+    </message>
+    <message id="autopanel.button.firewall.confirm">
+        <source>&amp;Confirm</source>
+        <translation>&amp;Confirm</translation>
+    </message>
+    <message id="autopanel.button.firewall.copy">
+        <source>Cop&amp;y commands</source>
+        <translation>Cop&amp;y commands</translation>
+    </message>
+    <message id="autopanel.button.firewall.off">
+        <source>Turn o&amp;ff…</source>
+        <translation>Turn o&amp;ff…</translation>
+    </message>
+    <message id="autopanel.button.firewall.on">
+        <source>Turn &amp;on…</source>
+        <translation>Turn &amp;on…</translation>
+    </message>
+    <message id="autopanel.button.firewall.revoke">
+        <source>Re&amp;voke…</source>
+        <translation>Re&amp;voke…</translation>
+    </message>
     <message id="autopanel.button.form.save">
         <source>&amp;Save</source>
         <translation>&amp;Save</translation>
@@ -91,6 +115,10 @@
         <source>L&amp;ock password…</source>
         <translation>L&amp;ock password…</translation>
     </message>
+    <message id="autopanel.button.mail.openPorts">
+        <source>Open &amp;ports</source>
+        <translation>Open &amp;ports</translation>
+    </message>
     <message id="autopanel.button.mail.reload">
         <source>&amp;Reload</source>
         <translation>&amp;Reload</translation>
@@ -115,6 +143,18 @@
         <source>&amp;Reload</source>
         <translation>&amp;Reload</translation>
     </message>
+    <message id="autopanel.button.plan.allow">
+        <source>&amp;Allow it</source>
+        <translation>&amp;Allow it</translation>
+    </message>
+    <message id="autopanel.button.plan.block">
+        <source>&amp;Leave it blocked</source>
+        <translation>&amp;Leave it blocked</translation>
+    </message>
+    <message id="autopanel.button.plan.enable">
+        <source>Turn &amp;on</source>
+        <translation>Turn &amp;on</translation>
+    </message>
     <message id="autopanel.button.review.add">
         <source>&amp;Add and start</source>
         <translation>&amp;Add and start</translation>
@@ -122,6 +162,18 @@
     <message id="autopanel.button.review.apply">
         <source>&amp;Apply</source>
         <translation>&amp;Apply</translation>
+    </message>
+    <message id="autopanel.button.review.copy">
+        <source>Cop&amp;y commands</source>
+        <translation>Cop&amp;y commands</translation>
+    </message>
+    <message id="autopanel.button.review.leave">
+        <source>&amp;Leave it as it is</source>
+        <translation>&amp;Leave it as it is</translation>
+    </message>
+    <message id="autopanel.button.review.open">
+        <source>&amp;Open it</source>
+        <translation>&amp;Open it</translation>
     </message>
     <message id="autopanel.button.review.prepare">
         <source>&amp;Prepare only</source>
@@ -435,6 +487,34 @@
         <source>read the screen again now</source>
         <translation>read the screen again now</translation>
     </message>
+    <message id="autopanel.key.firewall.allow">
+        <source>allow a port</source>
+        <translation>allow a port</translation>
+    </message>
+    <message id="autopanel.key.firewall.confirm">
+        <source>confirm an enable, from a new login</source>
+        <translation>confirm an enable, from a new login</translation>
+    </message>
+    <message id="autopanel.key.firewall.copy">
+        <source>copy a refusal's commands</source>
+        <translation>copy a refusal's commands</translation>
+    </message>
+    <message id="autopanel.key.firewall.off">
+        <source>turn the firewall off</source>
+        <translation>turn the firewall off</translation>
+    </message>
+    <message id="autopanel.key.firewall.on">
+        <source>turn the firewall on (planned first)</source>
+        <translation>turn the firewall on (planned first)</translation>
+    </message>
+    <message id="autopanel.key.firewall.reload">
+        <source>read the firewall again</source>
+        <translation>read the firewall again</translation>
+    </message>
+    <message id="autopanel.key.firewall.revoke">
+        <source>revoke the selected rule</source>
+        <translation>revoke the selected rule</translation>
+    </message>
     <message id="autopanel.key.monitors.reload">
         <source>read it again</source>
         <translation>read it again</translation>
@@ -498,6 +578,10 @@
     <message id="autopanel.key.section.everywhere">
         <source>EVERYWHERE</source>
         <translation>EVERYWHERE</translation>
+    </message>
+    <message id="autopanel.key.section.firewall">
+        <source>System › Firewall</source>
+        <translation>System › Firewall</translation>
     </message>
     <message id="autopanel.key.section.monitors">
         <source>METRICS, AUDIT LOG, LOGIN ATTEMPTS, OPEN PORTS</source>
@@ -723,6 +807,42 @@
         <source>The routes under it:</source>
         <translation>The routes under it:</translation>
     </message>
+    <message id="autopanel.label.firewall.allowedBy">
+        <source>Rule made for</source>
+        <translation>Rule made for</translation>
+    </message>
+    <message id="autopanel.label.firewall.family">
+        <source>Family</source>
+        <translation>Family</translation>
+    </message>
+    <message id="autopanel.label.firewall.id">
+        <source>Identity</source>
+        <translation>Identity</translation>
+    </message>
+    <message id="autopanel.label.firewall.needs">
+        <source>Needs a rule</source>
+        <translation>Needs a rule</translation>
+    </message>
+    <message id="autopanel.label.firewall.note">
+        <source>Comment</source>
+        <translation>Comment</translation>
+    </message>
+    <message id="autopanel.label.firewall.now">
+        <source>Firewall now</source>
+        <translation>Firewall now</translation>
+    </message>
+    <message id="autopanel.label.firewall.opening">
+        <source>On apply</source>
+        <translation>On apply</translation>
+    </message>
+    <message id="autopanel.label.firewall.port">
+        <source>Port</source>
+        <translation>Port</translation>
+    </message>
+    <message id="autopanel.label.firewall.rule">
+        <source>Rule</source>
+        <translation>Rule</translation>
+    </message>
     <message id="autopanel.label.form.host">
         <source>Host: a subdomain, and the domain it is under</source>
         <translation>Host: a subdomain, and the domain it is under</translation>
@@ -879,6 +999,10 @@
         <source>Port</source>
         <translation>Port</translation>
     </message>
+    <message id="autopanel.label.mail.ports">
+        <source>Ports</source>
+        <translation>Ports</translation>
+    </message>
     <message id="autopanel.label.mail.priority">
         <source>Priority</source>
         <translation>Priority</translation>
@@ -975,9 +1099,21 @@
         <source>Service uptime</source>
         <translation>Service uptime</translation>
     </message>
+    <message id="autopanel.label.plan.ruleFor">
+        <source>Rule made for</source>
+        <translation>Rule made for</translation>
+    </message>
+    <message id="autopanel.label.plan.use">
+        <source>Used by</source>
+        <translation>Used by</translation>
+    </message>
     <message id="autopanel.label.ports.address">
         <source>Listens on</source>
         <translation>Listens on</translation>
+    </message>
+    <message id="autopanel.label.ports.firewall">
+        <source>Firewall</source>
+        <translation>Firewall</translation>
     </message>
     <message id="autopanel.label.ports.port">
         <source>Port</source>
@@ -1010,6 +1146,10 @@
     <message id="autopanel.label.prompt.domain">
         <source>The domain's name, a name and a suffix:</source>
         <translation>The domain's name, a name and a suffix:</translation>
+    </message>
+    <message id="autopanel.label.prompt.firewallAllow">
+        <source>Protocol/port, and an optional source (tcp/8443, udp/49152-49160, tcp/22 from 192.0.2.0/24)</source>
+        <translation>Protocol/port, and an optional source (tcp/8443, udp/49152-49160, tcp/22 from 192.0.2.0/24)</translation>
     </message>
     <message id="autopanel.label.prompt.mailAccount">
         <source>Its address (name@domain):</source>
@@ -1315,6 +1455,14 @@
         <source>&amp;Audit log…</source>
         <translation>&amp;Audit log…</translation>
     </message>
+    <message id="autopanel.menu.system.checks">
+        <source>Host c&amp;hecks…</source>
+        <translation>Host c&amp;hecks…</translation>
+    </message>
+    <message id="autopanel.menu.system.firewall">
+        <source>&amp;Firewall…</source>
+        <translation>&amp;Firewall…</translation>
+    </message>
     <message id="autopanel.menu.system.language">
         <source>Lan&amp;guage</source>
         <translation>Lan&amp;guage</translation>
@@ -1579,6 +1727,70 @@
         <source>That is too short for a Cloudflare token: paste it whole</source>
         <translation>That is too short for a Cloudflare token: paste it whole</translation>
     </message>
+    <message id="autopanel.notice.check.dockerGroup">
+        <source>Remove users from the docker group unless they are meant to be root.</source>
+        <translation>Remove users from the docker group unless they are meant to be root.</translation>
+    </message>
+    <message id="autopanel.notice.check.dockerPresent">
+        <source>AutoPanel runs stacks under Podman; remove Docker once nothing needs it.</source>
+        <translation>AutoPanel runs stacks under Podman; remove Docker once nothing needs it.</translation>
+    </message>
+    <message id="autopanel.notice.check.firewallOff">
+        <source>System → Firewall → Turn on shows what it would block before it does.</source>
+        <translation>System → Firewall → Turn on shows what it would block before it does.</translation>
+    </message>
+    <message id="autopanel.notice.check.firewallOwnedMissing">
+        <source>Open them again from their owner, or leave them closed: the record goes when the owner closes them.</source>
+        <translation>Open them again from their owner, or leave them closed: the record goes when the owner closes them.</translation>
+    </message>
+    <message id="autopanel.notice.check.firewallPartial">
+        <source>Rules outside the manager also filter: Open ports' verdicts cannot see them.</source>
+        <translation>Rules outside the manager also filter: Open ports' verdicts cannot see them.</translation>
+    </message>
+    <message id="autopanel.notice.check.firewallStale">
+        <source>If nothing is meant to listen there, revoke the rule in System → Firewall.</source>
+        <translation>If nothing is meant to listen there, revoke the rule in System → Firewall.</translation>
+    </message>
+    <message id="autopanel.notice.check.firewallUnconfirmed">
+        <source>Log in again in a second terminal and confirm in System → Firewall, or it is undone.</source>
+        <translation>Log in again in a second terminal and confirm in System → Firewall, or it is undone.</translation>
+    </message>
+    <message id="autopanel.notice.check.gatePortBlocked">
+        <source>Allow them in System → Firewall: without them the sites cannot be reached and certificates cannot renew.</source>
+        <translation>Allow them in System → Firewall: without them the sites cannot be reached and certificates cannot renew.</translation>
+    </message>
+    <message id="autopanel.notice.check.mailPortBlocked">
+        <source>Open them from Mail → Server, or allow them in System → Firewall: until then no mail arrives.</source>
+        <translation>Open them from Mail → Server, or allow them in System → Firewall: until then no mail arrives.</translation>
+    </message>
+    <message id="autopanel.notice.check.podmanSystemSocket">
+        <source>Each stack runs as its own user: disable podman.socket unless something needs it.</source>
+        <translation>Each stack runs as its own user: disable podman.socket unless something needs it.</translation>
+    </message>
+    <message id="autopanel.notice.check.rebootRequired">
+        <source>Reboot the host when its services can stop for a minute.</source>
+        <translation>Reboot the host when its services can stop for a minute.</translation>
+    </message>
+    <message id="autopanel.notice.check.sshPassword">
+        <source>Use keys: set PasswordAuthentication no in sshd's configuration and reload sshd.</source>
+        <translation>Use keys: set PasswordAuthentication no in sshd's configuration and reload sshd.</translation>
+    </message>
+    <message id="autopanel.notice.check.stackPortBlocked">
+        <source>Apply the stack again with its ports ticked, or allow them in System → Firewall.</source>
+        <translation>Apply the stack again with its ports ticked, or allow them in System → Firewall.</translation>
+    </message>
+    <message id="autopanel.notice.check.ufwIpv6Off">
+        <source>Set IPV6=yes in /etc/default/ufw and reload ufw, then check the IPv6 rules: a reload with IPV6=no drops them.</source>
+        <translation>Set IPV6=yes in /etc/default/ufw and reload ufw, then check the IPv6 rules: a reload with IPV6=no drops them.</translation>
+    </message>
+    <message id="autopanel.notice.check.unitFailed">
+        <source>Read each unit's log (journalctl -u &lt;unit&gt;), and fix it or disable it.</source>
+        <translation>Read each unit's log (journalctl -u &lt;unit&gt;), and fix it or disable it.</translation>
+    </message>
+    <message id="autopanel.notice.checks.none">
+        <source>Nothing to report: none of the checks holds now.</source>
+        <translation>Nothing to report: none of the checks holds now.</translation>
+    </message>
     <message id="autopanel.notice.domains.added">
         <source>domain %1 added</source>
         <translation>domain %1 added</translation>
@@ -1610,6 +1822,54 @@
     <message id="autopanel.notice.domains.removed">
         <source>domain %1 removed</source>
         <translation>domain %1 removed</translation>
+    </message>
+    <message id="autopanel.notice.firewall.allowed">
+        <source>The rule is in place.</source>
+        <translation>The rule is in place.</translation>
+    </message>
+    <message id="autopanel.notice.firewall.armed">
+        <source>The firewall is on. Log in again in a second terminal and confirm there (System → Firewall → Confirm) before %1, or it turns itself off.</source>
+        <translation>The firewall is on. Log in again in a second terminal and confirm there (System → Firewall → Confirm) before %1, or it turns itself off.</translation>
+    </message>
+    <message id="autopanel.notice.firewall.badAllow">
+        <source>Write a protocol and a port, as tcp/8443 or udp/49152-49160, and optionally “from” and a network.</source>
+        <translation>Write a protocol and a port, as tcp/8443 or udp/49152-49160, and optionally “from” and a network.</translation>
+    </message>
+    <message id="autopanel.notice.firewall.byHand">
+        <source>AutoPanel did not make this change. These commands would:</source>
+        <translation>AutoPanel did not make this change. These commands would:</translation>
+    </message>
+    <message id="autopanel.notice.firewall.confirmed">
+        <source>The firewall stays on.</source>
+        <translation>The firewall stays on.</translation>
+    </message>
+    <message id="autopanel.notice.firewall.copied">
+        <source>The commands are on the clipboard.</source>
+        <translation>The commands are on the clipboard.</translation>
+    </message>
+    <message id="autopanel.notice.firewall.noClipboard">
+        <source>This terminal takes no clipboard copy: select the commands with the mouse.</source>
+        <translation>This terminal takes no clipboard copy: select the commands with the mouse.</translation>
+    </message>
+    <message id="autopanel.notice.firewall.notModelled">
+        <source>AutoPanel cannot read this rule whole: it is shown as the manager wrote it, and ports it may match read as unknown.</source>
+        <translation>AutoPanel cannot read this rule whole: it is shown as the manager wrote it, and ports it may match read as unknown.</translation>
+    </message>
+    <message id="autopanel.notice.firewall.off">
+        <source>The firewall is off.</source>
+        <translation>The firewall is off.</translation>
+    </message>
+    <message id="autopanel.notice.firewall.provider">
+        <source>If your provider has a firewall in front of this server (a security group, a cloud firewall), allow the same ports there too: AutoPanel cannot see it.</source>
+        <translation>If your provider has a firewall in front of this server (a security group, a cloud firewall), allow the same ports there too: AutoPanel cannot see it.</translation>
+    </message>
+    <message id="autopanel.notice.firewall.revoked">
+        <source>The rule is gone.</source>
+        <translation>The rule is gone.</translation>
+    </message>
+    <message id="autopanel.notice.firewall.test">
+        <source>To check it, run from another machine: %1</source>
+        <translation>To check it, run from another machine: %1</translation>
     </message>
     <message id="autopanel.notice.form.noDomain">
         <source>The host is under no registered domain. Add the domain in Routes › Domains first.</source>
@@ -1751,6 +2011,10 @@
         <source>Mail is not set up: Mail › Set up mail</source>
         <translation>Mail is not set up: Mail › Set up mail</translation>
     </message>
+    <message id="autopanel.notice.mail.portsOpened">
+        <source>Mail's ports are open in the firewall.</source>
+        <translation>Mail's ports are open in the firewall.</translation>
+    </message>
     <message id="autopanel.notice.mail.setUp">
         <source>mail is set up already</source>
         <translation>mail is set up already</translation>
@@ -1774,6 +2038,22 @@
     <message id="autopanel.notice.mail.weakSecret">
         <source>Stalwart made an app password weaker than 128 bits; it was destroyed, and none is handed out until Stalwart is fixed</source>
         <translation>Stalwart made an app password weaker than 128 bits; it was destroyed, and none is handed out until Stalwart is fixed</translation>
+    </message>
+    <message id="autopanel.notice.plan.blocked">
+        <source>Turned on, the firewall blocks this port unless you allow it here.</source>
+        <translation>Turned on, the firewall blocks this port unless you allow it here.</translation>
+    </message>
+    <message id="autopanel.notice.plan.incomplete">
+        <source>SSH's ports could not all be found, so turning the firewall on is refused: it could lock you out.</source>
+        <translation>SSH's ports could not all be found, so turning the firewall on is refused: it could lock you out.</translation>
+    </message>
+    <message id="autopanel.notice.plan.none">
+        <source>Nothing that listens would be blocked.</source>
+        <translation>Nothing that listens would be blocked.</translation>
+    </message>
+    <message id="autopanel.notice.ports.stale">
+        <source>An allow rule nothing listens behind. It does not say the port is reachable: revoke it in System → Firewall if nothing is meant to listen there.</source>
+        <translation>An allow rule nothing listens behind. It does not say the port is reachable: revoke it in System → Firewall if nothing is meant to listen there.</translation>
     </message>
     <message id="autopanel.notice.prefs.notKept">
         <source>the choice is shown but was not kept: %1</source>
@@ -1907,6 +2187,14 @@
         <source>Remove the domain %1? Its routes stay; the removal is refused while a route would be left under no domain.</source>
         <translation>Remove the domain %1? Its routes stay; the removal is refused while a route would be left under no domain.</translation>
     </message>
+    <message id="autopanel.question.firewall.off">
+        <source>Turn the firewall off? Every port that listens is then open to anyone who can reach this host.</source>
+        <translation>Turn the firewall off? Every port that listens is then open to anyone who can reach this host.</translation>
+    </message>
+    <message id="autopanel.question.firewall.revoke">
+        <source>Delete the rule “%1”? A rule a stack or mail made goes from its records too.</source>
+        <translation>Delete the rule “%1”? A rule a stack or mail made goes from its records too.</translation>
+    </message>
     <message id="autopanel.question.mail.appFirst">
         <source>%1 is made. Its devices sign in with app passwords: make one for its first device now?</source>
         <translation>%1 is made. Its devices sign in with app passwords: make one for its first device now?</translation>
@@ -2007,6 +2295,30 @@
         <source>Remove the selected domain</source>
         <translation>Remove the selected domain</translation>
     </message>
+    <message id="autopanel.tip.firewall.allow">
+        <source>Allow incoming connections to a port or range, from anywhere or from one network</source>
+        <translation>Allow incoming connections to a port or range, from anywhere or from one network</translation>
+    </message>
+    <message id="autopanel.tip.firewall.confirm">
+        <source>Keep the firewall on: press it from a new login, in a second terminal</source>
+        <translation>Keep the firewall on: press it from a new login, in a second terminal</translation>
+    </message>
+    <message id="autopanel.tip.firewall.copy">
+        <source>Copy the commands that would make the change by hand</source>
+        <translation>Copy the commands that would make the change by hand</translation>
+    </message>
+    <message id="autopanel.tip.firewall.off">
+        <source>Turn the firewall off: nothing is filtered until it is on again</source>
+        <translation>Turn the firewall off: nothing is filtered until it is on again</translation>
+    </message>
+    <message id="autopanel.tip.firewall.on">
+        <source>See what turning the firewall on would block, choose what to allow, then turn it on</source>
+        <translation>See what turning the firewall on would block, choose what to allow, then turn it on</translation>
+    </message>
+    <message id="autopanel.tip.firewall.revoke">
+        <source>Delete the selected rule; refused when new SSH logins from your address would no longer get in</source>
+        <translation>Delete the selected rule; refused when new SSH logins from your address would no longer get in</translation>
+    </message>
     <message id="autopanel.tip.form.domain">
         <source>The registered domain the host is under</source>
         <translation>The registered domain the host is under</translation>
@@ -2075,6 +2387,10 @@
         <source>Stop receiving mail for the selected domain</source>
         <translation>Stop receiving mail for the selected domain</translation>
     </message>
+    <message id="autopanel.tip.mail.openPorts">
+        <source>Open mail's blocked ports in the firewall, as mail's: they close when mail is removed</source>
+        <translation>Open mail's blocked ports in the firewall, as mail's: they close when mail is removed</translation>
+    </message>
     <message id="autopanel.tip.mail.reload">
         <source>Read mail's state again</source>
         <translation>Read mail's state again</translation>
@@ -2095,9 +2411,21 @@
         <source>Read it again now</source>
         <translation>Read it again now</translation>
     </message>
+    <message id="autopanel.tip.plan.enable">
+        <source>Turn the firewall on as shown; it turns itself off unless a new login confirms it</source>
+        <translation>Turn the firewall on as shown; it turns itself off unless a new login confirms it</translation>
+    </message>
+    <message id="autopanel.tip.plan.toggle">
+        <source>Allow the selected port when the firewall turns on, or leave it blocked</source>
+        <translation>Allow the selected port when the firewall turns on, or leave it blocked</translation>
+    </message>
     <message id="autopanel.tip.prompt.ok">
         <source>Take this answer</source>
         <translation>Take this answer</translation>
+    </message>
+    <message id="autopanel.tip.review.copy">
+        <source>Copy the commands that would open this port by hand</source>
+        <translation>Copy the commands that would open this port by hand</translation>
     </message>
     <message id="autopanel.tip.review.go">
         <source>Do what the review shows; nothing changes before</source>
@@ -2106,6 +2434,10 @@
     <message id="autopanel.tip.review.prepare">
         <source>Put the user, the files and the images in place, and start nothing</source>
         <translation>Put the user, the files and the images in place, and start nothing</translation>
+    </message>
+    <message id="autopanel.tip.review.toggle">
+        <source>Open the selected port in the firewall when this is applied, or leave the firewall as it is</source>
+        <translation>Open the selected port in the firewall when this is applied, or leave the firewall as it is</translation>
     </message>
     <message id="autopanel.tip.routes.add">
         <source>Add a route</source>
@@ -2219,6 +2551,14 @@
         <source>Remove the Cloudflare token</source>
         <translation>Remove the Cloudflare token</translation>
     </message>
+    <message id="autopanel.title.confirm.firewallOff">
+        <source>Turn the firewall off</source>
+        <translation>Turn the firewall off</translation>
+    </message>
+    <message id="autopanel.title.confirm.firewallRevoke">
+        <source>Revoke the rule</source>
+        <translation>Revoke the rule</translation>
+    </message>
     <message id="autopanel.title.confirm.mailLock">
         <source>Lock the mailbox's password</source>
         <translation>Lock the mailbox's password</translation>
@@ -2287,6 +2627,10 @@
         <source>Records to enter at your DNS provider</source>
         <translation>Records to enter at your DNS provider</translation>
     </message>
+    <message id="autopanel.title.dialog.plan">
+        <source>Turn the firewall on</source>
+        <translation>Turn the firewall on</translation>
+    </message>
     <message id="autopanel.title.dialog.recovery">
         <source>Recovery codes</source>
         <translation>Recovery codes</translation>
@@ -2311,6 +2655,10 @@
         <source>Entries</source>
         <translation>Entries</translation>
     </message>
+    <message id="autopanel.title.list.checks">
+        <source>Findings</source>
+        <translation>Findings</translation>
+    </message>
     <message id="autopanel.title.list.count">
         <source>%1 · %2 · read at %3</source>
         <translation>%1 · %2 · read at %3</translation>
@@ -2322,6 +2670,10 @@
     <message id="autopanel.title.list.failed">
         <source>%1 · the read failed: %2</source>
         <translation>%1 · the read failed: %2</translation>
+    </message>
+    <message id="autopanel.title.list.firewall">
+        <source>Rules</source>
+        <translation>Rules</translation>
     </message>
     <message id="autopanel.title.list.journal">
         <source>%1 · %2 lines · read at %3</source>
@@ -2383,6 +2735,10 @@
         <source>Entry</source>
         <translation>Entry</translation>
     </message>
+    <message id="autopanel.title.pane.planPorts">
+        <source>What it would block</source>
+        <translation>What it would block</translation>
+    </message>
     <message id="autopanel.title.pane.review">
         <source>Containers and findings</source>
         <translation>Containers and findings</translation>
@@ -2395,9 +2751,17 @@
         <source>Audit log</source>
         <translation>Audit log</translation>
     </message>
+    <message id="autopanel.title.panel.checks">
+        <source>Host checks</source>
+        <translation>Host checks</translation>
+    </message>
     <message id="autopanel.title.panel.domains">
         <source>Domains</source>
         <translation>Domains</translation>
+    </message>
+    <message id="autopanel.title.panel.firewall">
+        <source>Firewall</source>
+        <translation>Firewall</translation>
     </message>
     <message id="autopanel.title.panel.logins">
         <source>Login attempts</source>
@@ -2458,6 +2822,10 @@
     <message id="autopanel.title.prompt.cloudflare">
         <source>Cloudflare token</source>
         <translation>Cloudflare token</translation>
+    </message>
+    <message id="autopanel.title.prompt.firewallAllow">
+        <source>Allow a port</source>
+        <translation>Allow a port</translation>
     </message>
     <message id="autopanel.title.prompt.import">
         <source>Import a stack</source>
@@ -2615,9 +2983,145 @@
         <source>Issuer: %1</source>
         <translation>Issuer: %1</translation>
     </message>
+    <message id="autopanel.value.check.alert">
+        <source>alert</source>
+        <translation>alert</translation>
+    </message>
+    <message id="autopanel.value.check.dockerGroup">
+        <source>Users in the docker group, as good as root: %1</source>
+        <translation>Users in the docker group, as good as root: %1</translation>
+    </message>
+    <message id="autopanel.value.check.dockerPresent">
+        <source>Docker is installed or running</source>
+        <translation>Docker is installed or running</translation>
+    </message>
+    <message id="autopanel.value.check.firewallOff">
+        <source>No firewall is on (%1)</source>
+        <translation>No firewall is on (%1)</translation>
+    </message>
+    <message id="autopanel.value.check.firewallOwnedMissing">
+        <source>Rules AutoPanel made were removed by hand: %1</source>
+        <translation>Rules AutoPanel made were removed by hand: %1</translation>
+    </message>
+    <message id="autopanel.value.check.firewallPartial">
+        <source>Something filters that this view cannot read: %1</source>
+        <translation>Something filters that this view cannot read: %1</translation>
+    </message>
+    <message id="autopanel.value.check.firewallStale">
+        <source>Firewall rules nothing listens behind: %1</source>
+        <translation>Firewall rules nothing listens behind: %1</translation>
+    </message>
+    <message id="autopanel.value.check.firewallUnconfirmed">
+        <source>The firewall was turned on and is not confirmed yet</source>
+        <translation>The firewall was turned on and is not confirmed yet</translation>
+    </message>
+    <message id="autopanel.value.check.gatePortBlocked">
+        <source>The firewall blocks AutoPanel's web ports: %1</source>
+        <translation>The firewall blocks AutoPanel's web ports: %1</translation>
+    </message>
+    <message id="autopanel.value.check.mailPortBlocked">
+        <source>The firewall blocks mail's ports: %1</source>
+        <translation>The firewall blocks mail's ports: %1</translation>
+    </message>
+    <message id="autopanel.value.check.notice">
+        <source>notice</source>
+        <translation>notice</translation>
+    </message>
+    <message id="autopanel.value.check.podmanSystemSocket">
+        <source>Podman's system-wide socket is on</source>
+        <translation>Podman's system-wide socket is on</translation>
+    </message>
+    <message id="autopanel.value.check.rebootRequired">
+        <source>A reboot is waiting: an update needs it</source>
+        <translation>A reboot is waiting: an update needs it</translation>
+    </message>
+    <message id="autopanel.value.check.sshPassword">
+        <source>SSH takes passwords</source>
+        <translation>SSH takes passwords</translation>
+    </message>
+    <message id="autopanel.value.check.stackPortBlocked">
+        <source>The firewall blocks ports a stack opened: %1</source>
+        <translation>The firewall blocks ports a stack opened: %1</translation>
+    </message>
+    <message id="autopanel.value.check.ufwIpv6Off">
+        <source>ufw leaves IPv6 alone (IPV6=no)</source>
+        <translation>ufw leaves IPv6 alone (IPV6=no)</translation>
+    </message>
+    <message id="autopanel.value.check.unitFailed">
+        <source>System units failed: %1</source>
+        <translation>System units failed: %1</translation>
+    </message>
     <message id="autopanel.value.domain.noRoutes">
         <source>No route is under it.</source>
         <translation>No route is under it.</translation>
+    </message>
+    <message id="autopanel.value.firewall.allowed">
+        <source>allowed</source>
+        <translation>allowed</translation>
+    </message>
+    <message id="autopanel.value.firewall.blocked">
+        <source>blocked</source>
+        <translation>blocked</translation>
+    </message>
+    <message id="autopanel.value.firewall.byAdministrator">
+        <source>the administrator (no owner removes it)</source>
+        <translation>the administrator (no owner removes it)</translation>
+    </message>
+    <message id="autopanel.value.firewall.byNobody">
+        <source>no rule</source>
+        <translation>no rule</translation>
+    </message>
+    <message id="autopanel.value.firewall.byOther">
+        <source>a rule not AutoPanel's</source>
+        <translation>a rule not AutoPanel's</translation>
+    </message>
+    <message id="autopanel.value.firewall.limited">
+        <source>limited</source>
+        <translation>limited</translation>
+    </message>
+    <message id="autopanel.value.firewall.local">
+        <source>local</source>
+        <translation>local</translation>
+    </message>
+    <message id="autopanel.value.firewall.off">
+        <source>off</source>
+        <translation>off</translation>
+    </message>
+    <message id="autopanel.value.firewall.on">
+        <source>on, incoming %1 by default</source>
+        <translation>on, incoming %1 by default</translation>
+    </message>
+    <message id="autopanel.value.firewall.stale">
+        <source>rule, nothing listens</source>
+        <translation>rule, nothing listens</translation>
+    </message>
+    <message id="autopanel.value.firewall.summary">
+        <source>Manager: %1 · %2 · %3 rules</source>
+        <translation>Manager: %1 · %2 · %3 rules</translation>
+    </message>
+    <message id="autopanel.value.firewall.unknown">
+        <source>unknown</source>
+        <translation>unknown</translation>
+    </message>
+    <message id="autopanel.value.firewallLimit.dockerRules">
+        <source>Docker filters what it publishes apart from the manager: its ports read as unknown.</source>
+        <translation>Docker filters what it publishes apart from the manager: its ports read as unknown.</translation>
+    </message>
+    <message id="autopanel.value.firewallLimit.ipv6Unmanaged">
+        <source>ufw leaves IPv6 alone (IPV6=no): IPv6 ports read as unknown.</source>
+        <translation>ufw leaves IPv6 alone (IPV6=no): IPv6 ports read as unknown.</translation>
+    </message>
+    <message id="autopanel.value.firewallLimit.otherTables">
+        <source>Rules outside the manager also filter, and this view cannot read them.</source>
+        <translation>Rules outside the manager also filter, and this view cannot read them.</translation>
+    </message>
+    <message id="autopanel.value.firewallLimit.twoManagers">
+        <source>ufw and firewalld are both running: AutoPanel changes neither.</source>
+        <translation>ufw and firewalld are both running: AutoPanel changes neither.</translation>
+    </message>
+    <message id="autopanel.value.firewallLimit.unparsedRules">
+        <source>Some rules could not be read: ports they might match read as unknown.</source>
+        <translation>Some rules could not be read: ports they might match read as unknown.</translation>
     </message>
     <message id="autopanel.value.host.cpu">
         <source>%1% of %2 CPUs</source>
@@ -2699,6 +3203,18 @@
         <source>%1 · %2 · %3 (1, 5 and 15 minutes)</source>
         <translation>%1 · %2 · %3 (1, 5 and 15 minutes)</translation>
     </message>
+    <message id="autopanel.value.plan.allow">
+        <source>allow</source>
+        <translation>allow</translation>
+    </message>
+    <message id="autopanel.value.plan.block">
+        <source>blocked</source>
+        <translation>blocked</translation>
+    </message>
+    <message id="autopanel.value.plan.summary">
+        <source>With %1. SSH stays allowed from anywhere: %2. Unless a new login confirms it within %3 seconds, the firewall turns itself off again.</source>
+        <translation>With %1. SSH stays allowed from anywhere: %2. Unless a new login confirms it within %3 seconds, the firewall turns itself off again.</translation>
+    </message>
     <message id="autopanel.value.review.container">
         <source>container</source>
         <translation>container</translation>
@@ -2714,6 +3230,26 @@
     <message id="autopanel.value.review.noMemoryLimit">
         <source>none</source>
         <translation>none</translation>
+    </message>
+    <message id="autopanel.value.review.port">
+        <source>port</source>
+        <translation>port</translation>
+    </message>
+    <message id="autopanel.value.review.portAllowed">
+        <source>allowed already</source>
+        <translation>allowed already</translation>
+    </message>
+    <message id="autopanel.value.review.portByHand">
+        <source>[!] by hand</source>
+        <translation>[!] by hand</translation>
+    </message>
+    <message id="autopanel.value.review.portLeave">
+        <source>[ ] leave it</source>
+        <translation>[ ] leave it</translation>
+    </message>
+    <message id="autopanel.value.review.portOpen">
+        <source>[x] open it</source>
+        <translation>[x] open it</translation>
     </message>
     <message id="autopanel.value.review.refused">
         <source>refused</source>

@@ -47,6 +47,30 @@
         <source>&amp;Remove…</source>
         <translation>&amp;Remover…</translation>
     </message>
+    <message id="autopanel.button.firewall.allow">
+        <source>&amp;Allow…</source>
+        <translation>Permitir (&amp;a)…</translation>
+    </message>
+    <message id="autopanel.button.firewall.confirm">
+        <source>&amp;Confirm</source>
+        <translation>&amp;Confirmar</translation>
+    </message>
+    <message id="autopanel.button.firewall.copy">
+        <source>Cop&amp;y commands</source>
+        <translation>Copiar comandos (&amp;y)</translation>
+    </message>
+    <message id="autopanel.button.firewall.off">
+        <source>Turn o&amp;ff…</source>
+        <translation>Desligar (&amp;f)…</translation>
+    </message>
+    <message id="autopanel.button.firewall.on">
+        <source>Turn &amp;on…</source>
+        <translation>Ligar (&amp;o)…</translation>
+    </message>
+    <message id="autopanel.button.firewall.revoke">
+        <source>Re&amp;voke…</source>
+        <translation>Re&amp;vogar…</translation>
+    </message>
     <message id="autopanel.button.form.save">
         <source>&amp;Save</source>
         <translation>&amp;Salvar</translation>
@@ -91,6 +115,10 @@
         <source>L&amp;ock password…</source>
         <translation>Bl&amp;oquear senha…</translation>
     </message>
+    <message id="autopanel.button.mail.openPorts">
+        <source>Open &amp;ports</source>
+        <translation>Abrir &amp;portas</translation>
+    </message>
     <message id="autopanel.button.mail.reload">
         <source>&amp;Reload</source>
         <translation>&amp;Recarregar</translation>
@@ -115,6 +143,18 @@
         <source>&amp;Reload</source>
         <translation>&amp;Recarregar</translation>
     </message>
+    <message id="autopanel.button.plan.allow">
+        <source>&amp;Allow it</source>
+        <translation>Permitir (&amp;a)</translation>
+    </message>
+    <message id="autopanel.button.plan.block">
+        <source>&amp;Leave it blocked</source>
+        <translation>Deixar bloqueado (&amp;l)</translation>
+    </message>
+    <message id="autopanel.button.plan.enable">
+        <source>Turn &amp;on</source>
+        <translation>Ligar (&amp;o)</translation>
+    </message>
     <message id="autopanel.button.review.add">
         <source>&amp;Add and start</source>
         <translation>Adicionar e iniciar(&amp;a)</translation>
@@ -122,6 +162,18 @@
     <message id="autopanel.button.review.apply">
         <source>&amp;Apply</source>
         <translation>Aplicar(&amp;a)</translation>
+    </message>
+    <message id="autopanel.button.review.copy">
+        <source>Cop&amp;y commands</source>
+        <translation>Copiar comandos (&amp;y)</translation>
+    </message>
+    <message id="autopanel.button.review.leave">
+        <source>&amp;Leave it as it is</source>
+        <translation>Deixar como está (&amp;l)</translation>
+    </message>
+    <message id="autopanel.button.review.open">
+        <source>&amp;Open it</source>
+        <translation>Abrir (&amp;o)</translation>
     </message>
     <message id="autopanel.button.review.prepare">
         <source>&amp;Prepare only</source>
@@ -435,6 +487,34 @@
         <source>read the screen again now</source>
         <translation>ler a tela de novo agora</translation>
     </message>
+    <message id="autopanel.key.firewall.allow">
+        <source>allow a port</source>
+        <translation>permitir uma porta</translation>
+    </message>
+    <message id="autopanel.key.firewall.confirm">
+        <source>confirm an enable, from a new login</source>
+        <translation>confirmar uma ativação, de um novo login</translation>
+    </message>
+    <message id="autopanel.key.firewall.copy">
+        <source>copy a refusal's commands</source>
+        <translation>copiar os comandos de uma recusa</translation>
+    </message>
+    <message id="autopanel.key.firewall.off">
+        <source>turn the firewall off</source>
+        <translation>desligar o firewall</translation>
+    </message>
+    <message id="autopanel.key.firewall.on">
+        <source>turn the firewall on (planned first)</source>
+        <translation>ligar o firewall (com plano antes)</translation>
+    </message>
+    <message id="autopanel.key.firewall.reload">
+        <source>read the firewall again</source>
+        <translation>ler o firewall de novo</translation>
+    </message>
+    <message id="autopanel.key.firewall.revoke">
+        <source>revoke the selected rule</source>
+        <translation>revogar a regra escolhida</translation>
+    </message>
     <message id="autopanel.key.monitors.reload">
         <source>read it again</source>
         <translation>ler de novo</translation>
@@ -498,6 +578,10 @@
     <message id="autopanel.key.section.everywhere">
         <source>EVERYWHERE</source>
         <translation>EM TODA PARTE</translation>
+    </message>
+    <message id="autopanel.key.section.firewall">
+        <source>System › Firewall</source>
+        <translation>Sistema › Firewall</translation>
     </message>
     <message id="autopanel.key.section.monitors">
         <source>METRICS, AUDIT LOG, LOGIN ATTEMPTS, OPEN PORTS</source>
@@ -723,6 +807,42 @@
         <source>The routes under it:</source>
         <translation>As rotas sob ele:</translation>
     </message>
+    <message id="autopanel.label.firewall.allowedBy">
+        <source>Rule made for</source>
+        <translation>Regra feita para</translation>
+    </message>
+    <message id="autopanel.label.firewall.family">
+        <source>Family</source>
+        <translation>Família</translation>
+    </message>
+    <message id="autopanel.label.firewall.id">
+        <source>Identity</source>
+        <translation>Identidade</translation>
+    </message>
+    <message id="autopanel.label.firewall.needs">
+        <source>Needs a rule</source>
+        <translation>Precisa de uma regra</translation>
+    </message>
+    <message id="autopanel.label.firewall.note">
+        <source>Comment</source>
+        <translation>Comentário</translation>
+    </message>
+    <message id="autopanel.label.firewall.now">
+        <source>Firewall now</source>
+        <translation>Firewall agora</translation>
+    </message>
+    <message id="autopanel.label.firewall.opening">
+        <source>On apply</source>
+        <translation>Ao aplicar</translation>
+    </message>
+    <message id="autopanel.label.firewall.port">
+        <source>Port</source>
+        <translation>Porta</translation>
+    </message>
+    <message id="autopanel.label.firewall.rule">
+        <source>Rule</source>
+        <translation>Regra</translation>
+    </message>
     <message id="autopanel.label.form.host">
         <source>Host: a subdomain, and the domain it is under</source>
         <translation>Host: um subdomínio e o domínio ao qual pertence</translation>
@@ -879,6 +999,10 @@
         <source>Port</source>
         <translation>Porta</translation>
     </message>
+    <message id="autopanel.label.mail.ports">
+        <source>Ports</source>
+        <translation>Portas</translation>
+    </message>
     <message id="autopanel.label.mail.priority">
         <source>Priority</source>
         <translation>Prioridade</translation>
@@ -975,9 +1099,21 @@
         <source>Service uptime</source>
         <translation>Tempo ativo do serviço</translation>
     </message>
+    <message id="autopanel.label.plan.ruleFor">
+        <source>Rule made for</source>
+        <translation>Regra feita para</translation>
+    </message>
+    <message id="autopanel.label.plan.use">
+        <source>Used by</source>
+        <translation>Usado por</translation>
+    </message>
     <message id="autopanel.label.ports.address">
         <source>Listens on</source>
         <translation>Escuta em</translation>
+    </message>
+    <message id="autopanel.label.ports.firewall">
+        <source>Firewall</source>
+        <translation>Firewall</translation>
     </message>
     <message id="autopanel.label.ports.port">
         <source>Port</source>
@@ -1010,6 +1146,10 @@
     <message id="autopanel.label.prompt.domain">
         <source>The domain's name, a name and a suffix:</source>
         <translation>O nome do domínio, um nome e um sufixo:</translation>
+    </message>
+    <message id="autopanel.label.prompt.firewallAllow">
+        <source>Protocol/port, and an optional source (tcp/8443, udp/49152-49160, tcp/22 from 192.0.2.0/24)</source>
+        <translation>Protocolo/porta e, se quiser, uma origem (tcp/8443, udp/49152-49160, tcp/22 from 192.0.2.0/24)</translation>
     </message>
     <message id="autopanel.label.prompt.mailAccount">
         <source>Its address (name@domain):</source>
@@ -1315,6 +1455,14 @@
         <source>&amp;Audit log…</source>
         <translation>Registro de auditoria(&amp;a)…</translation>
     </message>
+    <message id="autopanel.menu.system.checks">
+        <source>Host c&amp;hecks…</source>
+        <translation>Verificações do &amp;host…</translation>
+    </message>
+    <message id="autopanel.menu.system.firewall">
+        <source>&amp;Firewall…</source>
+        <translation>&amp;Firewall…</translation>
+    </message>
     <message id="autopanel.menu.system.language">
         <source>Lan&amp;guage</source>
         <translation>Idioma(&amp;g)</translation>
@@ -1579,6 +1727,70 @@
         <source>That is too short for a Cloudflare token: paste it whole</source>
         <translation>Curto demais para um token do Cloudflare: cole-o inteiro</translation>
     </message>
+    <message id="autopanel.notice.check.dockerGroup">
+        <source>Remove users from the docker group unless they are meant to be root.</source>
+        <translation>Remova usuários do grupo docker a menos que devam ser root.</translation>
+    </message>
+    <message id="autopanel.notice.check.dockerPresent">
+        <source>AutoPanel runs stacks under Podman; remove Docker once nothing needs it.</source>
+        <translation>O AutoPanel roda pilhas com Podman; remova o Docker quando nada precisar dele.</translation>
+    </message>
+    <message id="autopanel.notice.check.firewallOff">
+        <source>System → Firewall → Turn on shows what it would block before it does.</source>
+        <translation>Sistema → Firewall → Ligar mostra o que bloquearia antes de fazê-lo.</translation>
+    </message>
+    <message id="autopanel.notice.check.firewallOwnedMissing">
+        <source>Open them again from their owner, or leave them closed: the record goes when the owner closes them.</source>
+        <translation>Abra de novo pelo dono, ou deixe fechadas: o registro some quando o dono as fecha.</translation>
+    </message>
+    <message id="autopanel.notice.check.firewallPartial">
+        <source>Rules outside the manager also filter: Open ports' verdicts cannot see them.</source>
+        <translation>Regras fora do gerenciador também filtram: os veredictos de Portas abertas não as veem.</translation>
+    </message>
+    <message id="autopanel.notice.check.firewallStale">
+        <source>If nothing is meant to listen there, revoke the rule in System → Firewall.</source>
+        <translation>Se nada deve escutar ali, revogue a regra em Sistema → Firewall.</translation>
+    </message>
+    <message id="autopanel.notice.check.firewallUnconfirmed">
+        <source>Log in again in a second terminal and confirm in System → Firewall, or it is undone.</source>
+        <translation>Entre de novo em um segundo terminal e confirme em Sistema → Firewall, ou será desfeito.</translation>
+    </message>
+    <message id="autopanel.notice.check.gatePortBlocked">
+        <source>Allow them in System → Firewall: without them the sites cannot be reached and certificates cannot renew.</source>
+        <translation>Permita-as em Sistema → Firewall: sem elas os sites não são alcançados e os certificados não renovam.</translation>
+    </message>
+    <message id="autopanel.notice.check.mailPortBlocked">
+        <source>Open them from Mail → Server, or allow them in System → Firewall: until then no mail arrives.</source>
+        <translation>Abra-as em E-mail → Servidor, ou permita em Sistema → Firewall: até lá nenhum e-mail chega.</translation>
+    </message>
+    <message id="autopanel.notice.check.podmanSystemSocket">
+        <source>Each stack runs as its own user: disable podman.socket unless something needs it.</source>
+        <translation>Cada pilha roda como seu próprio usuário: desative podman.socket a menos que algo precise.</translation>
+    </message>
+    <message id="autopanel.notice.check.rebootRequired">
+        <source>Reboot the host when its services can stop for a minute.</source>
+        <translation>Reinicie o host quando os serviços puderem parar por um minuto.</translation>
+    </message>
+    <message id="autopanel.notice.check.sshPassword">
+        <source>Use keys: set PasswordAuthentication no in sshd's configuration and reload sshd.</source>
+        <translation>Use chaves: defina PasswordAuthentication no na configuração do sshd e recarregue o sshd.</translation>
+    </message>
+    <message id="autopanel.notice.check.stackPortBlocked">
+        <source>Apply the stack again with its ports ticked, or allow them in System → Firewall.</source>
+        <translation>Aplique a pilha de novo com as portas marcadas, ou permita em Sistema → Firewall.</translation>
+    </message>
+    <message id="autopanel.notice.check.ufwIpv6Off">
+        <source>Set IPV6=yes in /etc/default/ufw and reload ufw, then check the IPv6 rules: a reload with IPV6=no drops them.</source>
+        <translation>Defina IPV6=yes em /etc/default/ufw e recarregue o ufw, depois confira as regras IPv6: uma recarga com IPV6=no as apaga.</translation>
+    </message>
+    <message id="autopanel.notice.check.unitFailed">
+        <source>Read each unit's log (journalctl -u &lt;unit&gt;), and fix it or disable it.</source>
+        <translation>Leia o log de cada unidade (journalctl -u &lt;unidade&gt;) e corrija ou desative.</translation>
+    </message>
+    <message id="autopanel.notice.checks.none">
+        <source>Nothing to report: none of the checks holds now.</source>
+        <translation>Nada a relatar: nenhuma verificação vale agora.</translation>
+    </message>
     <message id="autopanel.notice.domains.added">
         <source>domain %1 added</source>
         <translation>domínio %1 adicionado</translation>
@@ -1610,6 +1822,54 @@
     <message id="autopanel.notice.domains.removed">
         <source>domain %1 removed</source>
         <translation>domínio %1 removido</translation>
+    </message>
+    <message id="autopanel.notice.firewall.allowed">
+        <source>The rule is in place.</source>
+        <translation>A regra está aplicada.</translation>
+    </message>
+    <message id="autopanel.notice.firewall.armed">
+        <source>The firewall is on. Log in again in a second terminal and confirm there (System → Firewall → Confirm) before %1, or it turns itself off.</source>
+        <translation>O firewall está ligado. Entre de novo em um segundo terminal e confirme lá (Sistema → Firewall → Confirmar) antes das %1, ou ele se desliga sozinho.</translation>
+    </message>
+    <message id="autopanel.notice.firewall.badAllow">
+        <source>Write a protocol and a port, as tcp/8443 or udp/49152-49160, and optionally “from” and a network.</source>
+        <translation>Escreva um protocolo e uma porta, como tcp/8443 ou udp/49152-49160, e se quiser “from” e uma rede.</translation>
+    </message>
+    <message id="autopanel.notice.firewall.byHand">
+        <source>AutoPanel did not make this change. These commands would:</source>
+        <translation>O AutoPanel não fez esta mudança. Estes comandos fariam:</translation>
+    </message>
+    <message id="autopanel.notice.firewall.confirmed">
+        <source>The firewall stays on.</source>
+        <translation>O firewall continua ligado.</translation>
+    </message>
+    <message id="autopanel.notice.firewall.copied">
+        <source>The commands are on the clipboard.</source>
+        <translation>Os comandos estão na área de transferência.</translation>
+    </message>
+    <message id="autopanel.notice.firewall.noClipboard">
+        <source>This terminal takes no clipboard copy: select the commands with the mouse.</source>
+        <translation>Este terminal não aceita cópia para a área de transferência: selecione os comandos com o mouse.</translation>
+    </message>
+    <message id="autopanel.notice.firewall.notModelled">
+        <source>AutoPanel cannot read this rule whole: it is shown as the manager wrote it, and ports it may match read as unknown.</source>
+        <translation>O AutoPanel não consegue ler esta regra inteira: ela aparece como o gerenciador a escreveu, e portas que ela pode afetar aparecem como desconhecidas.</translation>
+    </message>
+    <message id="autopanel.notice.firewall.off">
+        <source>The firewall is off.</source>
+        <translation>O firewall está desligado.</translation>
+    </message>
+    <message id="autopanel.notice.firewall.provider">
+        <source>If your provider has a firewall in front of this server (a security group, a cloud firewall), allow the same ports there too: AutoPanel cannot see it.</source>
+        <translation>Se o seu provedor tem um firewall na frente deste servidor (um grupo de segurança, um firewall na nuvem), permita as mesmas portas lá também: o AutoPanel não consegue vê-lo.</translation>
+    </message>
+    <message id="autopanel.notice.firewall.revoked">
+        <source>The rule is gone.</source>
+        <translation>A regra foi removida.</translation>
+    </message>
+    <message id="autopanel.notice.firewall.test">
+        <source>To check it, run from another machine: %1</source>
+        <translation>Para conferir, rode de outra máquina: %1</translation>
     </message>
     <message id="autopanel.notice.form.noDomain">
         <source>The host is under no registered domain. Add the domain in Routes › Domains first.</source>
@@ -1751,6 +2011,10 @@
         <source>Mail is not set up: Mail › Set up mail</source>
         <translation>O e-mail não está configurado: E-mail › Configurar e-mail</translation>
     </message>
+    <message id="autopanel.notice.mail.portsOpened">
+        <source>Mail's ports are open in the firewall.</source>
+        <translation>As portas do e-mail estão abertas no firewall.</translation>
+    </message>
     <message id="autopanel.notice.mail.setUp">
         <source>mail is set up already</source>
         <translation>o e-mail já está configurado</translation>
@@ -1774,6 +2038,22 @@
     <message id="autopanel.notice.mail.weakSecret">
         <source>Stalwart made an app password weaker than 128 bits; it was destroyed, and none is handed out until Stalwart is fixed</source>
         <translation>O Stalwart criou uma senha de app com menos de 128 bits; ela foi destruída, e nenhuma é entregue até o Stalwart ser corrigido</translation>
+    </message>
+    <message id="autopanel.notice.plan.blocked">
+        <source>Turned on, the firewall blocks this port unless you allow it here.</source>
+        <translation>Ligado, o firewall bloqueia esta porta a menos que você a permita aqui.</translation>
+    </message>
+    <message id="autopanel.notice.plan.incomplete">
+        <source>SSH's ports could not all be found, so turning the firewall on is refused: it could lock you out.</source>
+        <translation>Nem todas as portas do SSH foram encontradas, então ligar o firewall é recusado: poderia te trancar fora.</translation>
+    </message>
+    <message id="autopanel.notice.plan.none">
+        <source>Nothing that listens would be blocked.</source>
+        <translation>Nada que escuta seria bloqueado.</translation>
+    </message>
+    <message id="autopanel.notice.ports.stale">
+        <source>An allow rule nothing listens behind. It does not say the port is reachable: revoke it in System → Firewall if nothing is meant to listen there.</source>
+        <translation>Uma regra de permissão sem nada escutando atrás. Não diz que a porta é alcançável: revogue em Sistema → Firewall se nada deve escutar ali.</translation>
     </message>
     <message id="autopanel.notice.prefs.notKept">
         <source>the choice is shown but was not kept: %1</source>
@@ -1907,6 +2187,14 @@
         <source>Remove the domain %1? Its routes stay; the removal is refused while a route would be left under no domain.</source>
         <translation>Remover o domínio %1? As rotas dele permanecem; a remoção é recusada enquanto uma rota ficaria sem domínio.</translation>
     </message>
+    <message id="autopanel.question.firewall.off">
+        <source>Turn the firewall off? Every port that listens is then open to anyone who can reach this host.</source>
+        <translation>Desligar o firewall? Toda porta que escuta fica aberta a quem alcançar este host.</translation>
+    </message>
+    <message id="autopanel.question.firewall.revoke">
+        <source>Delete the rule “%1”? A rule a stack or mail made goes from its records too.</source>
+        <translation>Apagar a regra “%1”? Uma regra feita por uma pilha ou pelo e-mail sai também dos seus registros.</translation>
+    </message>
     <message id="autopanel.question.mail.appFirst">
         <source>%1 is made. Its devices sign in with app passwords: make one for its first device now?</source>
         <translation>%1 foi criada. Os dispositivos entram com senhas de app: criar uma para o primeiro dispositivo agora?</translation>
@@ -2007,6 +2295,30 @@
         <source>Remove the selected domain</source>
         <translation>Remover o domínio selecionado</translation>
     </message>
+    <message id="autopanel.tip.firewall.allow">
+        <source>Allow incoming connections to a port or range, from anywhere or from one network</source>
+        <translation>Permite conexões de entrada para uma porta ou faixa, de qualquer lugar ou de uma rede</translation>
+    </message>
+    <message id="autopanel.tip.firewall.confirm">
+        <source>Keep the firewall on: press it from a new login, in a second terminal</source>
+        <translation>Mantenha o firewall ligado: aperte a partir de um novo login, em um segundo terminal</translation>
+    </message>
+    <message id="autopanel.tip.firewall.copy">
+        <source>Copy the commands that would make the change by hand</source>
+        <translation>Copia os comandos que fariam a mudança à mão</translation>
+    </message>
+    <message id="autopanel.tip.firewall.off">
+        <source>Turn the firewall off: nothing is filtered until it is on again</source>
+        <translation>Desliga o firewall: nada é filtrado até ligar de novo</translation>
+    </message>
+    <message id="autopanel.tip.firewall.on">
+        <source>See what turning the firewall on would block, choose what to allow, then turn it on</source>
+        <translation>Veja o que ligar o firewall bloquearia, escolha o que permitir e ligue</translation>
+    </message>
+    <message id="autopanel.tip.firewall.revoke">
+        <source>Delete the selected rule; refused when new SSH logins from your address would no longer get in</source>
+        <translation>Apaga a regra escolhida; é recusado se novos logins SSH do seu endereço deixariam de entrar</translation>
+    </message>
     <message id="autopanel.tip.form.domain">
         <source>The registered domain the host is under</source>
         <translation>O domínio registrado ao qual o host pertence</translation>
@@ -2075,6 +2387,10 @@
         <source>Stop receiving mail for the selected domain</source>
         <translation>Parar de receber e-mail para o domínio selecionado</translation>
     </message>
+    <message id="autopanel.tip.mail.openPorts">
+        <source>Open mail's blocked ports in the firewall, as mail's: they close when mail is removed</source>
+        <translation>Abre no firewall as portas bloqueadas do e-mail, como dele: elas fecham quando o e-mail é removido</translation>
+    </message>
     <message id="autopanel.tip.mail.reload">
         <source>Read mail's state again</source>
         <translation>Ler o estado do e-mail novamente</translation>
@@ -2095,9 +2411,21 @@
         <source>Read it again now</source>
         <translation>Ler de novo agora</translation>
     </message>
+    <message id="autopanel.tip.plan.enable">
+        <source>Turn the firewall on as shown; it turns itself off unless a new login confirms it</source>
+        <translation>Liga o firewall como mostrado; ele se desliga sozinho se um novo login não confirmar</translation>
+    </message>
+    <message id="autopanel.tip.plan.toggle">
+        <source>Allow the selected port when the firewall turns on, or leave it blocked</source>
+        <translation>Permite a porta escolhida quando o firewall ligar, ou deixa bloqueada</translation>
+    </message>
     <message id="autopanel.tip.prompt.ok">
         <source>Take this answer</source>
         <translation>Aceitar esta resposta</translation>
+    </message>
+    <message id="autopanel.tip.review.copy">
+        <source>Copy the commands that would open this port by hand</source>
+        <translation>Copia os comandos que abririam esta porta à mão</translation>
     </message>
     <message id="autopanel.tip.review.go">
         <source>Do what the review shows; nothing changes before</source>
@@ -2106,6 +2434,10 @@
     <message id="autopanel.tip.review.prepare">
         <source>Put the user, the files and the images in place, and start nothing</source>
         <translation>Colocar o usuário, os arquivos e as imagens no lugar, sem iniciar nada</translation>
+    </message>
+    <message id="autopanel.tip.review.toggle">
+        <source>Open the selected port in the firewall when this is applied, or leave the firewall as it is</source>
+        <translation>Abre a porta escolhida no firewall ao aplicar, ou deixa o firewall como está</translation>
     </message>
     <message id="autopanel.tip.routes.add">
         <source>Add a route</source>
@@ -2219,6 +2551,14 @@
         <source>Remove the Cloudflare token</source>
         <translation>Remover o token do Cloudflare</translation>
     </message>
+    <message id="autopanel.title.confirm.firewallOff">
+        <source>Turn the firewall off</source>
+        <translation>Desligar o firewall</translation>
+    </message>
+    <message id="autopanel.title.confirm.firewallRevoke">
+        <source>Revoke the rule</source>
+        <translation>Revogar a regra</translation>
+    </message>
     <message id="autopanel.title.confirm.mailLock">
         <source>Lock the mailbox's password</source>
         <translation>Bloquear a senha da caixa</translation>
@@ -2287,6 +2627,10 @@
         <source>Records to enter at your DNS provider</source>
         <translation>Registros a inserir no seu provedor de DNS</translation>
     </message>
+    <message id="autopanel.title.dialog.plan">
+        <source>Turn the firewall on</source>
+        <translation>Ligar o firewall</translation>
+    </message>
     <message id="autopanel.title.dialog.recovery">
         <source>Recovery codes</source>
         <translation>Códigos de recuperação</translation>
@@ -2311,6 +2655,10 @@
         <source>Entries</source>
         <translation>Entradas</translation>
     </message>
+    <message id="autopanel.title.list.checks">
+        <source>Findings</source>
+        <translation>Achados</translation>
+    </message>
     <message id="autopanel.title.list.count">
         <source>%1 · %2 · read at %3</source>
         <translation>%1 · %2 · lido às %3</translation>
@@ -2322,6 +2670,10 @@
     <message id="autopanel.title.list.failed">
         <source>%1 · the read failed: %2</source>
         <translation>%1 · a leitura falhou: %2</translation>
+    </message>
+    <message id="autopanel.title.list.firewall">
+        <source>Rules</source>
+        <translation>Regras</translation>
     </message>
     <message id="autopanel.title.list.journal">
         <source>%1 · %2 lines · read at %3</source>
@@ -2383,6 +2735,10 @@
         <source>Entry</source>
         <translation>Entrada</translation>
     </message>
+    <message id="autopanel.title.pane.planPorts">
+        <source>What it would block</source>
+        <translation>O que bloquearia</translation>
+    </message>
     <message id="autopanel.title.pane.review">
         <source>Containers and findings</source>
         <translation>Contêineres e constatações</translation>
@@ -2395,9 +2751,17 @@
         <source>Audit log</source>
         <translation>Registro de auditoria</translation>
     </message>
+    <message id="autopanel.title.panel.checks">
+        <source>Host checks</source>
+        <translation>Verificações do host</translation>
+    </message>
     <message id="autopanel.title.panel.domains">
         <source>Domains</source>
         <translation>Domínios</translation>
+    </message>
+    <message id="autopanel.title.panel.firewall">
+        <source>Firewall</source>
+        <translation>Firewall</translation>
     </message>
     <message id="autopanel.title.panel.logins">
         <source>Login attempts</source>
@@ -2458,6 +2822,10 @@
     <message id="autopanel.title.prompt.cloudflare">
         <source>Cloudflare token</source>
         <translation>Token do Cloudflare</translation>
+    </message>
+    <message id="autopanel.title.prompt.firewallAllow">
+        <source>Allow a port</source>
+        <translation>Permitir uma porta</translation>
     </message>
     <message id="autopanel.title.prompt.import">
         <source>Import a stack</source>
@@ -2615,9 +2983,145 @@
         <source>Issuer: %1</source>
         <translation>Emissor: %1</translation>
     </message>
+    <message id="autopanel.value.check.alert">
+        <source>alert</source>
+        <translation>alerta</translation>
+    </message>
+    <message id="autopanel.value.check.dockerGroup">
+        <source>Users in the docker group, as good as root: %1</source>
+        <translation>Usuários no grupo docker, que equivale a root: %1</translation>
+    </message>
+    <message id="autopanel.value.check.dockerPresent">
+        <source>Docker is installed or running</source>
+        <translation>O Docker está instalado ou rodando</translation>
+    </message>
+    <message id="autopanel.value.check.firewallOff">
+        <source>No firewall is on (%1)</source>
+        <translation>Nenhum firewall está ligado (%1)</translation>
+    </message>
+    <message id="autopanel.value.check.firewallOwnedMissing">
+        <source>Rules AutoPanel made were removed by hand: %1</source>
+        <translation>Regras que o AutoPanel fez foram removidas à mão: %1</translation>
+    </message>
+    <message id="autopanel.value.check.firewallPartial">
+        <source>Something filters that this view cannot read: %1</source>
+        <translation>Algo filtra que esta visão não consegue ler: %1</translation>
+    </message>
+    <message id="autopanel.value.check.firewallStale">
+        <source>Firewall rules nothing listens behind: %1</source>
+        <translation>Regras sem nada escutando atrás: %1</translation>
+    </message>
+    <message id="autopanel.value.check.firewallUnconfirmed">
+        <source>The firewall was turned on and is not confirmed yet</source>
+        <translation>O firewall foi ligado e ainda não foi confirmado</translation>
+    </message>
+    <message id="autopanel.value.check.gatePortBlocked">
+        <source>The firewall blocks AutoPanel's web ports: %1</source>
+        <translation>O firewall bloqueia as portas web do AutoPanel: %1</translation>
+    </message>
+    <message id="autopanel.value.check.mailPortBlocked">
+        <source>The firewall blocks mail's ports: %1</source>
+        <translation>O firewall bloqueia as portas do e-mail: %1</translation>
+    </message>
+    <message id="autopanel.value.check.notice">
+        <source>notice</source>
+        <translation>aviso</translation>
+    </message>
+    <message id="autopanel.value.check.podmanSystemSocket">
+        <source>Podman's system-wide socket is on</source>
+        <translation>O socket do Podman para todo o sistema está ligado</translation>
+    </message>
+    <message id="autopanel.value.check.rebootRequired">
+        <source>A reboot is waiting: an update needs it</source>
+        <translation>Há uma reinicialização pendente: uma atualização precisa dela</translation>
+    </message>
+    <message id="autopanel.value.check.sshPassword">
+        <source>SSH takes passwords</source>
+        <translation>O SSH aceita senhas</translation>
+    </message>
+    <message id="autopanel.value.check.stackPortBlocked">
+        <source>The firewall blocks ports a stack opened: %1</source>
+        <translation>O firewall bloqueia portas que uma pilha abriu: %1</translation>
+    </message>
+    <message id="autopanel.value.check.ufwIpv6Off">
+        <source>ufw leaves IPv6 alone (IPV6=no)</source>
+        <translation>O ufw deixa o IPv6 de lado (IPV6=no)</translation>
+    </message>
+    <message id="autopanel.value.check.unitFailed">
+        <source>System units failed: %1</source>
+        <translation>Unidades do sistema com falha: %1</translation>
+    </message>
     <message id="autopanel.value.domain.noRoutes">
         <source>No route is under it.</source>
         <translation>Nenhuma rota está sob ele.</translation>
+    </message>
+    <message id="autopanel.value.firewall.allowed">
+        <source>allowed</source>
+        <translation>permitido</translation>
+    </message>
+    <message id="autopanel.value.firewall.blocked">
+        <source>blocked</source>
+        <translation>bloqueado</translation>
+    </message>
+    <message id="autopanel.value.firewall.byAdministrator">
+        <source>the administrator (no owner removes it)</source>
+        <translation>o administrador (nenhum dono a remove)</translation>
+    </message>
+    <message id="autopanel.value.firewall.byNobody">
+        <source>no rule</source>
+        <translation>nenhuma regra</translation>
+    </message>
+    <message id="autopanel.value.firewall.byOther">
+        <source>a rule not AutoPanel's</source>
+        <translation>uma regra que não é do AutoPanel</translation>
+    </message>
+    <message id="autopanel.value.firewall.limited">
+        <source>limited</source>
+        <translation>limitado</translation>
+    </message>
+    <message id="autopanel.value.firewall.local">
+        <source>local</source>
+        <translation>local</translation>
+    </message>
+    <message id="autopanel.value.firewall.off">
+        <source>off</source>
+        <translation>desligado</translation>
+    </message>
+    <message id="autopanel.value.firewall.on">
+        <source>on, incoming %1 by default</source>
+        <translation>ligado, entrada %1 por padrão</translation>
+    </message>
+    <message id="autopanel.value.firewall.stale">
+        <source>rule, nothing listens</source>
+        <translation>regra, nada escuta</translation>
+    </message>
+    <message id="autopanel.value.firewall.summary">
+        <source>Manager: %1 · %2 · %3 rules</source>
+        <translation>Gerenciador: %1 · %2 · %3 regras</translation>
+    </message>
+    <message id="autopanel.value.firewall.unknown">
+        <source>unknown</source>
+        <translation>desconhecido</translation>
+    </message>
+    <message id="autopanel.value.firewallLimit.dockerRules">
+        <source>Docker filters what it publishes apart from the manager: its ports read as unknown.</source>
+        <translation>O Docker filtra o que publica à parte do gerenciador: suas portas aparecem como desconhecidas.</translation>
+    </message>
+    <message id="autopanel.value.firewallLimit.ipv6Unmanaged">
+        <source>ufw leaves IPv6 alone (IPV6=no): IPv6 ports read as unknown.</source>
+        <translation>O ufw deixa o IPv6 de lado (IPV6=no): portas IPv6 aparecem como desconhecidas.</translation>
+    </message>
+    <message id="autopanel.value.firewallLimit.otherTables">
+        <source>Rules outside the manager also filter, and this view cannot read them.</source>
+        <translation>Regras fora do gerenciador também filtram, e esta visão não consegue lê-las.</translation>
+    </message>
+    <message id="autopanel.value.firewallLimit.twoManagers">
+        <source>ufw and firewalld are both running: AutoPanel changes neither.</source>
+        <translation>ufw e firewalld estão rodando ao mesmo tempo: o AutoPanel não altera nenhum.</translation>
+    </message>
+    <message id="autopanel.value.firewallLimit.unparsedRules">
+        <source>Some rules could not be read: ports they might match read as unknown.</source>
+        <translation>Algumas regras não puderam ser lidas: portas que elas podem afetar aparecem como desconhecidas.</translation>
     </message>
     <message id="autopanel.value.host.cpu">
         <source>%1% of %2 CPUs</source>
@@ -2699,6 +3203,18 @@
         <source>%1 · %2 · %3 (1, 5 and 15 minutes)</source>
         <translation>%1 · %2 · %3 (1, 5 e 15 minutos)</translation>
     </message>
+    <message id="autopanel.value.plan.allow">
+        <source>allow</source>
+        <translation>permitir</translation>
+    </message>
+    <message id="autopanel.value.plan.block">
+        <source>blocked</source>
+        <translation>bloqueado</translation>
+    </message>
+    <message id="autopanel.value.plan.summary">
+        <source>With %1. SSH stays allowed from anywhere: %2. Unless a new login confirms it within %3 seconds, the firewall turns itself off again.</source>
+        <translation>Com %1. O SSH continua permitido de qualquer lugar: %2. Se um novo login não confirmar em %3 segundos, o firewall se desliga de novo.</translation>
+    </message>
     <message id="autopanel.value.review.container">
         <source>container</source>
         <translation>contêiner</translation>
@@ -2714,6 +3230,26 @@
     <message id="autopanel.value.review.noMemoryLimit">
         <source>none</source>
         <translation>nenhum</translation>
+    </message>
+    <message id="autopanel.value.review.port">
+        <source>port</source>
+        <translation>porta</translation>
+    </message>
+    <message id="autopanel.value.review.portAllowed">
+        <source>allowed already</source>
+        <translation>já permitido</translation>
+    </message>
+    <message id="autopanel.value.review.portByHand">
+        <source>[!] by hand</source>
+        <translation>[!] à mão</translation>
+    </message>
+    <message id="autopanel.value.review.portLeave">
+        <source>[ ] leave it</source>
+        <translation>[ ] deixar</translation>
+    </message>
+    <message id="autopanel.value.review.portOpen">
+        <source>[x] open it</source>
+        <translation>[x] abrir</translation>
     </message>
     <message id="autopanel.value.review.refused">
         <source>refused</source>

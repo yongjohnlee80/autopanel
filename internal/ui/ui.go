@@ -32,6 +32,7 @@ import (
 	tuidecl "github.com/yongjohnlee80/golib/tui/decl"
 	"github.com/yongjohnlee80/golib/tui/term"
 
+	corefw "github.com/yongjohnlee80/autopanel/core/firewall"
 	"github.com/yongjohnlee80/autopanel/core/gate"
 	"github.com/yongjohnlee80/autopanel/core/mail"
 	"github.com/yongjohnlee80/autopanel/core/services"
@@ -119,6 +120,20 @@ type Port struct {
 	PID     int    `json:"pid"`
 	User    string `json:"user"`
 	Use     string `json:"use"`
+	// What the firewall does to a new connection from anywhere, and why (the
+	// sources of a limited one, the reason of an unknown one, the rule of a
+	// rule nothing listens behind). To is a stale rule's last port.
+	Firewall string `json:"firewall"`
+	Why      string `json:"why"`
+	To       int    `json:"to,omitempty"`
+}
+
+// Check is one of Host checks' findings: a constant id (its message), its
+// severity, and data for the message.
+type Check struct {
+	ID       string `json:"id"`
+	Severity string `json:"severity"` // "notice" or "alert"
+	Detail   string `json:"detail"`
 }
 
 // Prefs are the panel's kept preferences; an empty field is one not chosen
@@ -179,6 +194,18 @@ type Client interface {
 	AuditLog(ctx context.Context) ([]AuditEntry, error)
 	Logins(ctx context.Context) (Logins, error)
 	Ports(ctx context.Context) ([]Port, error)
+	Checks(ctx context.Context) ([]Check, error)
+
+	// System › Firewall (sys.firewall.*): an admin's.
+	Firewall(ctx context.Context) (sysinfo.Firewall, error)
+	FirewallPlan(ctx context.Context) (corefw.EnablePlan, error)
+	FirewallAllow(ctx context.Context, a corefw.AllowAsk) error
+	FirewallRevoke(ctx context.Context, id string) error
+	// FirewallEnable turns the firewall on as the plan with that hash said,
+	// with the ports chosen allowed; it is undone unless confirmed.
+	FirewallEnable(ctx context.Context, plan string, allow []string) (corefw.Armed, error)
+	FirewallConfirm(ctx context.Context) error
+	FirewallDisable(ctx context.Context) error
 
 	// The Services menu: the stacks. Each is a verb of the daemon's.
 	Stacks(ctx context.Context) ([]services.View, error)
@@ -200,7 +227,8 @@ type Client interface {
 	// ApplyStack runs a reviewed definition: verb is "prepare", "add" or
 	// "apply", and accept is the review's sha256. A definition that changed
 	// since its review is refused with services.ErrChanged.
-	ApplyStack(ctx context.Context, verb, name, accept string) error
+	// open are the ports to open in the firewall, of those the review lists.
+	ApplyStack(ctx context.Context, verb, name, accept string, open []corefw.Want) error
 	// PullStack pulls the images of a stack again, or of one service of it.
 	PullStack(ctx context.Context, name, service string) error
 	// StackUnit starts, stops or restarts a stack, or one service of it:
@@ -217,7 +245,9 @@ type Client interface {
 	// MailSetup answers the review of the mail setup and writes nothing;
 	// MailSetupApply makes it, given that review's sha256.
 	MailSetup(ctx context.Context, host, domain string) (mail.Setup, error)
-	MailSetupApply(ctx context.Context, accept string) error
+	MailSetupApply(ctx context.Context, accept string, open []int) error
+	// MailPortsOpen opens mail's public ports in the firewall, as mail's.
+	MailPortsOpen(ctx context.Context, ports []int) error
 	MailAddDomain(ctx context.Context, name string) error
 	MailRemoveDomain(ctx context.Context, name string) error
 	MailRecords(ctx context.Context, domain string) (mail.RecordsAnswer, error)

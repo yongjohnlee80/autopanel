@@ -21,7 +21,7 @@
 import tui 1.0
 import autopanel 1.0              // App: the panel's state and commands
 import autopanel.theme.dark 1.0   // the Theme singleton; System › Theme switches it
-import autopanel.dialogs 1.0      // Login, RouteDialog, BrowseDialog, ReviewDialog, PromptDialog, SecretDialog, DnsDialog, TotpDialog, OnceDialog, AppPasswordDialog, ConfirmDialog
+import autopanel.dialogs 1.0      // Login, RouteDialog, BrowseDialog, ReviewDialog, PromptDialog, SecretDialog, DnsDialog, TotpDialog, OnceDialog, AppPasswordDialog, ConfirmDialog, PlanDialog
 import autopanel.views 1.0        // Keys, About
 import tui.panels 1.0             // Panel: the panels the menus open (golib)
 import tui.tiles 1.0              // TilePanel: the widgets of the main screen (golib)
@@ -84,6 +84,8 @@ Window {
             MenuItem { text: qsTrId("autopanel.menu.system.audit"); onTriggered: App.openMonitor("audit") }
             MenuItem { text: qsTrId("autopanel.menu.system.logins"); onTriggered: App.openMonitor("logins") }
             MenuItem { text: qsTrId("autopanel.menu.system.ports"); onTriggered: App.openMonitor("ports") }
+            MenuItem { text: qsTrId("autopanel.menu.system.firewall"); enabled: App.isAdmin; onTriggered: App.openFirewall() }
+            MenuItem { text: qsTrId("autopanel.menu.system.checks"); onTriggered: App.openChecks() }
             MenuSeparator {}
             Menu {
                 title: qsTrId("autopanel.menu.system.theme")
@@ -877,6 +879,7 @@ Window {
         onChanged: App.panelChanged("mailServer", operation)
         Shortcut { sequence: "r"; onActivated: App.mailReload() }
         Shortcut { sequence: "s"; onActivated: App.mailSync() }
+        Shortcut { sequence: "p"; onActivated: App.mailOpenPorts() }
         Flex {
             direction: Tui.Vertical
             Frame {
@@ -897,6 +900,8 @@ Window {
                 Button { text: qsTrId("autopanel.button.mail.reload"); toolTipText: App.tipMailReload; onClicked: App.mailReload() }
                 Text { text: " " }
                 Button { text: qsTrId("autopanel.button.mail.sync"); toolTipText: App.tipMailSync; onClicked: App.mailSync() }
+                Text { text: " "; visible: App.mailCanOpenPorts }
+                Button { text: qsTrId("autopanel.button.mail.openPorts"); toolTipText: App.tipMailOpenPorts; visible: App.mailCanOpenPorts; onClicked: App.mailOpenPorts() }
                 Text { text: " " }
                 Button { text: qsTrId("autopanel.button.panel.close"); toolTipText: App.tipPanelClose; onClicked: App.closePanel("mailServer") }
                 Text { text: " "; Layout.fillWidth: true }
@@ -1112,6 +1117,7 @@ Window {
                         TableViewColumn { role: "proto"; title: "PROTO"; width: 6 }
                         TableViewColumn { role: "port"; title: "PORT"; width: 6 }
                         TableViewColumn { role: "address"; title: "LISTENS ON"; width: 16 }
+                        TableViewColumn { role: "firewall"; title: "FIREWALL"; width: 10 }
                         TableViewColumn { role: "process"; title: "PROCESS"; width: 0 }
                     }
                 }
@@ -1126,6 +1132,114 @@ Window {
                 Button { text: qsTrId("autopanel.button.panel.reload"); toolTipText: App.tipMonitorReload; onClicked: App.reloadMonitor("ports") }
                 Text { text: " " }
                 Button { text: qsTrId("autopanel.button.panel.close"); toolTipText: App.tipPanelClose; onClicked: App.closePanel("ports") }
+                Text { text: " "; Layout.fillWidth: true }
+            }
+        }
+    }
+
+    // System › Firewall: the rules on the left, the selected one whole on the
+    // right; a refusal's commands there, with Copy (firewall.go)
+    Panel {
+        id: firewallPanel
+        key: "firewall"
+        heading: qsTrId("autopanel.title.panel.firewall")
+        edge: Tui.Center; size: 90; length: 85
+        closeOnQ: true; maximizable: true; closable: true
+        onOpened: App.panelOpened("firewall")
+        onClosed: App.panelClosed("firewall")
+        onChanged: App.panelChanged("firewall", operation)
+        Shortcut { sequence: "a"; onActivated: App.firewallAllow() }
+        Shortcut { sequence: "v"; onActivated: App.firewallRevoke(firewallTable.currentIndex) }
+        Shortcut { sequence: "o"; onActivated: App.firewallPlan() }
+        Shortcut { sequence: "c"; onActivated: App.firewallConfirm() }
+        Shortcut { sequence: "f"; onActivated: App.firewallDisable() }
+        Shortcut { sequence: "y"; onActivated: App.firewallCopy() }
+        Shortcut { sequence: "r"; onActivated: App.reloadFirewall() }
+        Flex {
+            direction: Tui.Vertical
+            Text { text: App.firewallSummary; wrapMode: Tui.WordWrap }
+            Text { text: App.firewallArmedText; visible: App.firewallArmed; wrapMode: Tui.WordWrap; color: Theme.syntax.alert }
+            Text { text: App.firewallCopyNote; visible: App.firewallCopyShown }
+            Split {
+                Layout.fillHeight: true
+                orientation: Tui.Horizontal
+                ratio: 0.55
+                Frame {
+                    title: App.firewallTitle
+                    TableView {
+                        id: firewallTable
+                        palette.highlight: Theme.document.highlight
+                        palette.highlightedText: Theme.document.highlightedText
+                        model: App.firewallRules
+                        onCurrentIndexChanged: App.firewallMoved(index)
+                        TableViewColumn { role: "action"; title: "ACTION"; width: 8 }
+                        TableViewColumn { role: "proto"; title: "PROTO"; width: 7 }
+                        TableViewColumn { role: "ports"; title: "PORT"; width: 12 }
+                        TableViewColumn { role: "from"; title: "FROM"; width: 0 }
+                        TableViewColumn { role: "by"; title: "FOR"; width: 10 }
+                    }
+                }
+                Frame {
+                    title: qsTrId("autopanel.title.pane.details")
+                    Text { text: App.firewallDetail; wrapMode: Tui.WordWrap }
+                }
+            }
+            Flow {
+                spacing: 1
+                rowSpacing: 0
+                Button { text: qsTrId("autopanel.button.firewall.allow"); toolTipText: App.tipFirewallAllow; onClicked: App.firewallAllow() }
+                Button { text: qsTrId("autopanel.button.firewall.revoke"); toolTipText: App.tipFirewallRevoke; onClicked: App.firewallRevoke(firewallTable.currentIndex) }
+                Button { text: qsTrId("autopanel.button.firewall.on"); toolTipText: App.tipFirewallOn; onClicked: App.firewallPlan() }
+                Button { text: qsTrId("autopanel.button.firewall.confirm"); toolTipText: App.tipFirewallConfirm; onClicked: App.firewallConfirm() }
+                Button { text: qsTrId("autopanel.button.firewall.off"); toolTipText: App.tipFirewallOff; onClicked: App.firewallDisable() }
+                Button { text: qsTrId("autopanel.button.firewall.copy"); toolTipText: App.tipFirewallCopy; visible: App.firewallHasCommands; onClicked: App.firewallCopy() }
+                Button { text: qsTrId("autopanel.button.panel.reload"); toolTipText: App.tipMonitorReload; onClicked: App.reloadFirewall() }
+                Button { text: qsTrId("autopanel.button.panel.close"); toolTipText: App.tipPanelClose; onClicked: App.closePanel("firewall") }
+            }
+        }
+    }
+
+    // System › Host checks: the findings on the left, the selected one and
+    // what to do about it on the right (firewall.go)
+    Panel {
+        id: checksPanel
+        key: "checks"
+        heading: qsTrId("autopanel.title.panel.checks")
+        edge: Tui.Center; size: 85; length: 80
+        closeOnQ: true; maximizable: true; closable: true
+        onOpened: App.panelOpened("checks")
+        onClosed: App.panelClosed("checks")
+        onChanged: App.panelChanged("checks", operation)
+        Shortcut { sequence: "r"; onActivated: App.reloadChecks() }
+        Flex {
+            direction: Tui.Vertical
+            Split {
+                Layout.fillHeight: true
+                orientation: Tui.Horizontal
+                ratio: 0.55
+                Frame {
+                    title: App.checksTitle
+                    TableView {
+                        id: checksTable
+                        palette.highlight: Theme.document.highlight
+                        palette.highlightedText: Theme.document.highlightedText
+                        model: App.checks
+                        onCurrentIndexChanged: App.checksMoved(index)
+                        TableViewColumn { role: "severity"; title: ""; width: 8 }
+                        TableViewColumn { role: "what"; title: "FINDING"; width: 0 }
+                    }
+                }
+                Frame {
+                    title: qsTrId("autopanel.title.pane.details")
+                    Text { text: App.checksDetail; wrapMode: Tui.WordWrap }
+                }
+            }
+            Flex {
+                direction: Tui.Horizontal
+                Text { text: " "; Layout.fillWidth: true }
+                Button { text: qsTrId("autopanel.button.panel.reload"); toolTipText: App.tipMonitorReload; onClicked: App.reloadChecks() }
+                Text { text: " " }
+                Button { text: qsTrId("autopanel.button.panel.close"); toolTipText: App.tipPanelClose; onClicked: App.closePanel("checks") }
                 Text { text: " "; Layout.fillWidth: true }
             }
         }
@@ -1177,6 +1291,7 @@ Window {
     RouteDialog { id: routeDialog }
     BrowseDialog { id: browseDialog }
     ReviewDialog { id: reviewDialog }
+    PlanDialog { id: planDialog }
     PromptDialog { id: promptDialog }
     SecretDialog { id: secretDialog }
     TotpDialog { id: totpDialog }

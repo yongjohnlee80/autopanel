@@ -44,6 +44,8 @@ var panelSpecs = []panelSpec{
 	{"audit", "auditPanel", "auditTable", "☰", "autopanel.title.panel.audit"},
 	{"logins", "loginsPanel", "loginsTable", "⊙", "autopanel.title.panel.logins"},
 	{"ports", "portsPanel", "portsTable", "⊞", "autopanel.title.panel.ports"},
+	{"firewall", "firewallPanel", "firewallTable", "▦", "autopanel.title.panel.firewall"},
+	{"checks", "checksPanel", "checksTable", "✓", "autopanel.title.panel.checks"},
 	{"stackLogs", "stackLogsPanel", "stackLogsTable", "¶", "autopanel.title.panel.stackLog"},
 	{"terminal", "terminalPanel", "terminalView", "❯", "autopanel.title.panel.terminal"},
 }

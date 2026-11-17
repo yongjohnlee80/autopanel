@@ -22,6 +22,7 @@ Dialog {
         Text { text: App.reviewSummary }
         Text { text: App.reviewRemoves; visible: App.reviewRemovesAny; wrapMode: Tui.WordWrap }
         Text { text: App.reviewNotice; visible: App.reviewNoticeShown; wrapMode: Tui.WordWrap; color: Theme.syntax.alert }
+        Text { text: App.reviewCopyNote; visible: App.reviewCopyShown }
         Split {
             Layout.fillHeight: true
             orientation: Tui.Horizontal
@@ -52,6 +53,20 @@ Dialog {
             enabled: App.reviewAllowed
             DialogButtonBox.buttonRole: DialogButtonBox.AcceptRole
             onClicked: App.reviewAccept()
+        }
+        Button {
+            text: App.reviewToggleText
+            toolTipText: App.tipReviewToggle
+            visible: App.reviewOnPort
+            DialogButtonBox.buttonRole: DialogButtonBox.ActionRole
+            onClicked: App.reviewToggle()
+        }
+        Button {
+            text: qsTrId("autopanel.button.review.copy")
+            toolTipText: App.tipReviewCopy
+            visible: App.reviewHasCommands
+            DialogButtonBox.buttonRole: DialogButtonBox.ActionRole
+            onClicked: App.reviewCopy()
         }
         Button {
             text: qsTrId("autopanel.button.review.prepare")

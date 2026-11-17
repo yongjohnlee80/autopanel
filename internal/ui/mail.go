@@ -76,6 +76,7 @@ func (d *mailPanes) state() map[string]any {
 		"App.appPwCopyNote":         "",
 		"App.appPwCopyShown":        false,
 		"App.mailServerRows":        d.server,
+		"App.mailCanOpenPorts":      false,
 		"App.dnsRows":               d.dns,
 		"App.dnsIntro":              "",
 		"App.dnsDetail":             "",
@@ -177,6 +178,7 @@ func (h *host) renderMail() {
 	}
 	m.accounts.Reset(arows)
 	m.server.Reset(h.mailServerRows())
+	_ = h.p.Set("App.mailCanOpenPorts", len(h.mailBlockedPorts()) > 0)
 	at := time.Now().Format("15:04:05")
 	recTitle := h.tr("autopanel.title.list.mailRecords")
 	if m.recordsOf != "" {
@@ -278,6 +280,22 @@ func (h *host) mailServerRows() []tuidecl.Row {
 		row(5, "autopanel.label.mail.domains", orDash(strings.Join(s.Domains, ", "))),
 		row(6, "autopanel.label.mail.synced", when(s.SyncedAt)),
 	}
+	for i, p := range s.Ports {
+		label := ""
+		if i == 0 {
+			label = h.tr("autopanel.label.mail.ports")
+		}
+		value := p.Key + ": " + verdictText(h, p.Verdict)
+		switch {
+		case p.By == "other":
+			value += " · " + h.tr("autopanel.value.firewall.byOther")
+		case p.By != "":
+			value += " · " + p.By
+		case p.Needs && !p.Managed && len(p.Commands) > 0:
+			value += " · " + strings.Join(p.Commands, "; ")
+		}
+		rows = append(rows, tuidecl.Row{"key": "p" + strconv.Itoa(i), "label": label, "value": value})
+	}
 	if len(s.SyncErrors) == 0 {
 		return append(rows, row(7, "autopanel.label.mail.errors", h.tr("autopanel.value.mail.none")))
 	}
@@ -289,6 +307,31 @@ func (h *host) mailServerRows() []tuidecl.Row {
 		rows = append(rows, tuidecl.Row{"key": strconv.Itoa(7 + i), "label": label, "value": e})
 	}
 	return rows
+}
+
+// mailBlockedPorts are mail's ports that need a rule AutoPanel can make.
+func (h *host) mailBlockedPorts() []int {
+	var out []int
+	for _, p := range h.mail.status.Ports {
+		if p.Needs && p.Managed {
+			out = append(out, p.Want.From)
+		}
+	}
+	return out
+}
+
+// mailOpenPorts is Open ports on Mail › Server: mail's ports that need a rule
+// are opened, as mail's.
+func (h *host) mailOpenPorts() error {
+	ports := h.mailBlockedPorts()
+	if len(ports) == 0 {
+		return nil
+	}
+	h.change(func(ctx context.Context) error { return h.client.MailPortsOpen(ctx, ports) }, func() {
+		h.say(h.tr("autopanel.notice.mail.portsOpened"))
+		h.loadMail()
+	})
+	return nil
 }
 
 // --- opening ------------------------------------------------------------------
@@ -417,7 +460,8 @@ func (h *host) askMailSetup() error {
 				default:
 					h.promptDone()
 					h.mail.lastHost, h.mail.lastDomain = host, domain
-					h.stk.nextDraft = true // Add and start applies the setup: nothing is written before it
+					h.stk.nextDraft = true          // Add and start applies the setup: nothing is written before it
+					out.Review.Firewall = out.Ports // mail's four ports, ticked when they need a rule
 					if err := h.showReview(mail.Stack, reviewAdd, out.Review, false); err != nil {
 						h.failed(err)
 					}
@@ -430,14 +474,14 @@ func (h *host) askMailSetup() error {
 
 // runMailSetup is Add and start on the mail stack's review: the daemon makes
 // the whole setup in one call, or undoes what it began.
-func (h *host) runMailSetup(accept string) {
+func (h *host) runMailSetup(accept string, open []int) {
 	if h.busy {
 		h.say(h.tr("autopanel.notice.app.busy"))
 		return
 	}
 	h.busy = true
 	h.say(h.trf("autopanel.notice.stacks.working", mail.Stack))
-	h.background(func(ctx context.Context) error { return h.client.MailSetupApply(ctx, accept) }, func(err error) {
+	h.background(func(ctx context.Context) error { return h.client.MailSetupApply(ctx, accept, open) }, func(err error) {
 		h.busy = false
 		switch {
 		case errors.Is(err, mail.ErrChanged), errors.Is(err, mail.ErrNoPending):
