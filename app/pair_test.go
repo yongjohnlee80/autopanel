@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -123,9 +124,24 @@ func (g *recordedGate) counts() (int, int, int) {
 // is made: the test only crosses the plain listener.
 func TestTheCoreAndTheGateEndToEnd(t *testing.T) {
 	// The host reads are the test's own: no real socket table, no journal.
-	defer func(l func(context.Context) ([]sysinfo.Listener, error), s func(context.Context, int) ([]sysinfo.SSHLogin, error), u func(int) string) {
-		readListeners, readSSHLogins, userName = l, s, u
-	}(readListeners, readSSHLogins, userName)
+	defer func(l func(context.Context) ([]sysinfo.Listener, error), s func(context.Context, int) ([]sysinfo.SSHLogin, error), u func(int) string, f func(context.Context) (sysinfo.Firewall, error)) {
+		readListeners, readSSHLogins, userName, readFirewall = l, s, u, f
+	}(readListeners, readSSHLogins, userName, readFirewall)
+	// ufw on, denying by default: SSH allowed, the TURN port from one network
+	// only, and a rule for a port nothing listens on.
+	readFirewall = func(context.Context) (sysinfo.Firewall, error) {
+		allow := func(proto string, port, seq int, source string) sysinfo.Rule {
+			fam := "both"
+			if source != "" {
+				fam = "v4"
+			}
+			return sysinfo.Rule{Action: "allow", Direction: "in", Family: fam, Proto: proto, From: port, To: port, Source: source,
+				Modelled: true, Runtime: true, Permanent: true, Seq4: seq, Raw: "allow " + strconv.Itoa(port)}
+		}
+		return sysinfo.Firewall{Manager: "ufw", Active: true, Default: "deny", Limits: []string{}, Rules: []sysinfo.Rule{
+			allow("tcp", 22, 1, ""), allow("udp", 3478, 2, "198.51.100.0/24"), allow("tcp", 8443, 3, ""),
+		}}, nil
+	}
 	var listening []sysinfo.Listener // set once the configuration names the gate's ports
 	readListeners = func(context.Context) ([]sysinfo.Listener, error) { return listening, nil }
 	userName = func(uid int) string { return map[int]string{0: "root", 33: "www-data"}[uid] }
@@ -353,8 +369,18 @@ func TestTheCoreAndTheGateEndToEnd(t *testing.T) {
 		t.Fatalf("the panel's login = %+v", a)
 	}
 	var ports []Port
-	if err := c.Call(ctx, "sys.ports", nil, &ports); err != nil || len(ports) != 6 {
+	if err := c.Call(ctx, "sys.ports", nil, &ports); err != nil || len(ports) != 7 {
 		t.Fatalf("sys.ports = %+v, %v", ports, err)
+	}
+	// Each socket carries the firewall's verdict, and a rule nothing listens
+	// behind is a row of its own.
+	for i, want := range []string{"allowed", "limited", "local", "local", "blocked", "local", "rule: nothing listens"} {
+		if ports[i].Firewall != want {
+			t.Fatalf("port %d = %+v; want the verdict %q", i, ports[i], want)
+		}
+	}
+	if ports[1].Why != "from 198.51.100.0/24" || ports[6].Port != 8443 || ports[6].Why != "allow 8443" {
+		t.Fatalf("the limited port = %+v, the stale rule = %+v", ports[1], ports[6])
 	}
 	// A socket carries its process and its user when the host names them, and
 	// then no guess from its port. Only a socket whose process is unknown is
@@ -568,9 +594,12 @@ const blogCompose = `services:
 // with the review it accepts, a refusal names its cause, and Open ports names
 // the stack's sockets by its name.
 func TestStacksThroughTheControlSocket(t *testing.T) {
-	defer func(l func(context.Context) ([]sysinfo.Listener, error), u func(int) string, h func(Config) services.Host) {
-		readListeners, userName, serviceHost = l, u, h
-	}(readListeners, userName, serviceHost)
+	defer func(l func(context.Context) ([]sysinfo.Listener, error), u func(int) string, h func(Config) services.Host, f func(context.Context) (sysinfo.Firewall, error)) {
+		readListeners, userName, serviceHost, readFirewall = l, u, h, f
+	}(readListeners, userName, serviceHost, readFirewall)
+	readFirewall = func(context.Context) (sysinfo.Firewall, error) {
+		return sysinfo.Firewall{Manager: "none", Rules: []sysinfo.Rule{}}, nil
+	}
 	readListeners = func(context.Context) ([]sysinfo.Listener, error) {
 		return []sysinfo.Listener{
 			{Proto: "udp", Address: "0.0.0.0", Port: 3478, UID: 990, Process: "rootlessport", PID: 77},
