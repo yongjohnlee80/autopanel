@@ -40,15 +40,20 @@ func (h *setupHost) Allow(_ context.Context, _ sysinfo.Firewall, r sysinfo.Rule)
 func (h *setupHost) Revoke(_ context.Context, _ sysinfo.Firewall, r sysinfo.Rule) error {
 	var keep []sysinfo.Rule
 	for _, x := range h.fw.Rules {
-		if x.From != r.From {
+		x.ID, x.Seq4, x.Seq6, x.Runtime, x.Permanent = "", 0, 0, false, false
+		y := r
+		y.ID, y.Seq4, y.Seq6, y.Runtime, y.Permanent = "", 0, 0, false, false
+		if x != y { // ufw deletes by the rule's fields
 			keep = append(keep, x)
 		}
 	}
 	h.fw.Rules = keep
 	return nil
 }
-func (h *setupHost) Default(context.Context, sysinfo.Firewall, string) (string, error) {
-	return "", nil
+func (h *setupHost) Default(_ context.Context, _ sysinfo.Firewall, p string) (string, error) {
+	prev := h.fw.Default
+	h.fw.Default = p
+	return prev, nil
 }
 func (h *setupHost) Enable(_ context.Context, _ sysinfo.Firewall, on bool) error {
 	if h.failOn && on {
@@ -123,5 +128,33 @@ func TestTheInstallersFirewallStep(t *testing.T) {
 	}
 	if code, _ := run(t, "--ports", "eighty"); code != 2 {
 		t.Fatalf("bad ports: %d", code)
+	}
+}
+
+// TestTheInstallersStepIsCareful (C3): endpoints not all found, a default of
+// allow, and a deny saved before the allows.
+func TestTheInstallersStepIsCareful(t *testing.T) {
+	ssh := corefw.SSHFacts{Socket: []string{"0.0.0.0:22 (Stream)"}, Families: map[string]bool{"v4": true},
+		Listeners: []sysinfo.Listener{{Proto: "tcp", Address: "0.0.0.0", Port: 22, PID: 1, Process: "systemd"}}}
+	unexplained := ssh
+	unexplained.Listeners = append(unexplained.Listeners, sysinfo.Listener{Proto: "tcp", Address: "0.0.0.0", Port: 2022, Process: "sshd"})
+	h := &setupHost{fw: sysinfo.Firewall{Manager: "ufw", Default: "deny", Limits: []string{}}, ssh: unexplained}
+	withSetupHost(t, h)
+	if code, out := run(t, "--ports", "80"); code != 1 || h.fw.Active || len(h.fw.Rules) != 0 || !strings.Contains(out, "could not all be found") {
+		t.Fatalf("an unexplained sshd: %d %q", code, out)
+	}
+
+	h = &setupHost{fw: sysinfo.Firewall{Manager: "ufw", Default: "allow", Limits: []string{}}, ssh: ssh}
+	withSetupHost(t, h)
+	if code, _ := run(t, "--ports", "80"); code != 0 || !h.fw.Active || h.fw.Default != "deny" {
+		t.Fatalf("a default of allow: %d, %+v", code, h.fw)
+	}
+
+	h = &setupHost{fw: sysinfo.Firewall{Manager: "ufw", Default: "allow", Limits: []string{}, Rules: []sysinfo.Rule{
+		{Action: "deny", Direction: "in", Family: "both", Proto: "tcp", From: 80, To: 80, Modelled: true},
+	}}, ssh: ssh}
+	withSetupHost(t, h)
+	if code, out := run(t, "--ports", "80"); code != 1 || h.fw.Active || len(h.fw.Rules) != 1 || h.fw.Default != "allow" || !strings.Contains(out, "would still block tcp/80") {
+		t.Fatalf("a deny before: %d %q %+v", code, out, h.fw)
 	}
 }

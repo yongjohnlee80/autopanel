@@ -317,3 +317,43 @@ func TestAdmitsOneConnection(t *testing.T) {
 		t.Errorf("not modelled: %s", got)
 	}
 }
+
+// TestIPv6OffKeepsAnAllowForIPv4 (C1): with IPV6=no ufw keeps an allow of both
+// families as IPv4's; the IPv4 rule is the whole rule, and nothing more is
+// needed on a wildcard listener.
+func TestIPv6OffKeepsAnAllowForIPv4(t *testing.T) {
+	f := ufwFixture(t, "active-ipv6-no")
+	r := Rule{Action: "allow", Direction: "in", Family: "both", Proto: "tcp", From: 22, To: 22, Modelled: true}
+	if k := f.Kept(r); k.Family != "v4" {
+		t.Fatalf("kept = %+v", k)
+	}
+	if f.NeedsRule("tcp", netip.IPv6Unspecified(), 22) {
+		t.Error("22 is allowed for IPv4, all ufw manages here")
+	}
+	if !f.NeedsRule("tcp", netip.IPv6Unspecified(), 9999) {
+		t.Error("9999 has no rule")
+	}
+	on := ufwFixture(t, "active-variety")
+	if k := on.Kept(r); k.Family != "both" {
+		t.Fatalf("with IPv6 managed, kept = %+v", k)
+	}
+}
+
+// TestRangesAreJudgedWhole (C4): a range needs a rule when any of its ports
+// does; its verdict is its worst port's.
+func TestRangesAreJudgedWhole(t *testing.T) {
+	f := ufwFixture(t, "active-variety")
+	any := netip.IPv6Unspecified()
+	if f.NeedsRuleRange("udp", any, 60000, 60010) {
+		t.Error("60000-60010/udp is allowed whole")
+	}
+	if !f.NeedsRuleRange("udp", any, 59990, 60010) || !f.NeedsRuleRange("udp", any, 60005, 60020) {
+		t.Error("a range reaching past the rule needs one")
+	}
+	if v, _ := f.VerdictRange("udp", netip.MustParseAddr("2001:db8::5"), 60000, 60010); v != VerdictAllowed {
+		t.Errorf("the allowed range = %s", v)
+	}
+	if v, _ := f.VerdictRange("udp", netip.MustParseAddr("2001:db8::5"), 60005, 60020); v != VerdictBlocked {
+		t.Errorf("a range half outside = %s", v)
+	}
+}

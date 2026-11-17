@@ -225,6 +225,10 @@ func familyOf(s string) (string, bool) {
 }
 
 // identityOf is the identity the rule will have once the manager keeps it.
+// identityOn is the identity r will have once fw's manager keeps it (an allow
+// of both families is IPv4's alone where ufw leaves IPv6 to itself).
+func identityOn(fw sysinfo.Firewall, r sysinfo.Rule) string { return identityOf(fw.Kept(r)) }
+
 func identityOf(r sysinfo.Rule) string {
 	r.ID, r.Runtime, r.Permanent, r.Raw, r.Note, r.Seq4, r.Seq6, r.By = "", false, false, "", "", 0, 0, ""
 	return sysinfo.Identity(r)
@@ -282,8 +286,8 @@ func (m *Module) Allow(ctx context.Context, a AllowAsk) (sysinfo.Firewall, error
 	if !managed(fw) {
 		return fw, m.unmanaged(fw, []sysinfo.Rule{r})
 	}
-	if _, there := find(fw, identityOf(r)); !there {
-		if err := m.allowAndCheck(ctx, fw, r); err != nil {
+	if _, there := find(fw, identityOn(fw, r)); !there {
+		if _, err := m.allowAndCheck(ctx, fw, r); err != nil {
 			return fw, err
 		}
 	}
@@ -291,19 +295,21 @@ func (m *Module) Allow(ctx context.Context, a AllowAsk) (sysinfo.Firewall, error
 }
 
 // allowAndCheck asks the manager for r, and reads it back: its exit code says
-// nothing (ufw exits 0 when it skipped a rule).
-func (m *Module) allowAndCheck(ctx context.Context, fw sysinfo.Firewall, r sysinfo.Rule) error {
+// nothing (ufw exits 0 when it skipped a rule). It answers the rule as the
+// manager keeps it.
+func (m *Module) allowAndCheck(ctx context.Context, fw sysinfo.Firewall, r sysinfo.Rule) (sysinfo.Rule, error) {
 	if err := m.host.Allow(ctx, fw, r); err != nil {
-		return err
+		return sysinfo.Rule{}, err
 	}
 	after, err := m.host.Read(ctx)
 	if err != nil {
-		return err
+		return sysinfo.Rule{}, err
 	}
-	if _, there := find(after, identityOf(r)); !there {
-		return ErrNotApplied
+	got, there := find(after, identityOn(after, r))
+	if !there {
+		return sysinfo.Rule{}, ErrNotApplied
 	}
-	return nil
+	return got, nil
 }
 
 // Revoke deletes a rule by its identity, the guard first. An owner's rule
@@ -422,13 +428,13 @@ func (m *Module) Review(ctx context.Context, owner string, wants []Want) ([]Port
 			addr = netip.IPv6Unspecified() // every address, both families
 		}
 		st := PortState{Want: w, Key: w.Key(), Managed: readable && managed(fw)}
-		st.Verdict, st.Why = fw.Verdict(w.Proto, addr, w.From)
-		st.Needs = fw.Manager != "none" && fw.NeedsRule(w.Proto, addr, w.From)
+		st.Verdict, st.Why = fw.VerdictRange(w.Proto, addr, w.From, w.To)
+		st.Needs = fw.Manager != "none" && fw.NeedsRuleRange(w.Proto, addr, w.From, w.To)
 		if !readable {
 			st.Verdict, st.Why, st.Needs = sysinfo.VerdictUnknown, "firewall-unread", fw.Manager != "none"
 		}
 		if r, err := w.rule(); err == nil {
-			if x, there := find(fw, identityOf(r)); there {
+			if x, there := find(fw, identityOn(fw, r)); there {
 				st.By = "other"
 				if x.By != "" {
 					st.By = x.By
@@ -486,7 +492,7 @@ func (m *Module) Open(ctx context.Context, owner string, wants []Want) error {
 		owned[r.ID] = r
 	}
 	for _, r := range rules {
-		id := identityOf(r)
+		id := identityOn(fw, r)
 		if _, there := find(fw, id); there {
 			if row, ok := owned[id]; ok && row.Owner == owner && row.State != StateOpen {
 				if err := m.store.SetFirewallState(ctx, id, StateOpen); err != nil {
@@ -498,19 +504,15 @@ func (m *Module) Open(ctx context.Context, owner string, wants []Want) error {
 		if err := m.store.PutFirewallRow(ctx, Row{ID: id, Owner: owner, Rule: r, State: StateOpening, CreatedAt: m.now().Unix()}); err != nil {
 			return err
 		}
-		if err := m.allowAndCheck(ctx, fw, r); err != nil {
+		x, err := m.allowAndCheck(ctx, fw, r)
+		if err != nil {
 			_ = m.store.DeleteFirewallRow(context.WithoutCancel(ctx), id)
 			return err
 		}
-		after, err := m.host.Read(ctx)
-		if err != nil {
-			return err
-		}
-		x, _ := find(after, id)
 		if err := m.store.PutFirewallRow(ctx, Row{ID: id, Owner: owner, Rule: x, State: StateOpen, CreatedAt: m.now().Unix()}); err != nil {
 			return err
 		}
-		fw = after
+		fw.Rules = append(fw.Rules, x)
 	}
 	return nil
 }
@@ -532,13 +534,17 @@ func (m *Module) Close(ctx context.Context, owner string, wants []Want) error {
 	if err != nil {
 		return err
 	}
+	fw, err := m.host.Read(ctx)
+	if err != nil {
+		return err
+	}
 	pick := map[string]bool{}
 	for _, w := range wants {
 		r, err := w.rule()
 		if err != nil {
 			return err
 		}
-		pick[identityOf(r)] = true
+		pick[identityOn(fw, r)] = true
 	}
 	for _, r := range rows {
 		if r.Owner != owner || (wants != nil && !pick[r.ID]) {
@@ -660,7 +666,7 @@ func (m *Module) Plan(ctx context.Context) (EnablePlan, error) {
 			continue
 		}
 		key := l.Proto + "/" + strconv.Itoa(l.Port)
-		if seen[key] || isSSH(eps, l.Port) {
+		if seen[key] || (l.Proto == "tcp" && isSSH(eps, l.Port)) {
 			continue
 		}
 		if v, _ := after.Verdict(l.Proto, addr, l.Port); v != sysinfo.VerdictBlocked {
@@ -678,6 +684,27 @@ func (m *Module) Plan(ctx context.Context) (EnablePlan, error) {
 	sum := sha256.Sum256(b)
 	p.SHA256 = hex.EncodeToString(sum[:])
 	return p, nil
+}
+
+// sshNeedsRule reports whether an SSH port still needs an allow, judged on
+// the families its endpoints listen in.
+func sshNeedsRule(fw sysinfo.Firewall, eps []Endpoint, port int) bool {
+	for _, e := range eps {
+		if e.Port != port {
+			continue
+		}
+		addr := netip.IPv4Unspecified()
+		if e.Family == "v6" {
+			addr = netip.IPv6Unspecified()
+		}
+		if e.Addr.IsValid() {
+			addr = e.Addr
+		}
+		if fw.NeedsRule("tcp", addr, port) {
+			return true
+		}
+	}
+	return false
 }
 
 func isSSH(eps []Endpoint, port int) bool {
@@ -732,6 +759,13 @@ func simulated(fw sysinfo.Firewall, extra []sysinfo.Rule) sysinfo.Firewall {
 			r.Seq6 = last6
 		default:
 			r.Seq4, r.Seq6 = last4, last6
+		}
+		r = fw.Kept(r)
+		switch r.Family {
+		case "v4":
+			r.Seq6 = 0
+		case "v6":
+			r.Seq4 = 0
 		}
 		r.ID = identityOf(r)
 		out.Rules = append(out.Rules, r)
@@ -794,7 +828,7 @@ func (m *Module) Enable(ctx context.Context, a EnableAsk) (Armed, error) {
 	}
 	var adds []add
 	for _, r := range sshRules(plan.SSH) {
-		if fw.NeedsRule("tcp", netip.IPv6Unspecified(), r.From) {
+		if sshNeedsRule(fw, plan.SSH, r.From) {
 			adds = append(adds, add{rule: r})
 		}
 	}
@@ -830,14 +864,15 @@ func (m *Module) Enable(ctx context.Context, a EnableAsk) (Armed, error) {
 		return Armed{}, err
 	}
 	for _, x := range adds {
-		id := identityOf(x.rule)
+		id := identityOn(fw, x.rule)
 		if x.owner != "" {
 			if err := m.store.PutFirewallRow(ctx, Row{ID: id, Owner: x.owner, Rule: x.rule, State: StateOpening, CreatedAt: m.now().Unix()}); err != nil {
 				return fail(err)
 			}
 			undo = append(undo, func(ctx context.Context) error { return m.store.DeleteFirewallRow(ctx, id) })
 		}
-		if err := m.allowAndCheck(ctx, fw, x.rule); err != nil {
+		kept, err := m.allowAndCheck(ctx, fw, x.rule)
+		if err != nil {
 			return fail(err)
 		}
 		undo = append(undo, func(ctx context.Context) error {
@@ -850,8 +885,8 @@ func (m *Module) Enable(ctx context.Context, a EnableAsk) (Armed, error) {
 			}
 			return nil
 		})
-		if x.owner != "" {
-			if err := m.store.SetFirewallState(ctx, id, StateOpen); err != nil {
+		if x.owner != "" { // the row holds the rule as the manager keeps it (C2)
+			if err := m.store.PutFirewallRow(ctx, Row{ID: id, Owner: x.owner, Rule: kept, State: StateOpen, CreatedAt: m.now().Unix()}); err != nil {
 				return fail(err)
 			}
 		}

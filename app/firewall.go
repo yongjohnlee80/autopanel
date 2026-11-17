@@ -125,7 +125,7 @@ func ownerChecks(mailOn func(context.Context) bool, stacks services.Store, rows 
 		if !addr.IsValid() {
 			addr = netip.IPv6Unspecified()
 		}
-		v, _ := fw.Verdict(w.Proto, addr, w.From)
+		v, _ := fw.VerdictRange(w.Proto, addr, w.From, w.To)
 		return v == sysinfo.VerdictBlocked
 	}
 	return func(ctx context.Context, fw sysinfo.Firewall) []Check {

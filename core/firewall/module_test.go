@@ -68,6 +68,9 @@ func (h *fakeHost) Allow(_ context.Context, _ sysinfo.Firewall, r sysinfo.Rule) 
 	if h.skip[r.From] {
 		return nil // ufw's exit 0 with nothing done
 	}
+	if r.Family == "both" && h.fw.Has(sysinfo.LimitIPv6Unmanaged) {
+		r.Family = "v4" // ufw with IPV6=no writes the IPv4 half alone
+	}
 	for _, x := range h.fw.Rules {
 		if identityOf(x) == identityOf(r) {
 			return nil
@@ -446,5 +449,53 @@ func TestAnEnableTheGuardCannotJudgeIsRefused(t *testing.T) {
 	}
 	if h.fw.Active {
 		t.Fatal("enabled anyway")
+	}
+}
+
+// TestOwnersOnAHostWithIPv6Off (C1): ufw keeps the IPv4 half alone; the
+// opening finds it, records it, and a retry and a close find it again.
+func TestOwnersOnAHostWithIPv6Off(t *testing.T) {
+	h := newFake(true)
+	h.fw.Limits = []string{sysinfo.LimitIPv6Unmanaged}
+	h.fw.Rules = []sysinfo.Rule{allowFrom(1, "", 22)}
+	m, st := newModule(h, nil, nil)
+	if err := m.Open(asAdmin, OwnerMail, mailWants()); err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range st.rows {
+		if r.Rule.Family != "v4" || r.ID != r.Rule.ID || r.State != StateOpen {
+			t.Fatalf("row = %+v", r)
+		}
+	}
+	h.calls = nil
+	if err := m.Open(asAdmin, OwnerMail, mailWants()); err != nil || len(h.calls) != 0 {
+		t.Fatalf("a retry: %v %q", err, h.calls)
+	}
+	states, _ := m.Review(asAdmin, OwnerMail, mailWants())
+	if states[0].Needs || states[0].By != OwnerMail {
+		t.Fatalf("review after = %+v", states[0])
+	}
+	if _, err := m.Allow(asAdmin, AllowAsk{Proto: "tcp", From: 8443}); err != nil {
+		t.Fatalf("an administrator's allow: %v", err)
+	}
+	if err := m.Close(asAdmin, OwnerMail, nil); err != nil || len(st.rows) != 0 || len(h.fw.Rules) != 2 {
+		t.Fatalf("close: %v, rows %d, rules %d", err, len(st.rows), len(h.fw.Rules))
+	}
+}
+
+// TestAnEnablesRowHoldsTheRuleAsKept (C2): an owner's row made by an enable
+// holds the rule read back, its identity and all.
+func TestAnEnablesRowHoldsTheRuleAsKept(t *testing.T) {
+	h := newFake(false)
+	ls := []sysinfo.Listener{{Proto: "tcp", Address: "0.0.0.0", Port: 993}}
+	m, st := newModule(h, ls, map[string]Use{"tcp/993": {Name: "mail", Owner: OwnerMail}})
+	plan, _ := m.Plan(asAdmin)
+	if _, err := m.Enable(asAdmin, EnableAsk{Plan: plan.SHA256, Allow: []string{"tcp/993"}}); err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range st.rows {
+		if r.Rule.ID != r.ID || !r.Rule.Permanent || r.State != StateOpen {
+			t.Fatalf("row = %+v", r)
+		}
 	}
 }

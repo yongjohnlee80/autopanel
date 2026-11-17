@@ -52,7 +52,9 @@ verdict it could touch is unknown.
 (`192.0.2.4/32` is `192.0.2.4`). The family's any-prefix (`0.0.0.0/0`, `::/0`) is no address.
 
 **ufw with `IPV6=no`:** IPv6 is not ufw's, and its IPv6 verdicts are unknown. AutoPanel never edits
-that setting, because a reload with `IPV6=no` empties `user6.rules`.
+that setting, because a reload with `IPV6=no` empties `user6.rules`. An allow AutoPanel asks for
+both families is kept by ufw for IPv4 alone there, so that is the identity it looks for, and the
+IPv4 rule is all an owner needs (`Firewall.Kept`).
 
 **firewalld** is not read or changed yet. A host that runs it is shown as such, and its verdicts
 are unknown, until its reader lands with its tests on a host that runs it.
