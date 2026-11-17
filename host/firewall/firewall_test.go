@@ -241,3 +241,22 @@ func TestChangesRunOutsideTheSandbox(t *testing.T) {
 		t.Error("default on another manager")
 	}
 }
+
+// TestSSHFactsReadTheSocketAndSshd: the active socket unit's Listen lines,
+// sshd -T, and IPv6 when the kernel has it.
+func TestSSHFactsReadTheSocketAndSshd(t *testing.T) {
+	h, fake := newHost(t, "inactive-empty")
+	fake.answers["/usr/bin/systemctl show ssh.socket"] = "ActiveState=active\nListen=0.0.0.0:22 (Stream)\nListen=[::]:22 (Stream)\n"
+	fake.answers["/usr/bin/systemctl show sshd.socket"] = "ActiveState=inactive\n"
+	fake.answers["/usr/sbin/sshd -T"] = "port 22\n"
+	f := h.SSHFacts(context.Background(), nil)
+	if !reflect.DeepEqual(f.Socket, []string{"0.0.0.0:22 (Stream)", "[::]:22 (Stream)"}) || f.Config != "port 22\n" || f.Families["v6"] {
+		t.Fatalf("facts = %+v", f)
+	}
+	_ = os.MkdirAll(filepath.Join(h.Root, "proc/net"), 0o755)
+	_ = os.WriteFile(filepath.Join(h.Root, "proc/net/if_inet6"), nil, 0o644)
+	fake.answers["/usr/bin/systemctl show ssh.socket"] = "ActiveState=inactive\n"
+	if f := h.SSHFacts(context.Background(), nil); f.Socket != nil || !f.Families["v6"] {
+		t.Fatalf("no socket, IPv6 = %+v", f)
+	}
+}
