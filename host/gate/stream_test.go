@@ -499,6 +499,28 @@ func TestTheProbeFindsATargetThatNoLongerWaitsForTheHeader(t *testing.T) {
 	if got == nil || got.at < before || len(got.unproxied) != 1 || got.unproxied[0] != "smtp" {
 		t.Fatalf("the probe found %+v; want smtp alone", got)
 	}
+	// A change of streams forgets what was found until they are looked at again.
+	ff := newForwarder(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	ff.probed.Store(&probeResult{at: 1, unproxied: []string{"smtp"}})
+	actx, stopAll := context.WithCancel(context.Background())
+	ff.apply(actx, 10, []Stream{{Name: "smtp", Listen: "127.0.0.1:0", To: closed, Greets: true}})
+	if ff.probed.Load() != nil {
+		t.Fatal("a result about streams that changed was kept")
+	}
+	stopAll()
+	ff.stopAll()
+	// The gate stopping ends a probe's wait at once.
+	defer func(d time.Duration) { probeListen = d }(probeListen)
+	probeListen = 30 * time.Second
+	cctx, cancel := context.WithCancel(context.Background())
+	began := time.Now()
+	time.AfterFunc(100*time.Millisecond, cancel)
+	_, _ = speaksUnasked(cctx, serve(waits))
+	if d := time.Since(began); d > 5*time.Second {
+		t.Fatalf("a probe waited %s after the gate was stopped", d)
+	}
+	probeListen = 300 * time.Millisecond
+
 	// Put right, the next probe finds nothing.
 	f.running[":25"].s.To = serve(waits)
 	f.probe(context.Background())

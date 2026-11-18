@@ -89,8 +89,8 @@ func (m *linkModule) Verbs() []module.Verb {
 			Doc: "The certificate and private key for a name a route holds, obtained first when there is none; with alpn, the TLS-ALPN-01 challenge certificate of an order in flight. Link socket only."}, m.cert),
 		module.Handle(module.Contract{Verb: hostgate.VerbChallenge, Since: 2, Open: true, Param: "{host, path}", Result: "{handled, status, body}",
 			Doc: "The answer to an ACME HTTP-01 request the gate received; handled is false when it is no challenge of this AutoPanel's. Link socket only."}, m.challenge),
-		module.Handle(module.Contract{Verb: hostgate.VerbReport, Since: 2, Open: true, Param: "{https_requests, http_requests, pid, memory_bytes, streams_open?, streams_served?, streams_refused?}",
-			Doc: "The gate's request counts since it started, its process and its memory, and its streams' connections, for sys.metrics and sys.ports. Link socket only."}, m.report),
+		module.Handle(module.Contract{Verb: hostgate.VerbReport, Since: 2, Open: true, Param: "{https_requests, http_requests, pid, memory_bytes, streams_open?, streams_served?, streams_refused?, probed_at?, unproxied?}",
+			Doc: "The gate's request counts since it started, its process and its memory, its streams' connections, and what its probe of the streams' targets found, for sys.metrics, sys.ports and mail's host check. Link socket only."}, m.report),
 		module.Handle(module.Contract{Verb: hostgate.VerbStreams, Since: 6, Open: true, Param: "{after}", Result: "{rev, total, streams: [{name, listen, to, idle_secs, per_client, share}]}",
 			Doc: "The ports the gate forwards byte for byte, each connection with a PROXY v2 header, and the limit they share; none until mail is set up. Answers at once when the revision is not after, and otherwise when they next change. Link socket only."}, m.streamsVerb),
 	}
@@ -141,6 +141,10 @@ func (m *linkModule) challenge(ctx context.Context, p hostgate.ChallengeAsk) (ho
 	return hostgate.ChallengeAnswer{Handled: ok, Status: status, Body: body}, nil
 }
 
+// maxUnproxied is the most stream names of a probe the core keeps: mail has
+// four ports.
+const maxUnproxied = 8
+
 func (m *linkModule) report(_ context.Context, p hostgate.Report) (struct{}, error) {
 	m.counts.https.Store(p.HTTPSRequests)
 	m.counts.http.Store(p.HTTPRequests)
@@ -149,6 +153,9 @@ func (m *linkModule) report(_ context.Context, p hostgate.Report) (struct{}, err
 	m.counts.streamsOpen.Store(p.StreamsOpen)
 	m.counts.streamsServed.Store(p.StreamsServed)
 	m.counts.streamsRefused.Store(p.StreamsRefused)
+	if len(p.Unproxied) > maxUnproxied { // the gate's word: kept short, whatever it sent
+		p.Unproxied = p.Unproxied[:maxUnproxied]
+	}
 	m.counts.probe.Store(&p)
 	m.counts.seen.Store(time.Now().UnixNano())
 	return struct{}{}, nil

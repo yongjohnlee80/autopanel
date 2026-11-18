@@ -135,9 +135,14 @@ func (f *forwarder) apply(ctx context.Context, total int, streams []Stream) {
 	for _, r := range start {
 		f.log.Info("gate: forwarding", "stream", r.s.Name, "listen", r.s.Listen, "to", r.s.To)
 	}
-	select { // the targets may have changed: look at them again
-	case f.probeNow <- struct{}{}:
-	default:
+	if len(stop) > 0 || len(start) > 0 {
+		// The targets changed: what the last probe found is about streams
+		// that may be gone, so it is forgotten until they are looked at again.
+		f.probed.Store(nil)
+		select {
+		case f.probeNow <- struct{}{}:
+		default:
+		}
 	}
 }
 
@@ -206,6 +211,8 @@ func speaksUnasked(ctx context.Context, addr string) (bool, error) {
 		return false, err
 	}
 	defer c.Close()
+	stop := context.AfterFunc(ctx, func() { _ = c.Close() }) // the gate stopping ends the wait at once
+	defer stop()
 	_ = c.SetReadDeadline(time.Now().Add(probeListen))
 	var b [1]byte
 	n, err := c.Read(b[:])
