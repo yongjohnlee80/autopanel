@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -47,6 +48,8 @@ type fakeCore struct {
 	streams Streams // link.streams: its Rev counts the changes
 	api     *API    // the HTTPS API's settings; nil: off
 	calls   []APIAsk
+	apiHold chan struct{} // when set, link.api waits for it to close
+	apiBody []byte        // when set, link.api's result
 }
 
 // setAPI changes the API's settings, as sys.api.set does.
@@ -178,6 +181,20 @@ func (c *fakeConn) Call(ctx context.Context, verb string, param any, out any) er
 	case VerbAPI:
 		a := param.(APIAsk)
 		f.calls = append(f.calls, a)
+		if hold := f.apiHold; hold != nil {
+			f.mu.Unlock()
+			select {
+			case <-hold:
+			case <-ctx.Done():
+				f.mu.Lock()
+				return ctx.Err()
+			}
+			f.mu.Lock()
+		}
+		if f.apiBody != nil {
+			*out.(*APIAnswer) = APIAnswer{Result: f.apiBody}
+			break
+		}
 		*out.(*APIAnswer) = APIAnswer{Result: []byte(`{"verb":"` + a.Verb + `"}`)}
 	case VerbCert:
 		n := param.(Name)
@@ -574,4 +591,78 @@ func TestTheGateServesTheAPIOnItsOwnHost(t *testing.T) {
 		_, _, err := get(f, "api.example.com", "/v1/health")
 		return err != nil
 	})
+}
+
+// TestAFullAPIDoesNotHoldUpTheSites: with every API slot taken by a call the
+// core has not answered, a site's handshake still gets its certificate and its
+// request is still proxied; and each call then gets its answer whole, at the
+// largest an answer may be. (What that costs the gate in memory is not measured
+// here: this core is in the test's process and hands over one shared slice. The
+// bound is the sum of the limits at the top of api.go.)
+func TestAFullAPIDoesNotHoldUpTheSites(t *testing.T) {
+	up := upstream(t)
+	f := newFakeCore(t, freeAddr(t), freeAddr(t))
+	f.hold("app.example.com")
+	f.hold("api.example.com")
+	f.setRoutes(core.RouteView{ID: 1, Host: "app.example.com", PathPrefix: "/", Upstream: up.URL})
+	startGate(t, f)
+	f.setAPI(&API{Host: "api.example.com"})
+	until(t, "the gate never served the API's host", func() bool {
+		code, _, err := get(f, "api.example.com", "/v1/health")
+		return err == nil && code == 200
+	})
+	hold := make(chan struct{})
+	f.mu.Lock()
+	f.apiHold, f.apiBody = hold, append(append([]byte{'"'}, bytes.Repeat([]byte("x"), apiAnswer-2)...), '"')
+	addr, pool := f.hello.HTTPS, f.pool
+	f.mu.Unlock()
+
+	client := func() *http.Client {
+		return &http.Client{Timeout: 20 * time.Second, Transport: &http.Transport{DisableKeepAlives: true,
+			TLSClientConfig: &tls.Config{RootCAs: pool, ServerName: "api.example.com"},
+			DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+				var d net.Dialer
+				return d.DialContext(ctx, "tcp", addr)
+			}}}
+	}
+	var wg sync.WaitGroup
+	sizes := make(chan int, apiInFlight)
+	for i := range apiInFlight {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			req, _ := http.NewRequest("POST", "https://api.example.com/v1/call/sys.status", nil)
+			req.Header.Set("Authorization", goodBearer)
+			req.Header.Set("Cf-Connecting-Ip", "203.0.113."+strconv.Itoa(i+1)) // ignored: the peer is not trusted
+			res, err := client().Do(req)
+			if err != nil {
+				sizes <- -1
+				return
+			}
+			n, _ := io.Copy(io.Discard, res.Body)
+			res.Body.Close()
+			sizes <- int(n)
+		}()
+	}
+	until(t, "the API's slots never filled", func() bool {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		return len(f.calls) == apiInFlight
+	})
+	// Every slot is taken, and the core is slow: a site is not held up.
+	start := time.Now()
+	if code, body, err := get(f, "app.example.com", "/while-full"); err != nil || code != 200 || body != "/while-full" {
+		t.Fatalf("a site while the API is full: %d %q, %v", code, body, err)
+	}
+	if d := time.Since(start); d > 3*time.Second {
+		t.Fatalf("a site's request took %s while the API was full", d)
+	}
+	close(hold)
+	wg.Wait()
+	close(sizes)
+	for n := range sizes {
+		if n != apiAnswer {
+			t.Fatalf("a call at the answer's limit came back as %d bytes; want %d", n, apiAnswer)
+		}
+	}
 }
