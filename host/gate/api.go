@@ -340,8 +340,8 @@ func bearer(h string) (string, bool) {
 		return "", false
 	}
 	id, secret, ok := strings.Cut(rest, "_")
-	if !ok || id == "" || len(id) > 19 || strings.Trim(id, "0123456789") != "" || len(secret) < 32 {
-		return "", false
+	if n, err := strconv.ParseInt(id, 10, 64); !ok || err != nil || n <= 0 || id[0] == '+' || len(secret) < 32 {
+		return "", false // an id the core would not read as one never reaches it
 	}
 	for _, c := range secret {
 		if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '-' || c == '_') {

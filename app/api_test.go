@@ -269,6 +269,29 @@ func TestAChangeIsAuditedBeforeItRuns(t *testing.T) {
 	if a := f.call(t, viewerToken, "t.change", `{"name":"x"}`); kindOf(a) != hostgate.APIForbidden || len(f.verbs.changed) != 1 {
 		t.Fatalf("a viewer changing: %+v", a.Error)
 	}
+	// The role is judged before the body: a refused caller gets the refusal,
+	// on record, whatever it sent; and the core holds a body to the verb's
+	// limit itself, whatever the gate let through.
+	before := len(f.aud.all())
+	for _, body := range []string{`{not json`, strings.Repeat("x", 3<<20)} {
+		if a := f.call(t, viewerToken, "t.change", body); kindOf(a) != hostgate.APIForbidden {
+			t.Fatalf("a viewer changing, with a body of %d bytes: %+v", len(body), a.Error)
+		}
+	}
+	if got := f.aud.all(); len(got) != before+2 || !strings.HasSuffix(got[len(got)-1], "| t.change |  | auth.forbidden") {
+		t.Fatalf("the refusals with a bad body are not on record: %q", got[before:])
+	}
+	f.tokens.expired["token:2"] = true
+	if a := f.call(t, viewerToken, "t.read", `{not json`); kindOf(a) != hostgate.APIToken {
+		t.Fatalf("a token that just ended, with a bad body: %+v", a.Error)
+	}
+	delete(f.tokens.expired, "token:2")
+	if a := f.call(t, viewerToken, "t.read", `"`+strings.Repeat("x", 64<<10)+`"`); kindOf(a) != hostgate.APIBadParam {
+		t.Fatalf("a body over the default limit, past the gate: %+v", a.Error)
+	}
+	if a := f.call(t, adminToken, "t.change", `{"name":"`+strings.Repeat("x", 1<<20)+`"}`); kindOf(a) != hostgate.APIBadParam || len(f.verbs.changed) != 1 {
+		t.Fatalf("a body over the verb's own limit: %+v", a.Error)
+	}
 	f.aud.fail = true
 	if a := f.call(t, adminToken, "t.change", `{"name":"y"}`); kindOf(a) != hostgate.APIInternal || len(f.verbs.changed) != 1 {
 		t.Fatalf("a change whose entry could not be written ran: %+v %v", a.Error, f.verbs.changed)
@@ -422,6 +445,19 @@ func TestTheAPIsHostIsSetOnlyWhereItCanBeServed(t *testing.T) {
 	if g == nil || g.Host != "api.example.com" || g.Allow[0] != "203.0.113.0/24" || len(g.Large) != 1 || g.Large[0] != (hostgate.APIVerb{Verb: "t.change", MaxBody: 1 << 20}) {
 		t.Fatalf("what the gate is sent: %+v", g)
 	}
+	// A store that fails at the second write leaves the API no more open than before.
+	fs := &failingSettings{fakeSettings: &fakeSettings{m: map[string]string{}}, failAt: 2}
+	half := &apiModule{st: fs, covered: f.m.covered, taken: f.m.taken, changed: func() {}}
+	if _, err := half.set(ctx, APISettings{Host: "api.example.com", Allow: []string{"203.0.113.0/24"}}); err == nil {
+		t.Fatal("a failed write was not reported")
+	}
+	if fs.m[apiHostSetting] != "" || fs.m[apiAllowSetting] != "203.0.113.0/24" {
+		t.Fatalf("turning it on, stopped half way: host %q, allow %q; want the sources and no host", fs.m[apiHostSetting], fs.m[apiAllowSetting])
+	}
+	fs.m[apiHostSetting], fs.writes, fs.failAt = "api.example.com", 0, 2
+	if _, err := half.set(ctx, APISettings{}); err == nil || fs.m[apiHostSetting] != "" || fs.m[apiAllowSetting] == "" {
+		t.Fatalf("turning it off, stopped half way: host %q, allow %q; want no host and the sources still", fs.m[apiHostSetting], fs.m[apiAllowSetting])
+	}
 	again := &apiModule{st: f.st}
 	if err := again.load(ctx); err != nil || again.Host() != "api.example.com" || len(again.allow) != 1 {
 		t.Fatalf("read back at the next start: %q %v %v", again.Host(), again.allow, err)
@@ -429,4 +465,18 @@ func TestTheAPIsHostIsSetOnlyWhereItCanBeServed(t *testing.T) {
 	if _, err := f.m.set(ctx, APISettings{}); err != nil || f.m.forGate() != nil || f.bumps != 2 {
 		t.Fatalf("turning it off: %v", err)
 	}
+}
+
+// failingSettings fails its failAt-th write.
+type failingSettings struct {
+	*fakeSettings
+	writes, failAt int
+}
+
+func (f *failingSettings) PutSetting(ctx context.Context, key, value string) error {
+	f.writes++
+	if f.writes == f.failAt {
+		return errors.New("the store is gone")
+	}
+	return f.fakeSettings.PutSetting(ctx, key, value)
 }
