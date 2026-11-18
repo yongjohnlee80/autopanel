@@ -235,6 +235,8 @@ func TestAForwardsLine(t *testing.T) {
 	for line, want := range map[string]forward.Spec{
 		"game 25565 127.0.0.1:26000":                  {Name: "game", From: 25565, Target: "127.0.0.1:26000", Allow: []string{}},
 		"  r   6000-6009  10.0.0.5:7000  10.0.0.0/8 ": {Name: "r", From: 6000, To: 6009, Target: "10.0.0.5:7000", Allow: []string{"10.0.0.0/8"}},
+		"dns udp/5353 10.0.0.5:53":                    {Name: "dns", Proto: "udp", From: 5353, Target: "10.0.0.5:53", Allow: []string{}},
+		"web tcp/8088 10.0.0.5:80":                    {Name: "web", From: 8088, Target: "10.0.0.5:80", Allow: []string{}},
 	} {
 		got, ok := forwardSpec(line)
 		if got.Allow == nil {

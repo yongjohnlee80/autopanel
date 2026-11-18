@@ -60,7 +60,7 @@ func (h *host) loadForwards() {
 			f.list, f.read = list, true
 			rows := make([]tuidecl.Row, 0, len(list))
 			for _, v := range list {
-				rows = append(rows, tuidecl.Row{"key": v.Name, "name": v.Name, "ports": forwardPorts(v.From, v.To), "target": v.Target})
+				rows = append(rows, tuidecl.Row{"key": v.Name, "name": v.Name, "ports": v.Proto + "/" + forwardPorts(v.From, v.To), "target": v.Target})
 			}
 			f.model.Reset(rows)
 		}
@@ -107,14 +107,20 @@ func (h *host) forwardMoved(row int) error {
 }
 
 // forwardSpec reads the one line of the form: a name, the public port or a
-// range (6000-6009), the target, then any sources.
+// range (6000-6009; "udp/5353" for UDP), the target, then any sources.
 func forwardSpec(text string) (forward.Spec, bool) {
 	words := strings.Fields(text)
 	if len(words) < 3 {
 		return forward.Spec{}, false
 	}
 	s := forward.Spec{Name: words[0], Target: words[2], Allow: words[3:]}
-	from, to, isRange := strings.Cut(words[1], "-")
+	port := words[1]
+	if rest, ok := strings.CutPrefix(port, "udp/"); ok { // "udp/5353": a UDP forward
+		s.Proto, port = "udp", rest
+	} else {
+		port = strings.TrimPrefix(port, "tcp/")
+	}
+	from, to, isRange := strings.Cut(port, "-")
 	var err error
 	if s.From, err = strconv.Atoi(from); err != nil {
 		return forward.Spec{}, false
@@ -169,7 +175,7 @@ func (h *host) addForward() error {
 // it and AutoPanel can open it.
 func (h *host) confirmForward(spec forward.Spec, r forward.Review) error {
 	v := r.Forward
-	ports := forwardPorts(v.From, v.To)
+	ports := v.Proto + "/" + forwardPorts(v.From, v.To)
 	question := h.trf("autopanel.question.forwards.add", v.Name, ports, v.Target)
 	open := false
 	for _, p := range r.Ports {

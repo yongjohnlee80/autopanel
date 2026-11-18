@@ -45,13 +45,13 @@ const (
 type Forward struct {
 	ID        int64
 	Name      string   // lower case letters, digits and hyphens: its firewall rule's owner is "forward:<name>"
-	Proto     string   // "tcp"; "udp" is kept for a later step and refused now
+	Proto     string   // "tcp" or "udp"
 	From, To  int      // the public port, or a range; To == From for one
 	Target    string   // a literal address and port: "127.0.0.1:25565"; a range keeps its ports from there
-	Proxy     bool     // each connection starts with a PROXY v2 header naming the client
+	Proxy     bool     // tcp only: each connection starts with a PROXY v2 header naming the client
 	Allow     []string // source prefixes; none: any address
-	PerClient int      // connections at once from one client; 0: DefaultClient
-	IdleSecs  int      // 0: DefaultIdle
+	PerClient int      // connections (tcp) or pairings (udp) at once from one client; 0: the default
+	IdleSecs  int      // 0: the default (ten minutes for tcp, one for udp)
 }
 
 // Ports is how many public ports f holds.
@@ -67,7 +67,7 @@ var (
 	ErrNotFound  = errors.New("forward: no such forward")
 	ErrDuplicate = errors.New("forward: a forward has that name")
 	ErrBadName   = errors.New("forward: a name is 1 to 32 lower-case letters, digits and hyphens, starting with a letter")
-	ErrBadProto  = errors.New("forward: the protocol must be tcp")
+	ErrBadProto  = errors.New("forward: the protocol is tcp or udp, and only tcp carries a PROXY header")
 	ErrBadPorts  = errors.New("forward: a public port is 1 to 65535, and a range at most 100 ports")
 	ErrBadTarget = errors.New("forward: a target is a literal address and a port, of an address a connection can be made to")
 	ErrBadAllow  = errors.New("forward: an allowed source must be an address prefix")
@@ -89,15 +89,16 @@ type Store interface {
 	Remove(ctx context.Context, id int64) (Forward, error)
 }
 
-// Listener is a TCP port something on the host listens on.
+// Listener is a port something on the host listens on.
 type Listener struct {
+	Proto   string // "tcp" or "udp"
 	Port    int
 	Process string // who holds it, for the refusal's words
 }
 
 // Host is what a change must know of the machine, read when it is made.
 type Host interface {
-	// Listeners are the TCP ports in use on the host, the gate's included.
+	// Listeners are the TCP and UDP ports in use on the host, the gate's included.
 	Listeners(ctx context.Context) ([]Listener, error)
 	// SSHPorts are the ports SSH listens on. complete is false when a
 	// listener of SSH's could not be explained: then nothing is changed.
@@ -155,7 +156,7 @@ func (m *Module) Errors() []module.PublicError {
 		{Err: ErrNotFound, Code: -32250, Name: "gate.forward.not_found", Message: "no such forward"},
 		{Err: ErrDuplicate, Code: -32251, Name: "gate.forward.duplicate", Message: "a forward has that name"},
 		{Err: ErrBadName, Code: -32252, Name: "gate.forward.bad_name", Message: "a name is 1 to 32 lower-case letters, digits and hyphens, starting with a letter"},
-		{Err: ErrBadProto, Code: -32253, Name: "gate.forward.bad_proto", Message: "the protocol must be tcp; udp forwards are not built yet"},
+		{Err: ErrBadProto, Code: -32253, Name: "gate.forward.bad_proto", Message: "the protocol is tcp or udp, and only a tcp forward carries a PROXY header"},
 		{Err: ErrBadPorts, Code: -32254, Name: "gate.forward.bad_ports", Message: "a public port is 1 to 65535, and a range at most 100 ports"},
 		{Err: ErrBadTarget, Code: -32255, Name: "gate.forward.bad_target", Message: "a target is a literal address and port, such as 127.0.0.1:8080: not a host name, and not an address no connection can be made to"},
 		{Err: ErrBadAllow, Code: -32256, Name: "gate.forward.bad_allow", Message: "an allowed source must be an address prefix, such as 203.0.113.0/24"},
@@ -254,7 +255,7 @@ func Normalize(s Spec) (Forward, error) {
 	if f.Proto == "" {
 		f.Proto = "tcp"
 	}
-	if f.Proto != "tcp" {
+	if (f.Proto != "tcp" && f.Proto != "udp") || (f.Proto == "udp" && f.Proxy) {
 		return Forward{}, ErrBadProto
 	}
 	if f.To == 0 {
@@ -357,35 +358,40 @@ func (m *Module) judge(ctx context.Context, f Forward, others []Forward) error {
 	if err != nil {
 		return ErrUnknown
 	}
+	// SSH, the gate's listeners and mail's ports are TCP: a UDP forward on
+	// the same number takes nothing of theirs.
+	tcp := f.Proto == "tcp"
 	public := func(p int) bool { return p >= f.From && p <= f.To }
-	for _, p := range ssh {
-		if public(p) {
-			return refuse(ErrSSH, "tcp/%d is SSH's", p)
+	if tcp {
+		for _, p := range ssh {
+			if public(p) {
+				return refuse(ErrSSH, "tcp/%d is SSH's", p)
+			}
 		}
-	}
-	for p, who := range res.Public {
-		if public(p) {
-			return refuse(ErrPortTaken, "tcp/%d is %s's", p, who)
+		for p, who := range res.Public {
+			if public(p) {
+				return refuse(ErrPortTaken, "tcp/%d is %s's", p, who)
+			}
 		}
 	}
 	for _, o := range others {
-		if o.From <= f.To && f.From <= o.To {
-			return refuse(ErrPortTaken, "the forward %s holds tcp/%d", o.Name, max(o.From, f.From))
+		if o.Proto == f.Proto && o.From <= f.To && f.From <= o.To {
+			return refuse(ErrPortTaken, "the forward %s holds %s/%d", o.Name, f.Proto, max(o.From, f.From))
 		}
 	}
 	// A port this very forward already holds is the gate's listener for it:
 	// not somebody else's.
 	mine := func(p int) bool {
 		for _, o := range m.stored {
-			if o.ID == f.ID && f.ID != 0 && p >= o.From && p <= o.To {
+			if o.ID == f.ID && f.ID != 0 && o.Proto == f.Proto && p >= o.From && p <= o.To {
 				return true
 			}
 		}
 		return false
 	}
 	for _, l := range listeners {
-		if public(l.Port) && !mine(l.Port) {
-			return refuse(ErrPortTaken, "%s listens on tcp/%d", orSomething(l.Process), l.Port)
+		if l.Proto == f.Proto && public(l.Port) && !mine(l.Port) {
+			return refuse(ErrPortTaken, "%s listens on %s/%d", orSomething(l.Process), f.Proto, l.Port)
 		}
 	}
 
@@ -393,24 +399,26 @@ func (m *Module) judge(ctx context.Context, f Forward, others []Forward) error {
 	if m.host.Local(t.Addr()) {
 		first, last := int(t.Port()), int(t.Port())+f.Ports()-1
 		target := func(p int) bool { return p >= first && p <= last }
-		for _, p := range ssh {
-			if target(p) {
-				return refuse(ErrSSH, "tcp/%d on this host is SSH", p)
+		if tcp {
+			for _, p := range ssh {
+				if target(p) {
+					return refuse(ErrSSH, "tcp/%d on this host is SSH", p)
+				}
 			}
-		}
-		for p, who := range res.Inner {
-			if target(p) {
-				return refuse(ErrInner, "tcp/%d is %s's", p, who)
+			for p, who := range res.Inner {
+				if target(p) {
+					return refuse(ErrInner, "tcp/%d is %s's", p, who)
+				}
 			}
-		}
-		for p := range res.Public {
-			if target(p) {
-				return refuse(ErrLoop, "tcp/%d", p)
+			for p := range res.Public {
+				if target(p) {
+					return refuse(ErrLoop, "tcp/%d", p)
+				}
 			}
 		}
 		for _, o := range append(others, f) {
-			if o.From <= last && first <= o.To {
-				return refuse(ErrLoop, "tcp/%d is the forward %s's own public port", max(o.From, first), o.Name)
+			if o.Proto == f.Proto && o.From <= last && first <= o.To {
+				return refuse(ErrLoop, "%s/%d is the forward %s's own public port", f.Proto, max(o.From, first), o.Name)
 			}
 		}
 	}
@@ -601,8 +609,9 @@ type Stream struct {
 	To        string // "127.0.0.1:25565"
 	IdleSecs  int
 	PerClient int
-	Share     int    // connections at once for the forward
-	Plain     bool   // no PROXY header
+	Share     int    // tcp: connections at once for the forward
+	Proto     string // "tcp" or "udp"
+	Plain     bool   // tcp: no PROXY header
 	Allow     string // source prefixes, separated by spaces
 }
 
@@ -616,26 +625,32 @@ func (m *Module) Streams(ctx context.Context) ([]Stream, error) {
 	return StreamsOf(all), nil
 }
 
-// StreamsOf is fs as streams.
+// StreamsOf is fs as streams. The TCP forwards share Connections equally; a
+// UDP forward's limits are the gate's, over every UDP stream together.
 func StreamsOf(fs []Forward) []Stream {
-	if len(fs) == 0 {
-		return nil
+	tcp := 0
+	for _, f := range fs {
+		if f.Proto == "tcp" {
+			tcp++
+		}
 	}
-	share := max(Connections/len(fs), minShare)
 	var out []Stream
 	for _, f := range fs {
 		t := netip.MustParseAddrPort(f.Target)
-		idle, per := f.IdleSecs, f.PerClient
-		if idle == 0 {
-			idle = DefaultIdle
-		}
-		if per == 0 {
-			per = DefaultClient
+		s := Stream{Name: f.Owner(), Proto: f.Proto, IdleSecs: f.IdleSecs, PerClient: f.PerClient, Allow: strings.Join(f.Allow, " ")}
+		if f.Proto == "tcp" {
+			s.Share, s.Plain = max(Connections/tcp, minShare), !f.Proxy
+			if s.IdleSecs == 0 {
+				s.IdleSecs = DefaultIdle
+			}
+			if s.PerClient == 0 {
+				s.PerClient = DefaultClient
+			}
 		}
 		for i := 0; i < f.Ports(); i++ {
-			out = append(out, Stream{Name: f.Owner(), Listen: ":" + strconv.Itoa(f.From+i),
-				To:       netip.AddrPortFrom(t.Addr(), t.Port()+uint16(i)).String(),
-				IdleSecs: idle, PerClient: per, Share: share, Plain: !f.Proxy, Allow: strings.Join(f.Allow, " ")})
+			s.Listen = ":" + strconv.Itoa(f.From+i)
+			s.To = netip.AddrPortFrom(t.Addr(), t.Port()+uint16(i)).String()
+			out = append(out, s)
 		}
 	}
 	return out

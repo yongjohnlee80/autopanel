@@ -939,7 +939,7 @@ Window {
                         model: App.forwards
                         onCurrentIndexChanged: App.forwardMoved(index)
                         TableViewColumn { role: "name"; title: "NAME"; width: 0 }
-                        TableViewColumn { role: "ports"; title: "PORT"; width: 12 }
+                        TableViewColumn { role: "ports"; title: "PORT"; width: 15 }
                         TableViewColumn { role: "target"; title: "TARGET"; width: 24 }
                     }
                 }
@@ -1273,7 +1273,7 @@ Window {
                         onCurrentIndexChanged: App.firewallMoved(index)
                         TableViewColumn { role: "action"; title: "ACTION"; width: 8 }
                         TableViewColumn { role: "proto"; title: "PROTO"; width: 7 }
-                        TableViewColumn { role: "ports"; title: "PORT"; width: 12 }
+                        TableViewColumn { role: "ports"; title: "PORT"; width: 15 }
                         TableViewColumn { role: "from"; title: "FROM"; width: 0 }
                         TableViewColumn { role: "by"; title: "FOR"; width: 10 }
                     }

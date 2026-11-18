@@ -64,7 +64,7 @@ type fakeHost struct {
 }
 
 func newFakeHost() *fakeHost {
-	return &fakeHost{ssh: []int{22, 2200}, listeners: []Listener{{22, "sshd"}, {2200, "sshd"}, {80, "autopanel"}, {443, "autopanel"}, {8080, "nginx"}}}
+	return &fakeHost{ssh: []int{22, 2200}, listeners: []Listener{{"tcp", 22, "sshd"}, {"tcp", 2200, "sshd"}, {"tcp", 80, "autopanel"}, {"tcp", 443, "autopanel"}, {"tcp", 8080, "nginx"}, {"udp", 53, "systemd-resolved"}}}
 }
 
 func (h *fakeHost) Listeners(context.Context) ([]Listener, error) { return h.listeners, h.err }
@@ -166,7 +166,7 @@ func TestAForwardsShape(t *testing.T) {
 		"a name that is a path":   {with(func(s *Spec) { s.Name = "a/b" }), ErrBadName},
 		"a name starting 0":       {with(func(s *Spec) { s.Name = "0day" }), ErrBadName},
 		"a long name":             {with(func(s *Spec) { s.Name = strings.Repeat("a", 33) }), ErrBadName},
-		"udp, not built":          {with(func(s *Spec) { s.Proto = "udp" }), ErrBadProto},
+		"udp with a header":       {with(func(s *Spec) { s.Proto, s.Proxy = "udp", true }), ErrBadProto},
 		"another protocol":        {with(func(s *Spec) { s.Proto = "sctp" }), ErrBadProto},
 		"port 0":                  {with(func(s *Spec) { s.From = 0 }), ErrBadPorts},
 		"a port past the last":    {with(func(s *Spec) { s.From = 65536 }), ErrBadPorts},
@@ -354,7 +354,7 @@ func TestAForwardIsAppliedAsReviewed(t *testing.T) {
 		t.Fatalf("an update of a forward that is not there: %v", err)
 	}
 	// Updating in place, its own port is its own, though the gate listens on it now.
-	f.host.listeners = append(f.host.listeners, Listener{25570, "autopanel"})
+	f.host.listeners = append(f.host.listeners, Listener{"tcp", 25570, "autopanel"})
 	same := Spec{ID: v.ID, Name: "game", From: 25570, Target: "127.0.0.1:25567"}
 	if _, err := f.m.check(ctx, same); err != nil {
 		t.Fatalf("an update that keeps its port: %v", err)
@@ -424,5 +424,63 @@ func TestTheForwardsAreBounded(t *testing.T) {
 	}
 	if StreamsOf(nil) != nil {
 		t.Fatal("no forwards made streams")
+	}
+}
+
+// TestAUDPForward: SSH, the gate and mail hold TCP ports, so a UDP forward on
+// the same number takes nothing of theirs; it is held to the UDP ports other
+// programs and other UDP forwards hold, and to no loop. A TCP and a UDP
+// forward may share a number.
+func TestAUDPForward(t *testing.T) {
+	f := newFixture()
+	ctx := context.Background()
+	if _, err := f.add(t, Spec{Name: "dns", Proto: "udp", From: 5353, Target: "10.0.0.5:53"}, true); err != nil {
+		t.Fatal(err)
+	}
+	if got := f.fw.opened; len(got) != 1 || got[0] != "forward:dns udp/5353" {
+		t.Fatalf("the rule opened: %v", got)
+	}
+	for what, s := range map[string]Spec{
+		"the number SSH has on TCP":      {Name: "a", Proto: "udp", From: 22, Target: "10.0.0.5:22"},
+		"the number the gate has on TCP": {Name: "a", Proto: "udp", From: 443, Target: "10.0.0.5:443"},
+		"a TCP forward on dns's number":  {Name: "a", From: 5353, Target: "10.0.0.5:53"},
+		"a UDP port on this host":        {Name: "a", Proto: "udp", From: 9000, Target: "127.0.0.1:10025"},
+	} {
+		if _, err := f.m.check(ctx, s); err != nil {
+			t.Errorf("%s: %v; want it allowed", what, err)
+		}
+	}
+	for what, c := range map[string]struct {
+		s    Spec
+		want error
+		says string
+	}{
+		"a UDP port another program holds": {Spec{Name: "a", Proto: "udp", From: 53, Target: "10.0.0.5:53"}, ErrPortTaken, "systemd-resolved listens on udp/53"},
+		"another UDP forward's port":       {Spec{Name: "a", Proto: "udp", From: 5353, Target: "10.0.0.6:53"}, ErrPortTaken, "the forward dns holds udp/5353"},
+		"itself":                           {Spec{Name: "a", Proto: "udp", From: 9000, Target: "127.0.0.1:9000"}, ErrLoop, "udp/9000"},
+		"another UDP forward, a loop":      {Spec{Name: "a", Proto: "udp", From: 9000, Target: "203.0.113.5:5353"}, ErrLoop, "the forward dns"},
+	} {
+		if _, err := f.m.check(ctx, c.s); !errors.Is(err, c.want) || !strings.Contains(err.Error(), c.says) {
+			t.Errorf("%s: %v; want %v naming %q", what, err, c.want, c.says)
+		}
+	}
+	// As streams: a UDP forward has no share of the TCP connections and takes
+	// none from the TCP forwards; its limits are the gate's unless it sets them.
+	ss := StreamsOf([]Forward{
+		{Name: "dns", Proto: "udp", From: 5353, To: 5354, Target: "10.0.0.5:53", PerClient: 4, IdleSecs: 30, Allow: []string{"10.0.0.0/8"}},
+		{Name: "game", Proto: "tcp", From: 25565, To: 25565, Target: "127.0.0.1:26000"},
+	})
+	if len(ss) != 3 {
+		t.Fatalf("%d streams", len(ss))
+	}
+	u, tc := ss[1], ss[2]
+	if u.Proto != "udp" || u.Listen != ":5354" || u.To != "10.0.0.5:54" || u.Share != 0 || u.Plain || u.PerClient != 4 || u.IdleSecs != 30 || u.Allow != "10.0.0.0/8" {
+		t.Fatalf("a UDP forward's second port as a stream: %+v", u)
+	}
+	if tc.Proto != "tcp" || tc.Share != Connections || !tc.Plain {
+		t.Fatalf("the TCP forward beside it: %+v", tc)
+	}
+	if d := StreamsOf([]Forward{{Name: "d", Proto: "udp", From: 1, To: 1, Target: "10.0.0.5:1"}}); d[0].PerClient != 0 || d[0].IdleSecs != 0 {
+		t.Fatalf("a UDP forward with no limits of its own: %+v; want the gate's defaults", d[0])
 	}
 }

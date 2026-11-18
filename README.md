@@ -363,12 +363,12 @@ can only be removed: remove it, then add the example stack above with the same s
 ### Forward a port
 
 A service that is not a website (a game server, a database for one client, SSH to a machine behind
-this one) is reached through a port forward: a public TCP port of this server sent on to a target.
+this one) is reached through a port forward: a public TCP or UDP port of this server sent on to a target.
 The target is an address and a port, never a host name.
 
 In the panel: **Routes → Port forwarding…** lists the forwards. **Add…** (`a`) takes one line: a
 name, the public port or range, the target, then any sources allowed, such as
-`game 25565 127.0.0.1:26000`. It then shows what the forward would be and what adding it does to
+`game 25565 127.0.0.1:26000`; for UDP write the port as `udp/5353`. It then shows what the forward would be and what adding it does to
 the firewall, and adds it when you say yes. **Remove…** (`r`) asks first. To change a forward,
 remove it and add it again, or use the command line:
 
@@ -387,7 +387,9 @@ sudo autopanel --call gate.forward.remove '{"id":1}'
   SSH to that machine. Each machine needs its own public port.
 - **Only from some addresses:** `"allow":["203.0.113.0/24"]`.
 - **A range:** `"from":6000,"to":6009` forwards ten ports, in order, from the target's port.
-- **A service that reads a PROXY header:** `"proxy":true` tells it the client's address; without
+- **UDP:** `"proto":"udp"`. The service sees this server's address, not the client's. There may be
+  256 UDP clients at once over every UDP forward, 16 from one address.
+- **A service that reads a PROXY header (TCP only):** `"proxy":true` tells it the client's address; without
   it the service sees the connection as coming from this server.
 
 A forward is refused when it would take SSH's own port or lead to this server's SSH, take a port
@@ -750,7 +752,7 @@ A deployed service is stopped by `--apply`, and its user and directory are delet
 | Two processes | a sandboxed gate that faces the network, and a core that listens on no network and holds the store and the keys. The gate keeps serving while the core restarts |
 | Store | SQLite by default, PostgreSQL as an option; migrations for both, tested on both |
 | Users | four roles, two-factor codes with recovery codes, lockout after failed logins, API tokens for scripts |
-| Port forwards | a public TCP port, or a small range, sent on to a stack's port or a machine behind: reviewed before it is applied, with a firewall rule of its own. Never SSH's own port |
+| Port forwards | a public TCP or UDP port, or a small range, sent on to a stack's port or a machine behind: reviewed before it is applied, with a firewall rule of its own. Never SSH's own port |
 | HTTPS API | JSON over HTTPS for scripts elsewhere, with an API token, on a host of its own: reads of the status, checks, routes, domains, certificates, stacks and the firewall. Off until its host is set |
 | Stacks | a compose file, reviewed before it runs, under rootless Podman as a user of its own |
 | Mail | Stalwart behind the gate; DNS records published and kept through Cloudflare, or listed to enter by hand; DKIM keys rotated; app passwords per device. See [MAIL.md](MAIL.md) |
@@ -767,7 +769,7 @@ A deployed service is stopped by `--apply`, and its user and directory are delet
 
 1. A public site of AutoPanel's own: a home page and articles as static pages, published from Markdown with an API token.
 2. Signing in from a browser, then mail, a drive and the admin pages as applications.
-3. UDP forwards and tunnels through the gate.
+3. Tunnels through the gate, to machines with no open ports.
 4. Health checks per upstream.
 5. For mail: aliases and forwarding from the panel, and repairing a broken setup.
 

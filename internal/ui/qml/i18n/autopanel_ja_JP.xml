@@ -1204,8 +1204,8 @@
         <translation>プロトコル/ポートと、必要なら送信元 (tcp/8443, udp/49152-49160, tcp/22 from 192.0.2.0/24)</translation>
     </message>
     <message id="autopanel.label.prompt.forward">
-        <source>A name, the public port or range, the target, then any sources allowed. Example: game 25565 127.0.0.1:26000</source>
-        <translation>名前、公開ポートまたは範囲、転送先、続けて許可する送信元を入力します。例: game 25565 127.0.0.1:26000</translation>
+        <source>A name, the public port or range, the target, then any sources allowed. Example: game 25565 127.0.0.1:26000 For UDP, write the port as udp/5353.</source>
+        <translation>名前、公開ポートまたは範囲、転送先、続けて許可する送信元を入力します。例: game 25565 127.0.0.1:26000 UDP の場合はポートを udp/5353 のように書きます。</translation>
     </message>
     <message id="autopanel.label.prompt.mailAccount">
         <source>Its address (name@domain):</source>
@@ -2008,8 +2008,8 @@
         <translation>サブドメインを入力するか、ドメインを選択してください。</translation>
     </message>
     <message id="autopanel.notice.forwards.added">
-        <source>Forwarding tcp/%1 to %2</source>
-        <translation>tcp/%1 を %2 へ転送しています</translation>
+        <source>Forwarding %1 to %2</source>
+        <translation>%1 を %2 へ転送しています</translation>
     </message>
     <message id="autopanel.notice.forwards.none">
         <source>No forward is selected</source>
@@ -2348,16 +2348,16 @@
         <translation>規則「%1」を削除しますか? スタックやメールが作った規則なら、その記録からも消えます。</translation>
     </message>
     <message id="autopanel.question.forwards.add">
-        <source>%1: tcp/%2 → %3</source>
-        <translation>%1: tcp/%2 → %3</translation>
+        <source>%1: %2 → %3</source>
+        <translation>%1: %2 → %3</translation>
     </message>
     <message id="autopanel.question.forwards.manual">
-        <source>The firewall blocks tcp/%1, and AutoPanel does not change this firewall: open the port yourself.</source>
-        <translation>ファイアウォールが tcp/%1 を遮断しており、AutoPanel はこのファイアウォールを変更しません。ポートはご自身で開けてください。</translation>
+        <source>The firewall blocks %1, and AutoPanel does not change this firewall: open the port yourself.</source>
+        <translation>ファイアウォールが %1 を遮断しており、AutoPanel はこのファイアウォールを変更しません。ポートはご自身で開けてください。</translation>
     </message>
     <message id="autopanel.question.forwards.open">
-        <source>The firewall blocks tcp/%1 now. Adding the forward also opens it, as this forward's own rule.</source>
-        <translation>現在ファイアウォールが tcp/%1 を遮断しています。転送を追加すると、この転送の規則としてポートも開きます。</translation>
+        <source>The firewall blocks %1 now. Adding the forward also opens it, as this forward's own rule.</source>
+        <translation>現在ファイアウォールが %1 を遮断しています。転送を追加すると、この転送の規則としてポートも開きます。</translation>
     </message>
     <message id="autopanel.question.forwards.remove">
         <source>Remove the forward %1? Its port stops being forwarded, and the firewall rule it owns is closed.</source>

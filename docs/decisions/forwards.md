@@ -20,7 +20,8 @@ metadata service lives), and every special or translation prefix, such as `::/96
 `64:ff9b::/96`. The refusals below ask "is this target this host?"; an address the kernel may
 turn into another is one that question cannot be answered for, so it is not taken at all.
 
-**UDP is refused for now.** It is a separate forwarder with its own limits, and the next step.
+**TCP or UDP.** A UDP forward has its own forwarder in the gate and its own limits
+([UDP](#udp)); it carries no PROXY header, which UDP has no standard place for.
 
 **In the code:** `core/forward/forward.go` (`Normalize`), `store/forwards.go`,
 `sql/deployments/*/000008_update_forwards.sql`.
@@ -96,7 +97,7 @@ cannot read lets nobody in.
 
 **Why so few connections:** every forwarded connection is held in the gate's memory beside mail's
 and the sites', under one total of 200. Forwards may take 64 of it, so mail keeps at least 136.
-The total is not raised for forwards: the gate's 40 MB is sized for it.
+The total is not raised for forwards: the gate's memory is sized for it.
 
 **Adding or removing a forward changes every forward's share, and cuts nobody off.** A stream
 whose share alone changed keeps its listener and its open connections; the new share holds from
@@ -104,6 +105,44 @@ the next connection.
 
 **In the code:** `host/gate/stream.go` (`lets`, the `Plain` stream, `sameButShare`), `core/forward/forward.go`
 (`StreamsOf`, the constants at its top), `app/streams.go` (`SetForwards`).
+
+## UDP
+
+**Decided:** UDP has no connection, so the gate keeps a pairing for each client that sent a
+datagram: a socket of its own to the target. The kernel then brings the target's answers back to
+that pairing alone, and **an answer is only ever sent to the client whose datagram opened it**.
+The target sees the gate's address, not the client's.
+
+**A source address can be forged,** since nothing is shaken hands on. So a pairing is unanswered
+until the target has answered and the client has sent again, which someone who forged the address
+and does not see the answers cannot do. Until then a pairing:
+
+- lives five seconds;
+- is sent at most four datagrams;
+- is the first to go when the table is full.
+
+So forged sources cannot hold the table against real clients, and a forged address can be aimed
+at with only a handful of the target's answers. An answered pairing ends after a minute without a
+datagram either way, unless the forward says otherwise.
+
+| Limit | Value |
+| --- | --- |
+| Pairings, every UDP forward together | 256 |
+| Pairings of one client (an IPv4 address, an IPv6 /64) | 16 unless set |
+| A datagram's payload | 1,500 bytes; a larger one is dropped, never cut |
+
+**What differs from a TCP forward's rules:** SSH, the gate's listeners and mail's ports are TCP,
+so a UDP forward on the same number takes nothing of theirs. It is held to the UDP ports other
+programs and other UDP forwards hold, and to no loop. A TCP and a UDP forward may share a number.
+
+**The gate's memory.** Measured on a test host with the table full, 256 pairings from forty
+client addresses, each sending and being answered: the gate went from 4 MB to 12, with a peak of
+13. With the API's calls at their worst (about 21 MB) and 200 forwarded connections' socket
+buffers (about 19 MB), the most the gate can hold at once is about 49 MB, so its unit's limit is
+64 MB, raised from 40. Its file limit is 8,192.
+
+**In the code:** `host/gate/udp.go`, `core/forward/forward.go` (`judge`, `StreamsOf`),
+`deploy/autopanel-gate.service`.
 
 ## SSH to a machine behind
 

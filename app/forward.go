@@ -28,8 +28,8 @@ func (forwardHost) Listeners(ctx context.Context) ([]forward.Listener, error) {
 	}
 	var out []forward.Listener
 	for _, l := range ls {
-		if l.Proto == "tcp" {
-			out = append(out, forward.Listener{Port: l.Port, Process: l.Process})
+		if l.Proto == "tcp" || l.Proto == "udp" {
+			out = append(out, forward.Listener{Proto: l.Proto, Port: l.Port, Process: l.Process})
 		}
 	}
 	return out, nil
@@ -108,10 +108,19 @@ func forwardStreams(fm *forward.Module, t *streamTable) func(ctx context.Context
 		}
 		out := make([]hostgate.Stream, 0, len(ss))
 		for _, s := range ss {
-			out = append(out, hostgate.Stream{Name: s.Name, Listen: s.Listen, To: s.To, IdleSecs: s.IdleSecs,
+			out = append(out, hostgate.Stream{Name: s.Name, Proto: udpOnly(s.Proto), Listen: s.Listen, To: s.To, IdleSecs: s.IdleSecs,
 				PerClient: s.PerClient, Share: s.Share, Plain: s.Plain, Allow: s.Allow})
 		}
 		t.SetForwards(out)
 		return nil
 	}
+}
+
+// udpOnly is a stream's protocol as the gate takes it: "udp", or "" for TCP,
+// as mail's streams have it.
+func udpOnly(proto string) string {
+	if proto == "udp" {
+		return "udp"
+	}
+	return ""
 }

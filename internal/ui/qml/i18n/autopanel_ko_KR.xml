@@ -1204,8 +1204,8 @@
         <translation>프로토콜/포트와 필요하면 출발지 (tcp/8443, udp/49152-49160, tcp/22 from 192.0.2.0/24)</translation>
     </message>
     <message id="autopanel.label.prompt.forward">
-        <source>A name, the public port or range, the target, then any sources allowed. Example: game 25565 127.0.0.1:26000</source>
-        <translation>이름, 공개 포트 또는 범위, 대상, 그리고 허용할 소스를 순서대로 입력하십시오. 예: game 25565 127.0.0.1:26000</translation>
+        <source>A name, the public port or range, the target, then any sources allowed. Example: game 25565 127.0.0.1:26000 For UDP, write the port as udp/5353.</source>
+        <translation>이름, 공개 포트 또는 범위, 대상, 그리고 허용할 소스를 순서대로 입력하십시오. 예: game 25565 127.0.0.1:26000 UDP는 포트를 udp/5353처럼 적으십시오.</translation>
     </message>
     <message id="autopanel.label.prompt.mailAccount">
         <source>Its address (name@domain):</source>
@@ -2008,8 +2008,8 @@
         <translation>하위 도메인을 입력하거나 도메인을 선택하세요.</translation>
     </message>
     <message id="autopanel.notice.forwards.added">
-        <source>Forwarding tcp/%1 to %2</source>
-        <translation>tcp/%1을(를) %2(으)로 전달합니다</translation>
+        <source>Forwarding %1 to %2</source>
+        <translation>%1을(를) %2(으)로 전달합니다</translation>
     </message>
     <message id="autopanel.notice.forwards.none">
         <source>No forward is selected</source>
@@ -2348,16 +2348,16 @@
         <translation>규칙 “%1”을(를) 지울까요? 스택이나 메일이 만든 규칙이면 그 기록에서도 지워집니다.</translation>
     </message>
     <message id="autopanel.question.forwards.add">
-        <source>%1: tcp/%2 → %3</source>
-        <translation>%1: tcp/%2 → %3</translation>
+        <source>%1: %2 → %3</source>
+        <translation>%1: %2 → %3</translation>
     </message>
     <message id="autopanel.question.forwards.manual">
-        <source>The firewall blocks tcp/%1, and AutoPanel does not change this firewall: open the port yourself.</source>
-        <translation>방화벽이 tcp/%1을(를) 차단하며, AutoPanel은 이 방화벽을 변경하지 않습니다. 포트를 직접 여십시오.</translation>
+        <source>The firewall blocks %1, and AutoPanel does not change this firewall: open the port yourself.</source>
+        <translation>방화벽이 %1을(를) 차단하며, AutoPanel은 이 방화벽을 변경하지 않습니다. 포트를 직접 여십시오.</translation>
     </message>
     <message id="autopanel.question.forwards.open">
-        <source>The firewall blocks tcp/%1 now. Adding the forward also opens it, as this forward's own rule.</source>
-        <translation>지금 방화벽이 tcp/%1을(를) 차단합니다. 포워딩을 추가하면 이 포워딩의 규칙으로 포트도 엽니다.</translation>
+        <source>The firewall blocks %1 now. Adding the forward also opens it, as this forward's own rule.</source>
+        <translation>지금 방화벽이 %1을(를) 차단합니다. 포워딩을 추가하면 이 포워딩의 규칙으로 포트도 엽니다.</translation>
     </message>
     <message id="autopanel.question.forwards.remove">
         <source>Remove the forward %1? Its port stops being forwarded, and the firewall rule it owns is closed.</source>

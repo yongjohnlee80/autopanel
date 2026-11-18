@@ -1204,8 +1204,8 @@
         <translation>Protocolo/puerto y, si quieres, un origen (tcp/8443, udp/49152-49160, tcp/22 from 192.0.2.0/24)</translation>
     </message>
     <message id="autopanel.label.prompt.forward">
-        <source>A name, the public port or range, the target, then any sources allowed. Example: game 25565 127.0.0.1:26000</source>
-        <translation>Un nombre, el puerto público o rango, el destino y, después, los orígenes permitidos. Ejemplo: game 25565 127.0.0.1:26000</translation>
+        <source>A name, the public port or range, the target, then any sources allowed. Example: game 25565 127.0.0.1:26000 For UDP, write the port as udp/5353.</source>
+        <translation>Un nombre, el puerto público o rango, el destino y, después, los orígenes permitidos. Ejemplo: game 25565 127.0.0.1:26000 Para UDP, escriba el puerto como udp/5353.</translation>
     </message>
     <message id="autopanel.label.prompt.mailAccount">
         <source>Its address (name@domain):</source>
@@ -2008,8 +2008,8 @@
         <translation>Escriba un subdominio o elija un dominio.</translation>
     </message>
     <message id="autopanel.notice.forwards.added">
-        <source>Forwarding tcp/%1 to %2</source>
-        <translation>Reenviando tcp/%1 a %2</translation>
+        <source>Forwarding %1 to %2</source>
+        <translation>Reenviando %1 a %2</translation>
     </message>
     <message id="autopanel.notice.forwards.none">
         <source>No forward is selected</source>
@@ -2348,16 +2348,16 @@
         <translation>¿Borrar la regla «%1»? Una regla que hizo una pila o el correo se va también de sus registros.</translation>
     </message>
     <message id="autopanel.question.forwards.add">
-        <source>%1: tcp/%2 → %3</source>
-        <translation>%1: tcp/%2 → %3</translation>
+        <source>%1: %2 → %3</source>
+        <translation>%1: %2 → %3</translation>
     </message>
     <message id="autopanel.question.forwards.manual">
-        <source>The firewall blocks tcp/%1, and AutoPanel does not change this firewall: open the port yourself.</source>
-        <translation>El cortafuegos bloquea tcp/%1, y AutoPanel no cambia este cortafuegos: abra el puerto usted.</translation>
+        <source>The firewall blocks %1, and AutoPanel does not change this firewall: open the port yourself.</source>
+        <translation>El cortafuegos bloquea %1, y AutoPanel no cambia este cortafuegos: abra el puerto usted.</translation>
     </message>
     <message id="autopanel.question.forwards.open">
-        <source>The firewall blocks tcp/%1 now. Adding the forward also opens it, as this forward's own rule.</source>
-        <translation>El cortafuegos bloquea tcp/%1 ahora. Al añadir el reenvío también se abre, como regla propia de este reenvío.</translation>
+        <source>The firewall blocks %1 now. Adding the forward also opens it, as this forward's own rule.</source>
+        <translation>El cortafuegos bloquea %1 ahora. Al añadir el reenvío también se abre, como regla propia de este reenvío.</translation>
     </message>
     <message id="autopanel.question.forwards.remove">
         <source>Remove the forward %1? Its port stops being forwarded, and the firewall rule it owns is closed.</source>
