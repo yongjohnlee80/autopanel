@@ -1859,6 +1859,10 @@
         <source>Open them from Mail → Server, or allow them in System → Firewall: until then no mail arrives.</source>
         <translation>Ábrelos desde Correo → Servidor, o permítelos en Sistema → Cortafuegos: hasta entonces no llega correo.</translation>
     </message>
+    <message id="autopanel.notice.check.mailProxyTrust">
+        <source>On these ports it greets AutoPanel's gate without waiting for the header that names the client, so it takes every client for the gate itself: its limits and its records by address mean nothing. This follows a change to the mail server's settings or version. Remove mail and set it up again, or restore the setting that trusts the gate's address.</source>
+        <translation>En estos puertos saluda a la puerta de AutoPanel sin esperar la cabecera que nombra al cliente, así que toma a todo cliente por la propia puerta: sus límites y sus registros por dirección no significan nada. Ocurre tras un cambio en la configuración o la versión del servidor de correo. Quite el correo y configúrelo de nuevo, o restaure el ajuste que confía en la dirección de la puerta.</translation>
+    </message>
     <message id="autopanel.notice.check.mailPtr">
         <source>Many receivers refuse mail from such an address. The reverse name is your hosting provider's record: ask them to set it to the mail host.</source>
         <translation>Muchos receptores rechazan el correo de una dirección así. El nombre inverso es un registro de su proveedor de alojamiento: pídale que lo ponga al host de correo.</translation>
@@ -3174,6 +3178,10 @@
     <message id="autopanel.value.check.mailPortBlocked">
         <source>The firewall blocks mail's ports: %1</source>
         <translation>El cortafuegos bloquea los puertos del correo: %1</translation>
+    </message>
+    <message id="autopanel.value.check.mailProxyTrust">
+        <source>The mail server no longer reads who connects: %1</source>
+        <translation>El servidor de correo ya no lee quién se conecta: %1</translation>
     </message>
     <message id="autopanel.value.check.mailPtr">
         <source>The server's address does not name the mail host back: %1</source>

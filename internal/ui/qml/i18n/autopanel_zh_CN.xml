@@ -1859,6 +1859,10 @@
         <source>Open them from Mail → Server, or allow them in System → Firewall: until then no mail arrives.</source>
         <translation>请在邮件 → 服务器中打开，或在系统 → 防火墙中允许：在此之前收不到邮件。</translation>
     </message>
+    <message id="autopanel.notice.check.mailProxyTrust">
+        <source>On these ports it greets AutoPanel's gate without waiting for the header that names the client, so it takes every client for the gate itself: its limits and its records by address mean nothing. This follows a change to the mail server's settings or version. Remove mail and set it up again, or restore the setting that trusts the gate's address.</source>
+        <translation>在这些端口上，邮件服务器不等待标明客户端的头部就向 AutoPanel 的网关应答，因此把所有客户端都当作网关本身：按地址的限制和记录都失去意义。这通常发生在邮件服务器的设置或版本变更之后。请移除邮件后重新设置，或恢复信任网关地址的设置。</translation>
+    </message>
     <message id="autopanel.notice.check.mailPtr">
         <source>Many receivers refuse mail from such an address. The reverse name is your hosting provider's record: ask them to set it to the mail host.</source>
         <translation>许多接收方会拒绝来自此类地址的邮件。反向解析是主机提供商的记录：请让他们将其设置为邮件主机。</translation>
@@ -3174,6 +3178,10 @@
     <message id="autopanel.value.check.mailPortBlocked">
         <source>The firewall blocks mail's ports: %1</source>
         <translation>防火墙阻止了邮件端口：%1</translation>
+    </message>
+    <message id="autopanel.value.check.mailProxyTrust">
+        <source>The mail server no longer reads who connects: %1</source>
+        <translation>邮件服务器不再读取连接方的地址：%1</translation>
     </message>
     <message id="autopanel.value.check.mailPtr">
         <source>The server's address does not name the mail host back: %1</source>

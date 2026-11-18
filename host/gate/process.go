@@ -153,6 +153,7 @@ func Run(ctx context.Context, dial Dialer, log *slog.Logger) error {
 	run("gate http", plain.Run)
 	run("gate routes", g.follow)
 	run("gate streams", g.followStreams)
+	run("gate probes", g.streams.probes)
 	run("gate report", g.report)
 	log.Info("gate serving", "https", hello.HTTPS, "http", hello.HTTP, "core", hello.Version, "routes", len(table.Routes()))
 	<-ctx.Done()
@@ -305,6 +306,9 @@ func (g *process) report(ctx context.Context) error {
 		case <-t.C:
 			now := Report{HTTPSRequests: g.https.Load(), HTTPRequests: g.http.Load(), PID: os.Getpid(), MemoryBytes: residentBytes(),
 				StreamsOpen: g.streams.openNow(), StreamsServed: g.streams.served.Load(), StreamsRefused: g.streams.refused.Load()}
+			if p := g.streams.probed.Load(); p != nil {
+				now.ProbedAt, now.Unproxied = p.at, p.unproxied
+			}
 			cctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 			_ = g.link.call(cctx, VerbReport, now, nil)
 			cancel()

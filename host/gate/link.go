@@ -28,6 +28,9 @@ type Stream struct {
 	IdleSecs  int    `json:"idle_secs"`  // a connection with no byte either way for this long is closed
 	PerClient int    `json:"per_client"` // connections at once from one client (an IPv4 address, an IPv6 /64); 0: no limit of its own
 	Share     int    `json:"share"`      // at most this many of Total; 0: Total
+	// Greets marks a target that speaks first, in the clear, once it has read
+	// the PROXY header: the gate probes it (stream.go, probe).
+	Greets bool `json:"greets,omitempty"`
 }
 
 // Streams is link.streams's answer: every stream, the limit they share, and
@@ -148,4 +151,11 @@ type Report struct {
 	StreamsOpen    int64 `json:"streams_open"`    // forwarded connections now
 	StreamsServed  int64 `json:"streams_served"`  // forwarded since the gate started
 	StreamsRefused int64 `json:"streams_refused"` // closed by a limit since the gate started
+
+	// ProbedAt is when the gate last probed its streams' targets (Unix
+	// seconds; 0: not yet), and Unproxied the streams whose target spoke
+	// without waiting for a PROXY header: it no longer reads the client's
+	// address from the gate.
+	ProbedAt  int64    `json:"probed_at"`
+	Unproxied []string `json:"unproxied"`
 }

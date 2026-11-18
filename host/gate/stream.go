@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/netip"
 	"os"
+	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -61,6 +62,15 @@ type forwarder struct {
 	ended    atomic.Int64          // accepted connections that have ended, refused or not
 	served   atomic.Int64          // connections forwarded since the start
 	refused  atomic.Int64          // connections closed by a limit
+
+	probed   atomic.Pointer[probeResult] // the last probe; nil before the first
+	probeNow chan struct{}               // a change of streams asks for one
+}
+
+// probeResult is what a probe found.
+type probeResult struct {
+	at        int64    // Unix seconds
+	unproxied []string // the streams whose target spoke without a PROXY header
 }
 
 // openNow is the forwarded connections now, for link.report.
@@ -87,7 +97,7 @@ type streamRun struct {
 }
 
 func newForwarder(log *slog.Logger) *forwarder {
-	return &forwarder{log: log, running: map[string]*streamRun{}, byPeer: map[peerKey]int{}, perName: map[string]int{}}
+	return &forwarder{log: log, running: map[string]*streamRun{}, byPeer: map[peerKey]int{}, perName: map[string]int{}, probeNow: make(chan struct{}, 1)}
 }
 
 // apply makes the running streams the ones named. A stream that is unchanged
@@ -125,6 +135,88 @@ func (f *forwarder) apply(ctx context.Context, total int, streams []Stream) {
 	for _, r := range start {
 		f.log.Info("gate: forwarding", "stream", r.s.Name, "listen", r.s.Listen, "to", r.s.To)
 	}
+	select { // the targets may have changed: look at them again
+	case f.probeNow <- struct{}{}:
+	default:
+	}
+}
+
+// How the probe waits. Variables so a test need not.
+var (
+	probeEvery  = time.Hour
+	probeSettle = 10 * time.Second // after a change: a target just started may not listen yet
+	probeListen = 3 * time.Second  // how long a target is given to speak unasked
+)
+
+// probes looks at the streams' targets after each change and every
+// probeEvery, until ctx ends.
+func (f *forwarder) probes(ctx context.Context) error {
+	t := time.NewTicker(probeEvery)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-f.probeNow:
+			select {
+			case <-ctx.Done():
+				return nil
+			case <-time.After(probeSettle):
+			}
+		case <-t.C:
+		}
+		f.probe(ctx)
+	}
+}
+
+// probe asks each target that greets whether it still waits for the PROXY
+// header. The gate connects as it does for a client, but sends nothing: a
+// server that trusts the gate's header says nothing until it has read one, and
+// one that has stopped trusting it greets at once. Such a server would take
+// every client for the gate itself, and its limits and its records by address
+// would mean nothing. A target that cannot be reached is not judged.
+//
+// Decision: docs/decisions/mail.md#what-autopanel-cannot-set
+func (f *forwarder) probe(ctx context.Context) {
+	f.mu.Lock()
+	var targets []Stream
+	for _, r := range f.running {
+		if r.s.Greets {
+			targets = append(targets, r.s)
+		}
+	}
+	f.mu.Unlock()
+	res := &probeResult{at: time.Now().Unix()}
+	for _, s := range targets {
+		if spoke, err := speaksUnasked(ctx, s.To); err == nil && spoke {
+			res.unproxied = append(res.unproxied, s.Name)
+			f.log.Error("gate: a stream's target greets without a PROXY header: it no longer reads the client's address", "stream", s.Name, "to", s.To)
+		}
+	}
+	sort.Strings(res.unproxied)
+	f.probed.Store(res)
+}
+
+// speaksUnasked connects to addr, sends nothing, and reports whether the
+// other end sent a byte within probeListen.
+func speaksUnasked(ctx context.Context, addr string) (bool, error) {
+	d := net.Dialer{Timeout: 2 * time.Second}
+	c, err := d.DialContext(ctx, "tcp", addr)
+	if err != nil {
+		return false, err
+	}
+	defer c.Close()
+	_ = c.SetReadDeadline(time.Now().Add(probeListen))
+	var b [1]byte
+	n, err := c.Read(b[:])
+	if n > 0 {
+		return true, nil
+	}
+	var ne net.Error
+	if errors.As(err, &ne) && ne.Timeout() {
+		return false, nil // it waited: what a server that wants the header does
+	}
+	return false, err // closed on us: not judged
 }
 
 // stopAll stops every stream, for the gate's own stop.

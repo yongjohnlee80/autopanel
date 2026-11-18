@@ -49,7 +49,7 @@ func mailStreams() []hostgate.Stream {
 	out := make([]hostgate.Stream, 0, len(mail.Ports))
 	for _, p := range mail.Ports {
 		out = append(out, hostgate.Stream{Name: p.Name, Listen: ":" + strconv.Itoa(p.Public),
-			To: "127.0.0.1:" + strconv.Itoa(p.Loopback), IdleSecs: p.IdleSecs, PerClient: p.PerClient, Share: p.Share})
+			To: "127.0.0.1:" + strconv.Itoa(p.Loopback), IdleSecs: p.IdleSecs, PerClient: p.PerClient, Share: p.Share, Greets: p.Greets})
 	}
 	return out
 }

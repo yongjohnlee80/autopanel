@@ -271,6 +271,8 @@ type Finding struct {
 //     not be loaded or looked at (an alert).
 //   - mail-ptr: the host's address does not resolve back to the mail host.
 //   - mail-port-25: no connection out to port 25 gets through.
+//   - mail-proxy-trust: the mail server greets the gate without waiting for
+//     the header that names the client, so it no longer knows who connects.
 //
 // Decision: docs/decisions/mail.md#what-autopanel-cannot-set
 func (m *Module) Findings(ctx context.Context) []Finding {
@@ -303,6 +305,11 @@ func (m *Module) Findings(ctx context.Context) []Finding {
 	}
 	if last.Port25 == "blocked" {
 		out = append(out, Finding{ID: "mail-port-25", Alert: true})
+	}
+	if m.proxyProbe != nil {
+		if ports, at := m.proxyProbe(); at != 0 && len(ports) > 0 {
+			out = append(out, Finding{ID: "mail-proxy-trust", Alert: true, Detail: oneLine(strings.Join(ports, ", "))})
+		}
 	}
 	return out
 }

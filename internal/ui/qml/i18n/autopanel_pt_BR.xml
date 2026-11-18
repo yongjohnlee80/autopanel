@@ -1859,6 +1859,10 @@
         <source>Open them from Mail → Server, or allow them in System → Firewall: until then no mail arrives.</source>
         <translation>Abra-as em E-mail → Servidor, ou permita em Sistema → Firewall: até lá nenhum e-mail chega.</translation>
     </message>
+    <message id="autopanel.notice.check.mailProxyTrust">
+        <source>On these ports it greets AutoPanel's gate without waiting for the header that names the client, so it takes every client for the gate itself: its limits and its records by address mean nothing. This follows a change to the mail server's settings or version. Remove mail and set it up again, or restore the setting that trusts the gate's address.</source>
+        <translation>Nessas portas ele saúda o gate do AutoPanel sem esperar o cabeçalho que nomeia o cliente, então toma todo cliente pelo próprio gate: seus limites e seus registros por endereço não significam nada. Isso acontece após uma mudança na configuração ou na versão do servidor de e-mail. Remova o e-mail e configure-o de novo, ou restaure o ajuste que confia no endereço do gate.</translation>
+    </message>
     <message id="autopanel.notice.check.mailPtr">
         <source>Many receivers refuse mail from such an address. The reverse name is your hosting provider's record: ask them to set it to the mail host.</source>
         <translation>Muitos destinatários recusam e-mail de um endereço assim. O nome reverso é um registro do seu provedor de hospedagem: peça que o definam como o host de e-mail.</translation>
@@ -3174,6 +3178,10 @@
     <message id="autopanel.value.check.mailPortBlocked">
         <source>The firewall blocks mail's ports: %1</source>
         <translation>O firewall bloqueia as portas do e-mail: %1</translation>
+    </message>
+    <message id="autopanel.value.check.mailProxyTrust">
+        <source>The mail server no longer reads who connects: %1</source>
+        <translation>O servidor de e-mail não lê mais quem se conecta: %1</translation>
     </message>
     <message id="autopanel.value.check.mailPtr">
         <source>The server's address does not name the mail host back: %1</source>

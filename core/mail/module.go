@@ -97,6 +97,11 @@ type Firewall interface {
 // served.
 func (m *Module) SetFirewall(f Firewall) { m.firewall = f }
 
+// SetProxyProbe gives mail what the gate's probe found: the ports whose
+// server no longer waits for the header naming the client, and when the gate
+// last looked (0: never). It is set once, before the verbs are served.
+func (m *Module) SetProxyProbe(fn func() (ports []string, at int64)) { m.proxyProbe = fn }
+
 // wants are the firewall openings of public mail ports: all of them for nil.
 func wants(ports []int) ([]corefw.Want, error) {
 	if ports == nil {
@@ -213,21 +218,22 @@ type Streams func(on bool)
 // Module is mail.*, and the loop that keeps mail running: the loopback rule
 // held, Stalwart set up once its stack runs, the gate's streams on once it is.
 type Module struct {
-	store    Store
-	vault    Vault
-	registry Registry
-	stacks   Stacks
-	host     Host
-	firewall Firewall         // nil: this core drives no firewall
-	product  provider.Product // the mail server: its stack, its first start, its API
-	streams  Streams
-	log      *slog.Logger
-	now      func() time.Time
-	base     string // Stalwart's management API: ManageURL()
-	dns      DNS    // nil: records are shown, never published
-	certs    Certs  // nil: no certificate is handed over
-	sync     syncState
-	hostName atomic.Value // string: the mail host, for IsHost
+	store      Store
+	vault      Vault
+	registry   Registry
+	stacks     Stacks
+	host       Host
+	firewall   Firewall                 // nil: this core drives no firewall
+	proxyProbe func() ([]string, int64) // nil: no gate to ask
+	product    provider.Product         // the mail server: its stack, its first start, its API
+	streams    Streams
+	log        *slog.Logger
+	now        func() time.Time
+	base       string // Stalwart's management API: ManageURL()
+	dns        DNS    // nil: records are shown, never published
+	certs      Certs  // nil: no certificate is handed over
+	sync       syncState
+	hostName   atomic.Value // string: the mail host, for IsHost
 
 	mu       sync.Mutex
 	progress Progress

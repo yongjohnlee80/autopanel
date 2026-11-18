@@ -149,6 +149,7 @@ func (m *linkModule) report(_ context.Context, p hostgate.Report) (struct{}, err
 	m.counts.streamsOpen.Store(p.StreamsOpen)
 	m.counts.streamsServed.Store(p.StreamsServed)
 	m.counts.streamsRefused.Store(p.StreamsRefused)
+	m.counts.probe.Store(&p)
 	m.counts.seen.Store(time.Now().UnixNano())
 	return struct{}{}, nil
 }

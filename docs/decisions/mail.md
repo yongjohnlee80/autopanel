@@ -313,11 +313,20 @@ way out to port 25, which the provider may block. The hourly pass reads both and
   is closed after its greeting; nothing is sent. While it fails it is tried at every pass; once it
   works, once a day. It is made from the host, not from the mail server's container: it finds a
   provider's block, which is the common fault, and not a fault of the container's own network.
-- Not built yet: `mail-proxy-trust`, the probe that the mail server still reads the client address
-  the gate writes.
+- **`mail-proxy-trust` (an alert): the mail server no longer reads who connects.** The mail
+  server learns each client's address from the header the gate writes in front of a connection,
+  and trusts it only from the gate. If that trust is lost (a setting changed, a new version), the
+  server takes every client for the gate: its limits and records by address mean nothing. The gate
+  finds this out without a log to read: after each change of its streams and every hour, it
+  connects to the two ports where the server speaks first (SMTP and submission) and sends nothing.
+  A server that wants the header stays silent; one that greets has stopped wanting it.
+  - Only the gate can make this probe: the loopback rule lets no other user reach those ports.
+  - It shows that the header is still required. It does not show what the server then does with
+    the address in it.
+  - A port that cannot be reached is not judged.
 
 **In the code:** `core/mail/sync.go` (`syncReachability`, `Findings`), `host/mail/host.go`
-(`ReverseNames`, `SMTPOut`), `app/checks.go`.
+(`ReverseNames`, `SMTPOut`), `host/gate/stream.go` (`probe`), `app/checks.go`.
 
 ## Removing mail
 
