@@ -260,6 +260,45 @@ func applyAndCheck(t *testing.T, db dao.DataConn) {
 			t.Errorf("the store accepted %s", what)
 		}
 	}
+	// 000008: forwards, and a forward as the owner of a firewall rule. The
+	// rules made before it are as they were.
+	if err := exec("INSERT INTO forward(name, proto, port_from, port_to, target, created_at, updated_at) VALUES ('game', 'tcp', 25565, 25565, '127.0.0.1:25565', 0, 0)"); err != nil {
+		t.Fatal(err)
+	}
+	if err := exec("INSERT INTO firewall_rule(id, owner, rule, state, created_at) VALUES ('f1', 'forward:game', '{}', 'open', 0)"); err != nil {
+		t.Fatalf("a forward as a rule's owner: %v", err)
+	}
+	for what, q := range map[string]string{
+		"a forward's name twice":    "INSERT INTO forward(name, proto, port_from, port_to, target, created_at, updated_at) VALUES ('game', 'tcp', 1000, 1000, '127.0.0.1:1', 0, 0)",
+		"a forward of no protocol":  "INSERT INTO forward(name, proto, port_from, port_to, target, created_at, updated_at) VALUES ('a', 'sctp', 1000, 1000, '127.0.0.1:1', 0, 0)",
+		"a range that runs back":    "INSERT INTO forward(name, proto, port_from, port_to, target, created_at, updated_at) VALUES ('b', 'tcp', 2000, 1000, '127.0.0.1:1', 0, 0)",
+		"a port past 65535":         "INSERT INTO forward(name, proto, port_from, port_to, target, created_at, updated_at) VALUES ('c', 'tcp', 70000, 70000, '127.0.0.1:1', 0, 0)",
+		"a forward with no target":  "INSERT INTO forward(name, proto, port_from, port_to, target, created_at, updated_at) VALUES ('d', 'tcp', 1000, 1000, '', 0, 0)",
+		"a name in capitals":        "INSERT INTO forward(name, proto, port_from, port_to, target, created_at, updated_at) VALUES ('Game2', 'tcp', 1000, 1000, '127.0.0.1:1', 0, 0)",
+		"a forward with no name":    "INSERT INTO firewall_rule(id, owner, rule, state, created_at) VALUES ('f2', 'forward:', '{}', 'open', 0)",
+		"still an owner of no kind": "INSERT INTO firewall_rule(id, owner, rule, state, created_at) VALUES ('f3', 'admin', '{}', 'open', 0)",
+		"still a state of no kind":  "INSERT INTO firewall_rule(id, owner, rule, state, created_at) VALUES ('f4', 'mail', '{}', 'shut', 0)",
+	} {
+		if err := exec(q); err == nil {
+			t.Errorf("the store accepted %s", what)
+		}
+	}
+	if name, err := deployments.Runner().Revert(ctx, db, 8); err != nil {
+		t.Fatalf("reverting 000008 = %q, %v", name, err)
+	}
+	if err := exec("SELECT name FROM forward"); err == nil {
+		t.Fatal("the forward table outlived its revert")
+	}
+	if err := exec("INSERT INTO firewall_rule(id, owner, rule, state, created_at) VALUES ('f5', 'forward:game', '{}', 'open', 0)"); err == nil {
+		t.Fatal("after the revert a forward may still own a rule")
+	}
+	// The mail and stack rules outlived both the change of the table and its undoing.
+	if err := exec("INSERT INTO firewall_rule(id, owner, rule, state, created_at) VALUES ('a1', 'mail', '{}', 'open', 0)"); err == nil {
+		t.Fatal("mail's rule was lost when the table was made again")
+	}
+	if err := exec("INSERT INTO firewall_rule(id, owner, rule, state, created_at) VALUES ('a2', 'stack:chat', '{}', 'open', 0)"); err == nil {
+		t.Fatal("a stack's rule was lost when the table was made again")
+	}
 	if name, err := deployments.Runner().Revert(ctx, db, 7); err != nil {
 		t.Fatalf("reverting 000007 = %q, %v", name, err)
 	}
