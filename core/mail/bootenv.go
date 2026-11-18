@@ -61,7 +61,9 @@ func (e *bootEnv) Restart(ctx context.Context) error {
 	return err
 }
 
-func (e *bootEnv) Forwarder(ctx context.Context) (string, error) { return e.m.host.Forwarder(ctx) }
+func (e *bootEnv) Forwarder(ctx context.Context) (string, error) {
+	return e.m.host.Forwarder(ctx, Stack+"-"+e.m.product.Service())
+}
 
 func (e *bootEnv) Sealed(ctx context.Context, name string) ([]byte, error) {
 	v, err := e.m.vault.Get(ctx, sealedServer+name)

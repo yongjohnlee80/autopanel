@@ -33,10 +33,12 @@ func TestTheRulesImportNoSDK(t *testing.T) {
 	}
 }
 
-// TestTheRulesNameNoServer: no identifier or string of either package's
-// sources (tests aside) names a server. Comments may, to cite a decision.
+// TestTheRulesNameNoServer: no identifier or string of the rules' sources, of
+// the provider's, or of the host layer's (tests aside) names a server.
+// Comments may, to cite a decision. This is a scan of names: it catches a
+// server's name creeping back in, not an assumption shaped like one server.
 func TestTheRulesNameNoServer(t *testing.T) {
-	for _, dir := range []string{".", "provider"} {
+	for _, dir := range []string{".", "provider", filepath.Join("..", "..", "host", "mail")} {
 		files, err := filepath.Glob(filepath.Join(dir, "*.go"))
 		if err != nil {
 			t.Fatal(err)

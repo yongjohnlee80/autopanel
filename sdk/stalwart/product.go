@@ -40,12 +40,16 @@ var _ provider.Product = Product{}
 
 func (Product) Name() string { return "Stalwart" }
 
+// Service is the compose service Compose writes.
+func (Product) Service() string { return "stalwart" }
+
 // Compose is the definition AutoPanel writes: Stalwart pinned, as user 2000
 // (keep-id: its files are the stack user's on the host), with a read-only
 // root, its three writable folders as data, every port on loopback only, and
 // one capability, which the binary carries as a file capability and without
 // which the kernel refuses to run it (Stalwart binds no port below 1024).
-func (Product) Compose(ports []provider.PortMap, manage int) []byte {
+func (Product) Compose(st provider.Stack) []byte {
+	ports, manage := st.Ports, st.Manage
 	var b strings.Builder
 	b.WriteString(`# Mail: Stalwart, written by AutoPanel. It is changed from Mail, not by hand.
 services:

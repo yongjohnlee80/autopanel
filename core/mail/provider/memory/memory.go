@@ -500,7 +500,10 @@ const Image = "registry.invalid/mail@sha256:000000000000000000000000000000000000
 
 func (p *Product) Name() string { return "the memory server" }
 
-func (p *Product) Compose(ports []provider.PortMap, manage int) []byte {
+func (p *Product) Service() string { return "mail" }
+
+func (p *Product) Compose(st provider.Stack) []byte {
+	ports, manage := st.Ports, st.Manage
 	var b strings.Builder
 	b.WriteString("services:\n  mail:\n    image: " + Image + "\n    user: \"2000:2000\"\n    ports:\n")
 	for i, pm := range ports {

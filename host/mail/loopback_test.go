@@ -150,7 +150,7 @@ func TestForwarderOnThisHost(t *testing.T) {
 		t.Skip("needs a host with mail set up: AUTOPANEL_TEST_MAILHOST=throwaway, as root")
 	}
 	h := New("/etc/autopanel/stacks", "/var/lib/autopanel-services", "autopanel")
-	got, err := h.Forwarder(context.Background())
+	got, err := h.Forwarder(context.Background(), "mail-stalwart") // the server this host runs
 	if err != nil {
 		t.Fatal(err)
 	}

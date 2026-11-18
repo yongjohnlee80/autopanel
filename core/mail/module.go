@@ -141,7 +141,9 @@ type Host interface {
 	Journal(ctx context.Context, since time.Time) ([]string, error)
 	// Forwarder is the source the mail server sees forwarded connections
 	// arrive from, as a prefix: the mail stack network's subnet, from Podman.
-	Forwarder(ctx context.Context) (string, error)
+	// Forwarder is the subnet connections reach the mail server from, read
+	// from the stack's network, which must hold container alone.
+	Forwarder(ctx context.Context, container string) (string, error)
 	// InstallLoopback writes and loads the loopback rule, ordered before the
 	// stack user's systemd; EnsureLoopback checks it and loads it again if the
 	// kernel lost it, reporting whether it had to.
