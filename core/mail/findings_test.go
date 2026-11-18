@@ -3,6 +3,7 @@ package mail
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 )
@@ -100,6 +101,22 @@ func TestMailsHostChecks(t *testing.T) {
 	if f, ok := findings(m)["mail-loopback-rule"]; !ok || f.Alert || f.Detail != "reloaded at 2026-11-18T09:00:00Z" {
 		t.Fatalf("a loopback rule loaded again: %+v", findings(m))
 	}
+
+	for _, state := range []string{"failed: nft: permission denied", "unknown: no such user"} {
+		m.setLoopback(state)
+		if f, ok := findings(m)["mail-loopback-rule"]; !ok || !f.Alert || f.Detail != state {
+			t.Fatalf("a loopback rule in state %q: %+v; want an alert", state, findings(m))
+		}
+	}
+	m.setLoopback("ok")
+	// A reverse name is a stranger's text: it reaches the check on one line, and short.
+	h.reverse = []string{"evil\nline\x00." + strings.Repeat("x", 400)}
+	pass(m, "192.0.2.10")
+	if d := findings(m)["mail-ptr"].Detail; strings.ContainsAny(d, "\n\x00") || len([]rune(d)) > 220 {
+		t.Fatalf("a reverse name reached the check raw: %q", d)
+	}
+	h.reverse = []string{"mail.example.net."}
+	pass(m, "192.0.2.10")
 
 	// The processor.
 	if _, ok := findings(m)["mail-cpu"]; ok {

@@ -1389,6 +1389,11 @@ func (m *Module) remove(ctx context.Context, p RemoveAsk) (struct{}, error) {
 		return struct{}{}, err
 	}
 	m.hostName.Store("")
+	// What the last pass saw was this setup's: a later one starts with nothing.
+	m.setLoopback("")
+	m.sync.mu.Lock()
+	m.sync.last, m.sync.port25At = Sync{}, time.Time{}
+	m.sync.mu.Unlock()
 	m.note("", "")
 	return struct{}{}, nil
 }

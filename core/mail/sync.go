@@ -267,7 +267,8 @@ type Finding struct {
 //
 //   - mail-cpu: this processor cannot run the mail server.
 //   - mail-loopback-rule: the rule that keeps other local programs off mail's
-//     ports was missing or changed, and was loaded again.
+//     ports was missing or changed and was loaded again (a notice), or could
+//     not be loaded or looked at (an alert).
 //   - mail-ptr: the host's address does not resolve back to the mail host.
 //   - mail-port-25: no connection out to port 25 gets through.
 //
@@ -287,13 +288,16 @@ func (m *Module) Findings(ctx context.Context) []Finding {
 	lb := m.progress.Loopback
 	m.mu.Unlock()
 	if lb != "" && lb != "ok" {
-		out = append(out, Finding{ID: "mail-loopback-rule", Detail: lb})
+		// Loaded again, it holds now: a notice. Anything else (it could not be
+		// loaded, or not looked at) means the ports may be open to local
+		// programs now: an alert.
+		out = append(out, Finding{ID: "mail-loopback-rule", Alert: !strings.HasPrefix(lb, "reloaded"), Detail: oneLine(lb)})
 	}
 	last := m.lastSync()
 	if last.Address != "" && last.ReverseKnown && !namesHost(last.Reverse, st.Host) {
 		back := "nothing"
 		if len(last.Reverse) > 0 {
-			back = strings.TrimSuffix(last.Reverse[0], ".")
+			back = oneLine(strings.TrimSuffix(last.Reverse[0], ".")) // a resolver's answer: not ours
 		}
 		out = append(out, Finding{ID: "mail-ptr", Detail: last.Address + " → " + back + ", not " + st.Host})
 	}
@@ -311,4 +315,18 @@ func namesHost(names []string, host string) bool {
 		}
 	}
 	return false
+}
+
+// oneLine is s for a check's detail: printable, on one line, and short.
+func oneLine(s string) string {
+	s = strings.Map(func(r rune) rune {
+		if r < ' ' || r == 0x7f {
+			return ' '
+		}
+		return r
+	}, s)
+	if r := []rune(s); len(r) > 160 {
+		s = string(r[:160]) + "…"
+	}
+	return strings.TrimSpace(s)
 }
