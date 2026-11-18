@@ -148,6 +148,12 @@ type Host interface {
 	// PublicIPv4 is the host's one global IPv4 address, for the mail host's A
 	// record; "" when it has none or several.
 	PublicIPv4(ctx context.Context) (string, error)
+	// ReverseNames are the names an address resolves back to, as the world
+	// sees it: none is an empty answer, not an error.
+	ReverseNames(ctx context.Context, addr string) ([]string, error)
+	// SMTPOut tries a connection out to port 25 of a mail server on the
+	// internet: nil when one greets, an error when none can be reached.
+	SMTPOut(ctx context.Context) error
 	// ResolveTXT asks public resolvers for a name's TXT records.
 	ResolveTXT(ctx context.Context, name string) ([]string, error)
 }

@@ -1,9 +1,11 @@
 package mail
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/netip"
 	"os"
@@ -247,4 +249,71 @@ func (h *Host) ResolveTXT(ctx context.Context, name string) ([]string, error) {
 		last = err
 	}
 	return nil, last
+}
+
+// ReverseNames asks public resolvers what an address resolves back to: each in
+// turn, the first that answers. No name is an empty answer, not an error.
+func (h *Host) ReverseNames(ctx context.Context, addr string) ([]string, error) {
+	var last error
+	for _, server := range publicResolvers {
+		r := &net.Resolver{PreferGo: true, Dial: func(ctx context.Context, network, _ string) (net.Conn, error) {
+			d := net.Dialer{Timeout: 5 * time.Second}
+			return d.DialContext(ctx, network, server)
+		}}
+		cctx, cancel := context.WithTimeout(ctx, 8*time.Second)
+		names, err := r.LookupAddr(cctx, addr)
+		cancel()
+		var dns *net.DNSError
+		if errors.As(err, &dns) && dns.IsNotFound {
+			return nil, nil
+		}
+		if err == nil {
+			return names, nil
+		}
+		last = err
+	}
+	return nil, last
+}
+
+// smtpProbes are mail servers that take mail for very many people: if none of
+// them can be reached on port 25, this host's way out is blocked. One
+// connection is made, to the first that answers; nothing is sent but QUIT.
+var smtpProbes = []string{"gmail-smtp-in.l.google.com:25", "mx1.hotmail.com:25", "mx.zoho.com:25"}
+
+// SMTPOut tries a connection out to port 25: nil when a server greets with
+// 220, an error when none of the probes can be reached.
+func (h *Host) SMTPOut(ctx context.Context) error {
+	var last error
+	for _, target := range smtpProbes {
+		cctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		err := greets(cctx, target)
+		cancel()
+		if err == nil {
+			return nil
+		}
+		last = err
+	}
+	return last
+}
+
+// greets connects to an SMTP server and reads its greeting.
+func greets(ctx context.Context, target string) error {
+	var d net.Dialer
+	c, err := d.DialContext(ctx, "tcp", target)
+	if err != nil {
+		return err
+	}
+	defer c.Close()
+	if dl, ok := ctx.Deadline(); ok {
+		_ = c.SetDeadline(dl)
+	}
+	line, err := bufio.NewReaderSize(c, 512).ReadString('\n')
+	if err != nil {
+		return err
+	}
+	_, _ = io.WriteString(c, "QUIT\r\n")
+	if !strings.HasPrefix(line, "220") {
+		return fmt.Errorf("mail: %s greeted with %q", target, strings.TrimSpace(line))
+	}
+	return nil
 }

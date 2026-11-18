@@ -37,12 +37,27 @@ type Sync struct {
 	Records     map[string][]RecordView `json:"records"` // by owner: each domain, and the mail host
 	DKIM        map[string][]DKIMRow    `json:"dkim"`
 	Errors      []string                `json:"errors"`
+	// Address is the host's public address, and Reverse the names it resolves
+	// back to: a mail host whose address does not name it back is refused by
+	// many receivers. ReverseKnown is false when the lookup itself failed.
+	Address      string   `json:"address"`
+	Reverse      []string `json:"reverse"`
+	ReverseKnown bool     `json:"reverse_known"`
+	// Port25 is whether a connection out to port 25 got through: "ok",
+	// "blocked", or "" before the first try.
+	Port25 string `json:"port25"`
 }
+
+// port25Every is how often the way out to port 25 is tried once it works: a
+// provider's block does not come and go by the hour.
+const port25Every = 24 * time.Hour
 
 type syncState struct {
 	mu   sync.Mutex
 	last Sync
 	kick chan struct{}
+
+	port25At time.Time // when the way out to port 25 was last tried; the pass's alone
 }
 
 // kickSync asks for a pass now (after a change), without waiting for it.
@@ -118,6 +133,7 @@ func (m *Module) syncAll(ctx context.Context, st State) Sync {
 		fail(st.Host+" DNS", err)
 	}
 	out.Records[st.Host] = views
+	m.syncReachability(ctx, &out, ip)
 
 	if err := m.sweepAppPasswords(ctx, c); err != nil {
 		fail("expired app passwords", err)
@@ -208,4 +224,91 @@ func pemOf(c *tls.Certificate) (chain, key string, err error) {
 		return "", "", fmt.Errorf("the certificate's key: %w", err)
 	}
 	return b.String(), string(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: k})), nil
+}
+
+// syncReachability looks at the two things about the host that decide whether
+// its mail is accepted and that AutoPanel cannot set: the reverse name of its
+// address, which is the provider's record, and the way out to port 25, which
+// the provider may block. Both are read, never changed.
+//
+// Decision: docs/decisions/mail.md#what-autopanel-cannot-set
+func (m *Module) syncReachability(ctx context.Context, out *Sync, ip string) {
+	prev := m.lastSync()
+	out.Address = ip
+	if ip != "" {
+		names, err := m.host.ReverseNames(ctx, ip)
+		if err == nil {
+			out.Reverse, out.ReverseKnown = names, true
+		} else {
+			m.log.Warn("mail: the reverse name of the host's address", "address", ip, "err", err)
+		}
+	}
+	out.Port25 = prev.Port25
+	if prev.Port25 != "ok" || m.now().Sub(m.sync.port25At) >= port25Every {
+		if err := m.host.SMTPOut(ctx); err != nil {
+			out.Port25 = "blocked"
+			m.log.Warn("mail: no connection out to port 25", "err", err)
+		} else {
+			out.Port25 = "ok"
+		}
+		m.sync.port25At = m.now()
+	}
+}
+
+// Finding is something about mail the administrator should know, for Host
+// checks: an id the panel has words for, and data for them.
+type Finding struct {
+	ID     string
+	Alert  bool   // false: a notice
+	Detail string // data, never prose
+}
+
+// Findings are the host checks that are mail's: none until mail is set up.
+//
+//   - mail-cpu: this processor cannot run the mail server.
+//   - mail-loopback-rule: the rule that keeps other local programs off mail's
+//     ports was missing or changed, and was loaded again.
+//   - mail-ptr: the host's address does not resolve back to the mail host.
+//   - mail-port-25: no connection out to port 25 gets through.
+//
+// Decision: docs/decisions/mail.md#what-autopanel-cannot-set
+func (m *Module) Findings(ctx context.Context) []Finding {
+	st, ok, err := m.store.State(ctx)
+	if err != nil || !ok {
+		return nil
+	}
+	var out []Finding
+	if arch, flags, err := m.host.CPU(); err == nil {
+		if m.product.CPU(arch, flags) != nil {
+			out = append(out, Finding{ID: "mail-cpu", Alert: true, Detail: arch})
+		}
+	}
+	m.mu.Lock()
+	lb := m.progress.Loopback
+	m.mu.Unlock()
+	if lb != "" && lb != "ok" {
+		out = append(out, Finding{ID: "mail-loopback-rule", Detail: lb})
+	}
+	last := m.lastSync()
+	if last.Address != "" && last.ReverseKnown && !namesHost(last.Reverse, st.Host) {
+		back := "nothing"
+		if len(last.Reverse) > 0 {
+			back = strings.TrimSuffix(last.Reverse[0], ".")
+		}
+		out = append(out, Finding{ID: "mail-ptr", Detail: last.Address + " → " + back + ", not " + st.Host})
+	}
+	if last.Port25 == "blocked" {
+		out = append(out, Finding{ID: "mail-port-25", Alert: true})
+	}
+	return out
+}
+
+// namesHost reports whether one of an address's reverse names is host.
+func namesHost(names []string, host string) bool {
+	for _, n := range names {
+		if strings.EqualFold(strings.TrimSuffix(n, "."), host) {
+			return true
+		}
+	}
+	return false
 }

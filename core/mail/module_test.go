@@ -254,6 +254,10 @@ type fakeHost struct {
 	reload     bool
 	mu         sync.Mutex
 	txt        map[string][]string // what public resolvers answer
+	reverse    []string            // what the host's address resolves back to
+	reverseErr error
+	smtpErr    error // what a connection out to port 25 meets
+	smtpTries  int
 }
 
 func (h *fakeHost) CPU() (string, map[string]bool, error) {
@@ -270,6 +274,19 @@ func (h *fakeHost) Journal(context.Context, time.Time) ([]string, error) {
 }
 func (h *fakeHost) Forwarder(context.Context) (string, error)  { return "10.89.0.0/24", nil }
 func (h *fakeHost) PublicIPv4(context.Context) (string, error) { return "192.0.2.10", nil }
+
+func (h *fakeHost) ReverseNames(context.Context, string) ([]string, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.reverse, h.reverseErr
+}
+
+func (h *fakeHost) SMTPOut(context.Context) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.smtpTries++
+	return h.smtpErr
+}
 func (h *fakeHost) ResolveTXT(_ context.Context, name string) ([]string, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()

@@ -1823,9 +1823,25 @@
         <source>Allow them in System → Firewall: without them the sites cannot be reached and certificates cannot renew.</source>
         <translation>시스템 → 방화벽에서 허용하세요. 없으면 사이트에 닿을 수 없고 인증서를 갱신할 수 없습니다.</translation>
     </message>
+    <message id="autopanel.notice.check.mailCpu">
+        <source>The mail server needs an x86-64-v2 processor, or arm64. On a virtual machine, change its CPU type to host or x86-64-v2.</source>
+        <translation>메일 서버에는 x86-64-v2 프로세서 또는 arm64가 필요합니다. 가상 머신이라면 CPU 유형을 host 또는 x86-64-v2로 바꾸십시오.</translation>
+    </message>
+    <message id="autopanel.notice.check.mailLoopbackRule">
+        <source>AutoPanel loaded it again. Until then, other programs on this server could reach mail's inner ports. If it happens again, find what changes the nftables rules.</source>
+        <translation>AutoPanel이 다시 적용했습니다. 그때까지 이 서버의 다른 프로그램이 메일의 내부 포트에 접근할 수 있었습니다. 다시 발생하면 nftables 규칙을 바꾸는 원인을 찾으십시오.</translation>
+    </message>
+    <message id="autopanel.notice.check.mailPort25">
+        <source>Mail cannot be delivered to other servers. Most providers block port 25 until asked: ask yours to open it for this server.</source>
+        <translation>다른 서버로 메일을 전달할 수 없습니다. 대부분의 업체는 요청 전까지 25번 포트를 막습니다. 이 서버에 대해 열어 달라고 요청하십시오.</translation>
+    </message>
     <message id="autopanel.notice.check.mailPortBlocked">
         <source>Open them from Mail → Server, or allow them in System → Firewall: until then no mail arrives.</source>
         <translation>메일 → 서버에서 열거나 시스템 → 방화벽에서 허용하세요. 그 전까지 메일이 오지 않습니다.</translation>
+    </message>
+    <message id="autopanel.notice.check.mailPtr">
+        <source>Many receivers refuse mail from such an address. The reverse name is your hosting provider's record: ask them to set it to the mail host.</source>
+        <translation>많은 수신 서버가 이런 주소에서 온 메일을 거부합니다. 역방향 이름은 호스팅 업체의 레코드이므로, 메일 호스트로 설정해 달라고 요청하십시오.</translation>
     </message>
     <message id="autopanel.notice.check.podmanSystemSocket">
         <source>Each stack runs as its own user: disable podman.socket unless something needs it.</source>
@@ -3119,9 +3135,25 @@
         <source>The firewall blocks AutoPanel's web ports: %1</source>
         <translation>방화벽이 AutoPanel의 웹 포트를 막고 있습니다: %1</translation>
     </message>
+    <message id="autopanel.value.check.mailCpu">
+        <source>This processor cannot run the mail server (%1)</source>
+        <translation>이 프로세서로는 메일 서버를 실행할 수 없습니다 (%1)</translation>
+    </message>
+    <message id="autopanel.value.check.mailLoopbackRule">
+        <source>Mail's loopback rule was missing or changed: %1</source>
+        <translation>메일의 루프백 규칙이 없거나 바뀌어 있었습니다: %1</translation>
+    </message>
+    <message id="autopanel.value.check.mailPort25">
+        <source>No connection out to port 25 gets through</source>
+        <translation>25번 포트로 나가는 연결이 되지 않습니다</translation>
+    </message>
     <message id="autopanel.value.check.mailPortBlocked">
         <source>The firewall blocks mail's ports: %1</source>
         <translation>방화벽이 메일 포트를 막고 있습니다: %1</translation>
+    </message>
+    <message id="autopanel.value.check.mailPtr">
+        <source>The server's address does not name the mail host back: %1</source>
+        <translation>서버 주소의 역방향 이름이 메일 호스트가 아닙니다: %1</translation>
     </message>
     <message id="autopanel.value.check.notice">
         <source>notice</source>

@@ -291,6 +291,33 @@ again without someone there; phones move between networks. Revocation is the con
 `sdk/stalwart/server.go` and `jmap.go` (`AddAppPassword`, `KeepAppPassword`, `RevokeAppPassword`, `SetSecret`),
 `internal/ui/apppassword.go` (the dialog and its QR code).
 
+## What AutoPanel cannot set
+
+**Decided:** two things decide whether a host's mail is accepted, and neither is AutoPanel's to
+change: the reverse name of the host's address, which is the hosting provider's record, and the
+way out to port 25, which the provider may block. The hourly pass reads both and changes neither;
+**System → Host checks** says when one is wrong, with what to ask the provider.
+
+| Check | When | Severity |
+| --- | --- | --- |
+| `mail-ptr` | the host's one public address does not resolve back to the mail host | notice |
+| `mail-port-25` | no connection out to port 25 gets through | alert |
+| `mail-loopback-rule` | the rule that keeps other local programs off mail's ports was missing or changed, and was loaded again | notice |
+| `mail-cpu` | this processor cannot run the mail server | alert |
+
+- **The reverse name** is asked of public resolvers, for the address the mail host's A record is
+  made from. A lookup that fails says nothing: only an answer that is wrong is a finding. A host
+  with no one public address is not judged.
+- **The way out** is tried by one connection to port 25 of a large mail provider's server, which
+  is closed after its greeting; nothing is sent. While it fails it is tried at every pass; once it
+  works, once a day. It is made from the host, not from the mail server's container: it finds a
+  provider's block, which is the common fault, and not a fault of the container's own network.
+- Not built yet: `mail-proxy-trust`, the probe that the mail server still reads the client address
+  the gate writes.
+
+**In the code:** `core/mail/sync.go` (`syncReachability`, `Findings`), `host/mail/host.go`
+(`ReverseNames`, `SMTPOut`), `app/checks.go`.
+
 ## Removing mail
 
 **Decided:** `mail.remove` (`mail.admin`) takes mail down, each step one that asking again

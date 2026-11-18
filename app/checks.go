@@ -115,6 +115,15 @@ func (m *sysModule) checks(ctx context.Context, _ struct{}) ([]Check, error) {
 	if m.certRows != nil {
 		out = append(out, certChecks(m.certRows(ctx), time.Now())...)
 	}
+	if m.mailFindings != nil {
+		for _, f := range m.mailFindings(ctx) {
+			severity := notice
+			if f.Alert {
+				severity = alert
+			}
+			add(f.ID, severity, f.Detail)
+		}
+	}
 	if m.moreChecks != nil && fwErr == nil {
 		out = append(out, m.moreChecks(ctx, fw)...)
 	}
