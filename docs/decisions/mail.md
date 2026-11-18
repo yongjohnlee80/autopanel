@@ -263,8 +263,8 @@ pass destroys expired ones, which otherwise count toward the account's limit.
 
 - The secret is `app_` and 36 of `[a-z0-9]`. AutoPanel refuses one under 128 bits or with fewer
   than 12 different characters, and revokes it: a weakened generator stops the feature. The bits
-  are an estimate: the length times the size of the alphabet the characters come from (lower
-  case, upper case, digits, and each other character seen). It catches a secret that is short or
+  are an estimate: the length times log2 of the size of the alphabet the characters come from
+  (lower case, upper case, digits, and each other character seen). It catches a secret that is short or
   repeats a few characters. It cannot tell a patterned secret from a random one of the same
   length and alphabet. If the revoke fails, the weak one still stops at its ten-minute expiry.
 - The user name is the full address: a bare local part signs in only to the default domain's
