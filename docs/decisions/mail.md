@@ -303,6 +303,7 @@ way out to port 25, which the provider may block. The hourly pass reads both and
 | `mail-ptr` | the host's one public address does not resolve back to the mail host | notice |
 | `mail-port-25` | no connection out to port 25 gets through | alert |
 | `mail-loopback-rule` | the rule that keeps other local programs off mail's ports was missing or changed, and was loaded again | notice |
+| `mail-loopback-rule` | that rule could not be loaded, or could not be looked at: the ports may be open to local programs now | alert |
 | `mail-cpu` | this processor cannot run the mail server | alert |
 
 - **The reverse name** is asked of public resolvers, for the address the mail host's A record is

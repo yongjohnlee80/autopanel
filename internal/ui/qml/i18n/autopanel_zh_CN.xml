@@ -1828,8 +1828,8 @@
         <translation>邮件服务器需要 x86-64-v2 处理器或 arm64。在虚拟机上，请将 CPU 类型改为 host 或 x86-64-v2。</translation>
     </message>
     <message id="autopanel.notice.check.mailLoopbackRule">
-        <source>AutoPanel loaded it again. Until then, other programs on this server could reach mail's inner ports. If it happens again, find what changes the nftables rules.</source>
-        <translation>AutoPanel 已重新加载。在此之前，本服务器上的其他程序可以访问邮件的内部端口。如果再次发生，请查明是什么更改了 nftables 规则。</translation>
+        <source>This rule keeps other programs on this server off mail's inner ports. &quot;reloaded&quot;: it was missing or changed, and AutoPanel loaded it again; if it recurs, find what changes the nftables rules. &quot;failed&quot; or &quot;unknown&quot;: it may not be in place, so those ports may be open to local programs now; the core's log says why.</source>
+        <translation>此规则阻止本服务器上的其他程序访问邮件的内部端口。&quot;reloaded&quot;：规则曾缺失或被更改，AutoPanel 已重新加载；如果再次发生，请查明是什么更改了 nftables 规则。&quot;failed&quot; 或 &quot;unknown&quot;：规则可能未生效，这些端口现在可能对本地程序开放；原因见核心的日志。</translation>
     </message>
     <message id="autopanel.notice.check.mailPort25">
         <source>Mail cannot be delivered to other servers. Most providers block port 25 until asked: ask yours to open it for this server.</source>
@@ -3140,8 +3140,8 @@
         <translation>此处理器无法运行邮件服务器（%1）</translation>
     </message>
     <message id="autopanel.value.check.mailLoopbackRule">
-        <source>Mail's loopback rule was missing or changed: %1</source>
-        <translation>邮件的回环规则曾缺失或被更改：%1</translation>
+        <source>Mail's loopback rule is not as it should be: %1</source>
+        <translation>邮件的回环规则状态异常：%1</translation>
     </message>
     <message id="autopanel.value.check.mailPort25">
         <source>No connection out to port 25 gets through</source>

@@ -307,7 +307,9 @@ func greets(ctx context.Context, target string) error {
 	if dl, ok := ctx.Deadline(); ok {
 		_ = c.SetDeadline(dl)
 	}
-	line, err := bufio.NewReaderSize(c, 512).ReadString('\n')
+	// At most 512 bytes are read, whatever the other end sends: a reader's
+	// buffer size is not a limit on a line.
+	line, err := bufio.NewReaderSize(io.LimitReader(c, 512), 512).ReadString('\n')
 	if err != nil {
 		return err
 	}
