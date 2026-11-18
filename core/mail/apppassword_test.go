@@ -151,6 +151,35 @@ func TestAnAppPasswordIsPendingUntilKept(t *testing.T) {
 	}
 }
 
+// TestAnExpiryFromOutsideIsLeftAlone: an app password given a far expiry with
+// the mail server's own tools is not one of AutoPanel's pending ones: the list
+// doesn't call it pending, and keep doesn't make it permanent.
+func TestAnExpiryFromOutsideIsLeftAlone(t *testing.T) {
+	m, srv, clk := readyMail(t)
+	ctx := context.Background()
+	_, _ = m.accountAdd(ctx, AccountAsk{Address: "ana@example.net"})
+	_, a, err := m.account(ctx, "ana@example.net")
+	if err != nil {
+		t.Fatal(err)
+	}
+	until := clk.now().Add(30 * 24 * time.Hour)
+	made, secret, err := srv.AddAppPassword(ctx, a.ID, "a month's loan", until, AppPasswordLimit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	list := appPasswordsOf(t, m, "ana@example.net")
+	if len(list) != 1 || list[0].Pending || list[0].ExpiresAt != until.Unix() {
+		t.Fatalf("the list: %+v; want it not pending, with its expiry", list)
+	}
+	if _, err := m.appPasswordKeep(ctx, AppPasswordAsk{Address: "ana@example.net", ID: made.ID}); err != nil {
+		t.Fatal(err)
+	}
+	clk.add(31 * 24 * time.Hour)
+	if srv.SignIn("ana@example.net", secret) {
+		t.Fatal("keep made an app password with its own expiry permanent")
+	}
+}
+
 // TestAnExpiredAppPasswordIsNeverRevived: a server may bring an expired app
 // password back when its expiry is cleared (the one in memory does), so keep
 // destroys it instead.

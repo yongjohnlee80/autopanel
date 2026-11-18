@@ -409,6 +409,10 @@ func TestAnOlderAccountGetsRoom(t *testing.T) {
 	if fake.only("old@example.net").quotas["maxAppPasswords"] != 20 {
 		t.Fatal("the limit was not raised")
 	}
+	// The patch names the one key: the account's disk quota is as it was.
+	if q := fake.only("old@example.net").quotas["maxDiskQuota"]; q != 1 {
+		t.Fatalf("raising the limit changed the disk quota to %d", q)
+	}
 }
 
 // TestOverTheLimitIsErrOverLimit: Stalwart's overQuota is the provider's.

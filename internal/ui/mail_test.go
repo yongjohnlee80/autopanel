@@ -356,6 +356,23 @@ func TestAnAppPasswordIsShownOnceAndKeptOnDone(t *testing.T) {
 	s.WaitFor(t, "the second secret to leave the screen", func(sc string) bool { return !strings.Contains(sc, appSecret(2)) })
 }
 
+// TestAnExpiryFromOutsideIsShownAsItsDate: an app password with an expiry set
+// outside AutoPanel is not called pending; its row says until when.
+func TestAnExpiryFromOutsideIsShownAsItsDate(t *testing.T) {
+	f := withMail()
+	until := time.Date(2027, 1, 5, 12, 0, 0, 0, time.Local)
+	f.mail.apps = map[string][]mail.AppPasswordView{"ana@example.com": {
+		{ID: "x1", Description: "a loan", CreatedAt: until.Unix() - 86400, ExpiresAt: until.Unix()}}}
+	h, s := startHost(t, f)
+	s.WaitForText(t, "CA LE staging")
+	run(t, h, h.openMailAccounts)
+	s.WaitForText(t, "a loan")
+	s.WaitForText(t, "until 2027-01-05")
+	if strings.Contains(s.String(), "pending until") {
+		t.Fatal("an expiry from outside is called pending")
+	}
+}
+
 func waitMailAsked(t *testing.T, s *decltest.Screen, f *fakeClient, want string) {
 	t.Helper()
 	s.WaitFor(t, want, func(string) bool { return slices.Contains(f.mailAsked(), want) })

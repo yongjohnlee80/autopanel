@@ -270,7 +270,8 @@ func handler(v module.Verb, errs []module.PublicError, log *slog.Logger, acc Acc
 
 // subject is what a privileged call names, for its audit entry: the "name" of
 // its one param, with the "service", the folder an import copies "from" and
-// the review it accepts when the call names them, as the caller sent them. It is recorded before the verb
+// the review it accepts when the call names them, and an app password's
+// device ("description") and "id", as the caller sent them. It is recorded before the verb
 // has validated any of it, so each is quoted and cut short.
 func subject(params []any) string {
 	if len(params) == 0 {
@@ -283,7 +284,7 @@ func subject(params []any) string {
 	out := ""
 	// An allowlist: a key that holds a secret (mail's password) never reaches
 	// the audit log.
-	for _, k := range []string{"name", "service", "from", "accept", "host", "domain", "address"} {
+	for _, k := range []string{"name", "service", "from", "accept", "host", "domain", "address", "description", "id"} {
 		if s, ok := m[k].(string); ok && s != "" {
 			limit := 64
 			if k == "from" {

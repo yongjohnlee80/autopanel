@@ -306,7 +306,7 @@ func (m *Module) Errors() []module.PublicError {
 		{Err: ErrServer, Code: -32144, Name: "mail.refused", Message: "the mail server refused the change"},
 		{Err: ErrNoRecord, Code: -32146, Name: "mail.no_record", Message: "no needed record of that name and type is held by one AutoPanel did not write"},
 		{Err: ErrNoDNS, Code: -32147, Name: "mail.no_dns", Message: "no DNS token: set one (certs.cloudflare.set) for AutoPanel to publish records"},
-		{Err: ErrWeakSecret, Code: -32175, Name: "mail.weak_secret", Message: "the mail server made an app password weaker than 128 bits; it was destroyed, and none is handed out until the server is fixed"},
+		{Err: ErrWeakSecret, Code: -32175, Name: "mail.weak_secret", Message: "the mail server made an app password weaker than 128 bits; it is not handed out and stops signing in within ten minutes, and none is handed out until the server is fixed"},
 		{Err: ErrExpired, Code: -32176, Name: "mail.expired", Message: "the app password expired before it was kept, and was destroyed: add another"},
 		{Err: ErrNoAppPassword, Code: -32177, Name: "mail.no_app_password", Message: "the account has no such app password"},
 		{Err: ErrBadDescription, Code: -32178, Name: "mail.bad_description", Message: "an app password's device name is 1 to 64 characters, with no control characters"},

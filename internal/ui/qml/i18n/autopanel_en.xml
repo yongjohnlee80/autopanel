@@ -2100,8 +2100,8 @@
         <translation>a password is 12 characters at least, 256 at most</translation>
     </message>
     <message id="autopanel.notice.mail.weakSecret">
-        <source>Stalwart made an app password weaker than 128 bits; it was destroyed, and none is handed out until Stalwart is fixed</source>
-        <translation>Stalwart made an app password weaker than 128 bits; it was destroyed, and none is handed out until Stalwart is fixed</translation>
+        <source>Stalwart made an app password weaker than 128 bits; it is not handed out and stops signing in within ten minutes. None is handed out until Stalwart is fixed</source>
+        <translation>Stalwart made an app password weaker than 128 bits; it is not handed out and stops signing in within ten minutes. None is handed out until Stalwart is fixed</translation>
     </message>
     <message id="autopanel.notice.plan.blocked">
         <source>Turned on, the firewall blocks this port unless you allow it here.</source>
@@ -3266,6 +3266,10 @@
     <message id="autopanel.value.mail.appPending">
         <source>pending until %1</source>
         <translation>pending until %1</translation>
+    </message>
+    <message id="autopanel.value.mail.appUntil">
+        <source>until %1</source>
+        <translation>until %1</translation>
     </message>
     <message id="autopanel.value.mail.hostRow">
         <source>%1 (mail host)</source>

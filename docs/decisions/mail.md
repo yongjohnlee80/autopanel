@@ -247,10 +247,26 @@ Done clears the expiry. Escape, a closed panel or a lost connection leaves it to
 Cancel revokes it. Stalwart enforces the expiry itself, so it holds with the core down; the hourly
 pass destroys expired ones, which otherwise count toward the account's limit.
 
+- **Where the expiry is shown to hold:** at IMAP and SMTP submission, the only sign-ins the mail
+  stack publishes. Stalwart also accepts app passwords at POP3, ManageSieve and HTTP Basic; the
+  stack publishes none of them (its HTTP port is on loopback, for the core alone), so they are not
+  tested. A deployment that publishes one must test the expiry there first.
+- **Only AutoPanel's own pending ones:** an app password is pending when its expiry is no further
+  off than a new one's ten minutes. One given a later expiry with Stalwart's own tools is listed
+  with that date, and Done never clears it.
+- **Not the administrator's:** the hourly pass skips Stalwart's administrator account. It is
+  AutoPanel's way in, Mail never changes it, and AutoPanel makes no app password for it.
+- **The audit log** names the address, the device and the app password's id; the secret is in no
+  parameter.
+
 **What Stalwart does that the code relies on** (tested against the pinned v1.1.0):
 
-- The secret is `app_` and 36 of `[a-z0-9]`. AutoPanel refuses, and destroys, one under 128 bits
-  or with fewer than 12 different characters: a weakened generator stops the feature.
+- The secret is `app_` and 36 of `[a-z0-9]`. AutoPanel refuses one under 128 bits or with fewer
+  than 12 different characters, and revokes it: a weakened generator stops the feature. The bits
+  are an estimate: the length times the size of the alphabet the characters come from (lower
+  case, upper case, digits, and each other character seen). It catches a secret that is short or
+  repeats a few characters. It cannot tell a patterned secret from a random one of the same
+  length and alphabet. If the revoke fails, the weak one still stops at its ten-minute expiry.
 - The user name is the full address: a bare local part signs in only to the default domain's
   account.
 - **An expired app password whose expiry is cleared works again.** So keep reads it first, and
@@ -324,6 +340,6 @@ new SDK ships when it passes it against its real server.
 `core/mail/provider` depends on an `sdk/` package, or names a server in an identifier or a string.
 
 **Rules any server is held to, kept in `core/mail`:** an app password's secret of fewer than 128
-bits is destroyed and refused; an expired app password is never kept (a server may revive it); a
+bits is refused and revoked; an expired app password is never kept (a server may revive it); a
 mailbox's own password is a hash of one no one knows.
 
