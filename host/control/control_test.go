@@ -469,6 +469,9 @@ func TestTheSubjectNamesWhatTheCallActsOn(t *testing.T) {
 		// Mail: the account and the domain, never the password.
 		{map[string]any{"address": "ana@example.com", "password": "hunter2-long-password"}, `address "ana@example.com"`},
 		{map[string]any{"host": "mail.example.com", "domain": "example.com"}, `host "mail.example.com" domain "example.com"`},
+		// An app password: whose, which device, which one. Its secret is in no param.
+		{map[string]any{"address": "ana@example.com", "description": "phone"}, `address "ana@example.com" description "phone"`},
+		{map[string]any{"address": "ana@example.com", "id": "ap1"}, `address "ana@example.com" id "ap1"`},
 	} {
 		if got := subject([]any{c.param}); got != c.want {
 			t.Errorf("subject(%v) = %q; want %q", c.param, got, c.want)

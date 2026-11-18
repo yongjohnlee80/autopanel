@@ -65,8 +65,11 @@ func (h *host) renderAppPasswords() {
 	rows := make([]tuidecl.Row, 0, len(m.appList))
 	for _, p := range m.appList {
 		state := h.tr("autopanel.value.mail.appKept")
-		if p.Pending {
+		switch {
+		case p.Pending:
 			state = h.trf("autopanel.value.mail.appPending", time.Unix(p.ExpiresAt, 0).Format("15:04"))
+		case p.ExpiresAt != 0: // an expiry given outside AutoPanel
+			state = h.trf("autopanel.value.mail.appUntil", time.Unix(p.ExpiresAt, 0).Format("2006-01-02"))
 		}
 		rows = append(rows, tuidecl.Row{"key": p.ID, "device": p.Description,
 			"made": time.Unix(p.CreatedAt, 0).Format("2006-01-02"), "state": state})

@@ -2100,8 +2100,8 @@
         <translation>비밀번호는 12자 이상 256자 이하입니다</translation>
     </message>
     <message id="autopanel.notice.mail.weakSecret">
-        <source>Stalwart made an app password weaker than 128 bits; it was destroyed, and none is handed out until Stalwart is fixed</source>
-        <translation>Stalwart가 128비트보다 약한 앱 비밀번호를 만들어 폐기했습니다. Stalwart가 고쳐질 때까지 발급하지 않습니다</translation>
+        <source>Stalwart made an app password weaker than 128 bits; it is not handed out and stops signing in within ten minutes. None is handed out until Stalwart is fixed</source>
+        <translation>Stalwart가 128비트보다 약한 앱 비밀번호를 만들었습니다. 발급하지 않으며 10분 안에 로그인이 중단됩니다. Stalwart가 고쳐질 때까지 발급하지 않습니다</translation>
     </message>
     <message id="autopanel.notice.plan.blocked">
         <source>Turned on, the firewall blocks this port unless you allow it here.</source>
@@ -3266,6 +3266,10 @@
     <message id="autopanel.value.mail.appPending">
         <source>pending until %1</source>
         <translation>%1까지 대기</translation>
+    </message>
+    <message id="autopanel.value.mail.appUntil">
+        <source>until %1</source>
+        <translation>%1까지</translation>
     </message>
     <message id="autopanel.value.mail.hostRow">
         <source>%1 (mail host)</source>

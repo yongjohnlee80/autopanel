@@ -120,8 +120,8 @@ type AppPasswordView struct {
 	ID          string `json:"id"`
 	Description string `json:"description"`
 	CreatedAt   int64  `json:"created_at"` // Unix seconds
-	Pending     bool   `json:"pending"`    // not kept yet: it stops at expires_at
-	ExpiresAt   int64  `json:"expires_at"` // 0: never
+	Pending     bool   `json:"pending"`    // made here and not kept yet: it stops at expires_at
+	ExpiresAt   int64  `json:"expires_at"` // 0: never; set without pending: an expiry given outside AutoPanel
 }
 
 // NewAppPassword is mail.apppassword.add's answer: the secret, once, and what
@@ -165,10 +165,17 @@ func (m *Module) account(ctx context.Context, address string) (provider.Server, 
 	return c, a, err
 }
 
-func viewOf(p provider.AppPassword) AppPasswordView {
+// pending reports whether an app password is one AutoPanel made and nobody
+// kept yet: its expiry is no further off than a new one's. An expiry further
+// away was set outside AutoPanel, on purpose, and keep never clears it.
+func pending(p provider.AppPassword, now time.Time) bool {
+	return p.ExpiresAt != nil && !p.ExpiresAt.After(now.Add(pendingFor+keepMargin))
+}
+
+func viewOf(p provider.AppPassword, now time.Time) AppPasswordView {
 	v := AppPasswordView{ID: p.ID, Description: p.Device, CreatedAt: p.CreatedAt.Unix()}
 	if p.ExpiresAt != nil {
-		v.Pending, v.ExpiresAt = true, p.ExpiresAt.Unix()
+		v.Pending, v.ExpiresAt = pending(p, now), p.ExpiresAt.Unix()
 	}
 	return v
 }
@@ -188,13 +195,14 @@ func (m *Module) appPasswordList(ctx context.Context, p AppPasswordAsk) ([]AppPa
 		if ap.ExpiresAt != nil && !ap.ExpiresAt.After(now) {
 			continue // expired: it signs nothing in, and the hourly pass destroys it
 		}
-		out = append(out, viewOf(ap))
+		out = append(out, viewOf(ap, now))
 	}
 	return out, nil
 }
 
 // appPasswordAdd makes an app password, pending: it works for pendingFor, and
-// then stops unless mail.apppassword.keep keeps it.
+// then stops unless mail.apppassword.keep keeps it. A weak one is revoked; if
+// that fails it still stops at its expiry, which is all the answer promises.
 func (m *Module) appPasswordAdd(ctx context.Context, p AppPasswordAsk) (NewAppPassword, error) {
 	desc, err := validDescription(p.Description)
 	if err != nil {
@@ -247,12 +255,15 @@ func (m *Module) appPasswordKeep(ctx context.Context, p AppPasswordAsk) (struct{
 		return struct{}{}, serverErr(err)
 	}
 	ap, ok := pick(ps, p.ID)
+	now := m.now()
 	switch {
 	case !ok:
 		return struct{}{}, ErrNoAppPassword
 	case ap.ExpiresAt == nil:
 		return struct{}{}, nil // kept already: asking twice is safe
-	case !ap.ExpiresAt.After(m.now().Add(keepMargin)):
+	case !pending(ap, now):
+		return struct{}{}, nil // an expiry set outside AutoPanel is left as it is
+	case !ap.ExpiresAt.After(now.Add(keepMargin)):
 		if err := c.RevokeAppPassword(ctx, a.ID, ap.ID); err != nil {
 			m.log.Warn("mail: an expired app password could not be destroyed; the hourly pass will", "account", a.Address, "id", ap.ID, "err", err)
 		}
@@ -293,7 +304,9 @@ func (m *Module) accountLock(ctx context.Context, p AccountAsk) (struct{}, error
 
 // sweepAppPasswords destroys the app passwords whose expiry has passed: shown
 // and never kept. They sign nothing in already; destroyed, they stop counting
-// toward the account's limit.
+// toward the account's limit. The administrator's account is passed over:
+// it is AutoPanel's way in to the mail server, Mail never changes it, and
+// AutoPanel makes no app password for it.
 func (m *Module) sweepAppPasswords(ctx context.Context, c provider.Server) error {
 	accounts, err := c.Accounts(ctx)
 	if err != nil {

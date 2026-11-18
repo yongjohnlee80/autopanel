@@ -2100,8 +2100,8 @@
         <translation>密码至少 12 个字符，至多 256 个</translation>
     </message>
     <message id="autopanel.notice.mail.weakSecret">
-        <source>Stalwart made an app password weaker than 128 bits; it was destroyed, and none is handed out until Stalwart is fixed</source>
-        <translation>Stalwart 生成的应用密码弱于 128 位，已销毁；在 Stalwart 修复前不再发放</translation>
+        <source>Stalwart made an app password weaker than 128 bits; it is not handed out and stops signing in within ten minutes. None is handed out until Stalwart is fixed</source>
+        <translation>Stalwart 生成的应用密码弱于 128 位；未发放，并将在十分钟内失效。在 Stalwart 修复前不再发放</translation>
     </message>
     <message id="autopanel.notice.plan.blocked">
         <source>Turned on, the firewall blocks this port unless you allow it here.</source>
@@ -3266,6 +3266,10 @@
     <message id="autopanel.value.mail.appPending">
         <source>pending until %1</source>
         <translation>待定至 %1</translation>
+    </message>
+    <message id="autopanel.value.mail.appUntil">
+        <source>until %1</source>
+        <translation>至 %1</translation>
     </message>
     <message id="autopanel.value.mail.hostRow">
         <source>%1 (mail host)</source>
