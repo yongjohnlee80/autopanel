@@ -64,6 +64,8 @@ type forwarder struct {
 	served   atomic.Int64          // connections forwarded since the start
 	refused  atomic.Int64          // connections closed by a limit
 
+	udp *udpForwarder // the UDP streams
+
 	probed   atomic.Pointer[probeResult] // the last probe; nil before the first
 	probeNow chan struct{}               // a change of streams asks for one
 }
@@ -101,7 +103,7 @@ type streamRun struct {
 }
 
 func newForwarder(log *slog.Logger) *forwarder {
-	return &forwarder{log: log, running: map[string]*streamRun{}, byPeer: map[peerKey]int{}, perName: map[string]int{}, probeNow: make(chan struct{}, 1)}
+	return &forwarder{log: log, running: map[string]*streamRun{}, byPeer: map[peerKey]int{}, perName: map[string]int{}, probeNow: make(chan struct{}, 1), udp: newUDPForwarder(log)}
 }
 
 // apply makes the running streams the ones named. A stream that is unchanged
@@ -109,9 +111,15 @@ func newForwarder(log *slog.Logger) *forwarder {
 // stopped, its connections closed, and a changed one started again.
 func (f *forwarder) apply(ctx context.Context, total int, streams []Stream) {
 	want := make(map[string]Stream, len(streams))
+	var udp []Stream
 	for _, s := range streams {
+		if s.Proto == "udp" {
+			udp = append(udp, s) // its own forwarder: a TCP and a UDP stream may share a port number
+			continue
+		}
 		want[s.Listen] = s
 	}
+	f.udp.apply(ctx, udp)
 	f.mu.Lock()
 	f.total = total
 	var stop []*streamRun
@@ -254,6 +262,7 @@ func speaksUnasked(ctx context.Context, addr string) (bool, error) {
 
 // stopAll stops every stream, for the gate's own stop.
 func (f *forwarder) stopAll() {
+	f.udp.stopAll()
 	f.mu.Lock()
 	runs := make([]*streamRun, 0, len(f.running))
 	for listen, r := range f.running {
