@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"errors"
+	"github.com/yongjohnlee80/autopanel/core/forward"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -470,6 +471,55 @@ func TestAPrivilegedActionsEntryCarriesItsOutcome(t *testing.T) {
 			log, err = s.AuditLog(ctx, "", 2)
 			if err != nil || len(log) != 2 || log[1].Outcome != "services.old_podman" || log[0].Outcome != "" {
 				t.Fatalf("the entries after = %+v, %v", log, err)
+			}
+		})
+	}
+}
+
+// TestForwardsWriteWithTheirAuditEntry: a forward is kept as it was given,
+// by name, each write with its audit entry in the same transaction; a name
+// twice is refused and leaves no entry; an update never renames.
+func TestForwardsWriteWithTheirAuditEntry(t *testing.T) {
+	for engine, s := range engines(t) {
+		t.Run(engine, func(t *testing.T) {
+			ctx := audit.WithActor(context.Background(), "local:1000")
+			fs := s.Forwards()
+			before := count(t, s, "audit")
+			in := forward.Forward{Name: "game", Proto: "tcp", From: 25565, To: 25570, Target: "127.0.0.1:26000", Proxy: true,
+				Allow: []string{"203.0.113.0/24", "2001:db8::/32"}, PerClient: 4, IdleSecs: 120}
+			a, err := fs.Add(ctx, in)
+			in.ID = a.ID
+			if err != nil || a.ID == 0 || !reflect.DeepEqual(a, in) {
+				t.Fatalf("Add = %+v, %v; want %+v", a, err, in)
+			}
+			if _, err := fs.Add(ctx, forward.Forward{Name: "game", Proto: "tcp", From: 1, To: 1, Target: "10.0.0.1:1"}); !errors.Is(err, forward.ErrDuplicate) {
+				t.Fatalf("a name twice = %v; want forward.ErrDuplicate", err)
+			}
+			if _, err := fs.Add(ctx, forward.Forward{Name: "alpha", Proto: "tcp", From: 9000, To: 9000, Target: "10.0.0.1:1"}); err != nil {
+				t.Fatal(err)
+			}
+			if n := count(t, s, "audit") - before; n != 2 {
+				t.Fatalf("audit grew by %d after two adds and a refused one; want 2", n)
+			}
+			u, err := fs.Update(ctx, forward.Forward{ID: a.ID, Name: "renamed", Proto: "tcp", From: 25565, To: 25565, Target: "10.0.0.5:22"})
+			if err != nil || u.Name != "game" || u.To != 25565 || u.Target != "10.0.0.5:22" || u.Proxy || len(u.Allow) != 0 || u.PerClient != 0 {
+				t.Fatalf("Update = %+v, %v; want everything but the name replaced", u, err)
+			}
+			if _, err := fs.Update(ctx, forward.Forward{ID: 999, Proto: "tcp", From: 1, To: 1, Target: "10.0.0.1:1"}); !errors.Is(err, forward.ErrNotFound) {
+				t.Fatalf("Update of a missing forward = %v", err)
+			}
+			all, err := fs.All(ctx)
+			if err != nil || len(all) != 2 || all[0].Name != "alpha" || !reflect.DeepEqual(all[1], u) {
+				t.Fatalf("All = %+v, %v; want alpha then game", all, err)
+			}
+			if got, err := fs.Remove(ctx, a.ID); err != nil || got.Name != "game" {
+				t.Fatalf("Remove = %+v, %v", got, err)
+			}
+			if _, err := fs.Remove(ctx, a.ID); !errors.Is(err, forward.ErrNotFound) {
+				t.Fatalf("a second Remove = %v", err)
+			}
+			if n := count(t, s, "audit") - before; n != 4 {
+				t.Fatalf("audit grew by %d; want 4 (two adds, an update, a remove)", n)
 			}
 		})
 	}
