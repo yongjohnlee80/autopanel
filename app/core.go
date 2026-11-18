@@ -290,7 +290,7 @@ func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateContr
 	mailMod.SetFirewall(fwm) // mail's set-up opens its four ports; mail.remove closes them
 	sys := &sysModule{cfg: cfg, sampler: sysinfo.NewSampler(), table: table, engine: st.Engine(), started: time.Now(), challenge: sw.Challenge, ca: sw.CA,
 		st: st, log: log, counts: counts, listeners: readListeners, sshLogins: readSSHLogins, firewall: fwm.Read, gate: gc, serviceUsers: svcs.Users,
-		moreChecks: ownerChecks(mailOn, st.Services(), st), certRows: sw.rows}
+		moreChecks: ownerChecks(mailOn, st.Services(), st), certRows: sw.rows, mailFindings: mailMod.Findings}
 	am, err := auth.New(st.Users(), st, st, vault, func(ctx context.Context) {
 		if err := sw.rebuild(ctx); err != nil {
 			log.Error("certificates after unlock", "err", err)

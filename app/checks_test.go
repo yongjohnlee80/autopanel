@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"errors"
+	"github.com/yongjohnlee80/autopanel/core/mail"
 	"io"
 	"io/fs"
 	"log/slog"
@@ -133,5 +134,25 @@ func TestHostChecksOnTheFirewallsState(t *testing.T) {
 	}
 	if got, _ := m.checks(ctx, struct{}{}); !reflect.DeepEqual(ids(got), []string{"cert-expiring=example.com"}) {
 		t.Errorf("one more check: %q", ids(got))
+	}
+}
+
+// TestMailsFindingsAreHostChecks: what mail finds wrong is listed with the
+// rest, an alert as an alert, and whether or not the firewall could be read.
+func TestMailsFindingsAreHostChecks(t *testing.T) {
+	fakeHostReads(t, nil, nil)
+	for _, fwErr := range []error{nil, errors.New("the firewall could not be read")} {
+		m := checkModule(sysinfo.Firewall{Manager: "unknown", Active: true, Limits: []string{}}, fwErr, nil)
+		m.mailFindings = func(context.Context) []mail.Finding {
+			return []mail.Finding{{ID: "mail-ptr", Detail: "192.0.2.10 → nothing, not mail.example.com"}, {ID: "mail-port-25", Alert: true}}
+		}
+		got, err := m.checks(context.Background(), struct{}{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := []string{"mail-port-25=", "mail-ptr=192.0.2.10 → nothing, not mail.example.com"}
+		if !reflect.DeepEqual(ids(got), want) || got[0].Severity != alert || got[1].Severity != notice {
+			t.Errorf("with the firewall read failing %v: %+v, want %q", fwErr != nil, got, want)
+		}
 	}
 }

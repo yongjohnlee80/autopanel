@@ -342,6 +342,18 @@ Start at **Mail → Server**. Its State and Problems lines name most faults.
 The mail stack's log: **Services → Stacks**, select `mail`, open its log; or
 `sudo autopanel --call services.logs '{"name":"mail","limit":100}'`. Secrets in it are masked.
 
+### Mail is sent and never arrives
+
+Open **System → Host checks**. Two findings explain most of it, and both are your hosting
+provider's to fix, not AutoPanel's:
+
+| Finding | What it means | What to do |
+| --- | --- | --- |
+| "No connection out to port 25 gets through" | the provider blocks outgoing mail, as most do until asked | ask them to open port 25 for this server |
+| "The server's address does not name the mail host back" | the address's reverse name (PTR) is not the mail host; many receivers refuse such mail | ask them to set the reverse name to the mail host |
+
+Both are read again at the next hourly pass, or at once with **Sync** on **Mail → Server**.
+
 ### The certificate says `not issued`
 
 - The mail host's **A record** must resolve to this server, and must not be proxied through

@@ -231,6 +231,14 @@ func TestHostChecksPanel(t *testing.T) {
 		{ID: "cert-expiring", Severity: "alert", Detail: "late.example.com (2026-03-07)"},
 		{ID: "reboot-required", Severity: "notice"},
 	}
+	// Every check the daemon can raise has its line and its advice, in English at least.
+	for _, id := range []string{"mail-cpu", "mail-loopback-rule", "mail-ptr", "mail-port-25"} {
+		for _, kind := range []string{"value", "notice"} {
+			if key := "autopanel." + kind + ".check." + camel(id); englishText(key) == key || englishText(key) == "" {
+				t.Errorf("no English text for %s", key)
+			}
+		}
+	}
 	s := start(t, f)
 	s.WaitForText(t, "CA LE staging")
 

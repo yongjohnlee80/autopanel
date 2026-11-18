@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"github.com/yongjohnlee80/autopanel/core/mail"
 	"log/slog"
 	"net/http"
 	"time"
@@ -46,6 +47,8 @@ type sysModule struct {
 	// certRows are the certificates' states, for their host checks; nil
 	// when none are wired.
 	certRows func(ctx context.Context) []CertRow
+	// mailFindings are mail's own host checks; nil in a test without mail.
+	mailFindings func(ctx context.Context) []mail.Finding
 	// sampler answers each metrics read with the host's rates since the read
 	// before it, whoever made that one.
 	sampler *sysinfo.Sampler

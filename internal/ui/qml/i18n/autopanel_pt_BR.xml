@@ -1823,9 +1823,25 @@
         <source>Allow them in System → Firewall: without them the sites cannot be reached and certificates cannot renew.</source>
         <translation>Permita-as em Sistema → Firewall: sem elas os sites não são alcançados e os certificados não renovam.</translation>
     </message>
+    <message id="autopanel.notice.check.mailCpu">
+        <source>The mail server needs an x86-64-v2 processor, or arm64. On a virtual machine, change its CPU type to host or x86-64-v2.</source>
+        <translation>O servidor de e-mail precisa de um processador x86-64-v2, ou arm64. Em uma máquina virtual, mude o tipo de CPU para host ou x86-64-v2.</translation>
+    </message>
+    <message id="autopanel.notice.check.mailLoopbackRule">
+        <source>AutoPanel loaded it again. Until then, other programs on this server could reach mail's inner ports. If it happens again, find what changes the nftables rules.</source>
+        <translation>O AutoPanel a carregou de novo. Até então, outros programas neste servidor podiam alcançar as portas internas do e-mail. Se acontecer de novo, descubra o que altera as regras do nftables.</translation>
+    </message>
+    <message id="autopanel.notice.check.mailPort25">
+        <source>Mail cannot be delivered to other servers. Most providers block port 25 until asked: ask yours to open it for this server.</source>
+        <translation>O e-mail não pode ser entregue a outros servidores. A maioria dos provedores bloqueia a porta 25 até que se peça: peça ao seu que a abra para este servidor.</translation>
+    </message>
     <message id="autopanel.notice.check.mailPortBlocked">
         <source>Open them from Mail → Server, or allow them in System → Firewall: until then no mail arrives.</source>
         <translation>Abra-as em E-mail → Servidor, ou permita em Sistema → Firewall: até lá nenhum e-mail chega.</translation>
+    </message>
+    <message id="autopanel.notice.check.mailPtr">
+        <source>Many receivers refuse mail from such an address. The reverse name is your hosting provider's record: ask them to set it to the mail host.</source>
+        <translation>Muitos destinatários recusam e-mail de um endereço assim. O nome reverso é um registro do seu provedor de hospedagem: peça que o definam como o host de e-mail.</translation>
     </message>
     <message id="autopanel.notice.check.podmanSystemSocket">
         <source>Each stack runs as its own user: disable podman.socket unless something needs it.</source>
@@ -3119,9 +3135,25 @@
         <source>The firewall blocks AutoPanel's web ports: %1</source>
         <translation>O firewall bloqueia as portas web do AutoPanel: %1</translation>
     </message>
+    <message id="autopanel.value.check.mailCpu">
+        <source>This processor cannot run the mail server (%1)</source>
+        <translation>Este processador não consegue executar o servidor de e-mail (%1)</translation>
+    </message>
+    <message id="autopanel.value.check.mailLoopbackRule">
+        <source>Mail's loopback rule was missing or changed: %1</source>
+        <translation>A regra de loopback do e-mail estava ausente ou alterada: %1</translation>
+    </message>
+    <message id="autopanel.value.check.mailPort25">
+        <source>No connection out to port 25 gets through</source>
+        <translation>Nenhuma conexão de saída para a porta 25 passa</translation>
+    </message>
     <message id="autopanel.value.check.mailPortBlocked">
         <source>The firewall blocks mail's ports: %1</source>
         <translation>O firewall bloqueia as portas do e-mail: %1</translation>
+    </message>
+    <message id="autopanel.value.check.mailPtr">
+        <source>The server's address does not name the mail host back: %1</source>
+        <translation>O endereço do servidor não resolve de volta para o host de e-mail: %1</translation>
     </message>
     <message id="autopanel.value.check.notice">
         <source>notice</source>
