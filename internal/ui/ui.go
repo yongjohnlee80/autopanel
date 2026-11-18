@@ -24,6 +24,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/yongjohnlee80/autopanel/core/forward"
 	"strconv"
 	"strings"
 
@@ -198,6 +199,12 @@ type Client interface {
 	// Domains are the registered domains, each with its routes' count.
 	Domains(ctx context.Context) ([]gate.DomainView, error)
 	AddDomain(ctx context.Context, name string) error
+	// Forwards are the port forwards. CheckForward reviews one and changes
+	// nothing; AddForward applies it as reviewed.
+	Forwards(ctx context.Context) ([]forward.View, error)
+	CheckForward(ctx context.Context, s forward.Spec) (forward.Review, error)
+	AddForward(ctx context.Context, a forward.Apply) (forward.View, error)
+	RemoveForward(ctx context.Context, id int64) error
 	// APISettings are the HTTPS API's host and allowed sources; SetAPI
 	// changes them (an empty host turns the API off) and answers what is set.
 	APISettings(ctx context.Context) (API, error)

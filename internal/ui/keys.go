@@ -165,6 +165,8 @@ var tips = map[string]string{
 	"App.tipRoutesDomains":     "autopanel.tip.routes.domains",
 	"App.tipDomainsAdd":        "autopanel.tip.domains.add",
 	"App.tipDomainsRemove":     "autopanel.tip.domains.remove",
+	"App.tipForwardsAdd":       "autopanel.tip.forwards.add",
+	"App.tipForwardsRemove":    "autopanel.tip.forwards.remove",
 	"App.tipMailDomainAdd":     "autopanel.tip.mail.domainAdd",
 	"App.tipMailDomainRemove":  "autopanel.tip.mail.domainRemove",
 	"App.tipMailTakeover":      "autopanel.tip.mail.takeover",

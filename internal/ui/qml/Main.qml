@@ -114,7 +114,7 @@ Window {
             title: qsTrId("autopanel.menu.routes.title")
             MenuItem { text: qsTrId("autopanel.menu.routes.proxy"); onTriggered: App.openRoutes() }
             MenuItem { text: qsTrId("autopanel.menu.routes.domains"); onTriggered: App.openDomains() }
-            MenuItem { text: qsTrId("autopanel.menu.routes.forwarding"); enabled: false }
+            MenuItem { text: qsTrId("autopanel.menu.routes.forwarding"); onTriggered: App.openForwards() }
         }
         Menu {
             title: qsTrId("autopanel.menu.certs.title")
@@ -906,6 +906,56 @@ Window {
                 Button { text: qsTrId("autopanel.button.mail.openPorts"); toolTipText: App.tipMailOpenPorts; visible: App.mailCanOpenPorts; onClicked: App.mailOpenPorts() }
                 Text { text: " " }
                 Button { text: qsTrId("autopanel.button.panel.close"); toolTipText: App.tipPanelClose; onClicked: App.closePanel("mailServer") }
+                Text { text: " "; Layout.fillWidth: true }
+            }
+        }
+    }
+
+    // Routes › Port forwarding: the forwards on the left, the selected one on
+    // the right (forwards.go)
+    Panel {
+        id: forwardsPanel
+        key: "forwards"
+        heading: qsTrId("autopanel.title.panel.forwards")
+        edge: Tui.Center; size: 75; length: 80
+        closeOnQ: true; maximizable: true; closable: true
+        onOpened: App.panelOpened("forwards")
+        onClosed: App.panelClosed("forwards")
+        onChanged: App.panelChanged("forwards", operation)
+        Shortcut { sequence: "a"; onActivated: App.addForward() }
+        Shortcut { sequence: "r"; onActivated: App.removeForward(forwardsTable.currentIndex) }
+        Flex {
+            direction: Tui.Vertical
+            Split {
+                Layout.fillHeight: true
+                orientation: Tui.Horizontal
+                ratio: 0.55
+                Frame {
+                    title: App.forwardsTitle
+                    TableView {
+                        id: forwardsTable
+                        palette.highlight: Theme.document.highlight
+                        palette.highlightedText: Theme.document.highlightedText
+                        model: App.forwards
+                        onCurrentIndexChanged: App.forwardMoved(index)
+                        TableViewColumn { role: "name"; title: "NAME"; width: 0 }
+                        TableViewColumn { role: "ports"; title: "PORT"; width: 12 }
+                        TableViewColumn { role: "target"; title: "TARGET"; width: 24 }
+                    }
+                }
+                Frame {
+                    title: qsTrId("autopanel.title.pane.details")
+                    Text { text: App.forwardDetail; wrapMode: Tui.WordWrap }
+                }
+            }
+            Flex {
+                direction: Tui.Horizontal
+                Text { text: " "; Layout.fillWidth: true }
+                Button { text: qsTrId("autopanel.button.domains.add"); toolTipText: App.tipForwardsAdd; onClicked: App.addForward() }
+                Text { text: " " }
+                Button { text: qsTrId("autopanel.button.domains.remove"); toolTipText: App.tipForwardsRemove; onClicked: App.removeForward(forwardsTable.currentIndex) }
+                Text { text: " " }
+                Button { text: qsTrId("autopanel.button.panel.close"); toolTipText: App.tipPanelClose; onClicked: App.closePanel("forwards") }
                 Text { text: " "; Layout.fillWidth: true }
             }
         }

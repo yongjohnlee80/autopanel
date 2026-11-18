@@ -55,7 +55,13 @@ public port's state in the firewall; it changes nothing. `gate.forward.add` and
 `gate.forward.update` take that review's digest and are refused if the forward or the firewall's
 answer changed since. A forward keeps its name: it is the owner of its firewall rule.
 
-**In the code:** `core/forward/forward.go` (`review`, `digest`).
+**In the panel** the review is the confirmation: **Add…** shows what the forward would be and
+what adding it does to the firewall, and applies that review on Yes. When the firewall blocks the
+port and AutoPanel can open it, Yes opens it as the forward's rule; when AutoPanel cannot change
+this firewall, the manager's own commands are shown.
+
+**In the code:** `core/forward/forward.go` (`review`, `digest`), `internal/ui/forwards.go`
+(`addForward`, `confirmForward`).
 
 ## A forward owns its firewall rule
 

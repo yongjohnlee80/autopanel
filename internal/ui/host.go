@@ -77,6 +77,7 @@ type host struct {
 
 	domainModel *tuidecl.ListModel // App.domains: the domains panel's rows
 	domains     []gate.DomainView  // the same rows
+	fwd         forwardsState      // Routes › Port forwarding
 	domainsRead bool
 
 	themes *tuidecl.ListModel // App.themes: System › Theme's rows
@@ -128,6 +129,7 @@ func newHost(ctx context.Context, c Client, version string) *host {
 		place:       defaultPlaces(),
 		routesModel: tuidecl.NewListModel("key", "id", "host", "path", "upstream"),
 		domainModel: tuidecl.NewListModel("key", "name", "routes"),
+		fwd:         newForwardsState(),
 		themes:      tuidecl.NewListModel("key", "label", "checked"),
 		mon:         newMonitors(),
 		fw:          newFirewallView(),
@@ -191,6 +193,7 @@ func (h *host) state() map[string]any {
 	s := map[string]any{
 		"App.routes":              h.routesModel,
 		"App.domains":             h.domainModel,
+		"App.forwards":            h.fwd.model,
 		"App.themes":              h.themes,
 		"App.dock":                h.dock,
 		"App.status":              tui.Msg("autopanel.status.bar.signedOut"),
@@ -209,6 +212,8 @@ func (h *host) state() map[string]any {
 		"App.routeDetail":         "",
 		"App.domainsTitle":        "",
 		"App.domainDetail":        "",
+		"App.forwardsTitle":       "",
+		"App.forwardDetail":       "",
 		"App.confirmTitle":        "",
 		"App.confirmQuestion":     "",
 		"App.confirmOther":        "",
