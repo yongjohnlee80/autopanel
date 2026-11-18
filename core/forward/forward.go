@@ -297,13 +297,25 @@ func validName(n string) bool {
 	return true
 }
 
-// reachable reports whether a connection can be made to a: a unicast
-// address that is not the unspecified one, nor link-local (where a cloud's
-// metadata service lives).
+// reachable reports whether a is an address a target may have: one of the
+// ranges ordinary hosts live in, and nothing else. For IPv4, any unicast
+// address outside 0.0.0.0/8 ("this network") and 240.0.0.0/4 (reserved, and
+// broadcast). For IPv6, loopback, the unique local range, and global unicast
+// (2000::/3). Link-local, where a cloud's metadata service lives, multicast
+// and the unspecified address are out, and so is every special or
+// translation prefix (::/96, 64:ff9b::/96): an address the kernel may turn
+// into another is not one this check can vouch for.
 func reachable(a netip.Addr) bool {
 	a = a.Unmap()
-	return a.IsValid() && !a.IsUnspecified() && !a.IsMulticast() && !a.IsLinkLocalUnicast() &&
-		!a.IsLinkLocalMulticast() && !a.IsInterfaceLocalMulticast() && a != netip.AddrFrom4([4]byte{255, 255, 255, 255})
+	if !a.IsValid() || a.IsUnspecified() || a.IsMulticast() || a.IsLinkLocalUnicast() ||
+		a.IsLinkLocalMulticast() || a.IsInterfaceLocalMulticast() {
+		return false
+	}
+	if a.Is4() {
+		b := a.As4()
+		return b[0] != 0 && b[0] < 240
+	}
+	return a.IsLoopback() || a.IsPrivate() || a.As16()[0]&0xe0 == 0x20
 }
 
 // refused is a refusal with the port and who holds it, for the caller.
@@ -538,23 +550,30 @@ func (m *Module) update(ctx context.Context, p Apply) (View, error) {
 		}
 	}
 	moved := old.From != f.From || old.To != f.To
-	if p.Open && m.firewall != nil {
+	opened := p.Open && m.firewall != nil
+	if opened {
 		if err := m.firewall.Open(ctx, f.Owner(), []corefw.Want{f.Want()}); err != nil {
 			return View{}, err
 		}
 	}
 	out, err := m.store.Update(ctx, f)
 	if err != nil {
+		if opened && moved { // nothing stored: the port just opened is closed again
+			_ = m.firewall.Close(context.WithoutCancel(ctx), f.Owner(), []corefw.Want{f.Want()})
+		}
 		return View{}, err
 	}
+	// The gate first: it binds the new ports and lets the old ones go before
+	// the old ports' rule is closed, as a removal does.
+	if err := m.reload(ctx); err != nil {
+		return view(out), err
+	}
 	if moved && m.firewall != nil {
-		// The rule of the ports it left: closed, unless the new ports are the same rule.
 		if err := m.firewall.Close(ctx, f.Owner(), []corefw.Want{old.Want()}); err != nil {
-			_ = m.reload(ctx)
 			return view(out), err
 		}
 	}
-	return view(out), m.reload(ctx)
+	return view(out), nil
 }
 
 func (m *Module) remove(ctx context.Context, ref Ref) (View, error) {

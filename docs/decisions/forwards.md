@@ -13,8 +13,12 @@ the bytes; the core keeps the list and decides what may be one.
 that name later controls where a public port of this host leads, and the review the administrator
 read no longer describes it. A stack's port on loopback and a machine on the LAN are both literal.
 
-**Nor an address no connection can be made to:** the unspecified address, multicast, broadcast,
-and link-local, where a cloud's metadata service lives.
+**Only an address ordinary hosts have.** For IPv4, a unicast address outside `0.0.0.0/8` and
+`240.0.0.0/4`. For IPv6, loopback, the unique local range (`fc00::/7`) and global unicast
+(`2000::/3`). Out: the unspecified address, multicast, broadcast, link-local (where a cloud's
+metadata service lives), and every special or translation prefix, such as `::/96` and
+`64:ff9b::/96`. The refusals below ask "is this target this host?"; an address the kernel may
+turn into another is one that question cannot be answered for, so it is not taken at all.
 
 **UDP is refused for now.** It is a separate forwarder with its own limits, and the next step.
 
@@ -88,7 +92,11 @@ cannot read lets nobody in.
 and the sites', under one total of 200. Forwards may take 64 of it, so mail keeps at least 136.
 The total is not raised for forwards: the gate's 40 MB is sized for it.
 
-**In the code:** `host/gate/stream.go` (`lets`, the `Plain` stream), `core/forward/forward.go`
+**Adding or removing a forward changes every forward's share, and cuts nobody off.** A stream
+whose share alone changed keeps its listener and its open connections; the new share holds from
+the next connection.
+
+**In the code:** `host/gate/stream.go` (`lets`, the `Plain` stream, `sameButShare`), `core/forward/forward.go`
 (`StreamsOf`, the constants at its top), `app/streams.go` (`SetForwards`).
 
 ## SSH to a machine behind
