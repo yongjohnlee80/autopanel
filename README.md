@@ -360,6 +360,36 @@ The TURN template and its form are gone, with `services.templates`, `services.de
 `services.update` and `services.secret`. A relay deployed from the template is still listed, and
 can only be removed: remove it, then add the example stack above with the same settings.
 
+### Forward a port
+
+A service that is not a website (a game server, a database for one client, SSH to a machine behind
+this one) is reached through a port forward: a public TCP port of this server sent on to a target.
+The target is an address and a port, never a host name. From the command line for now:
+
+```sh
+# what it would be, and the firewall's state for its port; changes nothing
+sudo autopanel --call gate.forward.check '{"name":"game","from":25565,"target":"127.0.0.1:26000"}'
+# apply it as reviewed: accept is the review's sha256; open makes its firewall rule
+sudo autopanel --call gate.forward.add '{"name":"game","from":25565,"target":"127.0.0.1:26000","accept":"<sha256>","open":true}'
+sudo autopanel --call gate.forward.list
+sudo autopanel --call gate.forward.remove '{"id":1}'
+```
+
+- **A stack's port:** publish it on loopback in the stack's definition (`127.0.0.1:26000:25565`)
+  and forward to that. The target cannot be the public port itself.
+- **A machine behind:** `"target":"10.0.0.5:22"` with a public port of its own, such as 2222, is
+  SSH to that machine. Each machine needs its own public port.
+- **Only from some addresses:** `"allow":["203.0.113.0/24"]`.
+- **A range:** `"from":6000,"to":6009` forwards ten ports, in order, from the target's port.
+- **A service that reads a PROXY header:** `"proxy":true` tells it the client's address; without
+  it the service sees the connection as coming from this server.
+
+A forward is refused when it would take SSH's own port or lead to this server's SSH, take a port
+something else holds, or lead to a port only AutoPanel may reach. There may be 16 forwards, and
+they share 64 connections at once.
+
+Why it is built this way: [docs/decisions/forwards.md](docs/decisions/forwards.md).
+
 ### Run mail
 
 AutoPanel runs [Stalwart](https://stalw.art) as a stack of its own, behind the gate: the gate binds
@@ -711,6 +741,7 @@ A deployed service is stopped by `--apply`, and its user and directory are delet
 | Two processes | a sandboxed gate that faces the network, and a core that listens on no network and holds the store and the keys. The gate keeps serving while the core restarts |
 | Store | SQLite by default, PostgreSQL as an option; migrations for both, tested on both |
 | Users | four roles, two-factor codes with recovery codes, lockout after failed logins, API tokens for scripts |
+| Port forwards | a public TCP port, or a small range, sent on to a stack's port or a machine behind: reviewed before it is applied, with a firewall rule of its own. Never SSH's own port. From the command line for now |
 | HTTPS API | JSON over HTTPS for scripts elsewhere, with an API token, on a host of its own: reads of the status, checks, routes, domains, certificates, stacks and the firewall. Off until its host is set |
 | Stacks | a compose file, reviewed before it runs, under rootless Podman as a user of its own |
 | Mail | Stalwart behind the gate; DNS records published and kept through Cloudflare, or listed to enter by hand; DKIM keys rotated; app passwords per device. See [MAIL.md](MAIL.md) |
@@ -727,7 +758,7 @@ A deployed service is stopped by `--apply`, and its user and directory are delet
 
 1. A public site of AutoPanel's own: a home page and articles as static pages, published from Markdown with an API token.
 2. Signing in from a browser, then mail, a drive and the admin pages as applications.
-3. Port forwarding (TCP and UDP) and tunnels through the gate.
+3. Port forwards in the panel, then UDP forwards and tunnels through the gate.
 4. Health checks per upstream.
 5. For mail: aliases and forwarding from the panel, and repairing a broken setup.
 

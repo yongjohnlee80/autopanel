@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"github.com/yongjohnlee80/autopanel/core/forward"
 	"net/netip"
 	"strconv"
 	"strings"
@@ -88,8 +89,9 @@ func (f firewallModule) Verbs() []module.Verb {
 
 // firewallUses names the ports the rest of the core knows, for an enable's
 // plan: the gate's two, suggested; mail's, as mail's, once it is set up; and
-// each port a stack's last apply opened, as that stack's.
-func firewallUses(cfg Config, mailOn func(context.Context) bool, stacks services.Store) func(context.Context) map[string]corefw.Use {
+// each port a stack's last apply opened, as that stack's; and each forward's
+// public port, as that forward's.
+func firewallUses(cfg Config, mailOn func(context.Context) bool, stacks services.Store, forwards forward.Store) func(context.Context) map[string]corefw.Use {
 	return func(ctx context.Context) map[string]corefw.Use {
 		out := map[string]corefw.Use{}
 		for _, a := range []string{cfg.HTTPAddr, cfg.HTTPSAddr} {
@@ -110,16 +112,24 @@ func firewallUses(cfg Config, mailOn func(context.Context) bool, stacks services
 				}
 			}
 		}
+		// A forward's public port, as that forward's (a range is opened from
+		// the forward's own form).
+		fs, _ := forwards.All(ctx)
+		for _, f := range fs {
+			if f.From == f.To {
+				out[f.Proto+"/"+strconv.Itoa(f.From)] = corefw.Use{Name: "forward " + f.Name, Owner: f.Owner()}
+			}
+		}
 		return out
 	}
 }
 
-// ownerChecks are the host checks that need the owners: a mail port or a
-// port a stack chose to open that the firewall now blocks, and a rule an
-// owner made that was removed by hand since.
+// ownerChecks are the host checks that need the owners: a mail port, a port
+// a stack chose to open or a forward's public port that the firewall now
+// blocks, and a rule an owner made that was removed by hand since.
 //
 // Decision: docs/decisions/firewall.md#host-checks
-func ownerChecks(mailOn func(context.Context) bool, stacks services.Store, rows corefw.Store) func(context.Context, sysinfo.Firewall) []Check {
+func ownerChecks(mailOn func(context.Context) bool, stacks services.Store, forwards forward.Store, rows corefw.Store) func(context.Context, sysinfo.Firewall) []Check {
 	blocked := func(fw sysinfo.Firewall, w corefw.Want) bool {
 		addr := w.Addr
 		if !addr.IsValid() {
@@ -152,6 +162,16 @@ func ownerChecks(mailOn func(context.Context) bool, stacks services.Store, rows 
 		}
 		if len(stackPorts) > 0 {
 			out = append(out, Check{ID: "stack-port-blocked", Severity: alert, Detail: strings.Join(stackPorts, ", ")})
+		}
+		fs, _ := forwards.All(ctx)
+		var forwardPorts []string
+		for _, f := range fs {
+			if w := f.Want(); blocked(fw, w) {
+				forwardPorts = append(forwardPorts, f.Name+" "+w.Key())
+			}
+		}
+		if len(forwardPorts) > 0 {
+			out = append(out, Check{ID: "forward-port-blocked", Severity: alert, Detail: strings.Join(forwardPorts, ", ")})
 		}
 		have := map[string]bool{}
 		for _, r := range fw.Rules {

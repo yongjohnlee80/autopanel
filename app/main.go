@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/yongjohnlee80/autopanel/core/forward"
 	"io"
 	"io/fs"
 	"log/slog"
@@ -116,7 +117,7 @@ func Main(args []string, stdout, stderr io.Writer) int {
 // contractModules are the modules whose verbs --contracts lists. Built with no
 // store: a contract is data, and listing one runs nothing.
 func contractModules() []module.Module {
-	return []module.Module{&auth.Module{}, gate.NewModule(nil, nil, nil), &certsModule{}, &sysModule{}, firewallModule{}, services.NewModule(nil, nil), &mail.Module{}, &apiModule{}, &linkModule{}, apiLink{&apiModule{}}}
+	return []module.Module{&auth.Module{}, gate.NewModule(nil, nil, nil), forward.NewModule(nil, nil, nil, nil), &certsModule{}, &sysModule{}, firewallModule{}, services.NewModule(nil, nil), &mail.Module{}, &apiModule{}, &linkModule{}, apiLink{&apiModule{}}}
 }
 
 func printContracts(stdout io.Writer) int {
