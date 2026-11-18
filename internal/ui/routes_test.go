@@ -128,3 +128,45 @@ func TestTheDomainsPanel(t *testing.T) {
 		t.Fatalf("the domains asked = %s", asks)
 	}
 }
+
+// TestTheAPIsHostForm: System › HTTPS API… opens on the settings in use; a host
+// under no registered domain is refused in the prompt; a host and its source
+// ranges are set from one line; an empty line turns the API off.
+func TestTheAPIsHostForm(t *testing.T) {
+	f := newFakeClient()
+	h, s := startHost(t, f)
+	s.WaitForText(t, "CA LE staging")
+	asks := func() []API {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		return append([]API{}, f.apiAsks...)
+	}
+
+	run(t, h, h.setAPI)
+	s.WaitForText(t, "The HTTPS API")
+	s.WaitForText(t, "Empty turns it off.")
+	s.Keys(t, decltest.Type("api.other.net")...)
+	s.Keys(t, enter)
+	s.WaitForText(t, "api.other.net is under no registered domain")
+	for range len("api.other.net") {
+		s.Keys(t, backspace)
+	}
+	s.Keys(t, decltest.Type("api.example.com 203.0.113.0/24")...)
+	s.Keys(t, enter)
+	s.WaitForText(t, "The HTTPS API is served on api.example.com")
+	if got := asks(); len(got) != 2 || got[1].Host != "api.example.com" || len(got[1].Allow) != 1 || got[1].Allow[0] != "203.0.113.0/24" {
+		t.Fatalf("what the daemon was asked: %+v", got)
+	}
+
+	// It opens on what is set; cleared, the API is off.
+	run(t, h, h.setAPI)
+	s.WaitForText(t, "api.example.com 203.0.113.0/24")
+	for range len("api.example.com 203.0.113.0/24") {
+		s.Keys(t, backspace)
+	}
+	s.Keys(t, enter)
+	s.WaitForText(t, "The HTTPS API is off")
+	if got := asks(); len(got) != 3 || got[2].Host != "" || len(got[2].Allow) != 0 {
+		t.Fatalf("turning it off asked: %+v", got)
+	}
+}

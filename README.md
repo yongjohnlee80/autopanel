@@ -581,7 +581,9 @@ ends any login after 12 hours.
 ### Calling AutoPanel from another machine: the HTTPS API
 
 A script elsewhere (a monitor, a CI job) calls AutoPanel over HTTPS with an API token. The API is
-off until you give it a host name of its own, under a domain you have registered:
+off until you give it a host name of its own, under a domain you have registered. In the panel:
+**System → HTTPS API…** takes the host on one line, followed by any source ranges that may call it;
+an empty line turns the API off. Or from the command line:
 
 ```sh
 sudo autopanel --call sys.api.set '{"host": "api.example.com"}'

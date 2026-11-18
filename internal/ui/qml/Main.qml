@@ -86,6 +86,7 @@ Window {
             MenuItem { text: qsTrId("autopanel.menu.system.ports"); onTriggered: App.openMonitor("ports") }
             MenuItem { text: qsTrId("autopanel.menu.system.firewall"); enabled: App.isAdmin; onTriggered: App.openFirewall() }
             MenuItem { text: qsTrId("autopanel.menu.system.checks"); onTriggered: App.openChecks() }
+            MenuItem { text: qsTrId("autopanel.menu.system.api"); enabled: App.isAdmin; onTriggered: App.setAPI() }
             MenuSeparator {}
             Menu {
                 title: qsTrId("autopanel.menu.system.theme")
