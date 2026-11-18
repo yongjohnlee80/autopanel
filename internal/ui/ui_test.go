@@ -44,6 +44,8 @@ type fakeClient struct {
 	metricsErr   error // what Metrics answers, when set
 	metricsReads int
 	domainAsks   []string // "add example.org" or "remove example.com"
+	api          API      // the HTTPS API's settings
+	apiAsks      []API
 
 	certs    []Cert // Certs › Certificates
 	certsErr error
@@ -166,6 +168,25 @@ func (f *fakeClient) Domains(context.Context) ([]gate.DomainView, error) {
 		out = append(out, d)
 	}
 	return out, nil
+}
+
+func (f *fakeClient) APISettings(context.Context) (API, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.api, nil
+}
+
+// SetAPI takes a host under example.com, as the daemon takes one under a
+// registered domain.
+func (f *fakeClient) SetAPI(_ context.Context, a API) (API, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.apiAsks = append(f.apiAsks, a)
+	if a.Host != "" && !gate.Under(a.Host, "example.com") {
+		return API{}, gate.ErrNoDomain
+	}
+	f.api = a
+	return a, nil
 }
 
 func (f *fakeClient) AddDomain(_ context.Context, name string) error {

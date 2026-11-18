@@ -1167,6 +1167,10 @@
         <source>User</source>
         <translation>사용자</translation>
     </message>
+    <message id="autopanel.label.prompt.api">
+        <source>Its host, then any source ranges that may call it, separated by spaces. Empty turns it off.</source>
+        <translation>호스트를 입력하고, 호출을 허용할 소스 범위가 있으면 공백으로 구분해 이어서 입력하십시오. 비워 두면 꺼집니다.</translation>
+    </message>
     <message id="autopanel.label.prompt.appPassword">
         <source>The device it is for (such as Ana's phone)</source>
         <translation>사용할 기기 (예: 아나의 휴대폰)</translation>
@@ -1487,6 +1491,10 @@
         <source>&amp;Services</source>
         <translation>서비스(&amp;s)</translation>
     </message>
+    <message id="autopanel.menu.system.api">
+        <source>HTTPS AP&amp;I…</source>
+        <translation>HTTPS API(&amp;i)…</translation>
+    </message>
     <message id="autopanel.menu.system.audit">
         <source>&amp;Audit log…</source>
         <translation>감사 로그(&amp;a)…</translation>
@@ -1722,6 +1730,18 @@
     <message id="autopanel.notice.account.weak">
         <source>a passphrase is 12 characters at least, holds no user name, and is no common password</source>
         <translation>암호 문구는 12자 이상이고, 사용자 이름을 포함하지 않으며, 흔한 비밀번호가 아니어야 합니다</translation>
+    </message>
+    <message id="autopanel.notice.api.noDomain">
+        <source>%1 is under no registered domain: add the domain first</source>
+        <translation>%1은(는) 등록된 도메인에 속하지 않습니다. 먼저 도메인을 추가하십시오</translation>
+    </message>
+    <message id="autopanel.notice.api.off">
+        <source>The HTTPS API is off</source>
+        <translation>HTTPS API가 꺼졌습니다</translation>
+    </message>
+    <message id="autopanel.notice.api.set">
+        <source>The HTTPS API is served on %1</source>
+        <translation>HTTPS API를 %1에서 제공합니다</translation>
     </message>
     <message id="autopanel.notice.app.busy">
         <source>busy: a change is in flight</source>
@@ -2902,6 +2922,10 @@
     <message id="autopanel.title.prompt.addDomain">
         <source>Add a domain</source>
         <translation>도메인 추가</translation>
+    </message>
+    <message id="autopanel.title.prompt.api">
+        <source>The HTTPS API</source>
+        <translation>HTTPS API</translation>
     </message>
     <message id="autopanel.title.prompt.appPassword">
         <source>New app password</source>

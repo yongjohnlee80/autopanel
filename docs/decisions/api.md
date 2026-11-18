@@ -27,7 +27,7 @@ only the public verbs; an administrator who suspects the gate revokes tokens.
   sent its token in the clear is not asked to send it again.
 
 **In the code:** `host/gate/api.go` (the gate's side), `app/api.go` (the core's side and
-`sys.api.*`), `host/gate/link.go` (`APIAsk`, `APIAnswer`, `API`), `core/gate/domain.go`
+`sys.api.*`), `internal/ui/api.go` (System → HTTPS API…), `host/gate/link.go` (`APIAsk`, `APIAnswer`, `API`), `core/gate/domain.go`
 (`routable`, `SetReserved`).
 
 ## The shape of a call

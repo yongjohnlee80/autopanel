@@ -1167,6 +1167,10 @@
         <source>User</source>
         <translation>ユーザー</translation>
     </message>
+    <message id="autopanel.label.prompt.api">
+        <source>Its host, then any source ranges that may call it, separated by spaces. Empty turns it off.</source>
+        <translation>ホスト名、続けて呼び出しを許可する送信元の範囲を空白で区切って入力します。空にすると無効になります。</translation>
+    </message>
     <message id="autopanel.label.prompt.appPassword">
         <source>The device it is for (such as Ana's phone)</source>
         <translation>使う端末（例: アナのスマートフォン）</translation>
@@ -1487,6 +1491,10 @@
         <source>&amp;Services</source>
         <translation>サービス(&amp;s)</translation>
     </message>
+    <message id="autopanel.menu.system.api">
+        <source>HTTPS AP&amp;I…</source>
+        <translation>HTTPS API(&amp;i)…</translation>
+    </message>
     <message id="autopanel.menu.system.audit">
         <source>&amp;Audit log…</source>
         <translation>監査ログ(&amp;a)…</translation>
@@ -1722,6 +1730,18 @@
     <message id="autopanel.notice.account.weak">
         <source>a passphrase is 12 characters at least, holds no user name, and is no common password</source>
         <translation>パスフレーズは 12 文字以上で、ユーザー名を含まず、よくあるパスワードではないものにしてください</translation>
+    </message>
+    <message id="autopanel.notice.api.noDomain">
+        <source>%1 is under no registered domain: add the domain first</source>
+        <translation>%1 は登録済みのドメインに属していません。先にドメインを追加してください</translation>
+    </message>
+    <message id="autopanel.notice.api.off">
+        <source>The HTTPS API is off</source>
+        <translation>HTTPS API は無効です</translation>
+    </message>
+    <message id="autopanel.notice.api.set">
+        <source>The HTTPS API is served on %1</source>
+        <translation>HTTPS API を %1 で提供します</translation>
     </message>
     <message id="autopanel.notice.app.busy">
         <source>busy: a change is in flight</source>
@@ -2902,6 +2922,10 @@
     <message id="autopanel.title.prompt.addDomain">
         <source>Add a domain</source>
         <translation>ドメインを追加</translation>
+    </message>
+    <message id="autopanel.title.prompt.api">
+        <source>The HTTPS API</source>
+        <translation>HTTPS API</translation>
     </message>
     <message id="autopanel.title.prompt.appPassword">
         <source>New app password</source>

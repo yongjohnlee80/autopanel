@@ -198,6 +198,10 @@ type Client interface {
 	// Domains are the registered domains, each with its routes' count.
 	Domains(ctx context.Context) ([]gate.DomainView, error)
 	AddDomain(ctx context.Context, name string) error
+	// APISettings are the HTTPS API's host and allowed sources; SetAPI
+	// changes them (an empty host turns the API off) and answers what is set.
+	APISettings(ctx context.Context) (API, error)
+	SetAPI(ctx context.Context, a API) (API, error)
 	// RemoveDomain is refused with gate.ErrDomainInUse while a route would
 	// be left under no domain.
 	RemoveDomain(ctx context.Context, name string) error

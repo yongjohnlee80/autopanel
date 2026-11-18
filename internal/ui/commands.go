@@ -60,6 +60,7 @@ func (h *host) commandTable() map[string]decl.HandlerFunc {
 		"App.planToggle":      none(h.planToggle),
 		"App.planAccept":      none(h.planAccept),
 		"App.openChecks":      none(h.openChecks),
+		"App.setAPI":          none(h.setAPI),
 		"App.mailOpenPorts":   none(h.mailOpenPorts),
 		"App.reloadChecks":    none(h.reloadChecks),
 		"App.checksMoved":     oneRow("App.checksMoved", h.checksMoved),

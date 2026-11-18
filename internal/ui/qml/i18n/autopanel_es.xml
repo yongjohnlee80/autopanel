@@ -1167,6 +1167,10 @@
         <source>User</source>
         <translation>Usuario</translation>
     </message>
+    <message id="autopanel.label.prompt.api">
+        <source>Its host, then any source ranges that may call it, separated by spaces. Empty turns it off.</source>
+        <translation>Su host y, después, los rangos de origen que pueden llamarla, separados por espacios. Vacío la desactiva.</translation>
+    </message>
     <message id="autopanel.label.prompt.appPassword">
         <source>The device it is for (such as Ana's phone)</source>
         <translation>El dispositivo al que va (como el teléfono de Ana)</translation>
@@ -1487,6 +1491,10 @@
         <source>&amp;Services</source>
         <translation>Servicios(&amp;s)</translation>
     </message>
+    <message id="autopanel.menu.system.api">
+        <source>HTTPS AP&amp;I…</source>
+        <translation>AP&amp;I HTTPS…</translation>
+    </message>
     <message id="autopanel.menu.system.audit">
         <source>&amp;Audit log…</source>
         <translation>Registro de auditoría(&amp;a)…</translation>
@@ -1722,6 +1730,18 @@
     <message id="autopanel.notice.account.weak">
         <source>a passphrase is 12 characters at least, holds no user name, and is no common password</source>
         <translation>una frase tiene 12 caracteres como mínimo, no contiene el nombre de usuario y no es una contraseña común</translation>
+    </message>
+    <message id="autopanel.notice.api.noDomain">
+        <source>%1 is under no registered domain: add the domain first</source>
+        <translation>%1 no está bajo ningún dominio registrado: añada primero el dominio</translation>
+    </message>
+    <message id="autopanel.notice.api.off">
+        <source>The HTTPS API is off</source>
+        <translation>La API HTTPS está desactivada</translation>
+    </message>
+    <message id="autopanel.notice.api.set">
+        <source>The HTTPS API is served on %1</source>
+        <translation>La API HTTPS se sirve en %1</translation>
     </message>
     <message id="autopanel.notice.app.busy">
         <source>busy: a change is in flight</source>
@@ -2902,6 +2922,10 @@
     <message id="autopanel.title.prompt.addDomain">
         <source>Add a domain</source>
         <translation>Añadir un dominio</translation>
+    </message>
+    <message id="autopanel.title.prompt.api">
+        <source>The HTTPS API</source>
+        <translation>La API HTTPS</translation>
     </message>
     <message id="autopanel.title.prompt.appPassword">
         <source>New app password</source>
