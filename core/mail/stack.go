@@ -70,5 +70,5 @@ func (m *Module) compose() []byte {
 	for i, p := range Ports {
 		ports[i] = provider.PortMap{Name: p.Name, Loopback: p.Loopback}
 	}
-	return m.product.Compose(ports, ManagePort)
+	return m.product.Compose(provider.Stack{Name: Stack, Ports: ports, Manage: ManagePort})
 }

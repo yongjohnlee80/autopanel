@@ -20,7 +20,7 @@ var mailPorts = []provider.PortMap{{Name: "smtp", Loopback: 10025}, {Name: "subm
 	{Name: "submission", Loopback: 10587}, {Name: "imaps", Loopback: 10993}}
 
 func TestTheComposeIsAcceptedAndPinned(t *testing.T) {
-	st, findings := services.Parse(Product{}.Compose(mailPorts, 18480), nil)
+	st, findings := services.Parse(Product{}.Compose(provider.Stack{Name: "mail", Ports: mailPorts, Manage: 18480}), nil)
 	for _, f := range findings {
 		if f.Severity == services.Refused {
 			t.Errorf("the mail definition is refused: %+v", f)
@@ -41,7 +41,7 @@ func TestTheComposeIsAcceptedAndPinned(t *testing.T) {
 }
 
 func TestTheDefinitionMapsMailsPortsToStalwarts(t *testing.T) {
-	def := string(Product{}.Compose(mailPorts, 18480))
+	def := string(Product{}.Compose(provider.Stack{Name: "mail", Ports: mailPorts, Manage: 18480}))
 	for _, p := range []string{"127.0.0.1:10025:2525", "127.0.0.1:10465:4465", "127.0.0.1:10587:5587", "127.0.0.1:10993:9993", "127.0.0.1:18480:8080"} {
 		if !strings.Contains(def, p) {
 			t.Errorf("no %s in %s", p, def)

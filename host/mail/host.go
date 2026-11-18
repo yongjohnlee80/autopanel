@@ -112,12 +112,13 @@ var ErrNotAlone = errors.New("mail: the mail stack's network holds containers ot
 var ErrNoForwarder = errors.New("mail: Podman names no subnet for the mail stack's network")
 
 // Forwarder is the subnet of the mail stack's own network, as Podman
-// describes it. Rootless forwarding delivers every connection to Stalwart from
-// inside that network (with netavark, from the container's own address), and
-// the network holds the mail stack's container alone, so it is the one source
-// Stalwart may trust PROXY headers from. Read from Podman, never assumed: a
-// Podman with pasta, or another network, forwards from elsewhere.
-func (h *Host) Forwarder(ctx context.Context) (string, error) {
+// describes it. Rootless forwarding delivers every connection to the mail
+// server from inside that network (with netavark, from the container's own
+// address), and the network holds the mail server's container alone, so it is
+// the one source the server may trust PROXY headers from. Read from Podman,
+// never assumed: a Podman with pasta, or another network, forwards from
+// elsewhere. container is the one container the network may hold.
+func (h *Host) Forwarder(ctx context.Context, container string) (string, error) {
 	uid, err := h.StackUID(ctx)
 	if err != nil {
 		return "", err
@@ -136,7 +137,7 @@ func (h *Host) Forwarder(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if names := strings.Fields(string(ps)); len(names) != 1 || names[0] != coremail.Stack+"-stalwart" {
+	if names := strings.Fields(string(ps)); len(names) != 1 || names[0] != container {
 		return "", fmt.Errorf("%w: it holds %v", ErrNotAlone, names)
 	}
 	for _, f := range strings.Fields(string(out)) {

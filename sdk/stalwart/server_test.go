@@ -642,3 +642,33 @@ func (e *podmanEnv) Sealed(_ context.Context, n string) ([]byte, error) {
 	return v, nil
 }
 func (e *podmanEnv) Seal(_ context.Context, n string, v []byte) error { e.sealed[n] = v; return nil }
+
+// TestTheKeyIsAskedForAtEveryRequest: the client never keeps the API key. A
+// key that changed is used at the next request, and a key that can no longer
+// be had (the vault was locked) stops the client, whatever it asked before.
+func TestTheKeyIsAskedForAtEveryRequest(t *testing.T) {
+	fake := newAccountsStalwart(t, time.Now)
+	srv := httptest.NewServer(fake)
+	t.Cleanup(srv.Close)
+	asked, locked := 0, false
+	s := Product{}.Client(srv.URL, func(context.Context) (string, error) {
+		asked++
+		if locked {
+			return "", errors.New("the vault is locked")
+		}
+		return "k", nil
+	})
+	ctx := context.Background()
+	for range 3 {
+		if _, err := s.Accounts(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if asked < 3 {
+		t.Fatalf("three requests asked for the key %d times; it was kept", asked)
+	}
+	locked = true
+	if _, err := s.Accounts(ctx); err == nil {
+		t.Fatal("a request went out after the key could no longer be had")
+	}
+}

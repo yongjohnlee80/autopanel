@@ -50,7 +50,8 @@ type Server interface {
 	AppPasswords(ctx context.Context, accountID string) ([]AppPassword, error)
 	// AddAppPassword makes an app password for a device, signing in until
 	// expires, and answers its secret: the server generates it, and gives it
-	// this once. The account may hold at least room app passwords.
+	// this once. The provider neither keeps nor logs the secret. The account
+	// may hold at least room app passwords: a provider raises a lower limit.
 	AddAppPassword(ctx context.Context, accountID, device string, expires time.Time, room int) (AppPassword, string, error)
 	// KeepAppPassword clears an app password's expiry. A server may bring an
 	// expired one back this way: the caller never keeps one that expired.
@@ -60,7 +61,9 @@ type Server interface {
 	// DKIMKeys are every DKIM key the server holds.
 	DKIMKeys(ctx context.Context) ([]DKIMKey, error)
 	// AddDKIMKey gives the server a private key (PEM, PKCS #8) for a
-	// domain's selector, pending: it signs nothing until made active.
+	// domain's selector, pending: it signs nothing until made active. The
+	// key's public half, in the TXT record Records answers for it, is the
+	// base64 of its DER.
 	AddDKIMKey(ctx context.Context, domainID, selector string, alg DKIMAlg, privatePEM string) (string, error)
 	SetDKIMStage(ctx context.Context, id string, s DKIMStage) error
 	RemoveDKIMKey(ctx context.Context, id string) error
@@ -78,10 +81,13 @@ type Server interface {
 type Product interface {
 	// Name is the server's name, for status and messages: "Stalwart".
 	Name() string
+	// Service is the name of the stack's one service: its container is the
+	// stack's name, a hyphen, and this.
+	Service() string
 	// Compose is the mail stack's definition, its image pinned by digest:
 	// each of mail's ports published on its loopback port, and the
-	// management API on manage.
-	Compose(ports []PortMap, manage int) []byte
+	// management API on its own.
+	Compose(s Stack) []byte
 	// CPU is nil when a processor of arch with these /proc/cpuinfo flags runs
 	// the server.
 	CPU(arch string, flags map[string]bool) error
@@ -97,6 +103,8 @@ type Product interface {
 	// before left in env's sealed values.
 	Bootstrap(ctx context.Context, env Env) error
 	// Client is the server's API at base, signing in with the sealed API key.
+	// apiKey is called for every request and its answer is never kept: the
+	// key is sealed, and a vault locked later must stop the client.
 	Client(base string, apiKey func(ctx context.Context) (string, error)) Server
 }
 
@@ -130,6 +138,15 @@ type Settings struct {
 	FirstDomain string
 }
 
+// Stack is what a product's definition is written for: the stack's name
+// (its network's and its containers' prefix), mail's ports, and the loopback
+// port of the management API.
+type Stack struct {
+	Name   string
+	Ports  []PortMap
+	Manage int
+}
+
 // PortMap is one of mail's ports: its name (smtp, submissions, submission,
 // imaps) and the loopback port the gate forwards it to.
 type PortMap struct {
@@ -143,7 +160,9 @@ type Domain struct {
 	Name string
 }
 
-// Record is a DNS record.
+// Record is a DNS record. Value is the record's value as it is published: for
+// MX and SRV the priority is inside it; there is no TTL, which is AutoPanel's
+// to set.
 type Record struct {
 	Type  string `json:"type"`  // MX, TXT, CNAME, SRV, TLSA, A, AAAA
 	Name  string `json:"name"`  // "example.com", "ap202611e._domainkey.example.com"
@@ -156,8 +175,8 @@ type Account struct {
 	Local    string // the address's local part
 	DomainID string
 	Address  string
-	Quota    int64 // bytes; 0 for none
-	Used     int64
+	Quota    int64   // bytes; 0 for none
+	Used     int64   // bytes; -1 when the server does not account for it
 	Aliases  []Alias // the enabled ones
 	Admin    bool    // the server's administrator, AutoPanel's way in: not a mailbox
 }

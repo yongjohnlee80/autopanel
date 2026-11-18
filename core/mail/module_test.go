@@ -272,7 +272,9 @@ func (h *fakeHost) Journal(context.Context, time.Time) ([]string, error) {
 	defer h.mu.Unlock()
 	return slices.Clone(h.journal), nil
 }
-func (h *fakeHost) Forwarder(context.Context) (string, error)  { return "10.89.0.0/24", nil }
+func (h *fakeHost) Forwarder(context.Context, string) (string, error) {
+	return "10.89.0.0/24", nil
+}
 func (h *fakeHost) PublicIPv4(context.Context) (string, error) { return "192.0.2.10", nil }
 
 func (h *fakeHost) ReverseNames(context.Context, string) ([]string, error) {
