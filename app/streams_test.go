@@ -37,3 +37,31 @@ func TestStreamTable(t *testing.T) {
 		t.Fatal("setting the same streams again should wake no one")
 	}
 }
+
+// TestTheGatesProbeReachesMail: what the gate's probe found rides its report
+// and is what mail's host check reads; before any report there is nothing; and
+// of a list the gate sends, the core keeps a short one.
+func TestTheGatesProbeReachesMail(t *testing.T) {
+	counts := &counters{}
+	if ports, at := counts.unproxied(); ports != nil || at != 0 {
+		t.Fatalf("before any report: %v, %d", ports, at)
+	}
+	m := &linkModule{counts: counts}
+	ctx := context.Background()
+	if _, err := m.report(ctx, hostgate.Report{PID: 7, ProbedAt: 100, Unproxied: []string{"smtp"}}); err != nil {
+		t.Fatal(err)
+	}
+	if ports, at := counts.unproxied(); at != 100 || len(ports) != 1 || ports[0] != "smtp" {
+		t.Fatalf("after a report: %v, %d", ports, at)
+	}
+	long := make([]string, 1000)
+	for i := range long {
+		long[i] = "stream"
+	}
+	if _, err := m.report(ctx, hostgate.Report{ProbedAt: 200, Unproxied: long}); err != nil {
+		t.Fatal(err)
+	}
+	if ports, at := counts.unproxied(); at != 200 || len(ports) != maxUnproxied {
+		t.Fatalf("a thousand names from the gate: the core kept %d", len(ports))
+	}
+}
