@@ -59,6 +59,28 @@ func freeUDPAddr(t *testing.T) string {
 	return c.LocalAddr().String()
 }
 
+// freeBothAddr is a loopback address whose port is free for TCP and for UDP
+// alike: a number free for one may be held for the other.
+func freeBothAddr(t *testing.T) string {
+	t.Helper()
+	for range 50 {
+		l, err := net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			t.Fatal(err)
+		}
+		addr := l.Addr().String()
+		ua, _ := net.ResolveUDPAddr("udp", addr)
+		u, err := net.ListenUDP("udp", ua)
+		_ = l.Close()
+		if err == nil {
+			_ = u.Close()
+			return addr
+		}
+	}
+	t.Fatal("no port free for both TCP and UDP")
+	return ""
+}
+
 // startUDP runs one UDP stream to tg until the test ends.
 func startUDP(t *testing.T, tg *udpTarget, change func(*Stream), setup ...func(*udpForwarder)) (*udpForwarder, Stream) {
 	t.Helper()
@@ -277,7 +299,7 @@ func TestTheGatesStreamsAreOfBothKinds(t *testing.T) {
 	f := newForwarder(slog.New(slog.NewTextHandler(io.Discard, nil)))
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(func() { f.stopAll(); cancel() })
-	addr := freeUDPAddr(t) // free for UDP; the same number is asked of TCP too
+	addr := freeBothAddr(t) // one number, free for TCP and for UDP
 	udp := Stream{Name: "forward:u", Proto: "udp", Listen: addr, To: tg.conn.LocalAddr().String()}
 	tcp := Stream{Name: "forward:t", Listen: addr, To: plainEcho(t), IdleSecs: 30, PerClient: 5, Share: 4, Plain: true}
 	f.apply(ctx, 10, []Stream{udp, tcp})
