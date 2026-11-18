@@ -21,15 +21,24 @@ const (
 	StateClosing = "closing"
 )
 
-// OwnerMail owns the gate's mail ports' rules; a stack's are "stack:<name>".
+// OwnerMail owns the gate's mail ports' rules; a stack's are "stack:<name>",
+// a port forward's "forward:<name>".
 const OwnerMail = "mail"
 
 // StackOwner is a stack's owner name.
 func StackOwner(stack string) string { return "stack:" + stack }
 
-// ValidOwner reports whether owner is mail or a named stack.
+// ForwardOwner is a port forward's owner name.
+func ForwardOwner(name string) string { return "forward:" + name }
+
+// ValidOwner reports whether owner is mail, a named stack or a named forward.
 func ValidOwner(owner string) bool {
-	return owner == OwnerMail || (strings.HasPrefix(owner, "stack:") && len(owner) > len("stack:"))
+	for _, kind := range []string{"stack:", "forward:"} {
+		if strings.HasPrefix(owner, kind) && len(owner) > len(kind) {
+			return true
+		}
+	}
+	return owner == OwnerMail
 }
 
 // Row is a rule AutoPanel created for its owner. A rule that was already
