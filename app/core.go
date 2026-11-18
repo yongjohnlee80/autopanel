@@ -268,6 +268,7 @@ func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateContr
 	gm.SetDomainUsers(mailMod)
 	mailMod.SetDNS(mailDNS{st: st, vault: vault})
 	mailMod.SetCerts(mailCerts{sw: sw})
+	mailMod.SetProxyProbe(counts.unproxied) // what the gate's probe of mail's ports found
 	// The HTTPS API: off until sys.api.set names its host. The gate serves it;
 	// its calls come back over the link.
 	apiMod := &apiModule{st: st, aud: st, log: log, covered: gm.Covered, changed: rev.bump,

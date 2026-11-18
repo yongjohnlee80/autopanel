@@ -444,3 +444,65 @@ func TestStreamClientSpeaksLate(t *testing.T) {
 		t.Fatalf("bytes sent after the header's deadline were not carried: %v", err)
 	}
 }
+
+// TestTheProbeFindsATargetThatNoLongerWaitsForTheHeader: a target that greets
+// a connection which sent nothing has stopped reading the PROXY header; one
+// that stays silent until it has the header is as it should be; one that
+// cannot be reached, and one that is not said to greet, are not judged.
+func TestTheProbeFindsATargetThatNoLongerWaitsForTheHeader(t *testing.T) {
+	defer func(d time.Duration) { probeListen = d }(probeListen)
+	probeListen = 300 * time.Millisecond
+	serve := func(first func(c net.Conn)) string {
+		ln, err := net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = ln.Close() })
+		go func() {
+			for {
+				c, err := ln.Accept()
+				if err != nil {
+					return
+				}
+				go func() { defer c.Close(); first(c) }()
+			}
+		}()
+		return ln.Addr().String()
+	}
+	greets := func(c net.Conn) { _, _ = io.WriteString(c, "220 mail.example ESMTP\r\n") }
+	waits := func(c net.Conn) { // reads the header first, as a server that trusts the gate does
+		b := make([]byte, 16)
+		if _, err := io.ReadFull(c, b); err == nil {
+			greets(c)
+		}
+	}
+	gone, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	closed := gone.Addr().String()
+	_ = gone.Close()
+
+	f := newForwarder(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if f.probed.Load() != nil {
+		t.Fatal("a probe's result before any probe")
+	}
+	f.running = map[string]*streamRun{
+		":25":  {s: Stream{Name: "smtp", To: serve(greets), Greets: true}},
+		":587": {s: Stream{Name: "submission", To: serve(waits), Greets: true}},
+		":465": {s: Stream{Name: "submissions", To: serve(greets)}}, // TLS first: the client speaks, so it is not probed
+		":143": {s: Stream{Name: "down", To: closed, Greets: true}},
+	}
+	before := time.Now().Unix()
+	f.probe(context.Background())
+	got := f.probed.Load()
+	if got == nil || got.at < before || len(got.unproxied) != 1 || got.unproxied[0] != "smtp" {
+		t.Fatalf("the probe found %+v; want smtp alone", got)
+	}
+	// Put right, the next probe finds nothing.
+	f.running[":25"].s.To = serve(waits)
+	f.probe(context.Background())
+	if got := f.probed.Load(); len(got.unproxied) != 0 {
+		t.Fatalf("after the target was put right: %+v", got)
+	}
+}

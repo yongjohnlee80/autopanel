@@ -27,6 +27,10 @@ type Port struct {
 	IdleSecs  int    // a connection silent this long either way is closed
 	PerClient int    // connections at once from one client
 	Share     int    // at most this many of TotalConnections; 0: all
+	// Greets marks a port on which the server speaks first, in the clear
+	// (SMTP's greeting): the gate can tell there whether the server still
+	// waits for the header that names the client.
+	Greets bool
 }
 
 // Ports are mail's four public ports. IMAP holds IDLE connections (a client
@@ -34,9 +38,9 @@ type Port struct {
 // minutes, it may take most of the total, and a household behind one address
 // gets more of them.
 var Ports = []Port{
-	{Name: "smtp", Public: 25, Loopback: 10025, IdleSecs: 600, PerClient: 20},
+	{Name: "smtp", Public: 25, Loopback: 10025, IdleSecs: 600, PerClient: 20, Greets: true},
 	{Name: "submissions", Public: 465, Loopback: 10465, IdleSecs: 600, PerClient: 20},
-	{Name: "submission", Public: 587, Loopback: 10587, IdleSecs: 600, PerClient: 20},
+	{Name: "submission", Public: 587, Loopback: 10587, IdleSecs: 600, PerClient: 20, Greets: true},
 	{Name: "imaps", Public: 993, Loopback: 10993, IdleSecs: 1860, PerClient: 50, Share: 150},
 }
 

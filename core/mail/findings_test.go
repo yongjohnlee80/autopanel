@@ -118,6 +118,23 @@ func TestMailsHostChecks(t *testing.T) {
 	h.reverse = []string{"mail.example.net."}
 	pass(m, "192.0.2.10")
 
+	// What the gate's probe found.
+	var unproxied []string
+	var probedAt int64
+	m.SetProxyProbe(func() ([]string, int64) { return unproxied, probedAt })
+	if _, ok := findings(m)["mail-proxy-trust"]; ok {
+		t.Fatal("a finding before the gate has probed")
+	}
+	probedAt = clk.now().Unix()
+	if _, ok := findings(m)["mail-proxy-trust"]; ok {
+		t.Fatal("a finding when every port waits for the header")
+	}
+	unproxied = []string{"smtp", "submission"}
+	if f, ok := findings(m)["mail-proxy-trust"]; !ok || !f.Alert || f.Detail != "smtp, submission" {
+		t.Fatalf("ports that no longer wait for the header: %+v", findings(m))
+	}
+	unproxied = nil
+
 	// The processor.
 	if _, ok := findings(m)["mail-cpu"]; ok {
 		t.Fatal("a processor the server runs on is found wrong")

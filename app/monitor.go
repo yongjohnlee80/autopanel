@@ -44,6 +44,18 @@ type counters struct {
 	// The gate's streams (mail's ports): connections now, forwarded and
 	// refused by a limit since the gate started.
 	streamsOpen, streamsServed, streamsRefused atomic.Int64
+
+	// The gate's last probe of its streams' targets: nil before the first.
+	probe atomic.Pointer[hostgate.Report]
+}
+
+// unproxied are the streams whose target no longer waits for the gate's PROXY
+// header, and when the gate last looked (0: never), for mail's host check.
+func (c *counters) unproxied() ([]string, int64) {
+	if r := c.probe.Load(); r != nil {
+		return r.Unproxied, r.ProbedAt
+	}
+	return nil, 0
 }
 
 // gateQuiet is how long after its last report the gate still counts as
