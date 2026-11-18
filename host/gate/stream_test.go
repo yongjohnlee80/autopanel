@@ -528,3 +528,79 @@ func TestTheProbeFindsATargetThatNoLongerWaitsForTheHeader(t *testing.T) {
 		t.Fatalf("after the target was put right: %+v", got)
 	}
 }
+
+// plainEcho echoes what it is sent, reading no header first: a target that
+// does not speak PROXY.
+func plainEcho(t *testing.T) string {
+	t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = ln.Close() })
+	go func() {
+		for {
+			c, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			go func() { defer c.Close(); _, _ = io.Copy(c, c) }()
+		}
+	}()
+	return ln.Addr().String()
+}
+
+func echoes(t *testing.T, addr, text string) (string, error) {
+	t.Helper()
+	c, err := net.DialTimeout("tcp", addr, 2*time.Second)
+	if err != nil {
+		return "", err
+	}
+	defer c.Close()
+	_ = c.SetDeadline(time.Now().Add(3 * time.Second))
+	if _, err := io.WriteString(c, text); err != nil {
+		return "", err
+	}
+	_ = c.(*net.TCPConn).CloseWrite()
+	got, err := io.ReadAll(c)
+	return string(got), err
+}
+
+// TestAPlainStreamSendsNoHeader: a stream marked plain carries the client's
+// bytes and nothing in front of them, for a target that reads no PROXY header.
+func TestAPlainStreamSendsNoHeader(t *testing.T) {
+	s := Stream{Name: "game", Listen: freeAddr(t), To: plainEcho(t), IdleSecs: 30, PerClient: 5, Plain: true}
+	startForwarder(t, 10, s)
+	if got, err := echoes(t, s.Listen, "hello"); err != nil || got != "hello" {
+		t.Fatalf("through a plain stream: %q, %v; want the bytes alone", got, err)
+	}
+}
+
+// TestAStreamTakesOnlyItsAllowedSources: with sources named, a client outside
+// them is turned away and counted; a list the gate cannot read lets nobody in.
+func TestAStreamTakesOnlyItsAllowedSources(t *testing.T) {
+	in := Stream{Name: "in", Listen: freeAddr(t), To: plainEcho(t), IdleSecs: 30, PerClient: 5, Plain: true, Allow: "192.0.2.0/24 127.0.0.0/8"}
+	out := Stream{Name: "out", Listen: freeAddr(t), To: plainEcho(t), IdleSecs: 30, PerClient: 5, Plain: true, Allow: "192.0.2.0/24 2001:db8::/32"}
+	bad := Stream{Name: "bad", Listen: freeAddr(t), To: plainEcho(t), IdleSecs: 30, PerClient: 5, Plain: true, Allow: "127.0.0.0/8 everyone"}
+	f := startForwarder(t, 10, in, out, bad)
+	refused := f.refused.Load()
+	if got, err := echoes(t, in.Listen, "hi"); err != nil || got != "hi" {
+		t.Fatalf("a client inside the sources: %q, %v", got, err)
+	}
+	for _, s := range []Stream{out, bad} {
+		if got, _ := echoes(t, s.Listen, "hi"); got != "" {
+			t.Fatalf("stream %s carried %q for a client it does not allow", s.Name, got)
+		}
+	}
+	deadline := time.Now().Add(3 * time.Second)
+	for f.refused.Load() < refused+2 {
+		if time.Now().After(deadline) {
+			t.Fatalf("refused connections: %d; want %d", f.refused.Load(), refused+2)
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	r := &streamRun{allow: []netip.Prefix{netip.MustParsePrefix("203.0.113.0/24")}}
+	if !r.lets(netip.MustParseAddr("::ffff:203.0.113.9")) || r.lets(netip.MustParseAddr("203.0.114.1")) {
+		t.Fatal("an IPv4 client seen as an IPv6-mapped address is judged wrongly")
+	}
+}

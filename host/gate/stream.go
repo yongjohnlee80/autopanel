@@ -10,6 +10,7 @@ import (
 	"net/netip"
 	"os"
 	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -88,6 +89,8 @@ type peerKey struct {
 // streamRun is one stream being served: its listener and its connections.
 type streamRun struct {
 	s      Stream
+	allow  []netip.Prefix // s.Allow, parsed
+	bad    bool           // s.Allow names something that is no prefix
 	cancel context.CancelFunc
 	done   chan struct{}
 
@@ -124,6 +127,17 @@ func (f *forwarder) apply(ctx context.Context, total int, streams []Stream) {
 		}
 		sctx, cancel := context.WithCancel(ctx)
 		r := &streamRun{s: s, cancel: cancel, done: make(chan struct{}), conns: map[net.Conn]struct{}{}}
+		for _, a := range strings.Fields(s.Allow) {
+			pre, err := netip.ParsePrefix(a)
+			if err != nil {
+				// A list the gate cannot read lets nobody in: a limit that
+				// failed open would be worse than a port that does not answer.
+				r.bad = true
+				f.log.Error("gate: a stream's allowed sources hold something that is no prefix; it lets nobody in", "stream", s.Name, "allow", s.Allow)
+				break
+			}
+			r.allow = append(r.allow, pre.Masked())
+		}
 		f.running[listen] = r
 		start = append(start, r)
 		go func() { defer close(r.done); f.serve(sctx, r) }()
@@ -337,6 +351,10 @@ func (f *forwarder) forward(ctx context.Context, r *streamRun, c *net.TCPConn) {
 	if err != nil {
 		return
 	}
+	if !r.lets(client.Addr()) {
+		f.refused.Add(1)
+		return
+	}
 	_ = c.SetReadBuffer(clientBuffer)
 	_ = c.SetWriteBuffer(clientBuffer)
 	key := peerKey{stream: r.s.Name, client: clientPrefix(client.Addr())}
@@ -364,13 +382,33 @@ func (f *forwarder) forward(ctx context.Context, r *streamRun, c *net.TCPConn) {
 		return
 	}
 	defer r.untrack(uc)
-	_ = uc.SetWriteDeadline(time.Now().Add(dialTimeout))
-	if _, err := uc.Write(proxyHeader(client, local)); err != nil {
-		return
+	if !r.s.Plain {
+		_ = uc.SetWriteDeadline(time.Now().Add(dialTimeout))
+		if _, err := uc.Write(proxyHeader(client, local)); err != nil {
+			return
+		}
+		_ = uc.SetWriteDeadline(time.Time{}) // the header's deadline only: pipe sets its own
 	}
-	_ = uc.SetWriteDeadline(time.Time{}) // the header's deadline only: pipe sets its own
 	f.served.Add(1)
 	pipe(c, uc, time.Duration(r.s.IdleSecs)*time.Second)
+}
+
+// lets reports whether the stream takes a connection from ip: any address
+// when it names no sources, and otherwise only one of them.
+func (r *streamRun) lets(ip netip.Addr) bool {
+	if r.bad {
+		return false
+	}
+	if len(r.allow) == 0 {
+		return true
+	}
+	ip = ip.Unmap()
+	for _, p := range r.allow {
+		if p.Contains(ip) {
+			return true
+		}
+	}
+	return false
 }
 
 // admit counts a connection in, or reports that a limit holds it out: the

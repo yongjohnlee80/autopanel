@@ -28,6 +28,12 @@ type Stream struct {
 	IdleSecs  int    `json:"idle_secs"`  // a connection with no byte either way for this long is closed
 	PerClient int    `json:"per_client"` // connections at once from one client (an IPv4 address, an IPv6 /64); 0: no limit of its own
 	Share     int    `json:"share"`      // at most this many of Total; 0: Total
+	// Plain forwards the bytes with no PROXY header in front: for a target
+	// that does not read one. Mail's ports are never plain.
+	Plain bool `json:"plain,omitempty"`
+	// Allow limits the clients to source prefixes, separated by spaces; empty
+	// means any address. (One string, so a Stream stays comparable.)
+	Allow string `json:"allow,omitempty"`
 	// Greets marks a target that speaks first, in the clear, once it has read
 	// the PROXY header: the gate probes it (stream.go, probe).
 	Greets bool `json:"greets,omitempty"`
