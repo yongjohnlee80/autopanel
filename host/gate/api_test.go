@@ -168,7 +168,8 @@ func TestWithoutATokenEveryRequestGetsOneAnswer(t *testing.T) {
 	f.api.rate = newRateTable(100000, 100000, 16, time.Now) // the rate is not what this test is about
 	big := strings.Repeat("x", 100<<10)
 	for _, auth := range []string{"", "Basic abc", "Bearer nope", "Bearer apt_x_" + strings.Repeat("a", 43), "Bearer apt_7_short",
-		"Bearer apt_7_" + strings.Repeat("a", 42) + "!", "bearer apt_7_" + strings.Repeat("a", 43), "Bearer apt_7_" + strings.Repeat("a", 300)} {
+		"Bearer apt_7_" + strings.Repeat("a", 42) + "!", "bearer apt_7_" + strings.Repeat("a", 43), "Bearer apt_7_" + strings.Repeat("a", 300),
+		"Bearer apt_0_" + strings.Repeat("a", 43), "Bearer apt_9999999999999999999_" + strings.Repeat("a", 43), "Bearer apt_+7_" + strings.Repeat("a", 43)} {
 		for _, r := range []apiReq{
 			{method: "POST", path: "/v1/call/sys.status", body: big},
 			{method: "POST", path: "/v1/call/site.article.put", body: big},

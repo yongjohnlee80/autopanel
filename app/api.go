@@ -36,8 +36,12 @@ const (
 	apiAllowSetting = "api.allow"
 )
 
-// MaxAPIBody is the largest body any public verb may declare.
-const MaxAPIBody = 2<<20 + 64<<10
+// MaxAPIBody is the largest body any public verb may declare; apiBodyDefault is
+// the limit of a verb that declares none, the same as the gate's.
+const (
+	MaxAPIBody     = 2<<20 + 64<<10
+	apiBodyDefault = 64 << 10
+)
 
 var (
 	errAPIHostTaken = errors.New("api: a route or the mail server uses that host")
@@ -148,11 +152,21 @@ func (m *apiModule) set(ctx context.Context, p APISettings) (APISettings, error)
 		allow = append(allow, pre.Masked().String())
 	}
 	sort.Strings(allow)
-	if err := m.st.PutSetting(ctx, apiHostSetting, host); err != nil {
-		return APISettings{}, err
+	// Two settings, written so that a stop between them never leaves the API
+	// on for more addresses than were asked for: turning it on, the sources
+	// first; turning it off, the host first.
+	order := []string{apiAllowSetting, apiHostSetting}
+	if host == "" {
+		order = []string{apiHostSetting, apiAllowSetting}
 	}
-	if err := m.st.PutSetting(ctx, apiAllowSetting, strings.Join(allow, " ")); err != nil {
-		return APISettings{}, err
+	for _, key := range order {
+		value := host
+		if key == apiAllowSetting {
+			value = strings.Join(allow, " ")
+		}
+		if err := m.st.PutSetting(ctx, key, value); err != nil {
+			return APISettings{}, err
+		}
 	}
 	m.mu.Lock()
 	m.host, m.allow = host, allow
@@ -254,6 +268,31 @@ func (m *apiModule) call(ctx context.Context, ask hostgate.APIAsk) (ans hostgate
 	}
 	name, err := m.auth.Authorize(ctx, principal, time.Time{}, v.Contract)
 	actor := name + " (api " + client + ", " + strings.Replace(principal, "token:", "token #", 1) + ", request " + printable(ask.RequestID, 64) + ")"
+	// Who may, before what was sent: a caller the role refuses learns nothing
+	// from its body, and the refusal is on record whatever the body was.
+	switch {
+	case errors.Is(err, auth.ErrExpired): // revoked or expired between the two reads
+		return m.noToken(), nil
+	case err != nil:
+		var named []any // what the call names, for the entry: only from a small body that is JSON
+		if len(ask.Param) <= apiBodyDefault {
+			var p any
+			if json.Unmarshal(ask.Param, &p) == nil && p != nil {
+				named = []any{p}
+			}
+		}
+		hostcontrol.Refused(ctx, m.aud, actor, v, named, err, m.errs)
+		return m.declared(hostgate.APIForbidden, err), nil
+	}
+	// The gate holds a body to the verb's limit. The core checks it again: it
+	// takes the gate's word for nothing it can measure itself.
+	limit := v.MaxBody
+	if limit == 0 {
+		limit = apiBodyDefault
+	}
+	if len(ask.Param) > limit {
+		return refusal(hostgate.APIBadParam, rpc.CodeInvalidParams, "", "the body is larger than this verb takes"), nil
+	}
 	var params []any
 	if len(ask.Param) > 0 {
 		var p any
@@ -263,13 +302,6 @@ func (m *apiModule) call(ctx context.Context, ask hostgate.APIAsk) (ans hostgate
 		if p != nil {
 			params = []any{p}
 		}
-	}
-	switch {
-	case errors.Is(err, auth.ErrExpired): // revoked or expired between the two reads
-		return m.noToken(), nil
-	case err != nil:
-		hostcontrol.Refused(ctx, m.aud, actor, v, params, err, m.errs)
-		return m.declared(hostgate.APIForbidden, err), nil
 	}
 	res, err := hostcontrol.Invoke(module.WithPrincipal(audit.WithActor(ctx, actor), principal), v, m.errs, m.log, m.aud, actor, params)
 	if err != nil {
