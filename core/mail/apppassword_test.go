@@ -95,7 +95,7 @@ func TestStrongSecret(t *testing.T) {
 }
 
 // TestAnAccountIsMadeWithNoKnownPassword: mail.account.add takes no password;
-// the server is given an argon2id hash of one no one is told.
+// the server makes the account with a password of its own that no one is told.
 func TestAnAccountIsMadeWithNoKnownPassword(t *testing.T) {
 	m, srv, _ := readyMail(t)
 	ctx := context.Background()
@@ -313,7 +313,7 @@ func TestTheHourlyPassDestroysExpiredAppPasswords(t *testing.T) {
 // TestNoSecretLeavesTheVerbs: the list never carries a secret; only add's
 // answer does.
 func TestNoSecretLeavesTheVerbs(t *testing.T) {
-	m, _, _ := readyMail(t)
+	m, srv, _ := readyMail(t)
 	ctx := context.Background()
 	_, _ = m.accountAdd(ctx, AccountAsk{Address: "ana@example.net"})
 	n, _ := m.appPasswordAdd(ctx, AppPasswordAsk{Address: "ana@example.net", Description: "phone"})
@@ -323,7 +323,7 @@ func TestNoSecretLeavesTheVerbs(t *testing.T) {
 	}
 	accounts, _ := m.accountList(ctx, DomainAsk{})
 	raw, _ = json.Marshal(accounts)
-	if strings.Contains(string(raw), "argon2") {
-		t.Fatalf("the account list carries a hash: %s", raw)
+	if hash := srv.PasswordHash("ana@example.net"); hash == "" || strings.Contains(string(raw), hash) {
+		t.Fatalf("the account list carries the password's hash: %s", raw)
 	}
 }

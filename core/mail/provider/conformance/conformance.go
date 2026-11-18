@@ -124,10 +124,19 @@ func Run(t *testing.T, tg Target) {
 		signIn(t, tg, address, secret, true, "a kept app password")
 		signIn(t, tg, address, goneSecret, false, "a revoked app password")
 
-		// The account's own password is made unknown again and its quota
-		// changes; its app passwords stay, and the one kept still signs in.
+		// The account's own password is one nobody knows: nothing a person
+		// would try signs in, as it was made or after it is locked again.
+		guesses := []string{"", "conformance", address, "password", tg.Domain}
+		for _, g := range guesses {
+			signIn(t, tg, address, g, false, "the guess "+strconv.Quote(g)+" at a new account's password")
+		}
+		// Locked again, and its quota changed: its app passwords stay, and the
+		// one kept still signs in.
 		if err := s.LockPassword(ctx, id); err != nil {
 			t.Fatal(err)
+		}
+		for _, g := range guesses {
+			signIn(t, tg, address, g, false, "the guess "+strconv.Quote(g)+" after Lock password")
 		}
 		if err := s.SetQuota(ctx, id, 2<<30); err != nil {
 			t.Fatal(err)

@@ -440,8 +440,17 @@ func TestANewPasswordKeepsTheAppPasswords(t *testing.T) {
 	if err := s.LockPassword(context.Background(), "old"); err != nil {
 		t.Fatal(err)
 	}
-	if a := fake.only("old@example.net"); !strings.HasPrefix(a.secret, "$argon2id$") || len(a.apps) != 1 || !fake.signsIn("old@example.net", secret) {
+	a := fake.only("old@example.net")
+	if !strings.HasPrefix(a.secret, "$argon2id$") || len(a.apps) != 1 || !fake.signsIn("old@example.net", secret) {
 		t.Fatalf("after a new password: app passwords %d", len(a.apps))
+	}
+	// Locked again, the password is another: each is made fresh, never one kept.
+	first := a.secret
+	if err := s.LockPassword(context.Background(), "old"); err != nil {
+		t.Fatal(err)
+	}
+	if again := fake.only("old@example.net").secret; again == first || !strings.HasPrefix(again, "$argon2id$") {
+		t.Fatal("two locks gave the account the same password")
 	}
 }
 
