@@ -1,7 +1,9 @@
 package ui
 
 import (
+	"github.com/yongjohnlee80/autopanel/core/forward"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -168,5 +170,83 @@ func TestTheAPIsHostForm(t *testing.T) {
 	s.WaitForText(t, "The HTTPS API is off")
 	if got := asks(); len(got) != 3 || got[2].Host != "" || len(got[2].Allow) != 0 {
 		t.Fatalf("turning it off asked: %+v", got)
+	}
+}
+
+// TestThePortForwardsPanel: Routes › Port forwarding lists the forwards with
+// the selected one's details. Add takes one line; a line that is no forward,
+// and one the daemon refuses, are said in the prompt; a good one is shown as
+// reviewed, with what adding it does to the firewall, and added on Yes with
+// its port opened. Remove asks first.
+func TestThePortForwardsPanel(t *testing.T) {
+	f := newFakeClient()
+	f.blocked = true
+	f.forwards = []forward.View{{ID: 1, Name: "nas-ssh", Proto: "tcp", From: 2222, To: 2222, Target: "10.0.0.5:22", Allow: []string{"203.0.113.0/24"}}}
+	h, s := startHost(t, f)
+	s.WaitForText(t, "CA LE staging")
+	run(t, h, h.openForwards)
+	for _, part := range []string{"Port forwards · 1 · read at", "nas-ssh", "2222", "10.0.0.5:22", "PROXY header", "not sent", "203.0.113.0/24"} {
+		s.WaitForText(t, part)
+	}
+
+	s.Keys(t, decltest.Rune('a'))
+	s.WaitForText(t, "Add a port forward")
+	s.Keys(t, decltest.Type("game")...)
+	s.Keys(t, enter)
+	s.WaitForText(t, "Give a name, a port and a target")
+	for range len("game") {
+		s.Keys(t, backspace)
+	}
+	bad := "mine 2200 127.0.0.1:22"
+	s.Keys(t, decltest.Type(bad)...)
+	s.Keys(t, enter)
+	s.WaitForText(t, "SSH's own port is never forwarded")
+	for range len(bad) {
+		s.Keys(t, backspace)
+	}
+	s.Keys(t, decltest.Type("game 25565 127.0.0.1:26000")...)
+	s.Keys(t, enter)
+	s.WaitForText(t, "Add this port forward?")
+	s.WaitForText(t, "game: tcp/25565 → 127.0.0.1:26000")
+	s.WaitForText(t, "The firewall blocks tcp/25565 now.")
+	if n := len(onLoop(h, func() []forward.View { return h.fwd.list })); n != 1 {
+		t.Fatalf("the review changed the list: %d forwards", n)
+	}
+	s.Keys(t, decltest.Type("y")...)
+	s.WaitForText(t, "Forwarding tcp/25565 to 127.0.0.1:26000")
+	s.WaitForText(t, "Port forwards · 2 · read at")
+	f.mu.Lock()
+	adds := slices.Clone(f.forwardAdds)
+	f.mu.Unlock()
+	if len(adds) != 1 || adds[0].Name != "game" || adds[0].From != 25565 || adds[0].Accept != "review-of-game" || !adds[0].Open {
+		t.Fatalf("what the daemon was asked to add: %+v", adds)
+	}
+
+	// Remove the selected one (the first row), after a question.
+	s.Keys(t, decltest.Rune('r'))
+	s.WaitForText(t, "Remove the forward nas-ssh?")
+	s.Keys(t, decltest.Type("y")...)
+	s.WaitForText(t, "nas-ssh is no longer forwarded")
+	s.WaitForText(t, "Port forwards · 1 · read at")
+}
+
+// TestAForwardsLine: the one line of the form.
+func TestAForwardsLine(t *testing.T) {
+	for line, want := range map[string]forward.Spec{
+		"game 25565 127.0.0.1:26000":                  {Name: "game", From: 25565, Target: "127.0.0.1:26000", Allow: []string{}},
+		"  r   6000-6009  10.0.0.5:7000  10.0.0.0/8 ": {Name: "r", From: 6000, To: 6009, Target: "10.0.0.5:7000", Allow: []string{"10.0.0.0/8"}},
+	} {
+		got, ok := forwardSpec(line)
+		if got.Allow == nil {
+			got.Allow = []string{}
+		}
+		if !ok || !reflect.DeepEqual(got, want) {
+			t.Errorf("%q: %+v, %v; want %+v", line, got, ok, want)
+		}
+	}
+	for _, line := range []string{"", "game", "game 25565", "game port 127.0.0.1:1", "game 6000-x 127.0.0.1:1"} {
+		if _, ok := forwardSpec(line); ok {
+			t.Errorf("%q was read as a forward", line)
+		}
 	}
 }

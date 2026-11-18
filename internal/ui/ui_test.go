@@ -3,6 +3,8 @@ package ui
 import (
 	"context"
 	"errors"
+	corefw "github.com/yongjohnlee80/autopanel/core/firewall"
+	"github.com/yongjohnlee80/autopanel/core/forward"
 	"regexp"
 	"slices"
 	"strings"
@@ -46,6 +48,9 @@ type fakeClient struct {
 	domainAsks   []string // "add example.org" or "remove example.com"
 	api          API      // the HTTPS API's settings
 	apiAsks      []API
+	forwards     []forward.View // the port forwards
+	forwardAdds  []forward.Apply
+	blocked      bool // the firewall blocks a forward's port, and AutoPanel can open it
 
 	certs    []Cert // Certs › Certificates
 	certsErr error
@@ -168,6 +173,54 @@ func (f *fakeClient) Domains(context.Context) ([]gate.DomainView, error) {
 		out = append(out, d)
 	}
 	return out, nil
+}
+
+func (f *fakeClient) Forwards(context.Context) ([]forward.View, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.forwards), nil
+}
+
+// CheckForward reviews as the daemon does for the cases the panel words itself.
+func (f *fakeClient) CheckForward(_ context.Context, s forward.Spec) (forward.Review, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	fw, err := forward.Normalize(s)
+	switch {
+	case err != nil:
+		return forward.Review{}, err
+	case strings.HasSuffix(fw.Target, ":22") && strings.HasPrefix(fw.Target, "127."):
+		return forward.Review{}, forward.ErrSSH
+	}
+	v := forward.View{Name: fw.Name, Proto: fw.Proto, From: fw.From, To: fw.To, Target: fw.Target, Allow: fw.Allow}
+	w := fw.Want()
+	return forward.Review{Forward: v, SHA256: "review-of-" + fw.Name,
+		Ports: []corefw.PortState{{Want: w, Key: w.Key(), Verdict: "blocked", Needs: f.blocked, Managed: true}}}, nil
+}
+
+func (f *fakeClient) AddForward(_ context.Context, a forward.Apply) (forward.View, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.forwardAdds = append(f.forwardAdds, a)
+	to := a.To
+	if to == 0 {
+		to = a.From
+	}
+	v := forward.View{ID: int64(len(f.forwards) + 1), Name: a.Name, Proto: "tcp", From: a.From, To: to, Target: a.Target, Allow: a.Allow}
+	f.forwards = append(f.forwards, v)
+	return v, nil
+}
+
+func (f *fakeClient) RemoveForward(_ context.Context, id int64) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for i, v := range f.forwards {
+		if v.ID == id {
+			f.forwards = slices.Delete(f.forwards, i, i+1)
+			return nil
+		}
+	}
+	return forward.ErrNotFound
 }
 
 func (f *fakeClient) APISettings(context.Context) (API, error) {

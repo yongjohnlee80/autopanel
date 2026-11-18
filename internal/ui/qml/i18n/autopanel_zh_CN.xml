@@ -891,6 +891,22 @@
         <source>Upstream URL</source>
         <translation>上游 URL</translation>
     </message>
+    <message id="autopanel.label.forwards.header">
+        <source>PROXY header</source>
+        <translation>PROXY 头</translation>
+    </message>
+    <message id="autopanel.label.forwards.public">
+        <source>Public</source>
+        <translation>公开</translation>
+    </message>
+    <message id="autopanel.label.forwards.sources">
+        <source>Sources</source>
+        <translation>来源</translation>
+    </message>
+    <message id="autopanel.label.forwards.target">
+        <source>Target</source>
+        <translation>目标</translation>
+    </message>
     <message id="autopanel.label.host.cpu">
         <source>CPU</source>
         <translation>CPU</translation>
@@ -1186,6 +1202,10 @@
     <message id="autopanel.label.prompt.firewallAllow">
         <source>Protocol/port, and an optional source (tcp/8443, udp/49152-49160, tcp/22 from 192.0.2.0/24)</source>
         <translation>协议/端口，以及可选的来源（tcp/8443、udp/49152-49160、tcp/22 from 192.0.2.0/24）</translation>
+    </message>
+    <message id="autopanel.label.prompt.forward">
+        <source>A name, the public port or range, the target, then any sources allowed. Example: game 25565 127.0.0.1:26000</source>
+        <translation>依次填写名称、公开端口或范围、目标，以及允许的来源。例如：game 25565 127.0.0.1:26000</translation>
     </message>
     <message id="autopanel.label.prompt.mailAccount">
         <source>Its address (name@domain):</source>
@@ -1987,6 +2007,30 @@
         <source>Type a subdomain, or choose a domain.</source>
         <translation>请输入子域名，或选择域名。</translation>
     </message>
+    <message id="autopanel.notice.forwards.added">
+        <source>Forwarding tcp/%1 to %2</source>
+        <translation>正在将 tcp/%1 转发到 %2</translation>
+    </message>
+    <message id="autopanel.notice.forwards.none">
+        <source>No forward is selected</source>
+        <translation>未选择转发</translation>
+    </message>
+    <message id="autopanel.notice.forwards.removed">
+        <source>%1 is no longer forwarded</source>
+        <translation>%1 已不再转发</translation>
+    </message>
+    <message id="autopanel.notice.forwards.shape">
+        <source>Give a name, a port and a target: game 25565 127.0.0.1:26000</source>
+        <translation>请填写名称、端口和目标：game 25565 127.0.0.1:26000</translation>
+    </message>
+    <message id="autopanel.notice.forwards.ssh">
+        <source>SSH's own port is never forwarded, and no forward leads to this server's SSH</source>
+        <translation>SSH 自身的端口不可转发，也不能创建指向本服务器 SSH 的转发</translation>
+    </message>
+    <message id="autopanel.notice.forwards.target">
+        <source>A target is an address and a port, such as 127.0.0.1:8080: not a host name</source>
+        <translation>目标是地址加端口，例如 127.0.0.1:8080：不能是主机名</translation>
+    </message>
     <message id="autopanel.notice.import.badName">
         <source>%1 is not a stack's name: a lower-case letter, then letters, digits and hyphens, 29 characters at most.</source>
         <translation>%1 不是有效的堆栈名称：以小写字母开头，后接字母、数字和连字符，最多 29 个字符。</translation>
@@ -2303,6 +2347,22 @@
         <source>Delete the rule “%1”? A rule a stack or mail made goes from its records too.</source>
         <translation>删除规则“%1”？若是堆栈或邮件创建的规则，也会从其记录中删除。</translation>
     </message>
+    <message id="autopanel.question.forwards.add">
+        <source>%1: tcp/%2 → %3</source>
+        <translation>%1：tcp/%2 → %3</translation>
+    </message>
+    <message id="autopanel.question.forwards.manual">
+        <source>The firewall blocks tcp/%1, and AutoPanel does not change this firewall: open the port yourself.</source>
+        <translation>防火墙阻止 tcp/%1，而 AutoPanel 不会更改此防火墙：请自行开放端口。</translation>
+    </message>
+    <message id="autopanel.question.forwards.open">
+        <source>The firewall blocks tcp/%1 now. Adding the forward also opens it, as this forward's own rule.</source>
+        <translation>防火墙当前阻止 tcp/%1。添加转发时也会将其开放，作为此转发自己的规则。</translation>
+    </message>
+    <message id="autopanel.question.forwards.remove">
+        <source>Remove the forward %1? Its port stops being forwarded, and the firewall rule it owns is closed.</source>
+        <translation>移除转发 %1？其端口将停止转发，它拥有的防火墙规则将被关闭。</translation>
+    </message>
     <message id="autopanel.question.mail.appFirst">
         <source>%1 is made. Its devices sign in with app passwords: make one for its first device now?</source>
         <translation>%1 已创建。其设备用应用密码登录：现在为第一台设备创建一个吗？</translation>
@@ -2438,6 +2498,14 @@
     <message id="autopanel.tip.form.save">
         <source>Save the route</source>
         <translation>保存路由</translation>
+    </message>
+    <message id="autopanel.tip.forwards.add">
+        <source>Forward a public port to a target</source>
+        <translation>将公开端口转发到目标</translation>
+    </message>
+    <message id="autopanel.tip.forwards.remove">
+        <source>Remove the selected forward</source>
+        <translation>移除所选转发</translation>
     </message>
     <message id="autopanel.tip.login.quit">
         <source>Quit the panel</source>
@@ -2647,6 +2715,10 @@
         <source>%1 · more than shown</source>
         <translation>%1 · 未全部显示</translation>
     </message>
+    <message id="autopanel.title.confirm.addForward">
+        <source>Add this port forward?</source>
+        <translation>添加此端口转发？</translation>
+    </message>
     <message id="autopanel.title.confirm.appFirst">
         <source>App password</source>
         <translation>应用密码</translation>
@@ -2686,6 +2758,10 @@
     <message id="autopanel.title.confirm.removeDomain">
         <source>Remove domain</source>
         <translation>移除域名</translation>
+    </message>
+    <message id="autopanel.title.confirm.removeForward">
+        <source>Remove port forward</source>
+        <translation>移除端口转发</translation>
     </message>
     <message id="autopanel.title.confirm.removeRoute">
         <source>Remove route</source>
@@ -2787,6 +2863,10 @@
         <source>Rules</source>
         <translation>规则</translation>
     </message>
+    <message id="autopanel.title.list.forwards">
+        <source>Port forwards</source>
+        <translation>端口转发</translation>
+    </message>
     <message id="autopanel.title.list.journal">
         <source>%1 · %2 lines · read at %3</source>
         <translation>%1 · %2 行 · 读取于 %3</translation>
@@ -2879,6 +2959,10 @@
         <source>Firewall</source>
         <translation>防火墙</translation>
     </message>
+    <message id="autopanel.title.panel.forwards">
+        <source>Port forwards</source>
+        <translation>端口转发</translation>
+    </message>
     <message id="autopanel.title.panel.logins">
         <source>Login attempts</source>
         <translation>登录尝试</translation>
@@ -2946,6 +3030,10 @@
     <message id="autopanel.title.prompt.firewallAllow">
         <source>Allow a port</source>
         <translation>允许端口</translation>
+    </message>
+    <message id="autopanel.title.prompt.forward">
+        <source>Add a port forward</source>
+        <translation>添加端口转发</translation>
     </message>
     <message id="autopanel.title.prompt.import">
         <source>Import a stack</source>
@@ -3294,6 +3382,18 @@
     <message id="autopanel.value.firewallLimit.unparsedRules">
         <source>Some rules could not be read: ports they might match read as unknown.</source>
         <translation>部分规则无法读取：它们可能影响的端口显示为未知。</translation>
+    </message>
+    <message id="autopanel.value.forwards.any">
+        <source>any address</source>
+        <translation>任意地址</translation>
+    </message>
+    <message id="autopanel.value.forwards.notSent">
+        <source>not sent</source>
+        <translation>不发送</translation>
+    </message>
+    <message id="autopanel.value.forwards.sent">
+        <source>sent</source>
+        <translation>发送</translation>
     </message>
     <message id="autopanel.value.host.cpu">
         <source>%1% of %2 CPUs</source>

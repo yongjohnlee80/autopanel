@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/yongjohnlee80/autopanel/core/forward"
 	"io"
 	"slices"
 
@@ -26,7 +27,7 @@ type uiClient struct{ c *hostcontrol.Client }
 
 // publicErrors are the errors the panel tells apart by their wire codes: the
 // stacks', the routes', mail's, the users' and the API's.
-var publicErrors = slices.Concat((&services.Module{}).Errors(), (&gate.Module{}).Errors(), (&mail.Module{}).Errors(), (&auth.Module{}).Errors(), (&apiModule{}).Errors())
+var publicErrors = slices.Concat((&services.Module{}).Errors(), (&gate.Module{}).Errors(), (&mail.Module{}).Errors(), (&auth.Module{}).Errors(), (&apiModule{}).Errors(), (&forward.Module{}).Errors())
 
 // known is err with the error its wire code names wrapped in, so the panel
 // can tell it apart (errors.Is); the daemon's message is kept beside it.
@@ -174,6 +175,25 @@ func (u uiClient) SetAPI(ctx context.Context, a ui.API) (ui.API, error) {
 	var s APISettings
 	err := u.call(ctx, "sys.api.set", APISettings{Host: a.Host, Allow: a.Allow}, &s)
 	return ui.API{Host: s.Host, Allow: s.Allow}, err
+}
+
+func (u uiClient) Forwards(ctx context.Context) ([]forward.View, error) {
+	var fs []forward.View
+	return fs, u.call(ctx, "gate.forward.list", nil, &fs)
+}
+
+func (u uiClient) CheckForward(ctx context.Context, s forward.Spec) (forward.Review, error) {
+	var r forward.Review
+	return r, u.call(ctx, "gate.forward.check", s, &r)
+}
+
+func (u uiClient) AddForward(ctx context.Context, a forward.Apply) (forward.View, error) {
+	var v forward.View
+	return v, u.call(ctx, "gate.forward.add", a, &v)
+}
+
+func (u uiClient) RemoveForward(ctx context.Context, id int64) error {
+	return u.call(ctx, "gate.forward.remove", forward.Ref{ID: id}, nil)
 }
 
 func (u uiClient) AddDomain(ctx context.Context, name string) error {
