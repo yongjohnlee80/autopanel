@@ -120,8 +120,8 @@ func forwardSpec(text string) (forward.Spec, bool) {
 		return forward.Spec{}, false
 	}
 	if isRange {
-		if s.To, err = strconv.Atoi(to); err != nil {
-			return forward.Spec{}, false
+		if s.To, err = strconv.Atoi(to); err != nil || s.To <= 0 {
+			return forward.Spec{}, false // "25565-0" is no range: 0 would read as "one port"
 		}
 	}
 	return s, true
