@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/yongjohnlee80/autopanel/core/forward"
 	"log/slog"
 	"net/http"
 	"os"
@@ -283,7 +284,7 @@ func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateContr
 	// The firewall: one lock for every change, and what a change left when
 	// the core stopped in it settled before anything else changes it.
 	mailOn := func(ctx context.Context) bool { _, ok, _ := st.Mail().State(ctx); return ok }
-	fwm := corefw.New(firewallHost(), st, readListeners, firewallUses(cfg, mailOn, st.Services()), log)
+	fwm := corefw.New(firewallHost(), st, readListeners, firewallUses(cfg, mailOn, st.Services(), st.Forwards()), log)
 	if err := fwm.Settle(ctx); err != nil {
 		log.Warn("firewall: settling what an earlier change left", "err", err)
 	}
@@ -291,7 +292,7 @@ func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateContr
 	mailMod.SetFirewall(fwm) // mail's set-up opens its four ports; mail.remove closes them
 	sys := &sysModule{cfg: cfg, sampler: sysinfo.NewSampler(), table: table, engine: st.Engine(), started: time.Now(), challenge: sw.Challenge, ca: sw.CA,
 		st: st, log: log, counts: counts, listeners: readListeners, sshLogins: readSSHLogins, firewall: fwm.Read, gate: gc, serviceUsers: svcs.Users,
-		moreChecks: ownerChecks(mailOn, st.Services(), st), certRows: sw.rows, mailFindings: mailMod.Findings}
+		moreChecks: ownerChecks(mailOn, st.Services(), st.Forwards(), st), certRows: sw.rows, mailFindings: mailMod.Findings}
 	am, err := auth.New(st.Users(), st, st, vault, func(ctx context.Context) {
 		if err := sw.rebuild(ctx); err != nil {
 			log.Error("certificates after unlock", "err", err)
@@ -303,7 +304,15 @@ func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateContr
 	// The control socket: this user's processes only, so root's under the unit.
 	// A privileged verb's entry goes to the store's audit log before it runs.
 	apiMod.auth = am
-	mods := []module.Module{am, gm, &certsModule{sw: sw}, sys, firewallModule{fwm}, servicesModule{svcs}, mailMod, apiMod}
+	// Port forwards: the gate carries them beside mail's ports.
+	fm := forward.NewModule(st.Forwards(), forwardHost{fw: firewallHost()}, forwardReserved(cfg), nil)
+	sendForwards := forwardStreams(fm, streams)
+	fm.SetReload(sendForwards)
+	fm.SetFirewall(fwm)
+	if err := sendForwards(ctx); err != nil {
+		return fmt.Errorf("loading the port forwards: %w", err)
+	}
+	mods := []module.Module{am, gm, fm, &certsModule{sw: sw}, sys, firewallModule{fwm}, servicesModule{svcs}, mailMod, apiMod}
 	if err := apiMod.serve(mods...); err != nil {
 		return err
 	}

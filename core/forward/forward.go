@@ -140,6 +140,10 @@ func NewModule(store Store, host Host, reserved func() Reserved, reload func(ctx
 	return &Module{store: store, host: host, reserved: reserved, reload: reload}
 }
 
+// SetReload names how the gate is told. Set once, before the verbs are
+// served, when the module had to exist first.
+func (m *Module) SetReload(reload func(ctx context.Context) error) { m.reload = reload }
+
 // SetFirewall gives the forwards the firewall. Set once, before the verbs are
 // served.
 func (m *Module) SetFirewall(f Firewall) { m.firewall = f }
@@ -153,7 +157,7 @@ func (m *Module) Errors() []module.PublicError {
 		{Err: ErrBadName, Code: -32252, Name: "gate.forward.bad_name", Message: "a name is 1 to 32 lower-case letters, digits and hyphens, starting with a letter"},
 		{Err: ErrBadProto, Code: -32253, Name: "gate.forward.bad_proto", Message: "the protocol must be tcp; udp forwards are not built yet"},
 		{Err: ErrBadPorts, Code: -32254, Name: "gate.forward.bad_ports", Message: "a public port is 1 to 65535, and a range at most 100 ports"},
-		{Err: ErrBadTarget, Code: -32255, Name: "gate.forward.bad_target", Message: "a target is a literal address and port, such as 127.0.0.1:8080; a host name is not taken"},
+		{Err: ErrBadTarget, Code: -32255, Name: "gate.forward.bad_target", Message: "a target is a literal address and port, such as 127.0.0.1:8080: not a host name, and not an address no connection can be made to"},
 		{Err: ErrBadAllow, Code: -32256, Name: "gate.forward.bad_allow", Message: "an allowed source must be an address prefix, such as 203.0.113.0/24"},
 		{Err: ErrBadLimits, Code: -32257, Name: "gate.forward.bad_limits", Message: "a limit is out of range"},
 		{Err: ErrPortTaken, Code: -32258, Name: "gate.forward.port_taken", Message: "a public port is in use"},

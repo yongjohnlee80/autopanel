@@ -1839,6 +1839,10 @@
         <source>Log in again in a second terminal and confirm in System → Firewall, or it is undone.</source>
         <translation>请在第二个终端重新登录并在系统 → 防火墙中确认，否则将被撤销。</translation>
     </message>
+    <message id="autopanel.notice.check.forwardPortBlocked">
+        <source>Nothing reaches the forward from outside until its port is allowed: edit the forward and open its port, or allow it in System → Firewall.</source>
+        <translation>在允许该端口之前，外部无法访问此转发：请编辑转发并开放其端口，或在 系统 → 防火墙 中允许。</translation>
+    </message>
     <message id="autopanel.notice.check.gatePortBlocked">
         <source>Allow them in System → Firewall: without them the sites cannot be reached and certificates cannot renew.</source>
         <translation>请在系统 → 防火墙中允许：否则网站无法访问，证书也无法续期。</translation>
@@ -3158,6 +3162,10 @@
     <message id="autopanel.value.check.firewallUnconfirmed">
         <source>The firewall was turned on and is not confirmed yet</source>
         <translation>防火墙已开启但尚未确认</translation>
+    </message>
+    <message id="autopanel.value.check.forwardPortBlocked">
+        <source>The firewall blocks a port forward's port: %1</source>
+        <translation>防火墙阻止了端口转发的端口：%1</translation>
     </message>
     <message id="autopanel.value.check.gatePortBlocked">
         <source>The firewall blocks AutoPanel's web ports: %1</source>

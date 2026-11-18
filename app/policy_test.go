@@ -32,6 +32,8 @@ func TestEveryVerbHasADecision(t *testing.T) {
 		"gate.route.list": {"gate", false, true}, "gate.route.add": {"gate", true, false}, "gate.route.update": {"gate", true, false},
 		"gate.route.remove": {"gate", true, false}, "gate.domain.list": {"gate", false, true}, "gate.domain.add": {"gate", true, false},
 		"gate.domain.remove": {"gate", true, false},
+		"gate.forward.list":  {"gate", false, true}, "gate.forward.check": {"gate", false, true},
+		"gate.forward.add": {"gate", true, false}, "gate.forward.update": {"gate", true, false}, "gate.forward.remove": {"gate", true, false},
 
 		"certs.ca.set": {"certs", true, false}, "certs.cloudflare.set": {"certs", true, false}, "certs.cloudflare.clear": {"certs", true, false},
 		"certs.list": {"certs", false, true},

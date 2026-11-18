@@ -1839,6 +1839,10 @@
         <source>Log in again in a second terminal and confirm in System → Firewall, or it is undone.</source>
         <translation>2 つ目の端末で再ログインし、システム → ファイアウォールで確定してください。しなければ元に戻ります。</translation>
     </message>
+    <message id="autopanel.notice.check.forwardPortBlocked">
+        <source>Nothing reaches the forward from outside until its port is allowed: edit the forward and open its port, or allow it in System → Firewall.</source>
+        <translation>ポートを許可するまで、外部からこの転送には届きません。転送を編集してポートを開くか、システム → ファイアウォールで許可してください。</translation>
+    </message>
     <message id="autopanel.notice.check.gatePortBlocked">
         <source>Allow them in System → Firewall: without them the sites cannot be reached and certificates cannot renew.</source>
         <translation>システム → ファイアウォールで許可してください。ないとサイトに届かず、証明書も更新できません。</translation>
@@ -3158,6 +3162,10 @@
     <message id="autopanel.value.check.firewallUnconfirmed">
         <source>The firewall was turned on and is not confirmed yet</source>
         <translation>ファイアウォールをオンにしましたが、まだ確定されていません</translation>
+    </message>
+    <message id="autopanel.value.check.forwardPortBlocked">
+        <source>The firewall blocks a port forward's port: %1</source>
+        <translation>ファイアウォールがポート転送のポートを遮断しています: %1</translation>
     </message>
     <message id="autopanel.value.check.gatePortBlocked">
         <source>The firewall blocks AutoPanel's web ports: %1</source>

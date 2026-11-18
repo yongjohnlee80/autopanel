@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"github.com/yongjohnlee80/autopanel/core/mail"
 	"slices"
 	"sync"
 
@@ -16,17 +17,18 @@ import (
 type streamTable struct {
 	rev *revision
 
-	mu      sync.Mutex
-	total   int
-	streams []hostgate.Stream
+	mu       sync.Mutex
+	total    int               // mail's limit; 0 while mail is off
+	streams  []hostgate.Stream // mail's
+	forwards []hostgate.Stream // the port forwards'
 }
 
 func newStreamTable(start int64) *streamTable {
 	return &streamTable{rev: newRevision(start)}
 }
 
-// Set replaces the streams and the limit they share. An unchanged set wakes no
-// one.
+// Set replaces mail's streams and the limit every stream shares. An unchanged
+// set wakes no one.
 func (t *streamTable) Set(total int, streams []hostgate.Stream) {
 	t.mu.Lock()
 	same := t.total == total && slices.Equal(t.streams, streams)
@@ -48,5 +50,23 @@ func (t *streamTable) wait(ctx context.Context, after int64) (hostgate.Streams, 
 	}
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	return hostgate.Streams{Rev: rev, Total: t.total, Streams: slices.Clone(t.streams)}, nil
+	total := t.total
+	if total == 0 && len(t.forwards) > 0 {
+		total = mail.TotalConnections // the same limit with mail off: the gate's memory is sized for it
+	}
+	return hostgate.Streams{Rev: rev, Total: total, Streams: slices.Concat(t.streams, t.forwards)}, nil
+}
+
+// SetForwards replaces the port forwards' streams. They share the limit with
+// mail's: each forward's own share keeps them to a small part of it.
+func (t *streamTable) SetForwards(streams []hostgate.Stream) {
+	t.mu.Lock()
+	same := slices.Equal(t.forwards, streams)
+	if !same {
+		t.forwards = slices.Clone(streams)
+	}
+	t.mu.Unlock()
+	if !same {
+		t.rev.bump()
+	}
 }

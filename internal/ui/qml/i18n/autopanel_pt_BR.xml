@@ -1839,6 +1839,10 @@
         <source>Log in again in a second terminal and confirm in System → Firewall, or it is undone.</source>
         <translation>Entre de novo em um segundo terminal e confirme em Sistema → Firewall, ou será desfeito.</translation>
     </message>
+    <message id="autopanel.notice.check.forwardPortBlocked">
+        <source>Nothing reaches the forward from outside until its port is allowed: edit the forward and open its port, or allow it in System → Firewall.</source>
+        <translation>Nada chega ao encaminhamento de fora até que sua porta seja permitida: edite o encaminhamento e abra a porta, ou permita-a em Sistema → Firewall.</translation>
+    </message>
     <message id="autopanel.notice.check.gatePortBlocked">
         <source>Allow them in System → Firewall: without them the sites cannot be reached and certificates cannot renew.</source>
         <translation>Permita-as em Sistema → Firewall: sem elas os sites não são alcançados e os certificados não renovam.</translation>
@@ -3158,6 +3162,10 @@
     <message id="autopanel.value.check.firewallUnconfirmed">
         <source>The firewall was turned on and is not confirmed yet</source>
         <translation>O firewall foi ligado e ainda não foi confirmado</translation>
+    </message>
+    <message id="autopanel.value.check.forwardPortBlocked">
+        <source>The firewall blocks a port forward's port: %1</source>
+        <translation>O firewall bloqueia a porta de um encaminhamento: %1</translation>
     </message>
     <message id="autopanel.value.check.gatePortBlocked">
         <source>The firewall blocks AutoPanel's web ports: %1</source>

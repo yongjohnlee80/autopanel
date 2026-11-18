@@ -1839,6 +1839,10 @@
         <source>Log in again in a second terminal and confirm in System → Firewall, or it is undone.</source>
         <translation>Vuelve a entrar en una segunda terminal y confirma en Sistema → Cortafuegos, o se deshace.</translation>
     </message>
+    <message id="autopanel.notice.check.forwardPortBlocked">
+        <source>Nothing reaches the forward from outside until its port is allowed: edit the forward and open its port, or allow it in System → Firewall.</source>
+        <translation>Nada llega al reenvío desde fuera hasta que se permita su puerto: edite el reenvío y abra su puerto, o permítalo en Sistema → Cortafuegos.</translation>
+    </message>
     <message id="autopanel.notice.check.gatePortBlocked">
         <source>Allow them in System → Firewall: without them the sites cannot be reached and certificates cannot renew.</source>
         <translation>Permítelos en Sistema → Cortafuegos: sin ellos los sitios no se alcanzan y los certificados no se renuevan.</translation>
@@ -3158,6 +3162,10 @@
     <message id="autopanel.value.check.firewallUnconfirmed">
         <source>The firewall was turned on and is not confirmed yet</source>
         <translation>El cortafuegos se activó y aún no está confirmado</translation>
+    </message>
+    <message id="autopanel.value.check.forwardPortBlocked">
+        <source>The firewall blocks a port forward's port: %1</source>
+        <translation>El cortafuegos bloquea el puerto de un reenvío: %1</translation>
     </message>
     <message id="autopanel.value.check.gatePortBlocked">
         <source>The firewall blocks AutoPanel's web ports: %1</source>

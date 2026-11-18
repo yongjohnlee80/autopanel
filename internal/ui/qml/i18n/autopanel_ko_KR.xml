@@ -1839,6 +1839,10 @@
         <source>Log in again in a second terminal and confirm in System → Firewall, or it is undone.</source>
         <translation>두 번째 터미널에서 다시 로그인해 시스템 → 방화벽에서 확인하세요. 그러지 않으면 되돌려집니다.</translation>
     </message>
+    <message id="autopanel.notice.check.forwardPortBlocked">
+        <source>Nothing reaches the forward from outside until its port is allowed: edit the forward and open its port, or allow it in System → Firewall.</source>
+        <translation>포트를 허용하기 전에는 외부에서 전달에 도달할 수 없습니다. 전달을 편집해 포트를 열거나 시스템 → 방화벽에서 허용하십시오.</translation>
+    </message>
     <message id="autopanel.notice.check.gatePortBlocked">
         <source>Allow them in System → Firewall: without them the sites cannot be reached and certificates cannot renew.</source>
         <translation>시스템 → 방화벽에서 허용하세요. 없으면 사이트에 닿을 수 없고 인증서를 갱신할 수 없습니다.</translation>
@@ -3158,6 +3162,10 @@
     <message id="autopanel.value.check.firewallUnconfirmed">
         <source>The firewall was turned on and is not confirmed yet</source>
         <translation>방화벽을 켰지만 아직 확인되지 않았습니다</translation>
+    </message>
+    <message id="autopanel.value.check.forwardPortBlocked">
+        <source>The firewall blocks a port forward's port: %1</source>
+        <translation>방화벽이 포트 전달의 포트를 차단합니다: %1</translation>
     </message>
     <message id="autopanel.value.check.gatePortBlocked">
         <source>The firewall blocks AutoPanel's web ports: %1</source>

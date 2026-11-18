@@ -12,6 +12,7 @@ the code disagree, the code is right and the page is fixed.
 | [Certificates](certs.md) | obtained at the first request for a name a route holds, renewed at a request in the last third; what the panel shows without ordering anything; orders in the audit log; host checks |
 | [Services](services.md) | stacks: the compose subset, the review and the apply, a stack's data, the user and the units each runs as, the audit entry that comes first |
 | [The firewall](firewall.md) | the manager the host has, read and driven, never a ruleset of AutoPanel's; each port's verdict; the lockout guard and the enable that undoes itself; rules a stack or mail owns; the commands where AutoPanel will not act; host checks; the installer's step |
+| [Port forwards](forwards.md) | a public TCP port sent to a literal target; what a forward may never do (SSH, mail's inner ports, a host name); reviewed then applied; the firewall rule it owns; the limits |
 | [Mail](mail.md) | Stalwart as a stack behind the gate: the gate forwards the mail ports with a PROXY header, and only the gate can reach them |
 | [The HTTPS API](api.md) | served by the gate on a host of its own, to API tokens; the core decides and still listens on no network; one answer without a token; what is public; the limits and the sum behind them |
 | [Users and roles](auth.md) | four roles checked on every call, only admins hold the master key, two-factor with one answer for every failure, login limits, sessions, API tokens |
