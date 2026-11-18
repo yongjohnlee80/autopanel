@@ -28,6 +28,9 @@ type Stream struct {
 	IdleSecs  int    `json:"idle_secs"`  // a connection with no byte either way for this long is closed
 	PerClient int    `json:"per_client"` // connections at once from one client (an IPv4 address, an IPv6 /64); 0: no limit of its own
 	Share     int    `json:"share"`      // at most this many of Total; 0: Total
+	// Proto is "udp" for a UDP stream (udp.go); "" or "tcp" for TCP. A UDP
+	// stream has no header to send: Plain says nothing of it.
+	Proto string `json:"proto,omitempty"`
 	// Plain forwards the bytes with no PROXY header in front: for a target
 	// that does not read one. Mail's ports are never plain.
 	Plain bool `json:"plain,omitempty"`
