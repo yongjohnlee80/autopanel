@@ -89,6 +89,7 @@ type peerKey struct {
 // streamRun is one stream being served: its listener and its connections.
 type streamRun struct {
 	s      Stream
+	share  atomic.Int64   // s.Share as it is now: it may change while the stream runs
 	allow  []netip.Prefix // s.Allow, parsed
 	bad    bool           // s.Allow names something that is no prefix
 	cancel context.CancelFunc
@@ -115,7 +116,15 @@ func (f *forwarder) apply(ctx context.Context, total int, streams []Stream) {
 	f.total = total
 	var stop []*streamRun
 	for listen, r := range f.running {
-		if s, ok := want[listen]; !ok || s != r.s {
+		s, ok := want[listen]
+		if ok && s != r.s && sameButShare(s, r.s) {
+			// Only its share of the total changed (another stream came or
+			// went): the listener and its connections stay, under the new
+			// share. Stopping it would cut every client off for nothing.
+			r.share.Store(int64(s.Share))
+			continue
+		}
+		if !ok || s != r.s {
 			stop = append(stop, r)
 			delete(f.running, listen)
 		}
@@ -127,6 +136,7 @@ func (f *forwarder) apply(ctx context.Context, total int, streams []Stream) {
 		}
 		sctx, cancel := context.WithCancel(ctx)
 		r := &streamRun{s: s, cancel: cancel, done: make(chan struct{}), conns: map[net.Conn]struct{}{}}
+		r.share.Store(int64(s.Share))
 		for _, a := range strings.Fields(s.Allow) {
 			pre, err := netip.ParsePrefix(a)
 			if err != nil {
@@ -358,7 +368,7 @@ func (f *forwarder) forward(ctx context.Context, r *streamRun, c *net.TCPConn) {
 	_ = c.SetReadBuffer(clientBuffer)
 	_ = c.SetWriteBuffer(clientBuffer)
 	key := peerKey{stream: r.s.Name, client: clientPrefix(client.Addr())}
-	if !f.admit(r.s, key) {
+	if !f.admit(r, key) {
 		f.refused.Add(1)
 		return
 	}
@@ -411,13 +421,20 @@ func (r *streamRun) lets(ip netip.Addr) bool {
 	return false
 }
 
+// sameButShare reports whether a and b differ in nothing but their share.
+func sameButShare(a, b Stream) bool {
+	a.Share = b.Share
+	return a == b
+}
+
 // admit counts a connection in, or reports that a limit holds it out: the
 // total for every stream, the stream's share of it, and the stream's limit
 // per client.
-func (f *forwarder) admit(s Stream, key peerKey) bool {
+func (f *forwarder) admit(r *streamRun, key peerKey) bool {
+	s := r.s
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	share := s.Share
+	share := int(r.share.Load())
 	if share <= 0 || share > f.total {
 		share = f.total
 	}

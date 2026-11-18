@@ -604,3 +604,66 @@ func TestAStreamTakesOnlyItsAllowedSources(t *testing.T) {
 		t.Fatal("an IPv4 client seen as an IPv6-mapped address is judged wrongly")
 	}
 }
+
+// TestAnotherStreamComingDoesNotCutThisOnesClients: when a stream's share of
+// the total changes because another stream was added, its listener and its
+// open connections stay, and new connections are held to the new share.
+func TestAnotherStreamComingDoesNotCutThisOnesClients(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	f := newForwarder(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	t.Cleanup(func() { f.stopAll(); cancel() })
+	one := Stream{Name: "forward:one", Listen: freeAddr(t), To: plainEcho(t), IdleSecs: 30, PerClient: 50, Share: 64, Plain: true}
+	f.apply(ctx, 200, []Stream{one})
+	dial := func(addr string) net.Conn {
+		t.Helper()
+		deadline := time.Now().Add(3 * time.Second)
+		for {
+			c, err := net.Dial("tcp", addr)
+			if err == nil {
+				return c
+			}
+			if time.Now().After(deadline) {
+				t.Fatalf("%s never listened: %v", addr, err)
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+	}
+	held := dial(one.Listen)
+	defer held.Close()
+	said := func(c net.Conn, text string) string {
+		_ = c.SetDeadline(time.Now().Add(3 * time.Second))
+		if _, err := io.WriteString(c, text); err != nil {
+			return "write: " + err.Error()
+		}
+		b := make([]byte, len(text))
+		if _, err := io.ReadFull(c, b); err != nil {
+			return "read: " + err.Error()
+		}
+		return string(b)
+	}
+	if got := said(held, "before"); got != "before" {
+		t.Fatalf("before the change: %q", got)
+	}
+	// A second forward comes: the first one's share halves, to two.
+	one.Share = 2
+	two := Stream{Name: "forward:two", Listen: freeAddr(t), To: plainEcho(t), IdleSecs: 30, PerClient: 50, Share: 2, Plain: true}
+	f.apply(ctx, 200, []Stream{one, two})
+	if got := said(held, "after"); got != "after" {
+		t.Fatalf("a connection open when another stream came: %q; want it carried on", got)
+	}
+	second := dial(one.Listen)
+	defer second.Close()
+	if got := said(second, "two"); got != "two" {
+		t.Fatalf("a second connection within the new share: %q", got)
+	}
+	third := dial(one.Listen) // accepted by the listener, then turned away by the share
+	defer third.Close()
+	if got := said(third, "three"); got == "three" {
+		t.Fatal("a third connection was carried past a share of two")
+	}
+	// The same set again changes nothing either.
+	f.apply(ctx, 200, []Stream{one, two})
+	if got := said(held, "again"); got != "again" {
+		t.Fatalf("after the same set was applied again: %q", got)
+	}
+}

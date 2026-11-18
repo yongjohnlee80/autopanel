@@ -12,8 +12,9 @@ import (
 )
 
 type memStore struct {
-	fs   []Forward
-	next int64
+	fs         []Forward
+	next       int64
+	failUpdate error
 }
 
 func (m *memStore) All(context.Context) ([]Forward, error) {
@@ -30,6 +31,9 @@ func (m *memStore) Add(_ context.Context, f Forward) (Forward, error) {
 }
 
 func (m *memStore) Update(_ context.Context, f Forward) (Forward, error) {
+	if m.failUpdate != nil {
+		return Forward{}, m.failUpdate
+	}
 	for i := range m.fs {
 		if m.fs[i].ID == f.ID {
 			f.Name = m.fs[i].Name
@@ -145,6 +149,13 @@ func TestAForwardsShape(t *testing.T) {
 	if err != nil || f.Target != "10.0.0.5:7000" || f.Ports() != 10 || strings.Join(f.Allow, " ") != "2001:db8::/32 203.0.113.0/24" {
 		t.Fatalf("a range with sources: %+v, %v", f, err)
 	}
+	for _, target := range []string{"127.0.0.1:1", "10.0.0.5:22", "192.168.1.9:8080", "203.0.113.9:443", "223.255.255.254:1", "[::1]:8080", "[fd00::5]:22", "[2001:db8::5]:443", "[3fff::1]:1"} {
+		s := ok
+		s.Target = target
+		if _, err := Normalize(s); err != nil {
+			t.Errorf("the target %s: %v; want it taken", target, err)
+		}
+	}
 	with := func(change func(*Spec)) Spec { s := ok; change(&s); return s }
 	for what, c := range map[string]struct {
 		s    Spec
@@ -171,6 +182,12 @@ func TestAForwardsShape(t *testing.T) {
 		"broadcast":               {with(func(s *Spec) { s.Target = "255.255.255.255:80" }), ErrBadTarget},
 		"cloud metadata":          {with(func(s *Spec) { s.Target = "169.254.169.254:80" }), ErrBadTarget},
 		"IPv6 link-local":         {with(func(s *Spec) { s.Target = "[fe80::1]:80" }), ErrBadTarget},
+		"this network, 0.0.0.1":   {with(func(s *Spec) { s.Target = "0.0.0.1:22" }), ErrBadTarget},
+		"this network, 0.1.2.3":   {with(func(s *Spec) { s.Target = "0.1.2.3:10025" }), ErrBadTarget},
+		"the reserved range":      {with(func(s *Spec) { s.Target = "240.0.0.1:80" }), ErrBadTarget},
+		"an IPv4-compatible IPv6": {with(func(s *Spec) { s.Target = "[::127.0.0.1]:80" }), ErrBadTarget},
+		"a NAT64 address":         {with(func(s *Spec) { s.Target = "[64:ff9b::7f00:1]:80" }), ErrBadTarget},
+		"a documentation prefix":  {with(func(s *Spec) { s.Target = "[100::1]:80" }), ErrBadTarget},
 		"a range past the last":   {with(func(s *Spec) { s.From, s.To, s.Target = 6000, 6009, "127.0.0.1:65530" }), ErrBadTarget},
 		"a source that is a name": {with(func(s *Spec) { s.Allow = []string{"office"} }), ErrBadAllow},
 		"too many sources":        {with(func(s *Spec) { s.Allow = slices.Repeat([]string{"10.0.0.0/8"}, 17) }), ErrBadAllow},
@@ -313,6 +330,21 @@ func TestAForwardIsAppliedAsReviewed(t *testing.T) {
 	if got := strings.Join(f.fw.opened, ";") + " | " + strings.Join(f.fw.closed, ";"); got != "forward:game tcp/25565;forward:game tcp/25570 | forward:game all;forward:game tcp/25565" {
 		t.Fatalf("after the move: %s", got)
 	}
+	// A store that fails the update: the port just opened for it is closed again,
+	// the gate is told nothing, and the old port's rule stays.
+	f.st.failUpdate = errors.New("the store is gone")
+	again := Spec{ID: v.ID, Name: "game", From: 25580, Target: "127.0.0.1:25566"}
+	r3, _ := f.m.check(ctx, again)
+	reloads, closed := f.reloads, len(f.fw.closed)
+	if _, err := f.m.update(ctx, Apply{Spec: again, Accept: r3.SHA256, Open: true}); err == nil {
+		t.Fatal("an update the store refused was reported done")
+	}
+	if f.reloads != reloads || len(f.fw.closed) != closed+1 || f.fw.closed[closed] != "forward:game tcp/25580" {
+		t.Fatalf("after a failed update: %d reloads more, closed %v", f.reloads-reloads, f.fw.closed[closed:])
+	}
+	f.st.failUpdate = nil
+	f.fw.opened, f.fw.closed = f.fw.opened[:2], f.fw.closed[:closed]
+
 	// A forward keeps its name, and one that is gone cannot be updated.
 	renamed := Spec{ID: v.ID, Name: "other", From: 25570, Target: "127.0.0.1:25566"}
 	if _, err := f.m.check(ctx, renamed); !errors.Is(err, ErrBadName) {
