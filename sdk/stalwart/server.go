@@ -1,9 +1,13 @@
 package stalwart
 
 import (
+	"crypto/rand"
+	"encoding/base64"
+
 	"context"
 	"errors"
 	"fmt"
+	"github.com/yongjohnlee80/golib/auth/password"
 	"strings"
 	"time"
 
@@ -90,13 +94,38 @@ func (s server) Accounts(ctx context.Context) ([]provider.Account, error) {
 }
 
 func (s server) AddAccount(ctx context.Context, a provider.NewAccount) (string, error) {
-	id, err := s.c.AddAccount(ctx, NewAccount{Name: a.Local, DomainID: a.DomainID, Secret: a.PasswordHash,
+	secret, err := lockedSecret()
+	if err != nil {
+		return "", err
+	}
+	id, err := s.c.AddAccount(ctx, NewAccount{Name: a.Local, DomainID: a.DomainID, Secret: secret,
 		Quota: a.Quota, AppPasswords: int64(a.AppPasswords)})
 	return id, refused(err)
 }
 
-func (s server) SetPasswordHash(ctx context.Context, accountID, hash string) error {
-	return refused(s.c.SetSecret(ctx, accountID, hash))
+func (s server) LockPassword(ctx context.Context, accountID string) error {
+	secret, err := lockedSecret()
+	if err != nil {
+		return err
+	}
+	return refused(s.c.SetSecret(ctx, accountID, secret))
+}
+
+// lockedHasher hashes a mailbox's own password, which is 32 random bytes no one
+// is told: the hash's cost protects nothing (no one can guess 256 bits), and
+// Stalwart pays it at every failed sign-in, in a 250 MB container. So the
+// least argon2id golib allows.
+var lockedHasher = password.Argon2id{Memory: 8 * 1024, Time: 1, Parallelism: 1, SaltLen: 16, KeyLen: 32}
+
+// lockedSecret is a password no one knows, as the hash Stalwart verifies.
+// Neither the password nor the hash is kept.
+func lockedSecret() (string, error) {
+	var b [32]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return "", err
+	}
+	defer clear(b[:])
+	return lockedHasher.Hash(base64.RawStdEncoding.EncodeToString(b[:]))
 }
 
 func (s server) SetQuota(ctx context.Context, accountID string, bytes int64) error {
