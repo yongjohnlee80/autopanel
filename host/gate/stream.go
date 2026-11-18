@@ -117,10 +117,12 @@ func (f *forwarder) apply(ctx context.Context, total int, streams []Stream) {
 	var stop []*streamRun
 	for listen, r := range f.running {
 		s, ok := want[listen]
-		if ok && s != r.s && sameButShare(s, r.s) {
-			// Only its share of the total changed (another stream came or
-			// went): the listener and its connections stay, under the new
-			// share. Stopping it would cut every client off for nothing.
+		if ok && sameButShare(s, r.s) {
+			// The same stream, whatever its share of the total is now (another
+			// stream came or went): the listener and its connections stay, and
+			// the share is set every time, so one that comes back to what the
+			// stream started with is taken too. Stopping the stream would cut
+			// every client off for nothing.
 			r.share.Store(int64(s.Share))
 			continue
 		}

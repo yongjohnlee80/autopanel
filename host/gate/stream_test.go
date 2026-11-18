@@ -666,4 +666,16 @@ func TestAnotherStreamComingDoesNotCutThisOnesClients(t *testing.T) {
 	if got := said(held, "again"); got != "again" {
 		t.Fatalf("after the same set was applied again: %q", got)
 	}
+	// The other stream goes, and this one's share is what it started with:
+	// that share holds again, and a third connection is carried.
+	one.Share = 64
+	f.apply(ctx, 200, []Stream{one})
+	if got := said(held, "back"); got != "back" {
+		t.Fatalf("a connection open when the other stream went: %q", got)
+	}
+	fourth := dial(one.Listen)
+	defer fourth.Close()
+	if got := said(fourth, "four"); got != "four" {
+		t.Fatalf("with its first share back, a third connection: %q; want it carried", got)
+	}
 }
