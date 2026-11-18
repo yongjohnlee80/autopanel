@@ -45,6 +45,17 @@ type fakeCore struct {
 	pool    *x509.CertPool
 	reports []Report
 	streams Streams // link.streams: its Rev counts the changes
+	api     *API    // the HTTPS API's settings; nil: off
+	calls   []APIAsk
+}
+
+// setAPI changes the API's settings, as sys.api.set does.
+func (f *fakeCore) setAPI(a *API) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.api = a
+	f.rev++
+	f.wake()
 }
 
 func newFakeCore(t *testing.T, https, http string) *fakeCore {
@@ -163,7 +174,11 @@ func (c *fakeConn) Call(ctx context.Context, verb string, param any, out any) er
 				return errLinkLost
 			}
 		}
-		*out.(*Routes) = Routes{Rev: f.rev, Routes: append([]core.RouteView(nil), f.routes...)}
+		*out.(*Routes) = Routes{Rev: f.rev, Routes: append([]core.RouteView(nil), f.routes...), API: f.api}
+	case VerbAPI:
+		a := param.(APIAsk)
+		f.calls = append(f.calls, a)
+		*out.(*APIAnswer) = APIAnswer{Result: []byte(`{"verb":"` + a.Verb + `"}`)}
 	case VerbCert:
 		n := param.(Name)
 		f.asks[n.Name]++
@@ -492,4 +507,71 @@ func TestWhenTheGateAsksAgainForACertificate(t *testing.T) {
 			t.Errorf("%s: asked again at %v; want %v", tc.name, got, tc.want)
 		}
 	}
+}
+
+// TestTheGateServesTheAPIOnItsOwnHost drives the whole gate: once the core
+// names the API's host, the gate takes a certificate for it though no route
+// holds it, answers /v1/health itself and passes a call to the core; a route's
+// host is served as before; and once the core turns the API off, the name is a
+// stranger's again.
+func TestTheGateServesTheAPIOnItsOwnHost(t *testing.T) {
+	up := upstream(t)
+	f := newFakeCore(t, freeAddr(t), freeAddr(t))
+	f.hold("app.example.com")
+	f.hold("api.example.com")
+	f.setRoutes(core.RouteView{ID: 1, Host: "app.example.com", PathPrefix: "/", Upstream: up.URL})
+	startGate(t, f)
+
+	if _, _, err := get(f, "api.example.com", "/v1/health"); err == nil {
+		t.Fatal("the API's host answered before the core named it")
+	}
+	f.setAPI(&API{Host: "api.example.com"})
+	until(t, "the gate never served the API's host", func() bool {
+		code, body, err := get(f, "api.example.com", "/v1/health")
+		return err == nil && code == 200 && body == `{"status":"ok"}`
+	})
+	// A call, over TLS, with a token: the core gets it and its answer comes back.
+	f.mu.Lock()
+	addr, pool := f.hello.HTTPS, f.pool
+	f.mu.Unlock()
+	tr := &http.Transport{TLSClientConfig: &tls.Config{RootCAs: pool, ServerName: "api.example.com"},
+		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+			var d net.Dialer
+			return d.DialContext(ctx, "tcp", addr)
+		}}
+	defer tr.CloseIdleConnections()
+	req, _ := http.NewRequest("POST", "https://api.example.com/v1/call/gate.route.list", nil)
+	req.Header.Set("Authorization", goodBearer)
+	res, err := (&http.Client{Transport: tr, Timeout: 5 * time.Second}).Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := io.ReadAll(res.Body)
+	res.Body.Close()
+	if res.StatusCode != 200 || string(body) != `{"verb":"gate.route.list"}` {
+		t.Fatalf("a call through the gate: %d %q", res.StatusCode, body)
+	}
+	f.mu.Lock()
+	calls := len(f.calls)
+	f.mu.Unlock()
+	if calls != 1 {
+		t.Fatalf("the core got %d calls; want the one", calls)
+	}
+	// The API's path on a routed host is the upstream's, not the gate's.
+	if code, body, err := get(f, "app.example.com", "/v1/health"); err != nil || code != 200 || body != "/v1/health" {
+		t.Fatalf("a routed host: %d %q, %v", code, body, err)
+	}
+	// Plain HTTP for the API's host is refused, not redirected.
+	hreq, _ := http.NewRequest("GET", "http://"+f.hello.HTTP+"/v1/health", nil)
+	hreq.Host = "api.example.com"
+	plain := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }, Timeout: 5 * time.Second}
+	if res, err := plain.Do(hreq); err != nil || res.StatusCode != 400 {
+		t.Fatalf("the API's host without TLS: %v, %v", res, err)
+	}
+	// Off again: the name is no longer the gate's, and its certificate is forgotten.
+	f.setAPI(nil)
+	until(t, "the API's host kept answering after it was turned off", func() bool {
+		_, _, err := get(f, "api.example.com", "/v1/health")
+		return err != nil
+	})
 }

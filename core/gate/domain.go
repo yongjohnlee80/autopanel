@@ -33,6 +33,11 @@ var (
 	ErrDomainInUse = errors.New("gate: a route would be left under no domain")
 	// ErrNoSuchDomain is a domain the store doesn't hold.
 	ErrNoSuchDomain = errors.New("gate: no such domain")
+	// ErrHostReserved is a route on a host AutoPanel serves itself.
+	ErrHostReserved = errors.New("gate: AutoPanel serves that host itself")
+	// ErrDomainHoldsHost is a domain whose removal would leave such a host
+	// under none.
+	ErrDomainHoldsHost = errors.New("gate: a host AutoPanel serves itself would be left under no domain")
 	// ErrDomainHasMail is a domain whose removal would strand its mail.
 	ErrDomainHasMail = errors.New("gate: the domain receives mail")
 )
@@ -150,6 +155,11 @@ func (m *Module) domainRemove(ctx context.Context, ref DomainRef) (struct{}, err
 			return struct{}{}, ErrDomainInUse
 		}
 	}
+	for _, h := range m.reservedHosts() {
+		if Under(h, name) && !covered(h, rest) {
+			return struct{}{}, ErrDomainHoldsHost
+		}
+	}
 	return struct{}{}, m.domains.Remove(ctx, name)
 }
 
@@ -164,6 +174,37 @@ func (m *Module) underADomain(ctx context.Context, host string) error {
 		return ErrNoDomain
 	}
 	return nil
+}
+
+// SetReserved names the hosts AutoPanel serves itself, read at every check.
+// It is set once, before the module serves.
+func (m *Module) SetReserved(hosts func() []string) { m.reserved = hosts }
+
+func (m *Module) reservedHosts() []string {
+	if m.reserved == nil {
+		return nil
+	}
+	return m.reserved()
+}
+
+// routable refuses a route on a host AutoPanel serves itself or that no domain
+// covers. The caller holds m.mu.
+func (m *Module) routable(ctx context.Context, host string) error {
+	for _, h := range m.reservedHosts() {
+		if h == host {
+			return ErrHostReserved
+		}
+	}
+	return m.underADomain(ctx, host)
+}
+
+// Covered reports whether a registered domain covers host.
+func (m *Module) Covered(ctx context.Context, host string) (bool, error) {
+	ds, err := m.domains.All(ctx)
+	if err != nil {
+		return false, err
+	}
+	return covered(host, ds), nil
 }
 
 // SetDomainUsers names the module that holds registry domains of its own. It

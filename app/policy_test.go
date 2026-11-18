@@ -39,6 +39,7 @@ func TestEveryVerbHasADecision(t *testing.T) {
 		"sys.status": {"sys", false, true}, "sys.metrics": {"sys", false, true}, "sys.ports": {"sys", false, true}, "sys.checks": {"sys", false, true},
 		"sys.prefs.get": {"sys", false, true}, "sys.prefs.set": {"sys", true, false},
 		"sys.audit.list": {"sys", false, false}, "sys.logins": {"sys", false, false},
+		"sys.api.get": {"sys.admin", false, true}, "sys.api.set": {"sys.admin", true, false},
 		"sys.gate.restart": {"sys.admin", true, false}, "sys.gate.stop": {"sys.admin", true, false},
 		"sys.firewall.get": {"sys.admin", false, true}, "sys.firewall.plan": {"sys.admin", false, true},
 		"sys.firewall.allow": {"sys.admin", true, false}, "sys.firewall.revoke": {"sys.admin", true, false},

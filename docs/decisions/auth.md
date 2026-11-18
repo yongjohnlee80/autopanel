@@ -125,6 +125,10 @@ only its SHA-256 is stored, and it is shown once.
 - At every use its role is capped by its owner's role then: a demoted owner's tokens fall with it,
   a disabled or removed owner's stop.
 - A token never manages users, tokens or passphrases, so a leaked one cannot make a lasting one.
+- An owner told to change its passphrase keeps its tokens: that rule is the passphrase login's, and
+  a script cannot answer it.
+- Over HTTPS a token is checked at every call ([The HTTPS API](api.md#the-core-decides)): a good
+  one writes nothing, and failures are audited twenty times a minute at most.
 - A token's id is never locked after failures: the id is the visible part, and locking it would let
   anyone stop every token. Failures are audited, and a burst raises an alarm.
 - The CLI reads it only from a file that is the caller's and mode 0600:

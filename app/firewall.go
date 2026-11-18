@@ -66,7 +66,7 @@ func (f firewallModule) Verbs() []module.Verb {
 		return func(ctx context.Context, _ struct{}) (sysinfo.Firewall, error) { return fn(ctx) }
 	}
 	return []module.Verb{
-		module.Handle(admin(module.Contract{Verb: "sys.firewall.get", Discloses: module.Plain,
+		module.Handle(admin(module.Contract{Verb: "sys.firewall.get", Public: true, Discloses: module.Plain,
 			Result: "{manager, active, default, rules: [{id, action, family, proto, from, to, source, dest, scope, service, raw, by, …}], limits}",
 			Doc:    "The host's firewall as its manager reports it, each rule with the owner AutoPanel made it for, or none."}), none(f.fw.Read)),
 		module.Handle(admin(module.Contract{Verb: "sys.firewall.allow", Mutates: true, Param: "{proto, from, to?, source?, dest?, family?, zone?}", Result: "the firewall",

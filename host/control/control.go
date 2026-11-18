@@ -208,33 +208,14 @@ func handler(v module.Verb, errs []module.PublicError, log *slog.Logger, acc Acc
 				actor = name + " (" + local + ")"
 			}
 			if err != nil {
-				if aud != nil { // a refusal is on record too
-					if id, aerr := aud.AuditAttempt(ctx, actor, v.Verb, subject(req.Params)); aerr == nil {
-						_ = aud.AuditResult(context.WithoutCancel(ctx), id, outcome(err, errs))
-					}
-				}
+				Refused(ctx, aud, actor, v, req.Params, err, errs) // a refusal is on record too
 				if pe, ok := module.Public(err, errs); ok {
 					return nil, &rpc.Error{Code: pe.Code, Message: pe.Message}
 				}
 				return nil, &rpc.Error{Code: rpc.CodeAccessDenied, Message: "log in again (auth.login)"}
 			}
 		}
-		var attempt int64
-		if v.Privileged {
-			id, err := aud.AuditAttempt(ctx, actor, v.Verb, subject(req.Params))
-			if err != nil {
-				log.Error("control: a privileged verb's audit entry could not be written; nothing was done", "verb", v.Verb, "err", err)
-				return nil, &rpc.Error{Code: rpc.CodeInternal, Message: "the audit log could not be written, so nothing was done"}
-			}
-			attempt = id
-		}
-		res, err := v.Call(module.WithLogin(module.WithPrincipal(audit.WithActor(ctx, actor), principal), who.login), req.Params)
-		if v.Privileged {
-			// The caller may be gone by now: the outcome is recorded regardless.
-			if aerr := aud.AuditResult(context.WithoutCancel(ctx), attempt, outcome(err, errs)); aerr != nil {
-				log.Error("control: recording a privileged verb's outcome", "verb", v.Verb, "err", aerr)
-			}
-		}
+		res, err := Invoke(module.WithLogin(module.WithPrincipal(audit.WithActor(ctx, actor), principal), who.login), v, errs, log, aud, actor, req.Params)
 		if err == nil {
 			if v.Login {
 				if m, ok := res.(map[string]any); ok {
@@ -252,20 +233,60 @@ func handler(v module.Verb, errs []module.PublicError, log *slog.Logger, acc Acc
 			}
 			return res, nil
 		}
-		if errors.Is(err, module.ErrInvalidParams) {
-			return nil, &rpc.Error{Code: rpc.CodeInvalidParams, Message: err.Error()}
-		}
-		if pe, ok := module.Public(err, errs); ok {
-			msg := pe.Message
-			var d module.Detailed
-			if errors.As(err, &d) {
-				msg += ": " + d.PublicDetail()
-			}
-			return nil, &rpc.Error{Code: pe.Code, Message: msg}
-		}
-		log.Error("control: verb failed", "verb", v.Verb, "err", err)
 		return nil, err
 	}
+}
+
+// Refused records a call its caller's role did not allow: the attempt and why,
+// as one entry. A socket with no auditor records nothing.
+func Refused(ctx context.Context, aud Auditor, actor string, v module.Verb, params []any, err error, errs []module.PublicError) {
+	if aud == nil {
+		return
+	}
+	if id, aerr := aud.AuditAttempt(ctx, actor, v.Verb, subject(params)); aerr == nil {
+		_ = aud.AuditResult(context.WithoutCancel(ctx), id, outcome(err, errs))
+	}
+}
+
+// Invoke runs v for a caller already admitted and authorised, as every surface
+// must: a privileged verb's entry is written before it runs (and it does not
+// run if that fails), its outcome is set on the entry afterwards, and a
+// failure leaves as a declared error or nothing a caller can read. ctx carries
+// the actor and the principal. The control socket and the HTTPS API both call
+// it, so neither can run a verb another way.
+func Invoke(ctx context.Context, v module.Verb, errs []module.PublicError, log *slog.Logger, aud Auditor, actor string, params []any) (any, error) {
+	var attempt int64
+	if v.Privileged {
+		id, err := aud.AuditAttempt(ctx, actor, v.Verb, subject(params))
+		if err != nil {
+			log.Error("control: a privileged verb's audit entry could not be written; nothing was done", "verb", v.Verb, "err", err)
+			return nil, &rpc.Error{Code: rpc.CodeInternal, Message: "the audit log could not be written, so nothing was done"}
+		}
+		attempt = id
+	}
+	res, err := v.Call(ctx, params)
+	if v.Privileged {
+		// The caller may be gone by now: the outcome is recorded regardless.
+		if aerr := aud.AuditResult(context.WithoutCancel(ctx), attempt, outcome(err, errs)); aerr != nil {
+			log.Error("control: recording a privileged verb's outcome", "verb", v.Verb, "err", aerr)
+		}
+	}
+	if err == nil {
+		return res, nil
+	}
+	if errors.Is(err, module.ErrInvalidParams) {
+		return nil, &rpc.Error{Code: rpc.CodeInvalidParams, Message: err.Error()}
+	}
+	if pe, ok := module.Public(err, errs); ok {
+		msg := pe.Message
+		var d module.Detailed
+		if errors.As(err, &d) {
+			msg += ": " + d.PublicDetail()
+		}
+		return nil, &rpc.Error{Code: pe.Code, Message: msg}
+	}
+	log.Error("control: verb failed", "verb", v.Verb, "err", err)
+	return nil, err
 }
 
 // subject is what a privileged call names, for its audit entry: the "name" of

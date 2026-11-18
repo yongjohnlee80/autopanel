@@ -104,6 +104,9 @@ func Run(ctx context.Context, dial Dialer, log *slog.Logger) error {
 	table := core.NewTable[http.Handler]()
 	g := &process{link: l, log: log, table: table, hello: hello, trusted: trusted, streams: newForwarder(log),
 		certs: &certCache{link: l, table: table, held: map[string]heldCert{}, flights: map[string]*flight{}}}
+	g.trustedNow.Store(&trusted)
+	g.api = newAPIServer(l, log, func() Trusted { return *g.trustedNow.Load() }, g.up.Load)
+	g.certs.also = g.api.isHost // the API's host has a certificate, though no route names it
 	// The first table before the first request: a gate that listens with an
 	// empty table answers 404 for every site.
 	for {
@@ -127,10 +130,10 @@ func Run(ctx context.Context, dial Dialer, log *slog.Logger) error {
 			MinVersion:     tls.VersionTLS12,
 		}),
 		httpserver.ReadHeaderTimeout(10*time.Second), httpserver.IdleTimeout(120*time.Second),
-		httpserver.MaxHeaderBytes(64<<10), httpserver.NotFound(counted(&g.https, Handler(table)).ServeHTTP)) // no routes: every request is the gate's
+		httpserver.MaxHeaderBytes(64<<10), httpserver.NotFound(counted(&g.https, g.api.or(Handler(table))).ServeHTTP)) // no routes: every request is the gate's
 	plain := httpserver.New(httpserver.Addr(hello.HTTP),
 		httpserver.ReadHeaderTimeout(10*time.Second), httpserver.IdleTimeout(60*time.Second),
-		httpserver.MaxHeaderBytes(16<<10), httpserver.NotFound(counted(&g.http, g.challengeOr(http.HandlerFunc(toHTTPS))).ServeHTTP))
+		httpserver.MaxHeaderBytes(16<<10), httpserver.NotFound(counted(&g.http, g.challengeOr(g.api.notPlain(http.HandlerFunc(toHTTPS)))).ServeHTTP))
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -168,6 +171,10 @@ type process struct {
 	trusted Trusted
 	rev     int64 // the table's revision; only sync and follow touch it, one at a time
 	streams *forwarder
+	api     *apiServer
+
+	trustedNow atomic.Pointer[Trusted] // trusted, for whoever reads it while follow may change it
+	up         atomic.Bool             // the core answered the last time it was asked
 
 	https, http atomic.Int64 // requests served, per listener
 }
@@ -198,6 +205,10 @@ func (g *process) sync(ctx context.Context) error {
 		routes = append(routes, core.Route{ID: core.RouteID(v.ID), Host: v.Host, PathPrefix: v.PathPrefix, Upstream: v.Upstream})
 	}
 	g.rev = r.Rev // a table that cannot be built is not asked for again until it changes
+	g.up.Store(true)
+	if err := g.api.set(r.API); err != nil {
+		g.log.Error("gate: API settings the gate cannot use; the old ones stay", "err", err)
+	}
 	snap, err := Build(routes, g.trusted)
 	if err != nil {
 		g.log.Error("gate: a routing table the gate cannot build; the old one stays", "err", err)
@@ -227,6 +238,7 @@ func (g *process) follow(ctx context.Context) error {
 			}
 			if t, err := parseTrusted(h.Trusted); err == nil {
 				g.trusted = t
+				g.trustedNow.Store(&t)
 			}
 			g.rev = 0 // whatever the core holds now, take it
 			lost = false
@@ -238,6 +250,7 @@ func (g *process) follow(ctx context.Context) error {
 			}
 			if !isVerbError(err) {
 				lost = true
+				g.up.Store(false)
 				g.log.Warn("gate: the link to the core is down; serving what is in hand", "err", err)
 			}
 			if !wait.sleep(ctx) {
@@ -441,6 +454,9 @@ func (b *backoff) sleep(ctx context.Context) bool {
 
 // certCache holds the certificates the core has handed the gate, by name.
 type certCache struct {
+	// also admits a name no route holds that still has a certificate: the
+	// API's host. nil: none.
+	also  func(name string) bool
 	link  *link
 	table *Table
 
@@ -472,7 +488,7 @@ func (cc *certCache) get(h *tls.ClientHelloInfo) (*tls.Certificate, error) {
 		return cc.ask(ctx, Name{Name: h.ServerName, ALPN: true})
 	}
 	name, err := core.CanonicalHost(h.ServerName)
-	if err != nil || !cc.table.Holds(name) {
+	if err != nil || !cc.holds(name) {
 		return nil, errNoCertificate
 	}
 	cc.mu.Lock()
@@ -544,8 +560,14 @@ func (cc *certCache) prune() {
 	cc.mu.Lock()
 	defer cc.mu.Unlock()
 	for name := range cc.held {
-		if !cc.table.Holds(name) {
+		if !cc.holds(name) {
 			delete(cc.held, name)
 		}
 	}
+}
+
+// holds reports whether name may have a certificate here: a route names it, or
+// it is the API's host.
+func (cc *certCache) holds(name string) bool {
+	return cc.table.Holds(name) || (cc.also != nil && cc.also(name))
 }

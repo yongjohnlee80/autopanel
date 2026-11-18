@@ -209,7 +209,7 @@ func (m *certsModule) Verbs() []module.Verb {
 			Doc: "Checks a Cloudflare API token (Zone.Zone:Read and Zone.DNS:Edit) with Cloudflare, then seals it in the store; every certificate then uses DNS-01, and mail's records are published through it. Takes effect at once."}, m.set),
 		module.Handle(module.Contract{Verb: "certs.cloudflare.clear", Since: 1, Result: "{challenge, ca}", Mutates: true,
 			Doc: "Forgets the Cloudflare token; certificates go back to HTTP-01 and TLS-ALPN-01."}, m.clear),
-		module.Handle(module.Contract{Verb: "certs.list", Discloses: module.Plain, Since: 7,
+		module.Handle(module.Contract{Verb: "certs.list", Public: true, Discloses: module.Plain, Since: 7,
 			Result: "[{host, state, issuer, not_before, not_after, renew_from, error, failed_at}]",
 			Doc:    "Each name AutoPanel serves and the certificate the store holds for it under the service in use: none, ok, due (the next request renews it), expired or unknown, with the last order's failure. Orders nothing."}, m.list),
 	}
