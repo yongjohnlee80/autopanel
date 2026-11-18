@@ -379,18 +379,16 @@ func newServer(t *testing.T, h http.Handler) server {
 	return server{c: NewClient(srv.URL, Bearer(func(context.Context) (string, error) { return "k", nil }))}
 }
 
-const aHash = "$argon2id$v=19$m=8192,t=1,p=1$c2FsdHNhbHRzYWx0c2FsdA$aGFzaGhhc2hoYXNoaGFzaGhhc2hoYXNoaGFzaGhhc2g"
-
 // TestAnAccountIsMadeWithItsRoom: the limit asked goes into the account's
 // quotas beside the disk quota.
 func TestAnAccountIsMadeWithItsRoom(t *testing.T) {
 	fake := newAccountsStalwart(t, time.Now)
 	s := newServer(t, fake)
-	if _, err := s.AddAccount(context.Background(), provider.NewAccount{Local: "ana", DomainID: "dn", PasswordHash: aHash, Quota: 1 << 30, AppPasswords: 20}); err != nil {
+	if _, err := s.AddAccount(context.Background(), provider.NewAccount{Local: "ana", DomainID: "dn", Quota: 1 << 30, AppPasswords: 20}); err != nil {
 		t.Fatal(err)
 	}
 	a := fake.only("ana@example.net")
-	if a.secret != aHash || a.quotas["maxAppPasswords"] != 20 || a.quotas["maxDiskQuota"] != 1<<30 {
+	if !strings.HasPrefix(a.secret, "$argon2id$v=19$m=8192,t=1,p=1$") || a.quotas["maxAppPasswords"] != 20 || a.quotas["maxDiskQuota"] != 1<<30 {
 		t.Fatalf("made: %+v", a)
 	}
 }
@@ -439,10 +437,10 @@ func TestANewPasswordKeepsTheAppPasswords(t *testing.T) {
 		t.Fatal(err)
 	}
 	fake.passwordFirst = false // the password's entry is not "0"
-	if err := s.SetPasswordHash(context.Background(), "old", aHash); err != nil {
+	if err := s.LockPassword(context.Background(), "old"); err != nil {
 		t.Fatal(err)
 	}
-	if a := fake.only("old@example.net"); a.secret != aHash || len(a.apps) != 1 || !fake.signsIn("old@example.net", secret) {
+	if a := fake.only("old@example.net"); !strings.HasPrefix(a.secret, "$argon2id$") || len(a.apps) != 1 || !fake.signsIn("old@example.net", secret) {
 		t.Fatalf("after a new password: app passwords %d", len(a.apps))
 	}
 }
@@ -498,7 +496,7 @@ func TestDKIMKindsAndCertificates(t *testing.T) {
 func TestStalwartConforms(t *testing.T) {
 	url, keyFile := os.Getenv("AUTOPANEL_TEST_STALWART"), os.Getenv("AUTOPANEL_TEST_STALWART_KEY")
 	if url == "" || keyFile == "" {
-		t.Skip("needs a throwaway Stalwart: AUTOPANEL_TEST_STALWART and AUTOPANEL_TEST_STALWART_KEY")
+		t.Skip("needs a throwaway Stalwart: AUTOPANEL_TEST_STALWART, AUTOPANEL_TEST_STALWART_KEY and AUTOPANEL_TEST_STALWART_IMAP")
 	}
 	raw, err := os.ReadFile(keyFile)
 	if err != nil {
@@ -507,9 +505,11 @@ func TestStalwartConforms(t *testing.T) {
 	key := strings.TrimSpace(string(raw))
 	tg := conformance.Target{Server: Product{}.Client(url, func(context.Context) (string, error) { return key, nil }),
 		Domain: "autopanel-conformance.example.net"}
-	if addr := os.Getenv("AUTOPANEL_TEST_STALWART_IMAP"); addr != "" {
-		tg.SignIn = func(user, secret string) bool { return imapSignIn(t, addr, user, secret) }
+	addr := os.Getenv("AUTOPANEL_TEST_STALWART_IMAP")
+	if addr == "" {
+		t.Fatal("AUTOPANEL_TEST_STALWART_IMAP is not set: the suite must be able to sign in")
 	}
+	tg.SignIn = func(user, secret string) bool { return imapSignIn(t, addr, user, secret) }
 	conformance.Run(t, tg)
 }
 

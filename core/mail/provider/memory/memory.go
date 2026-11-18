@@ -12,6 +12,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/x509"
+	"encoding/hex"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -187,16 +188,13 @@ func (s *Server) AddAccount(_ context.Context, n provider.NewAccount) (string, e
 	if !ok {
 		return "", refuse("no such domain")
 	}
-	if !strings.HasPrefix(n.PasswordHash, "$argon2id$") {
-		return "", refuse("a password is given as an argon2id hash")
-	}
 	for _, a := range s.accounts {
 		if a.Local == n.Local && a.DomainID == n.DomainID {
 			return "", refuse("the account exists")
 		}
 	}
 	a := &account{Account: provider.Account{ID: s.id(), Local: n.Local, DomainID: n.DomainID, Address: n.Local + "@" + d.Name, Quota: n.Quota},
-		hash: n.PasswordHash, limit: max(n.AppPasswords, 5)}
+		hash: unknownPassword(), limit: max(n.AppPasswords, 5)}
 	s.accounts[a.ID] = a
 	return a.ID, nil
 }
@@ -218,17 +216,25 @@ func (s *Server) account(id string) (*account, error) {
 	return a, nil
 }
 
-func (s *Server) SetPasswordHash(_ context.Context, id, hash string) error {
+// unknownPassword stands for the hash of a password nobody knows: different
+// every time, as a provider's must be.
+func unknownPassword() string {
+	var b [16]byte
+	_, _ = rand.Read(b[:])
+	return "locked:" + hex.EncodeToString(b[:])
+}
+
+func (s *Server) LockPassword(_ context.Context, id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if err := s.enter("SetPasswordHash"); err != nil {
+	if err := s.enter("LockPassword"); err != nil {
 		return err
 	}
 	a, err := s.account(id)
 	if err != nil {
 		return err
 	}
-	a.hash = hash
+	a.hash = unknownPassword()
 	return nil
 }
 
@@ -351,7 +357,8 @@ func (s *Server) SignIn(user, secret string) bool {
 	return false
 }
 
-// PasswordHash is an account's password hash, for a test to look at.
+// PasswordHash stands for an account's password hash, for a test to see that
+// it was made, and made anew.
 func (s *Server) PasswordHash(address string) string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -612,11 +619,11 @@ func (k keyed) AddAccount(ctx context.Context, a provider.NewAccount) (string, e
 	}
 	return k.s.AddAccount(ctx, a)
 }
-func (k keyed) SetPasswordHash(ctx context.Context, id, h string) error {
+func (k keyed) LockPassword(ctx context.Context, id string) error {
 	if err := k.check(ctx); err != nil {
 		return err
 	}
-	return k.s.SetPasswordHash(ctx, id, h)
+	return k.s.LockPassword(ctx, id)
 }
 func (k keyed) SetQuota(ctx context.Context, id string, b int64) error {
 	if err := k.check(ctx); err != nil {

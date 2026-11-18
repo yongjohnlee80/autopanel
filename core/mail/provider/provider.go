@@ -34,12 +34,14 @@ type Server interface {
 
 	// Accounts are the user accounts, the server's administrator marked.
 	Accounts(ctx context.Context) ([]Account, error)
-	// AddAccount makes an account whose password is given as a hash
-	// (argon2id, PHC form): the server never holds the password.
+	// AddAccount makes an account with a password nobody knows: at least 256
+	// random bits, made by the provider, stored as its server stores a
+	// password, and kept nowhere else. Mail apps sign in with app passwords.
 	AddAccount(ctx context.Context, a NewAccount) (string, error)
-	// SetPasswordHash replaces an account's password, and nothing else: its
-	// app passwords and any second factor stay.
-	SetPasswordHash(ctx context.Context, accountID, hash string) error
+	// LockPassword replaces an account's password with one nobody knows, as
+	// AddAccount makes, and nothing else: its app passwords and any second
+	// factor stay.
+	LockPassword(ctx context.Context, accountID string) error
 	// SetQuota sets an account's disk quota, and nothing else.
 	SetQuota(ctx context.Context, accountID string, bytes int64) error
 	RemoveAccount(ctx context.Context, accountID string) error
@@ -170,9 +172,8 @@ type Alias struct {
 type NewAccount struct {
 	Local        string
 	DomainID     string
-	PasswordHash string // argon2id, PHC form
-	Quota        int64  // bytes
-	AppPasswords int    // room for at least this many app passwords
+	Quota        int64 // bytes
+	AppPasswords int   // room for at least this many app passwords
 }
 
 // AppPassword is one of an account's app passwords, without its secret.

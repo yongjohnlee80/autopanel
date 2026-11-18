@@ -1173,11 +1173,7 @@ func (m *Module) accountAdd(ctx context.Context, p AccountAsk) (AccountView, err
 	case !errors.Is(err, ErrNoAccount):
 		return AccountView{}, err
 	}
-	secret, err := lockedSecret()
-	if err != nil {
-		return AccountView{}, err
-	}
-	if _, err := c.AddAccount(ctx, provider.NewAccount{Local: local, DomainID: domainID, PasswordHash: secret, Quota: quota, AppPasswords: AppPasswordLimit}); err != nil {
+	if _, err := c.AddAccount(ctx, provider.NewAccount{Local: local, DomainID: domainID, Quota: quota, AppPasswords: AppPasswordLimit}); err != nil {
 		return AccountView{}, serverErr(err)
 	}
 	return AccountView{Address: local + "@" + domain, Quota: quota, Aliases: []string{}}, nil

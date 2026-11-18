@@ -24,8 +24,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yongjohnlee80/golib/auth/password"
-
 	"github.com/yongjohnlee80/autopanel/core/mail/provider"
 )
 
@@ -36,8 +34,9 @@ type Target struct {
 	// Domain is a domain name the suite may make and remove: one the server
 	// holds nothing of.
 	Domain string
-	// SignIn, when set, answers whether a mail app's sign-in with user and
-	// secret succeeds (IMAP, say). Without it, sign-ins are not checked.
+	// SignIn answers whether a mail app's sign-in with user and secret
+	// succeeds (IMAP, say). It is required: what an app password is for is
+	// signing in, and a suite that could not try would prove none of it.
 	SignIn func(user, secret string) bool
 	// Wait sleeps d of the server's time: time.Sleep for a real one, a clock
 	// moved on for one in memory.
@@ -49,6 +48,9 @@ type Target struct {
 // Run runs the suite. It leaves the server as it found it, failure or not.
 func Run(t *testing.T, tg Target) {
 	t.Helper()
+	if tg.SignIn == nil {
+		t.Fatal("conformance: the target gives no SignIn; the suite proves nothing about app passwords without one")
+	}
 	if tg.Wait == nil {
 		tg.Wait = time.Sleep
 	}
@@ -79,7 +81,7 @@ func Run(t *testing.T, tg Target) {
 	})
 
 	address := "conformance@" + tg.Domain
-	id, err := s.AddAccount(ctx, provider.NewAccount{Local: "conformance", DomainID: d.ID, PasswordHash: hash(t), Quota: 1 << 30, AppPasswords: 20})
+	id, err := s.AddAccount(ctx, provider.NewAccount{Local: "conformance", DomainID: d.ID, Quota: 1 << 30, AppPasswords: 20})
 	if err != nil {
 		t.Fatalf("AddAccount: %v", err)
 	}
@@ -94,7 +96,7 @@ func Run(t *testing.T, tg Target) {
 		if i < 0 || as[i].Address != address || as[i].Local != "conformance" || as[i].DomainID != d.ID || as[i].Quota != 1<<30 || as[i].Admin {
 			t.Fatalf("the account as listed: %+v", as)
 		}
-		if _, err := s.AddAccount(ctx, provider.NewAccount{Local: "conformance", DomainID: d.ID, PasswordHash: hash(t), Quota: 1}); err == nil {
+		if _, err := s.AddAccount(ctx, provider.NewAccount{Local: "conformance", DomainID: d.ID, Quota: 1}); err == nil {
 			t.Fatal("a second account at the same address was made")
 		}
 	})
@@ -122,8 +124,9 @@ func Run(t *testing.T, tg Target) {
 		signIn(t, tg, address, secret, true, "a kept app password")
 		signIn(t, tg, address, goneSecret, false, "a revoked app password")
 
-		// The account's own password and quota change; its app passwords stay.
-		if err := s.SetPasswordHash(ctx, id, hash(t)); err != nil {
+		// The account's own password is made unknown again and its quota
+		// changes; its app passwords stay, and the one kept still signs in.
+		if err := s.LockPassword(ctx, id); err != nil {
 			t.Fatal(err)
 		}
 		if err := s.SetQuota(ctx, id, 2<<30); err != nil {
@@ -152,9 +155,6 @@ func Run(t *testing.T, tg Target) {
 	})
 
 	t.Run("AnExpiredAppPasswordStops", func(t *testing.T) {
-		if tg.SignIn == nil {
-			t.Skip("no sign-in to check")
-		}
 		p, secret := add(t, s, id, "short", tg.Now().Add(3*time.Second))
 		signIn(t, tg, address, secret, true, "before its expiry")
 		tg.Wait(5 * time.Second)
@@ -216,8 +216,29 @@ func Run(t *testing.T, tg Target) {
 		}
 	})
 
+	t.Run("AnAccountsRoomIsRaisedWhenAsked", func(t *testing.T) {
+		small, err := s.AddAccount(ctx, provider.NewAccount{Local: "conformance3", DomainID: d.ID, Quota: 1 << 20, AppPasswords: 2})
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = s.RemoveAccount(context.Background(), small) })
+		// Made with room for two, it takes eight when eight are asked for: the
+		// room an account was made with is not the most it will ever hold. (A
+		// server may give more room than asked; the suite does not say where
+		// it stops.)
+		for i := range 8 {
+			if _, _, err := s.AddAppPassword(ctx, small, "device "+strconv.Itoa(i), tg.Now().Add(10*time.Minute), 8); err != nil {
+				t.Fatalf("app password %d of an account made with room for 2, asked with room for 8: %v", i+1, err)
+			}
+		}
+		as, _ := s.Accounts(ctx)
+		if i := slices.IndexFunc(as, func(a provider.Account) bool { return a.ID == small }); i < 0 || as[i].Quota != 1<<20 {
+			t.Fatal("raising the room changed the account's disk quota")
+		}
+	})
+
 	t.Run("RemovingAnAccountTakesItsAppPasswords", func(t *testing.T) {
-		other, err := s.AddAccount(ctx, provider.NewAccount{Local: "conformance2", DomainID: d.ID, PasswordHash: hash(t), Quota: 1 << 20, AppPasswords: 20})
+		other, err := s.AddAccount(ctx, provider.NewAccount{Local: "conformance2", DomainID: d.ID, Quota: 1 << 20, AppPasswords: 20})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -231,17 +252,6 @@ func Run(t *testing.T, tg Target) {
 			t.Fatal("a removed account is listed")
 		}
 	})
-}
-
-func hash(t *testing.T) string {
-	t.Helper()
-	var b [24]byte
-	_, _ = rand.Read(b[:])
-	h, err := password.Argon2id{Memory: 8 * 1024, Time: 1, Parallelism: 1, SaltLen: 16, KeyLen: 32}.Hash(string(b[:]))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return h
 }
 
 func add(t *testing.T, s provider.Server, account, device string, expires time.Time) (provider.AppPassword, string) {
@@ -267,9 +277,6 @@ func list(t *testing.T, s provider.Server, account string) []provider.AppPasswor
 
 func signIn(t *testing.T, tg Target, user, secret string, want bool, what string) {
 	t.Helper()
-	if tg.SignIn == nil {
-		return
-	}
 	if got := tg.SignIn(user, secret); got != want {
 		t.Errorf("%s signs in: %v; want %v", what, got, want)
 	}

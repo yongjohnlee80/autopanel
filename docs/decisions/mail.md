@@ -237,9 +237,10 @@ private keys are in the core's memory only to be handed over: they are Stalwart'
 **Decided:** every device signs in with an app password of its own, made by Stalwart at AutoPanel's
 request (`x:AppPassword`; its API generates the secret and refuses one supplied). The secret is
 shown once, with the settings a mail app needs, and is in no store, log or audit entry of
-AutoPanel's. A mailbox's own password is 32 random bytes the core generates, hashes (argon2id at
-golib's least cost: no one can guess 256 bits, and Stalwart pays the cost at every failed sign-in)
-and forgets, so mail apps sign in with app passwords only. Mailboxes made with a typed password keep
+AutoPanel's. A mailbox's own password is one nobody knows: 32 random bytes, hashed and forgotten,
+so mail apps sign in with app passwords only. The provider makes it, in the form its server stores
+a password (for Stalwart, argon2id at golib's least cost: no one can guess 256 bits, and Stalwart
+pays the cost at every failed sign-in). Mailboxes made with a typed password keep
 it until Lock password.
 
 **Kept only once the device is set up:** a new app password expires ten minutes after it is made;
@@ -355,8 +356,8 @@ firewall rules behind.
 DKIM rotation, the app-password lifecycle, the store and the vault) reaches the mail server only
 through two interfaces of its own, in neutral terms (`core/mail/provider`):
 
-- **`Server`** is a running server: domains, the records a domain needs, accounts (a password
-  given as a hash), app passwords, DKIM keys, certificates. It answers the provider's errors
+- **`Server`** is a running server: domains, the records a domain needs, accounts (each made with
+  a password nobody knows, in whatever form the server stores one), app passwords, DKIM keys, certificates. It answers the provider's errors
   (`ErrRefused` with the server's words, `ErrOverLimit`, `ErrUnauthorized`).
 - **`Product`** is the server as AutoPanel runs it: its stack definition (with mail's loopback
   ports), its CPU needs, the line of its first start that holds a one-time credential, what to
@@ -365,18 +366,25 @@ through two interfaces of its own, in neutral terms (`core/mail/provider`):
 
 Stalwart is one implementation, `sdk/stalwart`: JMAP, its image and inside ports, `x:Bootstrap`,
 the zone file and every quirk recorded above live there and nowhere else. The app's wiring
-(`app/core.go`) is the one place that names it. **Moving to another mail server is a new SDK
-package and no change to `core/mail`.** Moving the mailboxes themselves is its own design.
+(`app/core.go`) is the one place that names it. **Moving to another mail server of the same kind
+is a new SDK package and no change to `core/mail`.** The kind: a server that runs as one container
+stack, is managed over an HTTP API on a loopback port, and gives a first credential at its first
+start. A server set up through configuration files, or with no such credential, would need
+`Product` widened first. Moving the mailboxes themselves is its own design.
 
 **The contract is a test suite,** `core/mail/provider/conformance`. It runs against the server in
 memory (`provider/memory`, on which `core/mail`'s own tests run) and against a real Stalwart on a
 throwaway machine (`sdk/stalwart`'s `TestStalwartConforms`, `TestBootstrapAgainstStalwart`). A
-new SDK ships when it passes it against its real server.
+new SDK ships when it passes it against its real server. The suite must be given a way to sign in:
+without one it fails, for an app password that was never tried proves nothing. The server in
+memory is a stand-in for tests, not a second provider: that the rules run on it does not show that
+another real server fits.
 
 **The boundary is tested:** `core/mail/boundary_test.go` fails when `core/mail` or
 `core/mail/provider` depends on an `sdk/` package, or names a server in an identifier or a string.
 
 **Rules any server is held to, kept in `core/mail`:** an app password's secret of fewer than 128
-bits is refused and revoked; an expired app password is never kept (a server may revive it); a
-mailbox's own password is a hash of one no one knows.
+bits is refused and revoked; an expired app password is never kept (a server may revive it).
+That a mailbox's own password is one nobody knows is the provider's to keep, and the suite's to
+check: a locked account's app password still signs in, and nothing else of it changes.
 

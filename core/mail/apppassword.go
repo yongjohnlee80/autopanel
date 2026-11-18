@@ -2,8 +2,6 @@ package mail
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base64"
 	"errors"
 	"math"
 	"strings"
@@ -11,15 +9,13 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/yongjohnlee80/golib/auth/password"
-
 	"github.com/yongjohnlee80/autopanel/core/mail/provider"
 )
 
 // MAIL APPS SIGN IN WITH APP PASSWORDS — one per device, made by Stalwart at
 // AutoPanel's request, shown once, and kept only once the user says the device
-// is set up. A mailbox's own password is generated here and told to no one, so
-// a mail app cannot sign in with it.
+// is set up. A mailbox's own password is one the provider makes and nobody is
+// told, so a mail app cannot sign in with it.
 //
 // Decision: docs/decisions/mail.md#mail-apps-sign-in-with-app-passwords
 
@@ -42,23 +38,6 @@ const keepMargin = 5 * time.Second
 // is app_ and 36 of [a-z0-9] (about 186 bits); a weaker one, after an upgrade,
 // stops the feature rather than being handed out.
 const minSecretBits = 128
-
-// lockedHasher hashes a mailbox's own password, which is 32 random bytes no one
-// is told: the hash's cost protects nothing (no one can guess 256 bits), and
-// Stalwart pays it at every failed sign-in, in a 250 MB container. So the
-// least argon2id golib allows.
-var lockedHasher = password.Argon2id{Memory: 8 * 1024, Time: 1, Parallelism: 1, SaltLen: 16, KeyLen: 32}
-
-// lockedSecret is a password no one knows, as the hash Stalwart verifies.
-// Neither the password nor the hash is kept.
-func lockedSecret() (string, error) {
-	var b [32]byte
-	if _, err := rand.Read(b[:]); err != nil {
-		return "", err
-	}
-	defer clear(b[:])
-	return lockedHasher.Hash(base64.RawStdEncoding.EncodeToString(b[:]))
-}
 
 // strongSecret reports whether an app password's secret is what AutoPanel will
 // hand out: app_, then printable ASCII with no space, carrying minSecretBits
@@ -295,11 +274,7 @@ func (m *Module) accountLock(ctx context.Context, p AccountAsk) (struct{}, error
 	if err != nil {
 		return struct{}{}, err
 	}
-	secret, err := lockedSecret()
-	if err != nil {
-		return struct{}{}, err
-	}
-	return struct{}{}, serverErr(c.SetPasswordHash(ctx, a.ID, secret))
+	return struct{}{}, serverErr(c.LockPassword(ctx, a.ID))
 }
 
 // sweepAppPasswords destroys the app passwords whose expiry has passed: shown
