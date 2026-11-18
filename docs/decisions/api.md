@@ -110,7 +110,7 @@ other six).
 | Answer | 1 MiB; 64 KiB from a verb with a larger body |
 | Time for one call | 30 seconds |
 
-**Why these numbers:** the gate's unit allows it 40 MB, and an API call must never cost the sites
+**Why these numbers:** the gate's unit allows it 64 MB (40 when the API was built), and an API call must never cost the sites
 and the mail streams the gate serves. Each body and answer is held once as JSON and once in the
 link's framing: six ordinary calls and two large ones at their largest come to about 21 MB. A verb
 whose answer could be larger is not made public without redoing this sum.

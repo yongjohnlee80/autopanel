@@ -34,7 +34,12 @@ UMask=0077
 
 # The gate's share of the staging memory budget fails loudly: an overspend is
 # killed, not swapped.
-MemoryMax=40M
+# A UDP forward's pairing and a forwarded connection are each a socket or two.
+LimitNOFILE=8192
+# What the gate may hold at once, at the very worst, and room above it: the
+# API's calls (about 21 MB), 200 forwarded connections' socket buffers (about
+# 19 MB), and 256 UDP pairings (9 MB, measured). See docs/decisions/forwards.md.
+MemoryMax=64M
 MemorySwapMax=0
 Environment=GOMEMLIMIT=32MiB
 

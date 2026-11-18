@@ -1204,8 +1204,8 @@
         <translation>Protocol/port, and an optional source (tcp/8443, udp/49152-49160, tcp/22 from 192.0.2.0/24)</translation>
     </message>
     <message id="autopanel.label.prompt.forward">
-        <source>A name, the public port or range, the target, then any sources allowed. Example: game 25565 127.0.0.1:26000</source>
-        <translation>A name, the public port or range, the target, then any sources allowed. Example: game 25565 127.0.0.1:26000</translation>
+        <source>A name, the public port or range, the target, then any sources allowed. Example: game 25565 127.0.0.1:26000 For UDP, write the port as udp/5353.</source>
+        <translation>A name, the public port or range, the target, then any sources allowed. Example: game 25565 127.0.0.1:26000 For UDP, write the port as udp/5353.</translation>
     </message>
     <message id="autopanel.label.prompt.mailAccount">
         <source>Its address (name@domain):</source>
@@ -2008,8 +2008,8 @@
         <translation>Type a subdomain, or choose a domain.</translation>
     </message>
     <message id="autopanel.notice.forwards.added">
-        <source>Forwarding tcp/%1 to %2</source>
-        <translation>Forwarding tcp/%1 to %2</translation>
+        <source>Forwarding %1 to %2</source>
+        <translation>Forwarding %1 to %2</translation>
     </message>
     <message id="autopanel.notice.forwards.none">
         <source>No forward is selected</source>
@@ -2348,16 +2348,16 @@
         <translation>Delete the rule “%1”? A rule a stack or mail made goes from its records too.</translation>
     </message>
     <message id="autopanel.question.forwards.add">
-        <source>%1: tcp/%2 → %3</source>
-        <translation>%1: tcp/%2 → %3</translation>
+        <source>%1: %2 → %3</source>
+        <translation>%1: %2 → %3</translation>
     </message>
     <message id="autopanel.question.forwards.manual">
-        <source>The firewall blocks tcp/%1, and AutoPanel does not change this firewall: open the port yourself.</source>
-        <translation>The firewall blocks tcp/%1, and AutoPanel does not change this firewall: open the port yourself.</translation>
+        <source>The firewall blocks %1, and AutoPanel does not change this firewall: open the port yourself.</source>
+        <translation>The firewall blocks %1, and AutoPanel does not change this firewall: open the port yourself.</translation>
     </message>
     <message id="autopanel.question.forwards.open">
-        <source>The firewall blocks tcp/%1 now. Adding the forward also opens it, as this forward's own rule.</source>
-        <translation>The firewall blocks tcp/%1 now. Adding the forward also opens it, as this forward's own rule.</translation>
+        <source>The firewall blocks %1 now. Adding the forward also opens it, as this forward's own rule.</source>
+        <translation>The firewall blocks %1 now. Adding the forward also opens it, as this forward's own rule.</translation>
     </message>
     <message id="autopanel.question.forwards.remove">
         <source>Remove the forward %1? Its port stops being forwarded, and the firewall rule it owns is closed.</source>

@@ -1204,8 +1204,8 @@
         <translation>协议/端口，以及可选的来源（tcp/8443、udp/49152-49160、tcp/22 from 192.0.2.0/24）</translation>
     </message>
     <message id="autopanel.label.prompt.forward">
-        <source>A name, the public port or range, the target, then any sources allowed. Example: game 25565 127.0.0.1:26000</source>
-        <translation>依次填写名称、公开端口或范围、目标，以及允许的来源。例如：game 25565 127.0.0.1:26000</translation>
+        <source>A name, the public port or range, the target, then any sources allowed. Example: game 25565 127.0.0.1:26000 For UDP, write the port as udp/5353.</source>
+        <translation>依次填写名称、公开端口或范围、目标，以及允许的来源。例如：game 25565 127.0.0.1:26000 UDP 请把端口写成 udp/5353。</translation>
     </message>
     <message id="autopanel.label.prompt.mailAccount">
         <source>Its address (name@domain):</source>
@@ -2008,8 +2008,8 @@
         <translation>请输入子域名，或选择域名。</translation>
     </message>
     <message id="autopanel.notice.forwards.added">
-        <source>Forwarding tcp/%1 to %2</source>
-        <translation>正在将 tcp/%1 转发到 %2</translation>
+        <source>Forwarding %1 to %2</source>
+        <translation>正在将 %1 转发到 %2</translation>
     </message>
     <message id="autopanel.notice.forwards.none">
         <source>No forward is selected</source>
@@ -2348,16 +2348,16 @@
         <translation>删除规则“%1”？若是堆栈或邮件创建的规则，也会从其记录中删除。</translation>
     </message>
     <message id="autopanel.question.forwards.add">
-        <source>%1: tcp/%2 → %3</source>
-        <translation>%1：tcp/%2 → %3</translation>
+        <source>%1: %2 → %3</source>
+        <translation>%1：%2 → %3</translation>
     </message>
     <message id="autopanel.question.forwards.manual">
-        <source>The firewall blocks tcp/%1, and AutoPanel does not change this firewall: open the port yourself.</source>
-        <translation>防火墙阻止 tcp/%1，而 AutoPanel 不会更改此防火墙：请自行开放端口。</translation>
+        <source>The firewall blocks %1, and AutoPanel does not change this firewall: open the port yourself.</source>
+        <translation>防火墙阻止 %1，而 AutoPanel 不会更改此防火墙：请自行开放端口。</translation>
     </message>
     <message id="autopanel.question.forwards.open">
-        <source>The firewall blocks tcp/%1 now. Adding the forward also opens it, as this forward's own rule.</source>
-        <translation>防火墙当前阻止 tcp/%1。添加转发时也会将其开放，作为此转发自己的规则。</translation>
+        <source>The firewall blocks %1 now. Adding the forward also opens it, as this forward's own rule.</source>
+        <translation>防火墙当前阻止 %1。添加转发时也会将其开放，作为此转发自己的规则。</translation>
     </message>
     <message id="autopanel.question.forwards.remove">
         <source>Remove the forward %1? Its port stops being forwarded, and the firewall rule it owns is closed.</source>
