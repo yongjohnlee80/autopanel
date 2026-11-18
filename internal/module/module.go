@@ -24,9 +24,12 @@ type Contract struct {
 	Param  string `json:"param,omitempty"`  // the one param's shape, for people: "{host, path_prefix?, upstream}"; "" for none
 	Result string `json:"result,omitempty"` // the result's shape, for people
 	Doc    string `json:"doc"`
-	// Public marks a verb the panel's HTTPS API may serve. The default is
-	// private: reachable only on the control socket.
+	// Public marks a verb the HTTPS API may serve to an API token. The default
+	// is private: reachable only on the control socket.
 	Public bool `json:"public,omitempty"`
+	// MaxBody is the largest request body, in bytes, the API takes for the
+	// verb; 0 is the API's default. Only a Public verb may set it.
+	MaxBody int `json:"max_body,omitempty"`
 	// Mutates marks a verb that changes state; its success is audited.
 	Mutates bool `json:"mutates,omitempty"`
 	// Open marks a verb callable before logging in: the login, and the link

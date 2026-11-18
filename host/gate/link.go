@@ -16,6 +16,7 @@ const (
 	VerbChallenge = "link.challenge"
 	VerbReport    = "link.report"
 	VerbStreams   = "link.streams"
+	VerbAPI       = "link.api"
 )
 
 // Stream is one port the gate forwards byte for byte to a loopback port, each
@@ -50,10 +51,61 @@ type After struct {
 	After int64 `json:"after"`
 }
 
-// Routes is link.routes's answer: the whole table, and its revision.
+// Routes is link.routes's answer: the whole table, its revision, and the
+// HTTPS API's settings, which change the same way.
 type Routes struct {
 	Rev    int64            `json:"rev"`
 	Routes []core.RouteView `json:"routes"`
+	API    *API             `json:"api,omitempty"` // nil: the API is off
+}
+
+// API is what the gate needs to serve the HTTPS API: the one host it is
+// served on, who may reach it, and the verbs whose body may be larger than the
+// default. The gate never guesses a limit.
+type API struct {
+	Host  string    `json:"host"`
+	Allow []string  `json:"allow"` // source prefixes; none: any address
+	Large []APIVerb `json:"large"`
+}
+
+// APIVerb is a public verb that takes a larger body.
+type APIVerb struct {
+	Verb    string `json:"verb"`
+	MaxBody int    `json:"max_body"`
+}
+
+// APIAsk is link.api's param: one call of the HTTPS API, as the gate received
+// it. The gate has checked its shape and its rate; the core decides the rest.
+type APIAsk struct {
+	Verb      string `json:"verb"`
+	Param     []byte `json:"param"`      // the request's JSON body; empty for none
+	Token     string `json:"token"`      // as the client sent it: the gate never reads it
+	Client    string `json:"client"`     // the address the gate saw, for the audit log
+	RequestID string `json:"request_id"` // validated or made by the gate
+}
+
+// APIAnswer is link.api's answer: the verb's result as JSON, or why not.
+type APIAnswer struct {
+	Result []byte    `json:"result,omitempty"`
+	Error  *APIError `json:"error,omitempty"`
+}
+
+// The kinds of APIError, which the gate turns into a status.
+const (
+	APIToken     = "token"     // no valid token: 401
+	APIForbidden = "forbidden" // the role may not: 403
+	APINotFound  = "not_found" // no such public verb: 404
+	APIBadParam  = "bad_param" // the body is not what the verb takes: 400
+	APIFailed    = "failed"    // the verb refused, with a declared error: 422
+	APIInternal  = "internal"  // nothing a caller may read: 500
+)
+
+// APIError is a refusal as the API's caller sees it.
+type APIError struct {
+	Kind    string `json:"kind"`
+	Code    int64  `json:"code"`
+	Name    string `json:"name"`
+	Message string `json:"message"`
 }
 
 // Name is link.cert's param. With ALPN the gate asks for the TLS-ALPN-01

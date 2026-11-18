@@ -268,8 +268,17 @@ func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateContr
 	gm.SetDomainUsers(mailMod)
 	mailMod.SetDNS(mailDNS{st: st, vault: vault})
 	mailMod.SetCerts(mailCerts{sw: sw})
-	sw.also = mailMod.IsHost // the mail host has a certificate, though no route names it
-	sw.extra = func() []string { return []string{mailMod.HostName()} }
+	// The HTTPS API: off until sys.api.set names its host. The gate serves it;
+	// its calls come back over the link.
+	apiMod := &apiModule{st: st, aud: st, log: log, covered: gm.Covered, changed: rev.bump,
+		taken: func(h string) bool { return table.Holds(h) || mailMod.IsHost(h) }}
+	if err := apiMod.load(ctx); err != nil {
+		return err
+	}
+	gm.SetReserved(apiMod.hosts)
+	// The mail host and the API's host have certificates, though no route names them.
+	sw.also = func(h string) bool { return mailMod.IsHost(h) || apiMod.IsHost(h) }
+	sw.extra = func() []string { return append([]string{mailMod.HostName()}, apiMod.hosts()...) }
 	// The firewall: one lock for every change, and what a change left when
 	// the core stopped in it settled before anything else changes it.
 	mailOn := func(ctx context.Context) bool { _, ok, _ := st.Mail().State(ctx); return ok }
@@ -292,7 +301,12 @@ func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateContr
 	}
 	// The control socket: this user's processes only, so root's under the unit.
 	// A privileged verb's entry goes to the store's audit log before it runs.
-	ctl, err := hostcontrol.Listen(cfg.Socket, log, hostcontrol.Access{Audit: st, Authorizer: am}, am, gm, &certsModule{sw: sw}, sys, firewallModule{fwm}, servicesModule{svcs}, mailMod)
+	apiMod.auth = am
+	mods := []module.Module{am, gm, &certsModule{sw: sw}, sys, firewallModule{fwm}, servicesModule{svcs}, mailMod, apiMod}
+	if err := apiMod.serve(mods...); err != nil {
+		return err
+	}
+	ctl, err := hostcontrol.Listen(cfg.Socket, log, hostcontrol.Access{Audit: st, Authorizer: am}, mods...)
 	if err != nil {
 		return err
 	}
@@ -309,7 +323,7 @@ func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateContr
 			return err
 		}
 	}
-	lnk, err := hostcontrol.Listen(cfg.LinkSocket, log, acc, &linkModule{cfg: cfg, table: table, rev: rev, sw: sw, counts: counts, streams: streams})
+	lnk, err := hostcontrol.Listen(cfg.LinkSocket, log, acc, &linkModule{cfg: cfg, table: table, rev: rev, sw: sw, counts: counts, streams: streams, api: apiMod}, apiLink{apiMod})
 	if err != nil {
 		return err
 	}

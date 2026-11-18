@@ -197,7 +197,7 @@ func (m *Module) Authorize(ctx context.Context, principal string, since time.Tim
 	switch {
 	case u.DisabledAt != 0:
 		return actor, ErrForbidden
-	case u.MustChange && !mustChangeAllows[c.Verb]:
+	case u.MustChange && t == nil && !mustChangeAllows[c.Verb]: // the passphrase login's rule: a token is not one
 		return actor, ErrMustChange
 	case !Allows(role, c):
 		return actor, ErrForbidden

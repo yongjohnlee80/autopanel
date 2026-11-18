@@ -32,6 +32,9 @@ type Module struct {
 	domains Domains
 	reload  func(ctx context.Context) error
 	users   DomainUsers // nil: no other module holds a domain
+	// reserved are the hosts AutoPanel serves itself (the API's): no route
+	// may hold one, and its domain stays while it does. nil: none.
+	reserved func() []string
 	// mu orders write-then-reload pairs: without it, an older reload could swap
 	// its snapshot in after a newer one.
 	mu sync.Mutex
@@ -72,7 +75,7 @@ type RouteRef struct {
 
 func (m *Module) Verbs() []module.Verb {
 	return []module.Verb{
-		module.Handle(module.Contract{Verb: "gate.route.list", Discloses: module.Plain, Since: 1, Result: "[{id, host, path_prefix, upstream}]",
+		module.Handle(module.Contract{Verb: "gate.route.list", Public: true, Discloses: module.Plain, Since: 1, Result: "[{id, host, path_prefix, upstream}]",
 			Doc: "Every route, by host, then the longest path prefix first."}, m.list),
 		module.Handle(module.Contract{Verb: "gate.route.add", Since: 1, Param: "{host, path_prefix?, upstream}", Result: "{id, host, path_prefix, upstream}",
 			Doc: "Adds a route and serves it at once. The host may then have a certificate.", Mutates: true}, m.add),
@@ -80,7 +83,7 @@ func (m *Module) Verbs() []module.Verb {
 			Doc: "Replaces a route's host, prefix and upstream.", Mutates: true}, m.update),
 		module.Handle(module.Contract{Verb: "gate.route.remove", Since: 1, Param: "{id}", Result: "{id, host, path_prefix, upstream}",
 			Doc: "Removes a route; its host stops being served once no route names it.", Mutates: true}, m.remove),
-		module.Handle(module.Contract{Verb: "gate.domain.list", Discloses: module.Plain, Since: 5, Result: "[{name, routes}]",
+		module.Handle(module.Contract{Verb: "gate.domain.list", Public: true, Discloses: module.Plain, Since: 5, Result: "[{name, routes}]",
 			Doc: "Every registered domain, by name, with the number of routes under it."}, m.domainList),
 		module.Handle(module.Contract{Verb: "gate.domain.add", Since: 5, Param: "{name}", Result: "{name, routes}",
 			Doc: "Registers a domain the administrator owns: example.com. A route's host must be a domain or a name under one.", Mutates: true}, m.domainAdd),
@@ -101,6 +104,8 @@ func (m *Module) Errors() []module.PublicError {
 		{Err: ErrDomainInUse, Code: -32157, Name: "gate.domain_in_use", Message: "a route would be left under no domain; remove or move it first"},
 		{Err: ErrDomainHasMail, Code: -32159, Name: "gate.domain_has_mail", Message: "the domain receives mail; stop that under Mail → Domains first"},
 		{Err: ErrNoSuchDomain, Code: -32158, Name: "gate.no_such_domain", Message: "no such domain"},
+		{Err: ErrHostReserved, Code: -32245, Name: "gate.host_reserved", Message: "AutoPanel serves that host itself; a route cannot hold it"},
+		{Err: ErrDomainHoldsHost, Code: -32246, Name: "gate.domain_holds_host", Message: "a host AutoPanel serves itself would be left under no domain; turn that off first"},
 	}
 }
 
@@ -132,7 +137,7 @@ func (m *Module) add(ctx context.Context, s RouteSpec) (RouteView, error) {
 		return RouteView{}, err
 	}
 	return m.write(ctx, func() (Route, error) {
-		if err := m.underADomain(ctx, r.Host); err != nil {
+		if err := m.routable(ctx, r.Host); err != nil {
 			return Route{}, err
 		}
 		return m.routes.Add(ctx, r)
@@ -145,7 +150,7 @@ func (m *Module) update(ctx context.Context, s RouteSpec) (RouteView, error) {
 		return RouteView{}, err
 	}
 	return m.write(ctx, func() (Route, error) {
-		if err := m.underADomain(ctx, r.Host); err != nil {
+		if err := m.routable(ctx, r.Host); err != nil {
 			return Route{}, err
 		}
 		return m.routes.Update(ctx, r)

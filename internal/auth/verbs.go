@@ -261,7 +261,37 @@ func (m *Module) tokenLogin(ctx context.Context, p TokenLogin) (LoggedIn, error)
 // tokenBurst is how many failed token logins in a minute raise an alarm.
 const tokenBurst = 20
 
-func (m *Module) tokenFailed(ctx context.Context) {
+// APIToken resolves the token of one call of the HTTPS API to its principal.
+// Nothing is written for a token that is good: a monitor's polls leave no
+// trace but the token's last use. A failure answers ErrBadLogin whatever was
+// wrong with it, and is audited at most tokenBurst times a minute, over every
+// token: a flood of bad tokens cannot fill the audit log, and never stops a
+// good one from being verified. from names the caller for the entry.
+//
+// Decision: docs/decisions/api.md#the-core-decides
+func (m *Module) APIToken(ctx context.Context, token, from string) (string, error) {
+	id, secret, ok := parseToken(token)
+	var t Token
+	var u User
+	err := ErrBadLogin
+	if ok {
+		if t, err = m.store.Token(ctx, id); err == nil {
+			u, err = m.store.UserByID(ctx, t.UserID)
+		}
+	}
+	now := m.now().Unix()
+	if err == nil && sameHash(hashCode(secret), t.Hash) && t.RevokedAt == 0 && now < t.ExpiresAt && u.DisabledAt == 0 {
+		return "token:" + strconv.FormatInt(t.ID, 10), nil
+	}
+	if m.tokenFailed(ctx) <= tokenBurst {
+		_ = m.audit.Audit(ctx, from, "auth.token.api", "token #"+strconv.FormatInt(id, 10), "failed")
+	}
+	return "", ErrBadLogin
+}
+
+// tokenFailed counts a failed token check and answers how many the last
+// minute holds; the tokenBurst-th raises the alarm.
+func (m *Module) tokenFailed(ctx context.Context) int {
 	now := m.now().Unix()
 	m.mu.Lock()
 	keep := m.tokFail[:0]
@@ -276,6 +306,7 @@ func (m *Module) tokenFailed(ctx context.Context) {
 	if n == tokenBurst {
 		m.audited(ctx, "auth.token.burst", "tokens", strconv.Itoa(n)+" failed token logins in a minute")
 	}
+	return n
 }
 
 // parseToken splits apt_<id>_<secret>.

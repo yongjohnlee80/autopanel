@@ -578,6 +578,39 @@ demoted owner's tokens are demoted, a removed owner's stop), and is named on the
 **Sessions.** The panel asks for the login again after 30 minutes without a key, and the daemon
 ends any login after 12 hours.
 
+### Calling AutoPanel from another machine: the HTTPS API
+
+A script elsewhere (a monitor, a CI job) calls AutoPanel over HTTPS with an API token. The API is
+off until you give it a host name of its own, under a domain you have registered:
+
+```sh
+sudo autopanel --call sys.api.set '{"host": "api.example.com"}'
+# or only from addresses you name:
+sudo autopanel --call sys.api.set '{"host": "api.example.com", "allow": ["203.0.113.0/24"]}'
+sudo autopanel --call sys.api.get
+sudo autopanel --call sys.api.set '{"host": ""}'      # off again
+```
+
+Point the name's DNS at this host, as for a site; its certificate is obtained the same way and is
+on **Certs → Certificates**. Then, from anywhere:
+
+```sh
+curl -s https://api.example.com/v1/health
+curl -s -X POST https://api.example.com/v1/call/gate.route.list -H "Authorization: Bearer $TOKEN"
+curl -s https://api.example.com/v1/contracts -H "Authorization: Bearer $TOKEN"   # what this token may call
+```
+
+- A call is `POST /v1/call/<verb>` with the verb's parameter as a JSON body: the same verbs,
+  results and errors as `autopanel --call`.
+- Only verbs marked public are served. Today those are reads: the status, the host checks, routes,
+  domains, certificates, stacks, and (with an admin's token) the firewall.
+- A token made with the viewer role reaches all of those but the firewall.
+- Limits: 60 requests a minute from one address, 8 calls at once, a 64 KiB body.
+- A refused call is on **System → Audit log**, with the token, its owner and the address. A read
+  that succeeds is not: a monitor that polls leaves the log alone.
+
+Why it is built this way: [docs/decisions/api.md](docs/decisions/api.md).
+
 ### Themes and languages
 
 **System → Theme** offers ten themes, and **System → Language** six languages: English, Korean,
@@ -676,6 +709,7 @@ A deployed service is stopped by `--apply`, and its user and directory are delet
 | Two processes | a sandboxed gate that faces the network, and a core that listens on no network and holds the store and the keys. The gate keeps serving while the core restarts |
 | Store | SQLite by default, PostgreSQL as an option; migrations for both, tested on both |
 | Users | four roles, two-factor codes with recovery codes, lockout after failed logins, API tokens for scripts |
+| HTTPS API | JSON over HTTPS for scripts elsewhere, with an API token, on a host of its own: reads of the status, checks, routes, domains, certificates, stacks and the firewall. Off until its host is set |
 | Stacks | a compose file, reviewed before it runs, under rootless Podman as a user of its own |
 | Mail | Stalwart behind the gate; DNS records published and kept through Cloudflare, or listed to enter by hand; DKIM keys rotated; app passwords per device. See [MAIL.md](MAIL.md) |
 | Firewall | the server's own firewall through `ufw`: its rules and who made each, every open port's verdict, a guard against locking yourself out of SSH, an enable that undoes itself unless a new login confirms it, ports opened for mail and for stacks and closed with them |
@@ -689,10 +723,11 @@ A deployed service is stopped by `--apply`, and its user and directory are delet
 
 **Next:**
 
-1. A public HTTPS surface for the panel and its API, with cookie sessions and passkeys.
-2. Port forwarding (TCP and UDP) through the gate.
-3. Health checks per upstream.
-4. For mail: webmail, aliases and forwarding from the panel, and repairing a broken setup.
+1. A public site of AutoPanel's own: a home page and articles as static pages, published from Markdown with an API token.
+2. Signing in from a browser, then mail, a drive and the admin pages as applications.
+3. Port forwarding (TCP and UDP) and tunnels through the gate.
+4. Health checks per upstream.
+5. For mail: aliases and forwarding from the panel, and repairing a broken setup.
 
 ## Design principles
 

@@ -68,6 +68,7 @@ type linkModule struct {
 	sw      *certSwitch
 	counts  *counters
 	streams *streamTable
+	api     *apiModule // nil in a test without the API
 }
 
 func (m *linkModule) Name() string { return "link" }
@@ -112,6 +113,9 @@ func (m *linkModule) routes(ctx context.Context, p hostgate.After) (hostgate.Rou
 	}
 	rs := m.table.Routes()
 	out := hostgate.Routes{Rev: rev, Routes: make([]gate.RouteView, 0, len(rs))}
+	if m.api != nil {
+		out.API = m.api.forGate()
+	}
 	for _, r := range rs {
 		out.Routes = append(out.Routes, gate.RouteView{ID: int64(r.ID), Host: r.Host, PathPrefix: r.PathPrefix, Upstream: r.Upstream})
 	}

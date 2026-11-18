@@ -214,7 +214,7 @@ func sshdSays(ctx context.Context, key, value string) bool {
 
 func (m *sysModule) checkVerbs() []module.Verb {
 	return []module.Verb{
-		module.Handle(module.Contract{Verb: "sys.checks", Discloses: module.Plain, Since: 7, Result: "[{id, severity, detail}]",
+		module.Handle(module.Contract{Verb: "sys.checks", Public: true, Discloses: module.Plain, Since: 7, Result: "[{id, severity, detail}]",
 			Doc: "The host's posture findings that hold now, alerts first: each a constant id, its severity, and data for its message."}, m.checks),
 	}
 }

@@ -321,7 +321,7 @@ func TestTokens(t *testing.T) {
 	if _, err := f.m.Authorize(context.Background(), in.Principal, time.Time{}, module.Contract{Verb: "auth.token.create", Mutates: true}); !errors.Is(err, auth.ErrForbidden) {
 		t.Fatalf("a token making a token: %v", err)
 	}
-	if err := f.call(t, "", "auth.token.login", auth.TokenLogin{Token: nt.Token[:len(nt.Token)-1] + "x"}, nil); !errors.Is(err, auth.ErrBadLogin) {
+	if err := f.call(t, "", "auth.token.login", auth.TokenLogin{Token: wrongSecret(nt.Token)}, nil); !errors.Is(err, auth.ErrBadLogin) {
 		t.Fatalf("a wrong secret: %v", err)
 	}
 	if err := f.call(t, "", "auth.token.login", auth.TokenLogin{Token: "apt_99_" + strings.Repeat("a", 43)}, nil); !errors.Is(err, auth.ErrBadLogin) {

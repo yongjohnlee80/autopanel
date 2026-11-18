@@ -360,7 +360,7 @@ func (m *Module) Verbs() []module.Verb {
 		module.Handle(module.Contract{Verb: "services.reimport", Since: 5, Param: "{name}", Result: "{name, from, sha256, files: [{path, mode, size, sha256}]}",
 			Mutates: true, Privileged: true, Right: deploy,
 			Doc: "Copies a stack's definition from its source again. What runs does not change until services.apply, which reviews it first."}, m.reimport),
-		module.Handle(module.Contract{Verb: "services.list", Discloses: module.Plain, Since: 3, Result: "[" + viewShape + "]",
+		module.Handle(module.Contract{Verb: "services.list", Public: true, Discloses: module.Plain, Since: 3, Result: "[" + viewShape + "]",
 			Doc: "Every stack: what was applied, and what the host says of each container now."}, m.list),
 		module.Handle(change("services.start", "{name, service?}",
 			"Starts a stack's containers, or one of them. Refused for a service whose requirement is stopped."), m.start),

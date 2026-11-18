@@ -1,6 +1,8 @@
 package gate
 
 import (
+	"context"
+	"errors"
 	"strings"
 	"testing"
 )
@@ -105,5 +107,69 @@ func TestBuildRefusesANonCanonicalRouteAndChangesNothing(t *testing.T) {
 	}
 	if _, id, ok := tbl.Match("example.com", "/"); !ok || id != 1 {
 		t.Fatal("a refused build changed the live table")
+	}
+}
+
+// memRoutes and memDomains keep routes and domains in memory.
+type memRoutes struct{ rs []Route }
+
+func (m *memRoutes) All(context.Context) ([]Route, error) { return m.rs, nil }
+func (m *memRoutes) Add(_ context.Context, r Route) (Route, error) {
+	r.ID = RouteID(len(m.rs) + 1)
+	m.rs = append(m.rs, r)
+	return r, nil
+}
+func (m *memRoutes) Update(_ context.Context, r Route) (Route, error) { return r, nil }
+func (m *memRoutes) Remove(context.Context, RouteID) (Route, error)   { return Route{}, nil }
+
+type memDomains struct{ ds []Domain }
+
+func (m *memDomains) All(context.Context) ([]Domain, error) { return m.ds, nil }
+func (m *memDomains) Add(_ context.Context, d Domain) error {
+	m.ds = append(m.ds, d)
+	return nil
+}
+func (m *memDomains) Remove(_ context.Context, name string) error {
+	for i, d := range m.ds {
+		if d.Name == name {
+			m.ds = append(m.ds[:i], m.ds[i+1:]...)
+		}
+	}
+	return nil
+}
+
+// TestAHostAutoPanelServesItselfIsReserved: no route may hold the API's host,
+// and its domain cannot be removed while that would leave it under none.
+func TestAHostAutoPanelServesItselfIsReserved(t *testing.T) {
+	ctx := context.Background()
+	ds := &memDomains{ds: []Domain{{Name: "example.com"}, {Name: "api.example.com"}}}
+	m := NewModule(&memRoutes{}, ds, func(context.Context) error { return nil })
+	reserved := []string{"api.example.com"}
+	m.SetReserved(func() []string { return reserved })
+	if _, err := m.add(ctx, RouteSpec{Host: "API.example.com", Upstream: "http://127.0.0.1:1"}); !errors.Is(err, ErrHostReserved) {
+		t.Fatalf("a route on the reserved host: %v", err)
+	}
+	if _, err := m.update(ctx, RouteSpec{ID: 1, Host: "api.example.com", Upstream: "http://127.0.0.1:1"}); !errors.Is(err, ErrHostReserved) {
+		t.Fatalf("a route moved onto the reserved host: %v", err)
+	}
+	if _, err := m.add(ctx, RouteSpec{Host: "app.example.com", Upstream: "http://127.0.0.1:1"}); err != nil {
+		t.Fatalf("another host: %v", err)
+	}
+	// The narrower domain can go: the parent still covers the host.
+	if _, err := m.domainRemove(ctx, DomainRef{Name: "api.example.com"}); err != nil {
+		t.Fatalf("removing a domain the parent covers: %v", err)
+	}
+	if ok, _ := m.Covered(ctx, "api.example.com"); !ok {
+		t.Fatal("the host is no longer covered")
+	}
+	ds.ds = []Domain{{Name: "example.com"}, {Name: "other.net"}}
+	m2 := NewModule(&memRoutes{}, ds, func(context.Context) error { return nil })
+	m2.SetReserved(func() []string { return reserved })
+	if _, err := m2.domainRemove(ctx, DomainRef{Name: "example.com"}); !errors.Is(err, ErrDomainHoldsHost) {
+		t.Fatalf("removing the only domain over the reserved host: %v", err)
+	}
+	reserved = nil // the API turned off
+	if _, err := m2.domainRemove(ctx, DomainRef{Name: "example.com"}); err != nil {
+		t.Fatalf("with nothing reserved: %v", err)
 	}
 }
