@@ -244,7 +244,7 @@ func TestAForwardsLine(t *testing.T) {
 			t.Errorf("%q: %+v, %v; want %+v", line, got, ok, want)
 		}
 	}
-	for _, line := range []string{"", "game", "game 25565", "game port 127.0.0.1:1", "game 6000-x 127.0.0.1:1"} {
+	for _, line := range []string{"", "game", "game 25565", "game port 127.0.0.1:1", "game 6000-x 127.0.0.1:1", "game 25565-0 127.0.0.1:1"} {
 		if _, ok := forwardSpec(line); ok {
 			t.Errorf("%q was read as a forward", line)
 		}
