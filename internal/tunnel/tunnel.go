@@ -213,6 +213,34 @@ func NewClient(ctx context.Context, conn net.Conn, maxStreams int) (*Client, err
 		return nil, err
 	}
 	c.cc = cc
+	// One stream that asks for nothing, before any other: the agent's refusal
+	// of it is the first word that it speaks the protocol at all, and by then
+	// its settings have arrived, which say how many streams it will serve.
+	if _, err := c.Open(ctx, ""); !errors.Is(err, ErrRefused) {
+		_ = c.Close()
+		if err == nil {
+			err = errors.New("tunnel: the agent opened a stream to no target")
+		}
+		return nil, err
+	}
+	// The places are the fewer of what was asked and what the agent serves.
+	// Counting them here, and not asking the connection each time, is what
+	// makes a full tunnel an answer at once: the connection frees a finished
+	// stream's place a moment after the stream's owner has let go of it.
+	for range 2000 {
+		if cc.InFlight() == 0 {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			_ = c.Close()
+			return nil, ctx.Err()
+		case <-time.After(time.Millisecond):
+		}
+	}
+	if n := cc.Available(); n > 0 && n < maxStreams {
+		c.slots = make(chan struct{}, n)
+	}
 	return c, nil
 }
 
@@ -240,18 +268,6 @@ func (c *Client) Open(ctx context.Context, target string) (net.Conn, error) {
 	default:
 		return nil, ErrBusy
 	}
-	if err := c.cc.Reserve(); err != nil { // the agent allows fewer, or the connection is ending
-		<-c.slots
-		select {
-		case <-c.closed:
-			return nil, ErrClosed
-		default:
-		}
-		if c.cc.Err() != nil {
-			return nil, ErrClosed
-		}
-		return nil, ErrBusy
-	}
 	pr, pw := io.Pipe()
 	sctx, stop := context.WithCancel(context.WithoutCancel(ctx)) // the stream outlives the call that opened it
 	var freed sync.Once
@@ -263,7 +279,6 @@ func (c *Client) Open(ctx context.Context, target string) (net.Conn, error) {
 	// and tidies it.
 	req, err := http.NewRequestWithContext(sctx, http.MethodPost, "http://agent/"+base64.RawURLEncoding.EncodeToString([]byte(target)), pr)
 	if err != nil {
-		c.cc.Release()
 		cancel()
 		return nil, err
 	}
