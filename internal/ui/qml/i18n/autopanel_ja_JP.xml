@@ -1907,6 +1907,10 @@
         <source>Apply the stack again with its ports ticked, or allow them in System → Firewall.</source>
         <translation>ポートにチェックを入れてスタックを再適用するか、システム → ファイアウォールで許可してください。</translation>
     </message>
+    <message id="autopanel.notice.check.tunnelDown">
+        <source>Start the agent on that machine (systemctl status autopanel-agent there). Routes → Tunnels shows each agent and whether it has enrolled.</source>
+        <translation>そのマシンでエージェントを起動してください（そのマシンで systemctl status autopanel-agent）。ルート → トンネルに各エージェントと登録の有無が表示されます。</translation>
+    </message>
     <message id="autopanel.notice.check.ufwIpv6Off">
         <source>Set IPV6=yes in /etc/default/ufw and reload ufw, then check the IPv6 rules: a reload with IPV6=no drops them.</source>
         <translation>/etc/default/ufw で IPV6=yes にして ufw を再読み込みし、IPv6 の規則を確認してください。IPV6=no で再読み込みすると消えます。</translation>
@@ -3302,6 +3306,10 @@
     <message id="autopanel.value.check.stackPortBlocked">
         <source>The firewall blocks ports a stack opened: %1</source>
         <translation>ファイアウォールがスタックの開いたポートをブロックしています: %1</translation>
+    </message>
+    <message id="autopanel.value.check.tunnelDown">
+        <source>A tunnel that a site or a forward depends on is down: %1</source>
+        <translation>サイトまたは転送が依存するトンネルが切断されています: %1</translation>
     </message>
     <message id="autopanel.value.check.ufwIpv6Off">
         <source>ufw leaves IPv6 alone (IPV6=no)</source>

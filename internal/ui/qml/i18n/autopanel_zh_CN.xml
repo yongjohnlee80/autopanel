@@ -1907,6 +1907,10 @@
         <source>Apply the stack again with its ports ticked, or allow them in System → Firewall.</source>
         <translation>勾选端口后重新应用堆栈，或在系统 → 防火墙中允许。</translation>
     </message>
+    <message id="autopanel.notice.check.tunnelDown">
+        <source>Start the agent on that machine (systemctl status autopanel-agent there). Routes → Tunnels shows each agent and whether it has enrolled.</source>
+        <translation>请在该机器上启动代理（在该机器上执行 systemctl status autopanel-agent）。路由 → 隧道显示每个代理及其是否已注册。</translation>
+    </message>
     <message id="autopanel.notice.check.ufwIpv6Off">
         <source>Set IPV6=yes in /etc/default/ufw and reload ufw, then check the IPv6 rules: a reload with IPV6=no drops them.</source>
         <translation>在 /etc/default/ufw 中设置 IPV6=yes 并重新加载 ufw，然后检查 IPv6 规则：在 IPV6=no 下重新加载会删除它们。</translation>
@@ -3302,6 +3306,10 @@
     <message id="autopanel.value.check.stackPortBlocked">
         <source>The firewall blocks ports a stack opened: %1</source>
         <translation>防火墙阻止了堆栈打开的端口：%1</translation>
+    </message>
+    <message id="autopanel.value.check.tunnelDown">
+        <source>A tunnel that a site or a forward depends on is down: %1</source>
+        <translation>站点或转发所依赖的隧道已断开：%1</translation>
     </message>
     <message id="autopanel.value.check.ufwIpv6Off">
         <source>ufw leaves IPv6 alone (IPV6=no)</source>

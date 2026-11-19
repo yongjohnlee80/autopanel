@@ -1907,6 +1907,10 @@
         <source>Apply the stack again with its ports ticked, or allow them in System → Firewall.</source>
         <translation>Aplica la pila otra vez con sus puertos marcados, o permítelos en Sistema → Cortafuegos.</translation>
     </message>
+    <message id="autopanel.notice.check.tunnelDown">
+        <source>Start the agent on that machine (systemctl status autopanel-agent there). Routes → Tunnels shows each agent and whether it has enrolled.</source>
+        <translation>Inicie el agente en esa máquina (allí, systemctl status autopanel-agent). Rutas → Túneles muestra cada agente y si se ha inscrito.</translation>
+    </message>
     <message id="autopanel.notice.check.ufwIpv6Off">
         <source>Set IPV6=yes in /etc/default/ufw and reload ufw, then check the IPv6 rules: a reload with IPV6=no drops them.</source>
         <translation>Pon IPV6=yes en /etc/default/ufw y recarga ufw, luego revisa las reglas IPv6: una recarga con IPV6=no las borra.</translation>
@@ -3302,6 +3306,10 @@
     <message id="autopanel.value.check.stackPortBlocked">
         <source>The firewall blocks ports a stack opened: %1</source>
         <translation>El cortafuegos bloquea puertos que abrió una pila: %1</translation>
+    </message>
+    <message id="autopanel.value.check.tunnelDown">
+        <source>A tunnel that a site or a forward depends on is down: %1</source>
+        <translation>Un túnel del que depende un sitio o un reenvío está caído: %1</translation>
     </message>
     <message id="autopanel.value.check.ufwIpv6Off">
         <source>ufw leaves IPv6 alone (IPV6=no)</source>

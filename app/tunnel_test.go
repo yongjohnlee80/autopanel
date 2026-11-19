@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/yongjohnlee80/autopanel/core/forward"
+	"github.com/yongjohnlee80/autopanel/core/gate"
 	coretunnel "github.com/yongjohnlee80/autopanel/core/tunnel"
 	hostgate "github.com/yongjohnlee80/autopanel/host/gate"
 	"github.com/yongjohnlee80/autopanel/internal/module"
@@ -182,5 +184,46 @@ func TestTheGatesWordAboutTunnelsIsKeptShort(t *testing.T) {
 	c.seen.Store(time.Now().Add(-10 * time.Minute).UnixNano())
 	if c.tunnelStatus() != nil {
 		t.Fatal("a gate that has gone quiet still has tunnels")
+	}
+}
+
+type someRoutes struct {
+	gate.Routes
+	rs []gate.Route
+}
+
+func (s someRoutes) All(context.Context) ([]gate.Route, error) { return s.rs, nil }
+
+// TestTheCheckNamesATunnelThatIsDownAndWhatWaitsOnIt: tunnel-down speaks of an
+// agent only when a route or a forward leads through it and it holds no
+// tunnel; it is quiet for an agent nothing uses, and while the gate is quiet.
+func TestTheCheckNamesATunnelThatIsDownAndWhatWaitsOnIt(t *testing.T) {
+	routes := someRoutes{rs: []gate.Route{
+		{Host: "photos.example.com", PathPrefix: "/", Upstream: "tunnel://nas/photos"},
+		{Host: "wiki.example.com", PathPrefix: "/", Upstream: "tunnel://attic/wiki"},
+		{Host: "blog.example.com", PathPrefix: "/", Upstream: "http://127.0.0.1:8080"},
+	}}
+	forwards := someForwards{fs: []forward.Forward{
+		{Name: "nas-ssh", Proto: "tcp", From: 2222, To: 2222, Target: "tunnel://nas/ssh"},
+		{Name: "game", Proto: "tcp", From: 25565, To: 25565, Target: "127.0.0.1:26000"},
+	}}
+	up := map[string]coretunnel.Status{}
+	check := tunnelChecks(routes, forwards, func() map[string]coretunnel.Status { return up })
+	got := check(context.Background())
+	if len(got) != 1 || got[0].ID != "tunnel-down" || got[0].Severity != alert ||
+		got[0].Detail != "attic (wiki.example.com); nas (photos.example.com, forward nas-ssh)" {
+		t.Fatalf("with both agents away = %+v", got)
+	}
+	up["nas"] = coretunnel.Status{Connected: true}
+	if got := check(context.Background()); len(got) != 1 || got[0].Detail != "attic (wiki.example.com)" {
+		t.Fatalf("with nas up = %+v", got)
+	}
+	up["attic"] = coretunnel.Status{Connected: true}
+	if got := check(context.Background()); len(got) != 0 {
+		t.Fatalf("with every agent up = %+v", got)
+	}
+	up = nil // the gate is quiet: its own check speaks
+	if got := check(context.Background()); len(got) != 0 {
+		t.Fatalf("with the gate quiet = %+v", got)
 	}
 }
