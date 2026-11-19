@@ -89,8 +89,8 @@ func (m *linkModule) Verbs() []module.Verb {
 			Doc: "The certificate and private key for a name a route holds, obtained first when there is none; with alpn, the TLS-ALPN-01 challenge certificate of an order in flight. Link socket only."}, m.cert),
 		module.Handle(module.Contract{Verb: hostgate.VerbChallenge, Since: 2, Open: true, Param: "{host, path}", Result: "{handled, status, body}",
 			Doc: "The answer to an ACME HTTP-01 request the gate received; handled is false when it is no challenge of this AutoPanel's. Link socket only."}, m.challenge),
-		module.Handle(module.Contract{Verb: hostgate.VerbReport, Since: 2, Open: true, Param: "{https_requests, http_requests, pid, memory_bytes, streams_open?, streams_served?, streams_refused?, probed_at?, unproxied?}",
-			Doc: "The gate's request counts since it started, its process and its memory, its streams' connections, and what its probe of the streams' targets found, for sys.metrics, sys.ports and mail's host check. Link socket only."}, m.report),
+		module.Handle(module.Contract{Verb: hostgate.VerbReport, Since: 2, Open: true, Param: "{https_requests, http_requests, pid, memory_bytes, streams_open?, streams_served?, streams_refused?, probed_at?, unproxied?, tunnels?}",
+			Doc: "The gate's request counts since it started, its process and its memory, its streams' connections, what its probe of the streams' targets found, and the tunnels it holds, for sys.metrics, sys.ports, mail's host check and the agents' list. Link socket only."}, m.report),
 		module.Handle(module.Contract{Verb: hostgate.VerbStreams, Since: 6, Open: true, Param: "{after}", Result: "{rev, total, streams: [{name, listen, to, idle_secs, per_client, share}]}",
 			Doc: "The ports the gate forwards byte for byte, each connection with a PROXY v2 header, and the limit they share; none until mail is set up. Answers at once when the revision is not after, and otherwise when they next change. Link socket only."}, m.streamsVerb),
 	}

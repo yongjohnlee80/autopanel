@@ -17,7 +17,45 @@ const (
 	VerbReport    = "link.report"
 	VerbStreams   = "link.streams"
 	VerbAPI       = "link.api"
+	VerbAgents    = "link.agents"
+	VerbEnrol     = "link.enrol"
 )
+
+// AgentKey is a tunnel agent the gate admits: its name, and the SHA-256 of
+// its public key in hex. Neither is a secret.
+type AgentKey struct {
+	Name string `json:"name"`
+	Key  string `json:"key"`
+}
+
+// Agents is link.agents's answer: every enrolled agent, and the revision.
+type Agents struct {
+	Rev    int64      `json:"rev"`
+	Agents []AgentKey `json:"agents"`
+}
+
+// EnrolAsk is link.enrol's param: a token someone offered, the digest of the
+// key their handshake proved, and where they came from. The gate has limited
+// how often; the core decides the rest.
+type EnrolAsk struct {
+	Token  string `json:"token"`
+	Key    string `json:"key"`
+	Client string `json:"client"`
+}
+
+// Enrolled is link.enrol's answer: the agent the key now is.
+type Enrolled struct {
+	Name string `json:"name"`
+}
+
+// TunnelState is one agent's tunnel, in the gate's report.
+type TunnelState struct {
+	Name    string   `json:"name"`
+	Since   int64    `json:"since"` // Unix seconds
+	From    string   `json:"from"`
+	Streams int      `json:"streams"`
+	Targets []string `json:"targets,omitempty"` // names only
+}
 
 // Stream is one port the gate forwards byte for byte to a loopback port, each
 // connection preceded by a PROXY protocol v2 header naming the client.
@@ -167,4 +205,7 @@ type Report struct {
 	// address from the gate.
 	ProbedAt  int64    `json:"probed_at"`
 	Unproxied []string `json:"unproxied"`
+
+	// Tunnels is the agents connected now.
+	Tunnels []TunnelState `json:"tunnels,omitempty"`
 }

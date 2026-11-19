@@ -50,6 +50,17 @@ type fakeCore struct {
 	calls   []APIAsk
 	apiHold chan struct{} // when set, link.api waits for it to close
 	apiBody []byte        // when set, link.api's result
+	agents  Agents        // link.agents: its Rev counts the changes
+	enrols  []EnrolAsk    // link.enrol calls
+	enrolAs string        // the agent a token enrols as; "": every token is refused
+}
+
+// setAgents names the enrolled agents.
+func (f *fakeCore) setAgents(agents ...AgentKey) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.agents = Agents{Rev: f.agents.Rev + 1, Agents: agents}
+	f.wake()
 }
 
 // setAPI changes the API's settings, as sys.api.set does.
@@ -227,6 +238,29 @@ func (c *fakeConn) Call(ctx context.Context, verb string, param any, out any) er
 			}
 		}
 		*out.(*Streams) = Streams{Rev: f.streams.Rev, Total: f.streams.Total, Streams: append([]Stream(nil), f.streams.Streams...)}
+	case VerbAgents:
+		for f.agents.Rev == param.(After).After {
+			ch := f.changed
+			f.mu.Unlock()
+			select {
+			case <-ch:
+			case <-ctx.Done():
+				f.mu.Lock()
+				return ctx.Err()
+			}
+			f.mu.Lock()
+			if f.down || f.epoch != c.epoch {
+				return errLinkLost
+			}
+		}
+		*out.(*Agents) = Agents{Rev: f.agents.Rev, Agents: append([]AgentKey(nil), f.agents.Agents...)}
+	case VerbEnrol:
+		a := param.(EnrolAsk)
+		f.enrols = append(f.enrols, a)
+		if f.enrolAs == "" {
+			return &rpc.Error{Code: -32274, Message: "the enrolment was refused"}
+		}
+		*out.(*Enrolled) = Enrolled{Name: f.enrolAs}
 	default:
 		return &rpc.Error{Code: rpc.CodeMethodNotFound, Message: "unknown method: " + verb}
 	}

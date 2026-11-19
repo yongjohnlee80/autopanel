@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/yongjohnlee80/autopanel/core/forward"
+	coretunnel "github.com/yongjohnlee80/autopanel/core/tunnel"
 	"log/slog"
 	"net/http"
 	"os"
@@ -312,7 +313,10 @@ func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateContr
 	if err := sendForwards(ctx); err != nil {
 		return fmt.Errorf("loading the port forwards: %w", err)
 	}
-	mods := []module.Module{am, gm, fm, &certsModule{sw: sw}, sys, firewallModule{fwm}, servicesModule{svcs}, mailMod, apiMod}
+	// Tunnel agents: the gate is told when a key appears or goes.
+	agentsRev := newRevision(time.Now().Unix())
+	tm := coretunnel.NewModule(st.Tunnels(), func(context.Context) error { agentsRev.bump(); return nil }, counts.tunnelStatus)
+	mods := []module.Module{am, gm, fm, tm, &certsModule{sw: sw}, sys, firewallModule{fwm}, servicesModule{svcs}, mailMod, apiMod}
 	if err := apiMod.serve(mods...); err != nil {
 		return err
 	}
@@ -333,7 +337,7 @@ func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateContr
 			return err
 		}
 	}
-	lnk, err := hostcontrol.Listen(cfg.LinkSocket, log, acc, &linkModule{cfg: cfg, table: table, rev: rev, sw: sw, counts: counts, streams: streams, api: apiMod}, apiLink{apiMod})
+	lnk, err := hostcontrol.Listen(cfg.LinkSocket, log, acc, &linkModule{cfg: cfg, table: table, rev: rev, sw: sw, counts: counts, streams: streams, api: apiMod}, apiLink{apiMod}, tunnelLink{m: tm, rev: agentsRev})
 	if err != nil {
 		return err
 	}
