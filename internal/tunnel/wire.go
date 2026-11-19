@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/hex"
+	"strings"
 )
 
 // How an agent reaches the gate: on the HTTPS port, told apart from a browser
@@ -30,6 +31,27 @@ const (
 func KeyDigest(cert *x509.Certificate) string {
 	sum := sha256.Sum256(cert.RawSubjectPublicKeyInfo)
 	return hex.EncodeToString(sum[:])
+}
+
+// Scheme starts the address of a target behind an agent, wherever an
+// address is written: tunnel://<agent>/<target>.
+const Scheme = "tunnel://"
+
+// Address is the address of an agent's target.
+func Address(agent, target string) string { return Scheme + agent + "/" + target }
+
+// ParseAddress splits tunnel://<agent>/<target>. Both are names (ValidTarget's
+// rule), and nothing else may follow: no port, no path below, no query.
+func ParseAddress(s string) (agent, target string, ok bool) {
+	rest, found := strings.CutPrefix(s, Scheme)
+	if !found {
+		return "", "", false
+	}
+	agent, target, found = strings.Cut(rest, "/")
+	if !found || !ValidTarget(agent) || !ValidTarget(target) {
+		return "", "", false
+	}
+	return agent, target, true
 }
 
 // ValidTarget reports whether n may name a target: 1 to 32 lower-case

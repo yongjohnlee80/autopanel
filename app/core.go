@@ -237,7 +237,7 @@ func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateContr
 		if err != nil {
 			return err
 		}
-		snap, err := hostgate.Build(rs, cfg.Trusted)
+		snap, err := hostgate.Build(rs, cfg.Trusted, nil) // the core's copy says which names are held; it carries nothing
 		if err != nil {
 			return err
 		}

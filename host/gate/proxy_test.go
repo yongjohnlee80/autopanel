@@ -36,7 +36,7 @@ func front(t *testing.T, tbl *Table, h2 bool) *httptest.Server {
 // to makes the table serve example.com from upstream.
 func to(t *testing.T, tbl *Table, upstream string) {
 	t.Helper()
-	snap, err := Build([]core.Route{{ID: 1, Host: "example.com", PathPrefix: "/", Upstream: upstream}}, nil)
+	snap, err := Build([]core.Route{{ID: 1, Host: "example.com", PathPrefix: "/", Upstream: upstream}}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +79,7 @@ func TestAHotReloadUnderLoadDropsNoRequest(t *testing.T) {
 						return
 					default:
 					}
-					snap, err := Build([]core.Route{{ID: 1, Host: "example.com", PathPrefix: "/", Upstream: ups[i%2]}}, nil)
+					snap, err := Build([]core.Route{{ID: 1, Host: "example.com", PathPrefix: "/", Upstream: ups[i%2]}}, nil, nil)
 					if err != nil {
 						t.Error(err)
 						return
@@ -176,7 +176,7 @@ func TestARequestInFlightFinishesOnTheTableItStartedWith(t *testing.T) {
 	if code, body, err := get(); err != nil || code != 200 || body != "new" {
 		t.Fatalf("after the reload = %d %q %v; want the new upstream", code, body, err)
 	}
-	empty, err := Build(nil, nil)
+	empty, err := Build(nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -244,7 +244,7 @@ func TestAnUpgradedConnectionIsATwoWayStream(t *testing.T) {
 	}
 	say("one")
 	say("two")
-	empty, err := Build(nil, nil)
+	empty, err := Build(nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

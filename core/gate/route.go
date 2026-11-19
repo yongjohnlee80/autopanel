@@ -2,6 +2,7 @@ package gate
 
 import (
 	"errors"
+	"github.com/yongjohnlee80/autopanel/internal/tunnel"
 	"net/url"
 	"strings"
 )
@@ -14,14 +15,15 @@ type Route struct {
 	ID         RouteID
 	Host       string // canonical (CanonicalHost)
 	PathPrefix string // "/" or "/segment[/…]", no trailing slash except "/"
-	Upstream   string // an absolute http or https URL
+	Upstream   string // an absolute http or https URL, or tunnel://<agent>/<target>
 }
 
 var (
 	// ErrBadPrefix is a path prefix that is not "/" or a clean absolute path.
 	ErrBadPrefix = errors.New("gate: a path prefix must be \"/\" or an absolute path without a trailing slash")
-	// ErrBadUpstream is an upstream that is not an absolute http(s) URL with a host.
-	ErrBadUpstream = errors.New("gate: an upstream must be an http or https URL with a host and no credentials")
+	// ErrBadUpstream is an upstream that is neither an absolute http(s) URL
+	// with a host nor a tunnel agent's target.
+	ErrBadUpstream = errors.New("gate: an upstream must be an http or https URL with a host and no credentials, or tunnel://<agent>/<target>")
 )
 
 // Normalize returns r in canonical form, or why it can't be routed.
@@ -37,6 +39,14 @@ func (r Route) Normalize() (Route, error) {
 	if !strings.HasPrefix(r.PathPrefix, "/") || (r.PathPrefix != "/" && strings.HasSuffix(r.PathPrefix, "/")) ||
 		strings.Contains(r.PathPrefix, "//") || strings.ContainsAny(r.PathPrefix, "?#") {
 		return Route{}, ErrBadPrefix
+	}
+	if strings.HasPrefix(r.Upstream, tunnel.Scheme) {
+		// A service behind a tunnel agent, by the agent's name and the
+		// target's: where it leads is the agent's file's to say.
+		if _, _, ok := tunnel.ParseAddress(r.Upstream); !ok {
+			return Route{}, ErrBadUpstream
+		}
+		return r, nil
 	}
 	u, err := url.Parse(r.Upstream)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.User != nil {

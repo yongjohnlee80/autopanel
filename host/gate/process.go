@@ -108,6 +108,7 @@ func Run(ctx context.Context, dial Dialer, log *slog.Logger) error {
 	g.api = newAPIServer(l, log, func() Trusted { return *g.trustedNow.Load() }, g.up.Load)
 	g.certs.also = g.api.isHost // the API's host has a certificate, though no route names it
 	g.tunnels = newTunnels(l, log)
+	g.streams.tunnel = g.tunnels.dial
 	tunnelTLS := g.tunnels.tlsConfig(g.certs.get)
 	// The first table before the first request: a gate that listens with an
 	// empty table answers 404 for every site.
@@ -224,7 +225,7 @@ func (g *process) sync(ctx context.Context) error {
 	if err := g.api.set(r.API); err != nil {
 		g.log.Error("gate: API settings the gate cannot use; the old ones stay", "err", err)
 	}
-	snap, err := Build(routes, g.trusted)
+	snap, err := Build(routes, g.trusted, g.tunnels.dial)
 	if err != nil {
 		g.log.Error("gate: a routing table the gate cannot build; the old one stays", "err", err)
 		return nil

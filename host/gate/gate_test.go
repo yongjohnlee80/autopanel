@@ -33,7 +33,7 @@ func serve(t *testing.T, tbl *Table, req *http.Request) *http.Response {
 func TestTheGateProxiesByHostAndRefusesTheRest(t *testing.T) {
 	up := upstream(t)
 	tbl := core.NewTable[http.Handler]()
-	snap, err := Build([]core.Route{{ID: 1, Host: "example.com", PathPrefix: "/", Upstream: up.URL}}, nil)
+	snap, err := Build([]core.Route{{ID: 1, Host: "example.com", PathPrefix: "/", Upstream: up.URL}}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +58,7 @@ func TestCFConnectingIPIsBelievedOnlyFromATrustedPeer(t *testing.T) {
 	up := upstream(t)
 	trusted := Trusted{netip.MustParsePrefix("198.51.100.0/24")}
 	tbl := core.NewTable[http.Handler]()
-	snap, err := Build([]core.Route{{ID: 1, Host: "example.com", PathPrefix: "/", Upstream: up.URL}}, trusted)
+	snap, err := Build([]core.Route{{ID: 1, Host: "example.com", PathPrefix: "/", Upstream: up.URL}}, trusted, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
