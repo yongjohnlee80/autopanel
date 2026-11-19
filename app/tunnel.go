@@ -2,7 +2,12 @@ package app
 
 import (
 	"context"
+	"sort"
+	"strings"
 	"time"
+
+	"github.com/yongjohnlee80/autopanel/core/forward"
+	"github.com/yongjohnlee80/autopanel/core/gate"
 
 	coretunnel "github.com/yongjohnlee80/autopanel/core/tunnel"
 	hostgate "github.com/yongjohnlee80/autopanel/host/gate"
@@ -97,4 +102,43 @@ func (c *counters) tunnelStatus() map[string]coretunnel.Status {
 		out[s.Name] = st
 	}
 	return out
+}
+
+// tunnelChecks is the host check tunnel-down: an agent that a route or a
+// forward leads through, and that holds no tunnel now. Its detail names each
+// such agent and what waits on it. While the gate itself is quiet nothing is
+// said here: every tunnel is down with it, and the gate's own check says so.
+func tunnelChecks(routes gate.Routes, forwards forward.Store, status func() map[string]coretunnel.Status) func(context.Context) []Check {
+	return func(ctx context.Context) []Check {
+		st := status()
+		if st == nil {
+			return nil
+		}
+		waits := map[string][]string{}
+		rs, _ := routes.All(ctx)
+		for _, r := range rs {
+			if agent, _, ok := tunnel.ParseAddress(r.Upstream); ok && !st[agent].Connected {
+				waits[agent] = append(waits[agent], r.Host)
+			}
+		}
+		fs, _ := forwards.All(ctx)
+		for _, f := range fs {
+			if agent, _, ok := tunnel.ParseAddress(f.Target); ok && !st[agent].Connected {
+				waits[agent] = append(waits[agent], "forward "+f.Name)
+			}
+		}
+		if len(waits) == 0 {
+			return nil
+		}
+		agents := make([]string, 0, len(waits))
+		for a := range waits {
+			agents = append(agents, a)
+		}
+		sort.Strings(agents)
+		var parts []string
+		for _, a := range agents {
+			parts = append(parts, a+" ("+strings.Join(waits[a], ", ")+")")
+		}
+		return []Check{{ID: "tunnel-down", Severity: alert, Detail: strings.Join(parts, "; ")}}
+	}
 }
