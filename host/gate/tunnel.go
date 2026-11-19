@@ -73,6 +73,7 @@ type tunnels struct {
 // liveLink is one agent's tunnel.
 type liveLink struct {
 	name    string
+	key     string // the key it was admitted by
 	client  *tunnel.Client
 	since   time.Time
 	from    string
@@ -234,7 +235,7 @@ func (ts *tunnels) connect(w http.ResponseWriter, r *http.Request, key string) {
 		return
 	}
 	defer c.Close()
-	l := &liveLink{name: name, client: c, since: ts.now(), from: from.String()}
+	l := &liveLink{name: name, key: key, client: c, since: ts.now(), from: from.String()}
 	l.targets = ts.askTargets(l)
 	if !ts.put(key, l) {
 		return // its key was removed while it connected
@@ -303,15 +304,15 @@ func (ts *tunnels) drop(l *liveLink) {
 // or has another key now, is closed at once.
 func (ts *tunnels) apply(agents []AgentKey) {
 	keys := make(map[string]string, len(agents))
-	names := make(map[string]bool, len(agents))
 	for _, a := range agents {
 		keys[a.Key] = a.Name
-		names[a.Name] = true
 	}
 	ts.mu.Lock()
 	var gone []*liveLink
 	for name, l := range ts.live {
-		if !names[name] {
+		// By the key it came in with, not by its name: an agent removed and
+		// enrolled again under the same name is another key's now.
+		if keys[l.key] != name {
 			gone = append(gone, l)
 			delete(ts.live, name)
 		}
@@ -319,7 +320,7 @@ func (ts *tunnels) apply(agents []AgentKey) {
 	ts.keys = keys
 	ts.mu.Unlock()
 	for _, l := range gone {
-		ts.log.Info("gate: an agent was removed; its tunnel is closed", "agent", l.name)
+		ts.log.Info("gate: an agent's key is no longer enrolled; its tunnel is closed", "agent", l.name)
 		_ = l.client.Close()
 	}
 }
