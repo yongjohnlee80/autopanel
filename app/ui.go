@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/yongjohnlee80/autopanel/core/forward"
+	coretunnel "github.com/yongjohnlee80/autopanel/core/tunnel"
 	"io"
 	"slices"
 
@@ -27,7 +28,7 @@ type uiClient struct{ c *hostcontrol.Client }
 
 // publicErrors are the errors the panel tells apart by their wire codes: the
 // stacks', the routes', mail's, the users' and the API's.
-var publicErrors = slices.Concat((&services.Module{}).Errors(), (&gate.Module{}).Errors(), (&mail.Module{}).Errors(), (&auth.Module{}).Errors(), (&apiModule{}).Errors(), (&forward.Module{}).Errors())
+var publicErrors = slices.Concat((&services.Module{}).Errors(), (&gate.Module{}).Errors(), (&mail.Module{}).Errors(), (&auth.Module{}).Errors(), (&apiModule{}).Errors(), (&forward.Module{}).Errors(), (&coretunnel.Module{}).Errors())
 
 // known is err with the error its wire code names wrapped in, so the panel
 // can tell it apart (errors.Is); the daemon's message is kept beside it.
@@ -175,6 +176,20 @@ func (u uiClient) SetAPI(ctx context.Context, a ui.API) (ui.API, error) {
 	var s APISettings
 	err := u.call(ctx, "sys.api.set", APISettings{Host: a.Host, Allow: a.Allow}, &s)
 	return ui.API{Host: s.Host, Allow: s.Allow}, err
+}
+
+func (u uiClient) Agents(ctx context.Context) ([]coretunnel.View, error) {
+	var as []coretunnel.View
+	return as, u.call(ctx, "gate.tunnel.agent.list", nil, &as)
+}
+
+func (u uiClient) AddAgent(ctx context.Context, name string) (coretunnel.Added, error) {
+	var a coretunnel.Added
+	return a, u.call(ctx, "gate.tunnel.agent.add", coretunnel.Name{Name: name}, &a)
+}
+
+func (u uiClient) RemoveAgent(ctx context.Context, id int64) error {
+	return u.call(ctx, "gate.tunnel.agent.remove", coretunnel.Ref{ID: id}, nil)
 }
 
 func (u uiClient) Forwards(ctx context.Context) ([]forward.View, error) {

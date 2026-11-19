@@ -85,6 +85,10 @@ func (h *host) commandTable() map[string]decl.HandlerFunc {
 		"App.forwardMoved":  oneRow("App.forwardMoved", h.forwardMoved),
 		"App.addForward":    none(h.addForward),
 		"App.removeForward": oneRow("App.removeForward", h.removeForward),
+		"App.openTunnels":   none(h.openTunnels),
+		"App.tunnelMoved":   oneRow("App.tunnelMoved", h.tunnelMoved),
+		"App.addTunnel":     none(h.addTunnel),
+		"App.removeTunnel":  oneRow("App.removeTunnel", h.removeTunnel),
 
 		// Mail (mail.go)
 		"App.mailSetup":             none(h.mailSetup),

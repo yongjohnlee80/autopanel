@@ -7,8 +7,9 @@ GO      ?= go
 GOIMAGE ?= golang:1.26
 ARCH    ?= amd64
 DIST    := bin/autopanel-$(VERSION)-linux-$(ARCH)
+AGENT   := bin/autopanel-agent-$(VERSION)-linux-$(ARCH)
 
-.PHONY: build build-linux dist release vet fmt fmt-check test shellcheck check clean
+.PHONY: build build-linux dist dist-agent release vet fmt fmt-check test shellcheck check clean
 
 build:
 	CGO_ENABLED=0 $(GO) build -trimpath -ldflags "$(LDFLAGS)" -o bin/autopanel ./cmd/autopanel
@@ -25,10 +26,21 @@ dist: build-linux
 	cd bin && sha256sum $(notdir $(DIST)).tar.gz > $(notdir $(DIST)).tar.gz.sha256
 	@echo $(DIST).tar.gz
 
+# The tunnel agent's tarball: its binary and its unit, for the machine at the far end of a
+# tunnel, which may be of another architecture than the server.
+dist-agent:
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(ARCH) $(GO) build -trimpath -ldflags "-s -w -X main.version=$(VERSION)" -o $(AGENT)/autopanel-agent ./cmd/autopanel-agent
+	install -m 0644 deploy/autopanel-agent.service $(AGENT)/
+	tar -C bin -czf $(AGENT).tar.gz $(notdir $(AGENT))
+	cd bin && sha256sum $(notdir $(AGENT)).tar.gz > $(notdir $(AGENT)).tar.gz.sha256
+	@echo $(AGENT).tar.gz
+
 # Every tarball a release publishes (the release workflow runs this with VERSION set to the tag).
 release:
 	$(MAKE) dist ARCH=amd64
 	$(MAKE) dist ARCH=arm64
+	$(MAKE) dist-agent ARCH=amd64
+	$(MAKE) dist-agent ARCH=arm64
 
 vet:
 	$(GO) vet ./...

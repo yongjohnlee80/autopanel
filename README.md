@@ -401,6 +401,68 @@ From the panel a forward carries no PROXY header and keeps the default limits; `
 
 Why it is built this way: [docs/decisions/forwards.md](docs/decisions/forwards.md).
 
+### Reach a machine with no open ports: tunnels
+
+A home server behind a router, or a NAS on a private network, can be served through AutoPanel
+without opening a port on it. A small program on that machine, `autopanel-agent`, dials your
+server on port 443 and holds a tunnel open. A site or a port forward then reaches a service on
+it by name.
+
+**1. Add the agent.** In the panel: **Routes → Tunnels…**, then **Add…** (`a`) and a name for the
+machine, such as `nas`. The panel shows an enrolment token once. It works once, for ten minutes.
+
+```sh
+sudo autopanel --call gate.tunnel.agent.add '{"name":"nas"}'     # the same, from a shell
+```
+
+**2. Enrol the machine.** Each release has an `autopanel-agent-<version>-linux-<arch>.tar.gz`
+with the agent and its systemd unit. On the machine, as root:
+
+```sh
+install -m 0755 autopanel-agent /usr/local/bin/
+install -m 0644 autopanel-agent.service /etc/systemd/system/
+useradd --system --no-create-home --shell /usr/sbin/nologin autopanel-agent
+install -d -m 0700 -o autopanel-agent -g autopanel-agent /etc/autopanel-agent
+sudo -u autopanel-agent autopanel-agent enroll panel.example.com   # paste the token when it waits
+```
+
+`panel.example.com` is any name your server already has a certificate for. The agent prints its
+key's fingerprint. **Compare it with the one the panel lists for the agent** before you route
+anything to it: whoever uses a token first becomes that agent.
+
+**3. Say what can be reached.** The agent's own file, `/etc/autopanel-agent/agent.yaml`, is the
+only list:
+
+```yaml
+server: panel.example.com
+targets:
+  photos:  {to: "127.0.0.1:2283"}
+  nas-ssh: {to: "10.0.0.5:22"}
+```
+
+```sh
+systemctl enable --now autopanel-agent
+```
+
+Nothing your server sends can add a target or change where one leads. If the server is ever
+broken into, what it can reach on that network is what this file lists, and nothing else.
+
+**4. Use it.** Wherever an address is written, `tunnel://<agent>/<target>` is one:
+
+```sh
+sudo autopanel --call gate.route.add '{"host":"photos.example.com","upstream":"tunnel://nas/photos"}'
+```
+
+In the panel, give `tunnel://nas/photos` as a route's upstream, or add a port forward with the
+line `nas-ssh 2222 tunnel://nas/nas-ssh` to reach that machine's SSH on your server's port 2222.
+
+- A forward through a tunnel is one TCP port, and the service does not learn the client's address.
+- While the agent is away, a site through it answers `502` and a forward closes the connection.
+  **System → Checks** says which tunnel is down and what depends on it.
+- **Remove** in the panel closes the tunnel at once and forgets the agent's key.
+
+The design is in [docs/decisions/forwards.md](docs/decisions/forwards.md#tunnels).
+
 ### Run mail
 
 AutoPanel runs [Stalwart](https://stalw.art) as a stack of its own, behind the gate: the gate binds
@@ -753,6 +815,7 @@ A deployed service is stopped by `--apply`, and its user and directory are delet
 | Store | SQLite by default, PostgreSQL as an option; migrations for both, tested on both |
 | Users | four roles, two-factor codes with recovery codes, lockout after failed logins, API tokens for scripts |
 | Port forwards | a public TCP or UDP port, or a small range, sent on to a stack's port or a machine behind: reviewed before it is applied, with a firewall rule of its own. Never SSH's own port |
+| Tunnels | a machine with no open port dials the server and holds a tunnel; a site or a TCP forward reaches a service on it by name. The machine's own file is the only list of what can be reached |
 | HTTPS API | JSON over HTTPS for scripts elsewhere, with an API token, on a host of its own: reads of the status, checks, routes, domains, certificates, stacks and the firewall. Off until its host is set |
 | Stacks | a compose file, reviewed before it runs, under rootless Podman as a user of its own |
 | Mail | Stalwart behind the gate; DNS records published and kept through Cloudflare, or listed to enter by hand; DKIM keys rotated; app passwords per device. See [MAIL.md](MAIL.md) |
@@ -769,9 +832,8 @@ A deployed service is stopped by `--apply`, and its user and directory are delet
 
 1. A public site of AutoPanel's own: a home page and articles as static pages, published from Markdown with an API token.
 2. Signing in from a browser, then mail, a drive and the admin pages as applications.
-3. Tunnels through the gate, to machines with no open ports.
-4. Health checks per upstream.
-5. For mail: aliases and forwarding from the panel, and repairing a broken setup.
+3. Health checks per upstream.
+4. For mail: aliases and forwarding from the panel, and repairing a broken setup.
 
 ## Design principles
 

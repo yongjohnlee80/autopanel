@@ -213,6 +213,7 @@ func enrolCmd(config string, args []string, stdin io.Reader, stdout io.Writer) e
 	if len(args) == 2 {
 		token = args[1]
 	} else {
+		fmt.Fprint(stdout, "Enrolment token: ")
 		line, err := bufio.NewReader(io.LimitReader(stdin, 512)).ReadString('\n')
 		if err != nil && line == "" {
 			return errors.New("agent: no token was given")
