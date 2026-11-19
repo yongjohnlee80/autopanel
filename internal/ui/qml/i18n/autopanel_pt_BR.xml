@@ -1251,6 +1251,10 @@
         <source>A code from the app, to turn two-factor off</source>
         <translation>Um código do app para desativar os dois fatores</translation>
     </message>
+    <message id="autopanel.label.prompt.tunnel">
+        <source>A name for the machine: lower-case letters, digits and hyphens. Example: nas</source>
+        <translation>Um nome para a máquina: letras minúsculas, dígitos e hífens. Exemplo: nas</translation>
+    </message>
     <message id="autopanel.label.prompt.userName">
         <source>Name (a lower-case letter, then letters, digits, . _ -)</source>
         <translation>Nome (uma minúscula, depois letras, dígitos, . _ -)</translation>
@@ -1411,6 +1415,46 @@
         <source>User</source>
         <translation>Usuário</translation>
     </message>
+    <message id="autopanel.label.tunnels.address">
+        <source>Address</source>
+        <translation>Endereço</translation>
+    </message>
+    <message id="autopanel.label.tunnels.compare">
+        <source>The key's fingerprint must match the one the agent printed when it enrolled. If it does not, someone else used the token: remove the agent.</source>
+        <translation>A impressão digital da chave deve coincidir com a que o agente imprimiu ao se inscrever. Se não coincidir, outra pessoa usou o token: remova o agente.</translation>
+    </message>
+    <message id="autopanel.label.tunnels.empty">
+        <source>No agent yet. An agent runs on a machine with no open port and dials this server; a route or a forward then reaches a service on it as tunnel://&lt;agent&gt;/&lt;target&gt;. Add one to get its enrolment token.</source>
+        <translation>Ainda não há agentes. Um agente roda em uma máquina sem portas abertas e se conecta a este servidor; uma rota ou um encaminhamento então alcança um serviço nela como tunnel://&lt;agente&gt;/&lt;destino&gt;. Adicione um para obter seu token de inscrição.</translation>
+    </message>
+    <message id="autopanel.label.tunnels.enrolled">
+        <source>Enrolled</source>
+        <translation>Inscrito</translation>
+    </message>
+    <message id="autopanel.label.tunnels.expired">
+        <source>Its token ran out before it enrolled. Remove the agent and add it again for a new token.</source>
+        <translation>Seu token expirou antes da inscrição. Remova o agente e adicione-o de novo para obter outro token.</translation>
+    </message>
+    <message id="autopanel.label.tunnels.fingerprint">
+        <source>Key</source>
+        <translation>Chave</translation>
+    </message>
+    <message id="autopanel.label.tunnels.targets">
+        <source>Targets</source>
+        <translation>Destinos</translation>
+    </message>
+    <message id="autopanel.label.tunnels.token">
+        <source>On %1's machine, run: autopanel-agent enroll &lt;this server's name&gt; and paste this token when it waits. It works once, until %2, and is not shown again. Then compare the fingerprint the agent prints with the one listed here before routing anything to it.</source>
+        <translation>Na máquina de %1, execute: autopanel-agent enroll &lt;nome deste servidor&gt; e cole este token quando ele aguardar. Ele vale uma vez, até %2, e não é mostrado de novo. Depois compare a impressão digital que o agente imprime com a listada aqui antes de encaminhar qualquer coisa para ele.</translation>
+    </message>
+    <message id="autopanel.label.tunnels.tunnel">
+        <source>Tunnel</source>
+        <translation>Túnel</translation>
+    </message>
+    <message id="autopanel.label.tunnels.waiting">
+        <source>Waiting to enrol. Its token is good until %1. If the token is lost, remove the agent and add it again.</source>
+        <translation>Aguardando a inscrição. Seu token vale até %1. Se o token for perdido, remova o agente e adicione-o de novo.</translation>
+    </message>
     <message id="autopanel.menu.certs.cloudflare">
         <source>&amp;Cloudflare token…</source>
         <translation>Token do Cloudflare(&amp;c)…</translation>
@@ -1498,6 +1542,10 @@
     <message id="autopanel.menu.routes.title">
         <source>&amp;Routes</source>
         <translation>Rotas(&amp;r)</translation>
+    </message>
+    <message id="autopanel.menu.routes.tunnels">
+        <source>&amp;Tunnels…</source>
+        <translation>Túneis(&amp;t)…</translation>
     </message>
     <message id="autopanel.menu.services.add">
         <source>&amp;Add a stack…</source>
@@ -2323,6 +2371,18 @@
         <source>no theme named %1</source>
         <translation>não há tema chamado %1</translation>
     </message>
+    <message id="autopanel.notice.tunnels.name">
+        <source>A name is 1 to 32 lower-case letters, digits and hyphens, starting with a letter.</source>
+        <translation>Um nome tem de 1 a 32 letras minúsculas, dígitos e hífens, começando por uma letra.</translation>
+    </message>
+    <message id="autopanel.notice.tunnels.none">
+        <source>Select an agent first.</source>
+        <translation>Selecione um agente primeiro.</translation>
+    </message>
+    <message id="autopanel.notice.tunnels.removed">
+        <source>%1 is removed</source>
+        <translation>%1 foi removido</translation>
+    </message>
     <message id="autopanel.notice.widget.readFailed">
         <source>read failed: %1</source>
         <translation>a leitura falhou: %1</translation>
@@ -2410,6 +2470,10 @@
     <message id="autopanel.question.terminal.stop">
         <source>Stop the running shells (%1) and close the terminal?</source>
         <translation>Parar os shells em execução (%1) e fechar o terminal?</translation>
+    </message>
+    <message id="autopanel.question.tunnels.remove">
+        <source>Remove the agent %1? Its tunnel is closed at once, and the sites and forwards that lead through it stop answering.</source>
+        <translation>Remover o agente %1? Seu túnel é fechado imediatamente, e os sites e encaminhamentos que passam por ele param de responder.</translation>
     </message>
     <message id="autopanel.status.bar.error">
         <source>status: %1</source>
@@ -2683,6 +2747,14 @@
         <source>Turn two-factor on with the code the app shows</source>
         <translation>Ativar os dois fatores com o código do app</translation>
     </message>
+    <message id="autopanel.tip.tunnels.add">
+        <source>Add an agent and get its enrolment token</source>
+        <translation>Adicionar um agente e obter seu token de inscrição</translation>
+    </message>
+    <message id="autopanel.tip.tunnels.remove">
+        <source>Remove the selected agent and close its tunnel</source>
+        <translation>Remover o agente selecionado e fechar seu túnel</translation>
+    </message>
     <message id="autopanel.tip.users.add">
         <source>Add a panel user</source>
         <translation>Adicionar um usuário do painel</translation>
@@ -2775,6 +2847,10 @@
         <source>Remove stack</source>
         <translation>Remover stack</translation>
     </message>
+    <message id="autopanel.title.confirm.removeTunnel">
+        <source>Remove agent</source>
+        <translation>Remover agente</translation>
+    </message>
     <message id="autopanel.title.confirm.stop">
         <source>Stop</source>
         <translation>Parar</translation>
@@ -2830,6 +2906,10 @@
     <message id="autopanel.title.dialog.totp">
         <source>Turn on two-factor</source>
         <translation>Ativar os dois fatores</translation>
+    </message>
+    <message id="autopanel.title.dialog.tunnelToken">
+        <source>Enrolment token</source>
+        <translation>Token de inscrição</translation>
     </message>
     <message id="autopanel.title.form.add">
         <source>Add route</source>
@@ -2918,6 +2998,10 @@
     <message id="autopanel.title.list.tokens">
         <source>Tokens</source>
         <translation>Tokens</translation>
+    </message>
+    <message id="autopanel.title.list.tunnels">
+        <source>Tunnel agents</source>
+        <translation>Agentes de túnel</translation>
     </message>
     <message id="autopanel.title.list.users">
         <source>Users</source>
@@ -3011,6 +3095,10 @@
         <source>API tokens</source>
         <translation>Tokens de API</translation>
     </message>
+    <message id="autopanel.title.panel.tunnels">
+        <source>Tunnels</source>
+        <translation>Túneis</translation>
+    </message>
     <message id="autopanel.title.panel.users">
         <source>Users</source>
         <translation>Usuários</translation>
@@ -3074,6 +3162,10 @@
     <message id="autopanel.title.prompt.totpOff">
         <source>Turn off two-factor</source>
         <translation>Desativar os dois fatores</translation>
+    </message>
+    <message id="autopanel.title.prompt.tunnel">
+        <source>Add a tunnel agent</source>
+        <translation>Adicionar um agente de túnel</translation>
     </message>
     <message id="autopanel.title.prompt.userName">
         <source>Add a user</source>
@@ -3614,6 +3706,34 @@
     <message id="autopanel.value.traffic.requests">
         <source>Since the gate started: %1 HTTPS and %2 HTTP requests. They are not counted by domain yet.</source>
         <translation>Desde que o gate iniciou: %1 requisições HTTPS e %2 HTTP. Ainda não são contadas por domínio.</translation>
+    </message>
+    <message id="autopanel.value.tunnels.down">
+        <source>down</source>
+        <translation>fora do ar</translation>
+    </message>
+    <message id="autopanel.value.tunnels.enrolledFrom">
+        <source>%1, from %2</source>
+        <translation>%1, de %2</translation>
+    </message>
+    <message id="autopanel.value.tunnels.expired">
+        <source>expired</source>
+        <translation>expirado</translation>
+    </message>
+    <message id="autopanel.value.tunnels.noTargets">
+        <source>none listed in the agent's file</source>
+        <translation>nenhum no arquivo do agente</translation>
+    </message>
+    <message id="autopanel.value.tunnels.since">
+        <source>up since %1, from %2, %3 streams now</source>
+        <translation>ativo desde %1, de %2, %3 fluxos agora</translation>
+    </message>
+    <message id="autopanel.value.tunnels.up">
+        <source>up</source>
+        <translation>ativo</translation>
+    </message>
+    <message id="autopanel.value.tunnels.waiting">
+        <source>waiting</source>
+        <translation>aguardando</translation>
     </message>
 </context>
 </TS>

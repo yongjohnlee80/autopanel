@@ -150,3 +150,75 @@ buffers (about 19 MB), the most the gate can hold at once is about 49 MB, so its
 SSH carries no host name in its first bytes, so several machines cannot share one public port by
 name; each gets a port. The gate carries the bytes and never judges an SSH login. A jump host is
 not built.
+
+## Tunnels
+
+**Decided:** a machine with no open port reaches AutoPanel, not the other way round. A small
+program on it, `autopanel-agent`, dials the gate on the HTTPS port and holds one connection
+open; a route or a TCP forward then reaches a service on that machine as
+`tunnel://<agent>/<target>`.
+
+**The agent's file is the only list of what can be reached.** The gate asks for a target by name.
+The agent dials what its own file says for that name, or refuses. Nothing AutoPanel sends can add
+a target, change an address or reach a port the file does not list, and the agent tells AutoPanel
+its targets' names, never where they lead. So an AutoPanel that is broken into reaches the
+services already published through it, and nothing else on that network.
+
+**Who an agent is.** A key pair made on its own machine; the private key never leaves it.
+
+- The administrator adds an agent by name and is given a token, once: 256 random bits, good for
+  ten minutes and for one use. Only its hash is stored.
+- On the machine, `autopanel-agent enroll <server>` makes the key and offers the token; the key is
+  kept only once the server has taken it.
+- Whoever uses a token first becomes that agent. So the agent prints its key's fingerprint, the
+  panel lists the fingerprint and the address the agent enrolled from, and the administrator
+  compares them before routing anything to it.
+- Removing an agent closes its tunnel at once. A tunnel is also closed when the key it came in
+  with is no longer its agent's.
+
+**On the HTTPS port, and no browser is asked for a certificate.** An agent's TLS handshake offers
+one protocol name and nothing else. Only such a handshake gets the tunnel's settings: TLS 1.3 and
+a client certificate, whose signature proves the agent holds its key. Every other handshake is
+served as before.
+
+- The name is read and not agreed: Go's HTTP server closes a connection whose agreed protocol it
+  has no handler for. The connection is served as HTTP/1.1 for two requests only, one to enrol
+  and one that becomes the tunnel.
+- A request that carries a client certificate is the tunnel's. It reaches no site and no API.
+- An enrolment is limited at the gate: 5 a minute from one client, 60 from everyone. A refused one
+  writes nothing, so a stranger can fill no log.
+
+**Inside the tunnel: HTTP/2 with the roles turned round.** The agent, which dialled, serves; the
+gate opens a stream for each connection it needs. Flow control and keep-alive pings are HTTP/2's
+own, and both ends are the standard library's.
+
+| Limit | Value |
+| --- | --- |
+| Agents | 16 |
+| Streams through one agent | 64, or fewer if the agent's file says |
+| Streams through all of them | 128 |
+| A stream's window | 64 KiB: what a reader that stops costs the other end |
+
+- A target that speaks first (SSH) is heard at once: the stream is open before the client sends.
+- A target that closes its sending side ends the stream. A protocol in which the target
+  half-closes and then expects more is not carried.
+
+**A route through a tunnel** sends each request as a stream, and the target sees an ordinary HTTP
+request with the forwarded headers the gate sets. No connection is kept idle on one of the
+agent's streams. With the agent away the answer is `502`, on a page that names neither the agent
+nor the target.
+
+**A forward through a tunnel** is one TCP port with no PROXY header: the agent is not told who
+the client is. Its public port keeps every rule of a forward; its target is not checked as an
+address is, since where a name leads is the agent's file's to say. With the agent away the
+connection is closed.
+
+**A host check, `tunnel-down`,** names an agent that a site or a forward depends on and that
+holds no tunnel.
+
+**Not built:** UDP through a tunnel, an agent for Windows or macOS, a PROXY header from the
+agent, and tunnels to whole networks (this reaches named services).
+
+**In the code:** `internal/tunnel` (the streams), `internal/agent` and `cmd/autopanel-agent` (the
+far end), `core/tunnel` (the agents and their enrolment), `host/gate/tunnel.go` (the gate's side),
+`deploy/autopanel-agent.service`.

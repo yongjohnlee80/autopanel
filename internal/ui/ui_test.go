@@ -5,6 +5,7 @@ import (
 	"errors"
 	corefw "github.com/yongjohnlee80/autopanel/core/firewall"
 	"github.com/yongjohnlee80/autopanel/core/forward"
+	"github.com/yongjohnlee80/autopanel/core/tunnel"
 	"regexp"
 	"slices"
 	"strings"
@@ -49,6 +50,7 @@ type fakeClient struct {
 	api          API      // the HTTPS API's settings
 	apiAsks      []API
 	forwards     []forward.View // the port forwards
+	agents       []tunnel.View  // the tunnel agents
 	forwardAdds  []forward.Apply
 	blocked      bool // the firewall blocks a forward's port, and AutoPanel can open it
 
@@ -173,6 +175,41 @@ func (f *fakeClient) Domains(context.Context) ([]gate.DomainView, error) {
 		out = append(out, d)
 	}
 	return out, nil
+}
+
+func (f *fakeClient) Agents(context.Context) ([]tunnel.View, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.agents), nil
+}
+
+// AddAgent names as the daemon does, and answers a token the test can look for.
+func (f *fakeClient) AddAgent(_ context.Context, name string) (tunnel.Added, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if name == "" || strings.ToLower(name) != name || strings.ContainsAny(name, " _/") {
+		return tunnel.Added{}, tunnel.ErrBadName
+	}
+	for _, a := range f.agents {
+		if a.Name == name {
+			return tunnel.Added{}, tunnel.ErrDuplicate
+		}
+	}
+	v := tunnel.View{ID: int64(len(f.agents) + 10), Name: name, State: "waiting", TokenExpires: 1_800_000_600}
+	f.agents = append(f.agents, v)
+	return tunnel.Added{Agent: v, Token: "ape_0123456789abcdef_the-secret-shown-once", Expires: v.TokenExpires}, nil
+}
+
+func (f *fakeClient) RemoveAgent(_ context.Context, id int64) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for i, v := range f.agents {
+		if v.ID == id {
+			f.agents = slices.Delete(f.agents, i, i+1)
+			return nil
+		}
+	}
+	return tunnel.ErrNotFound
 }
 
 func (f *fakeClient) Forwards(context.Context) ([]forward.View, error) {

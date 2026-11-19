@@ -1251,6 +1251,10 @@
         <source>A code from the app, to turn two-factor off</source>
         <translation>输入应用中的验证码以关闭双因素认证</translation>
     </message>
+    <message id="autopanel.label.prompt.tunnel">
+        <source>A name for the machine: lower-case letters, digits and hyphens. Example: nas</source>
+        <translation>机器的名称：小写字母、数字和连字符。例如：nas</translation>
+    </message>
     <message id="autopanel.label.prompt.userName">
         <source>Name (a lower-case letter, then letters, digits, . _ -)</source>
         <translation>名称（以小写字母开头，其后为字母、数字、. _ -）</translation>
@@ -1411,6 +1415,46 @@
         <source>User</source>
         <translation>用户</translation>
     </message>
+    <message id="autopanel.label.tunnels.address">
+        <source>Address</source>
+        <translation>地址</translation>
+    </message>
+    <message id="autopanel.label.tunnels.compare">
+        <source>The key's fingerprint must match the one the agent printed when it enrolled. If it does not, someone else used the token: remove the agent.</source>
+        <translation>密钥指纹必须与代理注册时打印的指纹一致。如果不一致，说明令牌被他人使用：请移除该代理。</translation>
+    </message>
+    <message id="autopanel.label.tunnels.empty">
+        <source>No agent yet. An agent runs on a machine with no open port and dials this server; a route or a forward then reaches a service on it as tunnel://&lt;agent&gt;/&lt;target&gt;. Add one to get its enrolment token.</source>
+        <translation>尚无代理。代理运行在没有开放端口的机器上并连接到本服务器；之后路由或转发可通过 tunnel://&lt;代理&gt;/&lt;目标&gt; 访问其上的服务。添加一个以获取其注册令牌。</translation>
+    </message>
+    <message id="autopanel.label.tunnels.enrolled">
+        <source>Enrolled</source>
+        <translation>注册</translation>
+    </message>
+    <message id="autopanel.label.tunnels.expired">
+        <source>Its token ran out before it enrolled. Remove the agent and add it again for a new token.</source>
+        <translation>其令牌在注册前已过期。请移除该代理并重新添加以获取新令牌。</translation>
+    </message>
+    <message id="autopanel.label.tunnels.fingerprint">
+        <source>Key</source>
+        <translation>密钥</translation>
+    </message>
+    <message id="autopanel.label.tunnels.targets">
+        <source>Targets</source>
+        <translation>目标</translation>
+    </message>
+    <message id="autopanel.label.tunnels.token">
+        <source>On %1's machine, run: autopanel-agent enroll &lt;this server's name&gt; and paste this token when it waits. It works once, until %2, and is not shown again. Then compare the fingerprint the agent prints with the one listed here before routing anything to it.</source>
+        <translation>在 %1 的机器上运行：autopanel-agent enroll &lt;本服务器的名称&gt;，并在它等待时粘贴此令牌。令牌在 %2 之前只能使用一次，且不会再次显示。然后在把任何流量指向它之前，将代理打印的指纹与此处列出的指纹进行比对。</translation>
+    </message>
+    <message id="autopanel.label.tunnels.tunnel">
+        <source>Tunnel</source>
+        <translation>隧道</translation>
+    </message>
+    <message id="autopanel.label.tunnels.waiting">
+        <source>Waiting to enrol. Its token is good until %1. If the token is lost, remove the agent and add it again.</source>
+        <translation>正在等待注册。其令牌有效期至 %1。如果令牌丢失，请移除该代理后重新添加。</translation>
+    </message>
     <message id="autopanel.menu.certs.cloudflare">
         <source>&amp;Cloudflare token…</source>
         <translation>Cloudflare 令牌(&amp;c)…</translation>
@@ -1498,6 +1542,10 @@
     <message id="autopanel.menu.routes.title">
         <source>&amp;Routes</source>
         <translation>路由(&amp;r)</translation>
+    </message>
+    <message id="autopanel.menu.routes.tunnels">
+        <source>&amp;Tunnels…</source>
+        <translation>隧道(&amp;t)…</translation>
     </message>
     <message id="autopanel.menu.services.add">
         <source>&amp;Add a stack…</source>
@@ -2323,6 +2371,18 @@
         <source>no theme named %1</source>
         <translation>没有名为 %1 的主题</translation>
     </message>
+    <message id="autopanel.notice.tunnels.name">
+        <source>A name is 1 to 32 lower-case letters, digits and hyphens, starting with a letter.</source>
+        <translation>名称为 1 到 32 个小写字母、数字和连字符，并以字母开头。</translation>
+    </message>
+    <message id="autopanel.notice.tunnels.none">
+        <source>Select an agent first.</source>
+        <translation>请先选择一个代理。</translation>
+    </message>
+    <message id="autopanel.notice.tunnels.removed">
+        <source>%1 is removed</source>
+        <translation>已移除 %1</translation>
+    </message>
     <message id="autopanel.notice.widget.readFailed">
         <source>read failed: %1</source>
         <translation>读取失败：%1</translation>
@@ -2410,6 +2470,10 @@
     <message id="autopanel.question.terminal.stop">
         <source>Stop the running shells (%1) and close the terminal?</source>
         <translation>停止正在运行的 Shell（%1 个）并关闭终端？</translation>
+    </message>
+    <message id="autopanel.question.tunnels.remove">
+        <source>Remove the agent %1? Its tunnel is closed at once, and the sites and forwards that lead through it stop answering.</source>
+        <translation>移除代理 %1？其隧道会立即关闭，经由它的站点和转发将停止响应。</translation>
     </message>
     <message id="autopanel.status.bar.error">
         <source>status: %1</source>
@@ -2683,6 +2747,14 @@
         <source>Turn two-factor on with the code the app shows</source>
         <translation>用应用显示的验证码启用双因素认证</translation>
     </message>
+    <message id="autopanel.tip.tunnels.add">
+        <source>Add an agent and get its enrolment token</source>
+        <translation>添加代理并获取其注册令牌</translation>
+    </message>
+    <message id="autopanel.tip.tunnels.remove">
+        <source>Remove the selected agent and close its tunnel</source>
+        <translation>移除所选代理并关闭其隧道</translation>
+    </message>
     <message id="autopanel.tip.users.add">
         <source>Add a panel user</source>
         <translation>添加面板用户</translation>
@@ -2775,6 +2847,10 @@
         <source>Remove stack</source>
         <translation>移除堆栈</translation>
     </message>
+    <message id="autopanel.title.confirm.removeTunnel">
+        <source>Remove agent</source>
+        <translation>移除代理</translation>
+    </message>
     <message id="autopanel.title.confirm.stop">
         <source>Stop</source>
         <translation>停止</translation>
@@ -2830,6 +2906,10 @@
     <message id="autopanel.title.dialog.totp">
         <source>Turn on two-factor</source>
         <translation>启用双因素认证</translation>
+    </message>
+    <message id="autopanel.title.dialog.tunnelToken">
+        <source>Enrolment token</source>
+        <translation>注册令牌</translation>
     </message>
     <message id="autopanel.title.form.add">
         <source>Add route</source>
@@ -2918,6 +2998,10 @@
     <message id="autopanel.title.list.tokens">
         <source>Tokens</source>
         <translation>令牌</translation>
+    </message>
+    <message id="autopanel.title.list.tunnels">
+        <source>Tunnel agents</source>
+        <translation>隧道代理</translation>
     </message>
     <message id="autopanel.title.list.users">
         <source>Users</source>
@@ -3011,6 +3095,10 @@
         <source>API tokens</source>
         <translation>API 令牌</translation>
     </message>
+    <message id="autopanel.title.panel.tunnels">
+        <source>Tunnels</source>
+        <translation>隧道</translation>
+    </message>
     <message id="autopanel.title.panel.users">
         <source>Users</source>
         <translation>用户</translation>
@@ -3074,6 +3162,10 @@
     <message id="autopanel.title.prompt.totpOff">
         <source>Turn off two-factor</source>
         <translation>关闭双因素认证</translation>
+    </message>
+    <message id="autopanel.title.prompt.tunnel">
+        <source>Add a tunnel agent</source>
+        <translation>添加隧道代理</translation>
     </message>
     <message id="autopanel.title.prompt.userName">
         <source>Add a user</source>
@@ -3614,6 +3706,34 @@
     <message id="autopanel.value.traffic.requests">
         <source>Since the gate started: %1 HTTPS and %2 HTTP requests. They are not counted by domain yet.</source>
         <translation>自网关启动以来：%1 个 HTTPS 请求和 %2 个 HTTP 请求。尚未按域名统计。</translation>
+    </message>
+    <message id="autopanel.value.tunnels.down">
+        <source>down</source>
+        <translation>已断开</translation>
+    </message>
+    <message id="autopanel.value.tunnels.enrolledFrom">
+        <source>%1, from %2</source>
+        <translation>%1，来自 %2</translation>
+    </message>
+    <message id="autopanel.value.tunnels.expired">
+        <source>expired</source>
+        <translation>已过期</translation>
+    </message>
+    <message id="autopanel.value.tunnels.noTargets">
+        <source>none listed in the agent's file</source>
+        <translation>代理的文件中未列出</translation>
+    </message>
+    <message id="autopanel.value.tunnels.since">
+        <source>up since %1, from %2, %3 streams now</source>
+        <translation>自 %1 起已连接，来自 %2，当前 %3 个流</translation>
+    </message>
+    <message id="autopanel.value.tunnels.up">
+        <source>up</source>
+        <translation>已连接</translation>
+    </message>
+    <message id="autopanel.value.tunnels.waiting">
+        <source>waiting</source>
+        <translation>等待注册</translation>
     </message>
 </context>
 </TS>

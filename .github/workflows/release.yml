@@ -43,6 +43,9 @@ jobs:
           tar -xzf "autopanel-$TAG-linux-amd64.tar.gz" -C "$RUNNER_TEMP"
           got=$("$RUNNER_TEMP/autopanel-$TAG-linux-amd64/autopanel" --version)
           [ "$got" = "autopanel $TAG" ] || { echo "::error::the binary reports '$got', not 'autopanel $TAG'"; exit 1; }
+          tar -xzf "autopanel-agent-$TAG-linux-amd64.tar.gz" -C "$RUNNER_TEMP"
+          got=$("$RUNNER_TEMP/autopanel-agent-$TAG-linux-amd64/autopanel-agent" version)
+          [ "$got" = "$TAG" ] || { echo "::error::the agent reports '$got', not '$TAG'"; exit 1; }
       - name: publish
         env:
           GH_TOKEN: ${{ github.token }}
@@ -50,4 +53,5 @@ jobs:
           pre=""
           case "$TAG" in *-*) pre="--prerelease" ;; esac
           gh release create "$TAG" --verify-tag --generate-notes $pre \
-            bin/autopanel-"$TAG"-linux-*.tar.gz bin/autopanel-"$TAG"-linux-*.tar.gz.sha256
+            bin/autopanel-"$TAG"-linux-*.tar.gz bin/autopanel-"$TAG"-linux-*.tar.gz.sha256 \
+            bin/autopanel-agent-"$TAG"-linux-*.tar.gz bin/autopanel-agent-"$TAG"-linux-*.tar.gz.sha256

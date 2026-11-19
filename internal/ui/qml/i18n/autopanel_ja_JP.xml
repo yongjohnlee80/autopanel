@@ -1251,6 +1251,10 @@
         <source>A code from the app, to turn two-factor off</source>
         <translation>二要素認証をオフにするには、アプリのコード</translation>
     </message>
+    <message id="autopanel.label.prompt.tunnel">
+        <source>A name for the machine: lower-case letters, digits and hyphens. Example: nas</source>
+        <translation>マシンの名前: 英小文字、数字、ハイフン。例: nas</translation>
+    </message>
     <message id="autopanel.label.prompt.userName">
         <source>Name (a lower-case letter, then letters, digits, . _ -)</source>
         <translation>名前 (小文字で始め、英字・数字・. _ -)</translation>
@@ -1411,6 +1415,46 @@
         <source>User</source>
         <translation>ユーザー</translation>
     </message>
+    <message id="autopanel.label.tunnels.address">
+        <source>Address</source>
+        <translation>アドレス</translation>
+    </message>
+    <message id="autopanel.label.tunnels.compare">
+        <source>The key's fingerprint must match the one the agent printed when it enrolled. If it does not, someone else used the token: remove the agent.</source>
+        <translation>鍵のフィンガープリントは、エージェントが登録時に表示したものと一致している必要があります。一致しない場合は、他の誰かがトークンを使用しています。エージェントを削除してください。</translation>
+    </message>
+    <message id="autopanel.label.tunnels.empty">
+        <source>No agent yet. An agent runs on a machine with no open port and dials this server; a route or a forward then reaches a service on it as tunnel://&lt;agent&gt;/&lt;target&gt;. Add one to get its enrolment token.</source>
+        <translation>エージェントはまだありません。エージェントは開いたポートのないマシンで動作し、このサーバーに接続します。ルートや転送は tunnel://&lt;エージェント&gt;/&lt;ターゲット&gt; としてそのマシンのサービスに到達します。追加すると登録トークンが発行されます。</translation>
+    </message>
+    <message id="autopanel.label.tunnels.enrolled">
+        <source>Enrolled</source>
+        <translation>登録</translation>
+    </message>
+    <message id="autopanel.label.tunnels.expired">
+        <source>Its token ran out before it enrolled. Remove the agent and add it again for a new token.</source>
+        <translation>登録前にトークンの有効期限が切れました。新しいトークンを得るには、エージェントを削除して追加し直してください。</translation>
+    </message>
+    <message id="autopanel.label.tunnels.fingerprint">
+        <source>Key</source>
+        <translation>鍵</translation>
+    </message>
+    <message id="autopanel.label.tunnels.targets">
+        <source>Targets</source>
+        <translation>ターゲット</translation>
+    </message>
+    <message id="autopanel.label.tunnels.token">
+        <source>On %1's machine, run: autopanel-agent enroll &lt;this server's name&gt; and paste this token when it waits. It works once, until %2, and is not shown again. Then compare the fingerprint the agent prints with the one listed here before routing anything to it.</source>
+        <translation>%1 のマシンで autopanel-agent enroll &lt;このサーバーの名前&gt; を実行し、待機したらこのトークンを貼り付けてください。トークンは %2 まで一度だけ有効で、再表示されません。その後、何かをルーティングする前に、エージェントが表示するフィンガープリントをここに表示されるものと照合してください。</translation>
+    </message>
+    <message id="autopanel.label.tunnels.tunnel">
+        <source>Tunnel</source>
+        <translation>トンネル</translation>
+    </message>
+    <message id="autopanel.label.tunnels.waiting">
+        <source>Waiting to enrol. Its token is good until %1. If the token is lost, remove the agent and add it again.</source>
+        <translation>登録待ちです。トークンは %1 まで有効です。トークンを紛失した場合は、エージェントを削除して追加し直してください。</translation>
+    </message>
     <message id="autopanel.menu.certs.cloudflare">
         <source>&amp;Cloudflare token…</source>
         <translation>Cloudflare トークン(&amp;c)…</translation>
@@ -1498,6 +1542,10 @@
     <message id="autopanel.menu.routes.title">
         <source>&amp;Routes</source>
         <translation>ルート(&amp;r)</translation>
+    </message>
+    <message id="autopanel.menu.routes.tunnels">
+        <source>&amp;Tunnels…</source>
+        <translation>トンネル(&amp;t)…</translation>
     </message>
     <message id="autopanel.menu.services.add">
         <source>&amp;Add a stack…</source>
@@ -2323,6 +2371,18 @@
         <source>no theme named %1</source>
         <translation>%1 というテーマはありません</translation>
     </message>
+    <message id="autopanel.notice.tunnels.name">
+        <source>A name is 1 to 32 lower-case letters, digits and hyphens, starting with a letter.</source>
+        <translation>名前は英小文字で始まる 1〜32 文字の英小文字、数字、ハイフンです。</translation>
+    </message>
+    <message id="autopanel.notice.tunnels.none">
+        <source>Select an agent first.</source>
+        <translation>先にエージェントを選択してください。</translation>
+    </message>
+    <message id="autopanel.notice.tunnels.removed">
+        <source>%1 is removed</source>
+        <translation>%1 を削除しました</translation>
+    </message>
     <message id="autopanel.notice.widget.readFailed">
         <source>read failed: %1</source>
         <translation>読み込みに失敗しました: %1</translation>
@@ -2410,6 +2470,10 @@
     <message id="autopanel.question.terminal.stop">
         <source>Stop the running shells (%1) and close the terminal?</source>
         <translation>実行中のシェル (%1) を停止してターミナルを閉じますか?</translation>
+    </message>
+    <message id="autopanel.question.tunnels.remove">
+        <source>Remove the agent %1? Its tunnel is closed at once, and the sites and forwards that lead through it stop answering.</source>
+        <translation>エージェント %1 を削除しますか？ トンネルは直ちに閉じられ、それを経由するサイトと転送は応答しなくなります。</translation>
     </message>
     <message id="autopanel.status.bar.error">
         <source>status: %1</source>
@@ -2683,6 +2747,14 @@
         <source>Turn two-factor on with the code the app shows</source>
         <translation>アプリのコードで二要素認証をオン</translation>
     </message>
+    <message id="autopanel.tip.tunnels.add">
+        <source>Add an agent and get its enrolment token</source>
+        <translation>エージェントを追加し、登録トークンを受け取ります</translation>
+    </message>
+    <message id="autopanel.tip.tunnels.remove">
+        <source>Remove the selected agent and close its tunnel</source>
+        <translation>選択したエージェントを削除し、トンネルを閉じます</translation>
+    </message>
     <message id="autopanel.tip.users.add">
         <source>Add a panel user</source>
         <translation>パネルのユーザーを追加</translation>
@@ -2775,6 +2847,10 @@
         <source>Remove stack</source>
         <translation>スタックの削除</translation>
     </message>
+    <message id="autopanel.title.confirm.removeTunnel">
+        <source>Remove agent</source>
+        <translation>エージェントを削除</translation>
+    </message>
     <message id="autopanel.title.confirm.stop">
         <source>Stop</source>
         <translation>停止</translation>
@@ -2830,6 +2906,10 @@
     <message id="autopanel.title.dialog.totp">
         <source>Turn on two-factor</source>
         <translation>二要素認証をオン</translation>
+    </message>
+    <message id="autopanel.title.dialog.tunnelToken">
+        <source>Enrolment token</source>
+        <translation>登録トークン</translation>
     </message>
     <message id="autopanel.title.form.add">
         <source>Add route</source>
@@ -2918,6 +2998,10 @@
     <message id="autopanel.title.list.tokens">
         <source>Tokens</source>
         <translation>トークン</translation>
+    </message>
+    <message id="autopanel.title.list.tunnels">
+        <source>Tunnel agents</source>
+        <translation>トンネルエージェント</translation>
     </message>
     <message id="autopanel.title.list.users">
         <source>Users</source>
@@ -3011,6 +3095,10 @@
         <source>API tokens</source>
         <translation>API トークン</translation>
     </message>
+    <message id="autopanel.title.panel.tunnels">
+        <source>Tunnels</source>
+        <translation>トンネル</translation>
+    </message>
     <message id="autopanel.title.panel.users">
         <source>Users</source>
         <translation>ユーザー</translation>
@@ -3074,6 +3162,10 @@
     <message id="autopanel.title.prompt.totpOff">
         <source>Turn off two-factor</source>
         <translation>二要素認証をオフ</translation>
+    </message>
+    <message id="autopanel.title.prompt.tunnel">
+        <source>Add a tunnel agent</source>
+        <translation>トンネルエージェントを追加</translation>
     </message>
     <message id="autopanel.title.prompt.userName">
         <source>Add a user</source>
@@ -3614,6 +3706,34 @@
     <message id="autopanel.value.traffic.requests">
         <source>Since the gate started: %1 HTTPS and %2 HTTP requests. They are not counted by domain yet.</source>
         <translation>ゲート起動以降: HTTPS リクエスト %1 件、HTTP リクエスト %2 件。ドメイン別にはまだ集計していません。</translation>
+    </message>
+    <message id="autopanel.value.tunnels.down">
+        <source>down</source>
+        <translation>切断</translation>
+    </message>
+    <message id="autopanel.value.tunnels.enrolledFrom">
+        <source>%1, from %2</source>
+        <translation>%1、接続元 %2</translation>
+    </message>
+    <message id="autopanel.value.tunnels.expired">
+        <source>expired</source>
+        <translation>期限切れ</translation>
+    </message>
+    <message id="autopanel.value.tunnels.noTargets">
+        <source>none listed in the agent's file</source>
+        <translation>エージェントのファイルに記載なし</translation>
+    </message>
+    <message id="autopanel.value.tunnels.since">
+        <source>up since %1, from %2, %3 streams now</source>
+        <translation>%1 から接続中、接続元 %2、現在のストリーム %3</translation>
+    </message>
+    <message id="autopanel.value.tunnels.up">
+        <source>up</source>
+        <translation>接続中</translation>
+    </message>
+    <message id="autopanel.value.tunnels.waiting">
+        <source>waiting</source>
+        <translation>登録待ち</translation>
     </message>
 </context>
 </TS>

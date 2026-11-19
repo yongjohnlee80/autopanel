@@ -2,6 +2,7 @@ package ui
 
 import (
 	"github.com/yongjohnlee80/autopanel/core/forward"
+	"github.com/yongjohnlee80/autopanel/core/tunnel"
 	"reflect"
 	"slices"
 	"strings"
@@ -251,4 +252,55 @@ func TestAForwardsLine(t *testing.T) {
 			t.Errorf("%q was read as a forward", line)
 		}
 	}
+}
+
+// TestTheTunnelsPanel: Routes › Tunnels lists the agents with each one's
+// state in a word and the selected one's details: its tunnel, its targets'
+// names, the address to write in a route, and the key's fingerprint to
+// compare. Add asks for a name, says so when it is no name, and shows the
+// token once; Remove asks first.
+func TestTheTunnelsPanel(t *testing.T) {
+	f := newFakeClient()
+	f.agents = []tunnel.View{
+		{ID: 1, Name: "attic", State: "enrolled", Fingerprint: "SHA256:atticatticattic", EnrolledFrom: "203.0.113.9", EnrolledAt: 1_800_000_000},
+		{ID: 2, Name: "nas", State: "enrolled", Fingerprint: "SHA256:nasnasnasnas", EnrolledFrom: "198.51.100.7", EnrolledAt: 1_800_000_000,
+			Status: tunnel.Status{Connected: true, Since: 1_800_000_100, From: "198.51.100.7", Streams: 3, Targets: []string{"photos", "ssh"}}},
+		{ID: 3, Name: "old", State: "expired"},
+	}
+	h, s := startHost(t, f)
+	s.WaitForText(t, "CA LE staging")
+	run(t, h, h.openTunnels)
+	for _, part := range []string{"Tunnel agents · 3 · read at", "attic", "nas", "old", "expired", "SHA256:atticatticattic", "none listed", "tunnel://attic/<target>"} {
+		s.WaitForText(t, part)
+	}
+	run(t, h, func() error { return h.tunnelMoved(1) })
+	for _, part := range []string{"198.51.100.7, 3 streams now", "photos, ssh", "tunnel://nas/<target>", "SHA256:nasnasnasnas", "must match"} {
+		s.WaitForText(t, part)
+	}
+	run(t, h, func() error { return h.tunnelMoved(2) })
+	s.WaitForText(t, "Its token ran out")
+
+	s.Keys(t, decltest.Rune('a'))
+	s.WaitForText(t, "Add a tunnel agent")
+	s.Keys(t, decltest.Type("My NAS")...)
+	s.Keys(t, enter)
+	s.WaitForText(t, "A name is 1 to 32 lower-case")
+	for range len("My NAS") {
+		s.Keys(t, backspace)
+	}
+	s.Keys(t, decltest.Type("garage")...)
+	s.Keys(t, enter)
+	s.WaitForText(t, "Enrolment token")
+	s.WaitForText(t, "autopanel-agent enroll")
+	s.WaitForText(t, "ape_0123456789abcdef_the-secret-shown-once")
+	s.Keys(t, escape) // close the token's dialog: it is gone from the screen
+	s.WaitFor(t, "the token left the screen", func(screen string) bool { return !strings.Contains(screen, "the-secret-shown-once") })
+	s.WaitForText(t, "Tunnel agents · 4 · read at")
+
+	// Remove the selected one (the first row), after a question.
+	s.Keys(t, decltest.Rune('r'))
+	s.WaitForText(t, "Remove the agent attic?")
+	s.Keys(t, decltest.Type("y")...)
+	s.WaitForText(t, "attic is removed")
+	s.WaitForText(t, "Tunnel agents · 3 · read at")
 }

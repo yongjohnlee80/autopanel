@@ -115,6 +115,7 @@ Window {
             MenuItem { text: qsTrId("autopanel.menu.routes.proxy"); onTriggered: App.openRoutes() }
             MenuItem { text: qsTrId("autopanel.menu.routes.domains"); onTriggered: App.openDomains() }
             MenuItem { text: qsTrId("autopanel.menu.routes.forwarding"); onTriggered: App.openForwards() }
+            MenuItem { text: qsTrId("autopanel.menu.routes.tunnels"); onTriggered: App.openTunnels() }
         }
         Menu {
             title: qsTrId("autopanel.menu.certs.title")
@@ -956,6 +957,56 @@ Window {
                 Button { text: qsTrId("autopanel.button.domains.remove"); toolTipText: App.tipForwardsRemove; onClicked: App.removeForward(forwardsTable.currentIndex) }
                 Text { text: " " }
                 Button { text: qsTrId("autopanel.button.panel.close"); toolTipText: App.tipPanelClose; onClicked: App.closePanel("forwards") }
+                Text { text: " "; Layout.fillWidth: true }
+            }
+        }
+    }
+
+    // Routes › Tunnels: the agents on the left, the selected one on the right
+    // (tunnels.go)
+    Panel {
+        id: tunnelsPanel
+        key: "tunnels"
+        heading: qsTrId("autopanel.title.panel.tunnels")
+        edge: Tui.Center; size: 75; length: 80
+        closeOnQ: true; maximizable: true; closable: true
+        onOpened: App.panelOpened("tunnels")
+        onClosed: App.panelClosed("tunnels")
+        onChanged: App.panelChanged("tunnels", operation)
+        Shortcut { sequence: "a"; onActivated: App.addTunnel() }
+        Shortcut { sequence: "r"; onActivated: App.removeTunnel(tunnelsTable.currentIndex) }
+        Flex {
+            direction: Tui.Vertical
+            Split {
+                Layout.fillHeight: true
+                orientation: Tui.Horizontal
+                ratio: 0.4
+                Frame {
+                    title: App.tunnelsTitle
+                    TableView {
+                        id: tunnelsTable
+                        palette.highlight: Theme.document.highlight
+                        palette.highlightedText: Theme.document.highlightedText
+                        model: App.tunnels
+                        onCurrentIndexChanged: App.tunnelMoved(index)
+                        TableViewColumn { role: "name"; title: "NAME"; width: 0 }
+                        TableViewColumn { role: "state"; title: "STATE"; width: 14 }
+                        TableViewColumn { role: "targets"; title: "TARGETS"; width: 8 }
+                    }
+                }
+                Frame {
+                    title: qsTrId("autopanel.title.pane.details")
+                    Text { text: App.tunnelDetail; wrapMode: Tui.WordWrap }
+                }
+            }
+            Flex {
+                direction: Tui.Horizontal
+                Text { text: " "; Layout.fillWidth: true }
+                Button { text: qsTrId("autopanel.button.domains.add"); toolTipText: App.tipTunnelsAdd; onClicked: App.addTunnel() }
+                Text { text: " " }
+                Button { text: qsTrId("autopanel.button.domains.remove"); toolTipText: App.tipTunnelsRemove; onClicked: App.removeTunnel(tunnelsTable.currentIndex) }
+                Text { text: " " }
+                Button { text: qsTrId("autopanel.button.panel.close"); toolTipText: App.tipPanelClose; onClicked: App.closePanel("tunnels") }
                 Text { text: " "; Layout.fillWidth: true }
             }
         }
