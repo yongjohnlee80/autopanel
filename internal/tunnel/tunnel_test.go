@@ -488,3 +488,54 @@ func TestAnOpenThatIsNotWaitedForFreesItsPlace(t *testing.T) {
 		time.Sleep(20 * time.Millisecond)
 	}
 }
+
+// closeSeen is a target's connection that says when the agent has closed it.
+type closeSeen struct {
+	*net.TCPConn
+	once   sync.Once
+	closed chan struct{}
+}
+
+func (c *closeSeen) Close() error {
+	c.once.Do(func() { close(c.closed) })
+	return c.TCPConn.Close()
+}
+
+// A client that has said it has no more to send, and then gives the stream
+// up, frees a target that is saying nothing: after the half close no copy is
+// left to notice.
+func TestAStreamGivenUpAfterAHalfCloseFreesItsTarget(t *testing.T) {
+	closed := make(chan struct{})
+	halved := make(chan struct{})
+	quiet := targets{"quiet": func(c net.Conn) {
+		_, _ = io.Copy(io.Discard, c) // to the half close
+		close(halved)
+		<-closed // and then says nothing
+	}}.dial(t)
+	c, _ := tunnelOf(t, 1, func(ctx context.Context, name string) (net.Conn, error) {
+		up, err := quiet(ctx, name)
+		if err != nil {
+			return nil, err
+		}
+		return &closeSeen{TCPConn: up.(*net.TCPConn), closed: closed}, nil
+	})
+	s := open(t, c, "quiet")
+	_, _ = s.Write([]byte("x"))
+	_ = s.(interface{ CloseWrite() error }).CloseWrite()
+	select {
+	case <-halved:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the half close never reached the target")
+	}
+	select {
+	case <-closed:
+		t.Fatal("the target was closed at the half close, before it could answer")
+	case <-time.After(200 * time.Millisecond):
+	}
+	_ = s.Close()
+	select {
+	case <-closed:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the target was left open on a stream nobody holds")
+	}
+}

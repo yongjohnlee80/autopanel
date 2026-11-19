@@ -107,6 +107,10 @@ func serveStream(w http.ResponseWriter, r *http.Request, dial Dialer) {
 		return
 	}
 	defer up.Close()
+	// A stream given up closes the target whatever each direction was doing:
+	// after a half close, nothing else is watching the stream.
+	stop := context.AfterFunc(r.Context(), func() { _ = up.Close() })
+	defer stop()
 	// The answer's headers go now, before a byte is read: a target that
 	// speaks first (SSH) would otherwise wait on a client that waits on it.
 	w.WriteHeader(http.StatusOK)
