@@ -455,3 +455,32 @@ func TestTheGateHoldsATunnelOnItsHTTPSPort(t *testing.T) {
 		t.Fatal("a tunnel handshake for a name the gate does not serve succeeded")
 	}
 }
+
+// An agent removed and enrolled again under the same name, between two of the
+// gate's reads of the list, has another key: the tunnel the old key holds is
+// closed, though the name never left the list.
+func TestAnAgentsNewKeyEndsTheOldKeysTunnel(t *testing.T) {
+	f := newFakeCore(t, "", "")
+	ts, srv, pool := tunnelServer(t, f)
+	oldKey, newKey := newKey(t), newKey(t)
+	f.setAgents(AgentKey{Name: "nas", Key: digestOf(t, oldKey)})
+	until(t, "the gate never heard of the agent's key", func() bool { _, ok := ts.nameOf(digestOf(t, oldKey)); return ok })
+	runAgent(t, srv, pool, oldKey, nil)
+	until(t, "the tunnel never came up", up(ts, "nas"))
+	ts.mu.Lock()
+	old := ts.live["nas"]
+	ts.mu.Unlock()
+
+	f.setAgents(AgentKey{Name: "nas", Key: digestOf(t, newKey)})
+	select {
+	case <-old.client.Done():
+	case <-time.After(5 * time.Second):
+		t.Fatal("the old key kept its tunnel under the name that is another key's now")
+	}
+	time.Sleep(1500 * time.Millisecond) // the old key dials again, and is refused
+	if len(ts.states()) != 0 {
+		t.Fatalf("the old key was admitted again: %+v", ts.states())
+	}
+	runAgent(t, srv, pool, newKey, nil)
+	until(t, "the new key got no tunnel", up(ts, "nas"))
+}
