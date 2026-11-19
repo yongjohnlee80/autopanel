@@ -3,10 +3,16 @@
 package gate
 
 import (
+	"context"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/netip"
+	"net/url"
+	"time"
+
+	"github.com/yongjohnlee80/autopanel/internal/tunnel"
 
 	core "github.com/yongjohnlee80/autopanel/core/gate"
 )
@@ -62,12 +68,36 @@ const cfConnectingIP = "Cf-Connecting-Ip"
 // names is dropped by Rewrite. Behind Cloudflare the client is CF-Connecting-IP,
 // believed only when the peer is a trusted range; from anyone else the header
 // is dropped, so a client can't name itself.
-func NewProxy(route core.Route, trusted Trusted) (http.Handler, error) {
+//
+// An upstream behind a tunnel agent is reached through dial, a stream for
+// each request: the target sees an ordinary HTTP request with the same
+// headers. While the agent is away the answer is 502.
+func NewProxy(route core.Route, trusted Trusted, dial TunnelDial) (http.Handler, error) {
 	up, err := route.UpstreamURL()
 	if err != nil {
 		return nil, err
 	}
-	return &httputil.ReverseProxy{Rewrite: func(pr *httputil.ProxyRequest) {
+	var transport http.RoundTripper
+	var onError func(http.ResponseWriter, *http.Request, error)
+	if agent, target, ok := tunnel.ParseAddress(route.Upstream); ok {
+		// The URL's host is never resolved: the connection is the stream.
+		up = &url.URL{Scheme: "http", Host: target + "." + agent + ".tunnel"}
+		transport = &http.Transport{
+			DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+				if dial == nil {
+					return nil, ErrTunnelDown
+				}
+				return dial(ctx, agent, target)
+			},
+			// A stream a request: an idle connection kept for the next one
+			// would hold one of the agent's streams while it waited.
+			DisableKeepAlives:     true,
+			ResponseHeaderTimeout: 60 * time.Second,
+			ForceAttemptHTTP2:     false,
+		}
+		onError = tunnelDown
+	}
+	return &httputil.ReverseProxy{Transport: transport, ErrorHandler: onError, Rewrite: func(pr *httputil.ProxyRequest) {
 		pr.SetURL(up)
 		pr.Out.Host = pr.In.Host // the upstream sees the name the client asked for
 		pr.SetXForwarded()
@@ -83,7 +113,22 @@ func NewProxy(route core.Route, trusted Trusted) (http.Handler, error) {
 	}}, nil
 }
 
-// Build makes a snapshot of routes, each served by NewProxy.
-func Build(routes []core.Route, trusted Trusted) (*core.Snapshot[http.Handler], error) {
-	return core.Build(routes, func(r core.Route) (http.Handler, error) { return NewProxy(r, trusted) })
+// TunnelDial opens a stream to a tunnel agent's target.
+type TunnelDial func(ctx context.Context, agent, target string) (net.Conn, error)
+
+// tunnelDown answers a request whose tunnel could not carry it. It says the
+// tunnel is down and nothing of why: the agent's name and its target's are
+// the administrator's to know.
+func tunnelDown(w http.ResponseWriter, _ *http.Request, _ error) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Retry-After", "30")
+	w.WriteHeader(http.StatusBadGateway)
+	_, _ = io.WriteString(w, "<!doctype html><title>502</title><h1>This site is not reachable right now</h1><p>The tunnel to it is down. Try again shortly.</p>\n")
+}
+
+// Build makes a snapshot of routes, each served by NewProxy. dial reaches the
+// upstreams behind tunnel agents; nil where there are no tunnels to dial.
+func Build(routes []core.Route, trusted Trusted, dial TunnelDial) (*core.Snapshot[http.Handler], error) {
+	return core.Build(routes, func(r core.Route) (http.Handler, error) { return NewProxy(r, trusted, dial) })
 }

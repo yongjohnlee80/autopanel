@@ -484,3 +484,43 @@ func TestAUDPForward(t *testing.T) {
 		t.Fatalf("a UDP forward with no limits of its own: %+v; want the gate's defaults", d[0])
 	}
 }
+
+// A TCP forward may lead to a tunnel agent's target: one port, no PROXY
+// header, and none of the checks of an address, since where it leads is the
+// agent's file's to say.
+func TestAForwardThroughATunnel(t *testing.T) {
+	f := newFixture()
+	ctx := context.Background()
+	if _, err := f.add(t, Spec{Name: "nas-ssh", From: 2222, Target: " tunnel://nas/ssh "}, false); err != nil {
+		t.Fatal(err)
+	}
+	for what, c := range map[string]struct {
+		s    Spec
+		want error
+	}{
+		"over UDP":                  {Spec{Name: "a", Proto: "udp", From: 5000, Target: "tunnel://nas/dns"}, ErrBadProto},
+		"with a PROXY header":       {Spec{Name: "a", From: 5000, Target: "tunnel://nas/ssh", Proxy: true}, ErrBadProto},
+		"a range":                   {Spec{Name: "a", From: 5000, To: 5001, Target: "tunnel://nas/ssh"}, ErrBadPorts},
+		"to an address":             {Spec{Name: "a", From: 5000, Target: "tunnel://nas/10.0.0.5:22"}, ErrBadTarget},
+		"with no target":            {Spec{Name: "a", From: 5000, Target: "tunnel://nas"}, ErrBadTarget},
+		"with a port on the agent":  {Spec{Name: "a", From: 5000, Target: "tunnel://nas:22/ssh"}, ErrBadTarget},
+		"the agent's reserved name": {Spec{Name: "a", From: 5000, Target: "tunnel://nas/.targets"}, ErrBadTarget},
+		"on SSH's own port":         {Spec{Name: "a", From: 22, Target: "tunnel://nas/ssh"}, ErrSSH},
+		"on a port a forward has":   {Spec{Name: "a", From: 2222, Target: "tunnel://nas/other"}, ErrPortTaken},
+	} {
+		if _, err := f.m.check(ctx, c.s); !errors.Is(err, c.want) {
+			t.Errorf("%s: %v; want %v", what, err, c.want)
+		}
+	}
+	ss := StreamsOf([]Forward{
+		{Name: "nas-ssh", Proto: "tcp", From: 2222, To: 2222, Target: "tunnel://nas/ssh", Allow: []string{"203.0.113.0/24"}},
+		{Name: "game", Proto: "tcp", From: 25565, To: 25565, Target: "127.0.0.1:26000"},
+	})
+	if len(ss) != 2 {
+		t.Fatalf("%d streams", len(ss))
+	}
+	if s := ss[0]; s.To != "tunnel://nas/ssh" || s.Listen != ":2222" || !s.Plain || s.Proto != "tcp" || s.Share != Connections/2 ||
+		s.IdleSecs != DefaultIdle || s.PerClient != DefaultClient || s.Allow != "203.0.113.0/24" || s.Name != "forward:nas-ssh" {
+		t.Fatalf("a tunnelled forward as a stream: %+v", s)
+	}
+}

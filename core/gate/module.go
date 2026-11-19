@@ -98,7 +98,7 @@ func (m *Module) Errors() []module.PublicError {
 		{Err: ErrDuplicate, Code: -32151, Name: "gate.duplicate", Message: "a route for this host and path prefix exists"},
 		{Err: ErrBadHost, Code: -32152, Name: "gate.bad_host", Message: "not a valid host name (use punycode for an internationalised name)"},
 		{Err: ErrBadPrefix, Code: -32153, Name: "gate.bad_prefix", Message: "a path prefix must be \"/\" or an absolute path without a trailing slash"},
-		{Err: ErrBadUpstream, Code: -32154, Name: "gate.bad_upstream", Message: "an upstream must be an http or https URL with a host and no credentials"},
+		{Err: ErrBadUpstream, Code: -32154, Name: "gate.bad_upstream", Message: "an upstream must be an http or https URL with a host and no credentials, or tunnel://<agent>/<target>"},
 		{Err: ErrNoDomain, Code: -32155, Name: "gate.no_domain", Message: "the host is under no registered domain; add the domain first"},
 		{Err: ErrDomainExists, Code: -32156, Name: "gate.domain_exists", Message: "the domain is registered already"},
 		{Err: ErrDomainInUse, Code: -32157, Name: "gate.domain_in_use", Message: "a route would be left under no domain; remove or move it first"},

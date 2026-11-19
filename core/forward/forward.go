@@ -24,6 +24,7 @@ import (
 
 	corefw "github.com/yongjohnlee80/autopanel/core/firewall"
 	"github.com/yongjohnlee80/autopanel/internal/module"
+	"github.com/yongjohnlee80/autopanel/internal/tunnel"
 )
 
 // The limits of forwarding. They are small on purpose: every forwarded
@@ -52,6 +53,16 @@ type Forward struct {
 	Allow     []string // source prefixes; none: any address
 	PerClient int      // connections (tcp) or pairings (udp) at once from one client; 0: the default
 	IdleSecs  int      // 0: the default (ten minutes for tcp, one for udp)
+}
+
+// Tunnelled reports whether f's target is behind a tunnel agent.
+func (f Forward) Tunnelled() bool { return strings.HasPrefix(f.Target, tunnel.Scheme) }
+
+func orDefault(n, d int) int {
+	if n == 0 {
+		return d
+	}
+	return n
 }
 
 // Ports is how many public ports f holds.
@@ -156,9 +167,9 @@ func (m *Module) Errors() []module.PublicError {
 		{Err: ErrNotFound, Code: -32250, Name: "gate.forward.not_found", Message: "no such forward"},
 		{Err: ErrDuplicate, Code: -32251, Name: "gate.forward.duplicate", Message: "a forward has that name"},
 		{Err: ErrBadName, Code: -32252, Name: "gate.forward.bad_name", Message: "a name is 1 to 32 lower-case letters, digits and hyphens, starting with a letter"},
-		{Err: ErrBadProto, Code: -32253, Name: "gate.forward.bad_proto", Message: "the protocol is tcp or udp, and only a tcp forward carries a PROXY header"},
-		{Err: ErrBadPorts, Code: -32254, Name: "gate.forward.bad_ports", Message: "a public port is 1 to 65535, and a range at most 100 ports"},
-		{Err: ErrBadTarget, Code: -32255, Name: "gate.forward.bad_target", Message: "a target is a literal address and port, such as 127.0.0.1:8080: not a host name, and not an address no connection can be made to"},
+		{Err: ErrBadProto, Code: -32253, Name: "gate.forward.bad_proto", Message: "the protocol is tcp or udp; only a tcp forward carries a PROXY header, and a forward through a tunnel is tcp with none"},
+		{Err: ErrBadPorts, Code: -32254, Name: "gate.forward.bad_ports", Message: "a public port is 1 to 65535, a range at most 100 ports, and a forward through a tunnel one port"},
+		{Err: ErrBadTarget, Code: -32255, Name: "gate.forward.bad_target", Message: "a target is a literal address and port, such as 127.0.0.1:8080 (not a host name, and not an address no connection can be made to), or tunnel://<agent>/<target>"},
 		{Err: ErrBadAllow, Code: -32256, Name: "gate.forward.bad_allow", Message: "an allowed source must be an address prefix, such as 203.0.113.0/24"},
 		{Err: ErrBadLimits, Code: -32257, Name: "gate.forward.bad_limits", Message: "a limit is out of range"},
 		{Err: ErrPortTaken, Code: -32258, Name: "gate.forward.port_taken", Message: "a public port is in use"},
@@ -264,11 +275,27 @@ func Normalize(s Spec) (Forward, error) {
 	if f.From < 1 || f.To > 65535 || f.To < f.From || f.Ports() > MaxRange {
 		return Forward{}, ErrBadPorts
 	}
-	t, err := netip.ParseAddrPort(strings.TrimSpace(s.Target))
-	if err != nil || t.Port() == 0 || int(t.Port())+f.Ports()-1 > 65535 || !reachable(t.Addr()) {
-		return Forward{}, ErrBadTarget
+	if target := strings.TrimSpace(s.Target); strings.HasPrefix(target, tunnel.Scheme) {
+		// A service behind a tunnel agent: one TCP port, to the one target
+		// the agent's file names. The agent cannot be told who the client is,
+		// so there is no PROXY header to ask for.
+		if _, _, ok := tunnel.ParseAddress(target); !ok {
+			return Forward{}, ErrBadTarget
+		}
+		if f.Proto != "tcp" || f.Proxy {
+			return Forward{}, ErrBadProto
+		}
+		if f.Ports() != 1 {
+			return Forward{}, ErrBadPorts
+		}
+		f.Target = target
+	} else {
+		t, err := netip.ParseAddrPort(target)
+		if err != nil || t.Port() == 0 || int(t.Port())+f.Ports()-1 > 65535 || !reachable(t.Addr()) {
+			return Forward{}, ErrBadTarget
+		}
+		f.Target = netip.AddrPortFrom(t.Addr().Unmap(), t.Port()).String()
 	}
-	f.Target = netip.AddrPortFrom(t.Addr().Unmap(), t.Port()).String()
 	if len(s.Allow) > maxAllow {
 		return Forward{}, ErrBadAllow
 	}
@@ -395,6 +422,9 @@ func (m *Module) judge(ctx context.Context, f Forward, others []Forward) error {
 		}
 	}
 
+	if f.Tunnelled() {
+		return nil // where it leads is the agent's file's to say, on the agent's machine
+	}
 	t := netip.MustParseAddrPort(f.Target)
 	if m.host.Local(t.Addr()) {
 		first, last := int(t.Port()), int(t.Port())+f.Ports()-1
@@ -636,6 +666,12 @@ func StreamsOf(fs []Forward) []Stream {
 	}
 	var out []Stream
 	for _, f := range fs {
+		if f.Tunnelled() {
+			out = append(out, Stream{Name: f.Owner(), Proto: "tcp", Listen: ":" + strconv.Itoa(f.From), To: f.Target, Plain: true,
+				Share: max(Connections/tcp, minShare), IdleSecs: orDefault(f.IdleSecs, DefaultIdle), PerClient: orDefault(f.PerClient, DefaultClient),
+				Allow: strings.Join(f.Allow, " ")})
+			continue
+		}
 		t := netip.MustParseAddrPort(f.Target)
 		s := Stream{Name: f.Owner(), Proto: f.Proto, IdleSecs: f.IdleSecs, PerClient: f.PerClient, Allow: strings.Join(f.Allow, " ")}
 		if f.Proto == "tcp" {

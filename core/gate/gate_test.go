@@ -57,12 +57,22 @@ func TestNormalizeRefuses(t *testing.T) {
 		t.Fatalf("Normalize(%+v) = %+v, %v", ok, n, err)
 	}
 	for what, r := range map[string]Route{
-		"a trailing slash":         {Host: "example.com", PathPrefix: "/api/", Upstream: "http://127.0.0.1"},
-		"a relative prefix":        {Host: "example.com", PathPrefix: "api", Upstream: "http://127.0.0.1"},
-		"a query in the prefix":    {Host: "example.com", PathPrefix: "/a?b", Upstream: "http://127.0.0.1"},
-		"a non-http upstream":      {Host: "example.com", Upstream: "file:///etc/passwd"},
-		"credentials upstream":     {Host: "example.com", Upstream: "http://user:pw@127.0.0.1"},
-		"an upstream with no host": {Host: "example.com", Upstream: "http:///x"},
+		"a trailing slash":              {Host: "example.com", PathPrefix: "/api/", Upstream: "http://127.0.0.1"},
+		"a relative prefix":             {Host: "example.com", PathPrefix: "api", Upstream: "http://127.0.0.1"},
+		"a query in the prefix":         {Host: "example.com", PathPrefix: "/a?b", Upstream: "http://127.0.0.1"},
+		"a non-http upstream":           {Host: "example.com", Upstream: "file:///etc/passwd"},
+		"credentials upstream":          {Host: "example.com", Upstream: "http://user:pw@127.0.0.1"},
+		"an upstream with no host":      {Host: "example.com", Upstream: "http:///x"},
+		"a tunnel with no target":       {Host: "example.com", Upstream: "tunnel://nas"},
+		"a tunnel with an empty target": {Host: "example.com", Upstream: "tunnel://nas/"},
+		"a tunnel with no agent":        {Host: "example.com", Upstream: "tunnel:///photos"},
+		"a tunnel to an address":        {Host: "example.com", Upstream: "tunnel://nas/127.0.0.1:22"},
+		"a tunnel with a port":          {Host: "example.com", Upstream: "tunnel://nas:22/photos"},
+		"a tunnel with a path below":    {Host: "example.com", Upstream: "tunnel://nas/photos/admin"},
+		"a tunnel with a query":         {Host: "example.com", Upstream: "tunnel://nas/photos?x=1"},
+		"a tunnel with credentials":     {Host: "example.com", Upstream: "tunnel://user@nas/photos"},
+		"a tunnel in capitals":          {Host: "example.com", Upstream: "tunnel://NAS/Photos"},
+		"the agent's reserved name":     {Host: "example.com", Upstream: "tunnel://nas/.targets"},
 	} {
 		if _, err := r.Normalize(); err == nil {
 			t.Errorf("Normalize accepted %s: %+v", what, r)
@@ -171,5 +181,16 @@ func TestAHostAutoPanelServesItselfIsReserved(t *testing.T) {
 	reserved = nil // the API turned off
 	if _, err := m2.domainRemove(ctx, DomainRef{Name: "example.com"}); err != nil {
 		t.Fatalf("with nothing reserved: %v", err)
+	}
+}
+
+// A route may lead to a tunnel agent's target, named and nothing more.
+func TestARouteMayLeadThroughATunnel(t *testing.T) {
+	r, err := Route{Host: "Photos.Example.com", Upstream: "tunnel://nas/photos"}.Normalize()
+	if err != nil || r.Upstream != "tunnel://nas/photos" || r.Host != "photos.example.com" {
+		t.Fatalf("Normalize = %+v, %v", r, err)
+	}
+	if again, err := r.Normalize(); err != nil || again != r {
+		t.Fatalf("a normalized tunnel route is not canonical: %+v, %v", again, err)
 	}
 }

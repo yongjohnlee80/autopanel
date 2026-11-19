@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"github.com/yongjohnlee80/autopanel/internal/tunnel"
 	"io"
 	"log/slog"
 	"net"
@@ -52,6 +53,8 @@ var rebindEvery = 15 * time.Second
 // forwarder runs the streams the core names, and holds their limits.
 type forwarder struct {
 	log *slog.Logger
+	// tunnel reaches a target behind a tunnel agent; nil: no tunnels here.
+	tunnel TunnelDial
 
 	mu       sync.Mutex
 	total    int                   // at most this many forwarded connections at once, every stream together
@@ -389,6 +392,10 @@ func (f *forwarder) forward(ctx context.Context, r *streamRun, c *net.TCPConn) {
 	}
 	defer r.untrack(c)
 
+	if agent, target, ok := tunnel.ParseAddress(r.s.To); ok {
+		f.throughTunnel(ctx, r, c, agent, target)
+		return
+	}
 	d := net.Dialer{Timeout: dialTimeout}
 	up, err := d.DialContext(ctx, "tcp", r.s.To)
 	if err != nil {
@@ -413,6 +420,95 @@ func (f *forwarder) forward(ctx context.Context, r *streamRun, c *net.TCPConn) {
 	f.served.Add(1)
 	pipe(c, uc, time.Duration(r.s.IdleSecs)*time.Second)
 }
+
+// throughTunnel carries a client's connection to a tunnel agent's target. An
+// agent that is away, or full, is a connection closed: there is nothing to
+// say to a client in a protocol the gate does not know.
+func (f *forwarder) throughTunnel(ctx context.Context, r *streamRun, c *net.TCPConn, agent, target string) {
+	if f.tunnel == nil {
+		return
+	}
+	dctx, cancel := context.WithTimeout(ctx, dialTimeout)
+	up, err := f.tunnel(dctx, agent, target)
+	cancel()
+	if err != nil {
+		f.log.Warn("gate: a stream's tunnel does not carry it", "stream", r.s.Name, "to", r.s.To, "err", err)
+		return
+	}
+	defer up.Close()
+	if !r.track(up) {
+		return
+	}
+	defer r.untrack(up)
+	f.served.Add(1)
+	pipeStream(c, up, time.Duration(r.s.IdleSecs)*time.Second)
+}
+
+// pipeStream is pipe for a connection whose other end is a tunnel's stream,
+// which has no deadlines and cannot be spliced: each direction is a copy
+// through a small buffer, and a timer closes the pair when neither way has
+// moved a byte for idle. The client ending its side half-closes the stream,
+// and the target may still answer; the stream ending ends both, since a
+// tunnel's stream ends as a whole.
+func pipeStream(client *net.TCPConn, stream net.Conn, idle time.Duration) {
+	if idle <= 0 {
+		idle = 10 * time.Minute
+	}
+	var last atomic.Int64
+	last.Store(time.Now().UnixNano())
+	var once sync.Once
+	done := make(chan struct{})
+	closeBoth := func() { once.Do(func() { close(done); _ = client.Close(); _ = stream.Close() }) }
+	go func() {
+		t := time.NewTicker(idle / 4)
+		defer t.Stop()
+		for {
+			select {
+			case <-done:
+				return
+			case <-t.C:
+				if time.Since(time.Unix(0, last.Load())) >= idle {
+					closeBoth()
+					return
+				}
+			}
+		}
+	}()
+	cp := func(dst io.Writer, src io.Reader) error {
+		buf := make([]byte, streamBuffer)
+		for {
+			n, err := src.Read(buf)
+			if n > 0 {
+				last.Store(time.Now().UnixNano())
+				if _, werr := dst.Write(buf[:n]); werr != nil {
+					return werr
+				}
+				last.Store(time.Now().UnixNano())
+			}
+			if err != nil {
+				if errors.Is(err, io.EOF) {
+					return nil
+				}
+				return err
+			}
+		}
+	}
+	go func() { // client → target
+		if err := cp(stream, client); err != nil {
+			closeBoth()
+			return
+		}
+		if cw, ok := stream.(interface{ CloseWrite() error }); ok {
+			_ = cw.CloseWrite()
+		}
+	}()
+	_ = cp(client, stream) // target → client, until the stream ends
+	closeBoth()
+}
+
+// streamBuffer is the copy buffer of each direction of a tunnelled
+// connection: with the tunnel's streams at their limit, 4 MB in all.
+const streamBuffer = 16 << 10
 
 // lets reports whether the stream takes a connection from ip: any address
 // when it names no sources, and otherwise only one of them.
