@@ -9,6 +9,7 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/yongjohnlee80/golib/dao"
@@ -282,6 +283,35 @@ func applyAndCheck(t *testing.T, db dao.DataConn) {
 		if err := exec(q); err == nil {
 			t.Errorf("the store accepted %s", what)
 		}
+	}
+	// 000009: tunnel agents. An agent is waiting with a token or enrolled
+	// with a key, never both and never neither; a key is one agent's.
+	key := strings.Repeat("ab", 32)
+	if err := exec("INSERT INTO tunnel_agent(name, token_id, token_hash, token_expires, created_at) VALUES ('nas', 't1', 'h1', 10, 0)"); err != nil {
+		t.Fatal(err)
+	}
+	if err := exec("INSERT INTO tunnel_agent(name, pubkey, created_at) VALUES ('home', '" + key + "', 0)"); err != nil {
+		t.Fatal(err)
+	}
+	for what, q := range map[string]string{
+		"an agent's name twice":             "INSERT INTO tunnel_agent(name, token_id, created_at) VALUES ('nas', 't2', 0)",
+		"a name in capitals":                "INSERT INTO tunnel_agent(name, token_id, created_at) VALUES ('NAS2', 't3', 0)",
+		"an agent with no name":             "INSERT INTO tunnel_agent(name, token_id, created_at) VALUES ('', 't4', 0)",
+		"an agent with no key and no token": "INSERT INTO tunnel_agent(name, created_at) VALUES ('a', 0)",
+		"an agent with a key and a token":   "INSERT INTO tunnel_agent(name, pubkey, token_id, created_at) VALUES ('b', '" + strings.Repeat("cd", 32) + "', 't5', 0)",
+		"a key that is no digest":           "INSERT INTO tunnel_agent(name, pubkey, created_at) VALUES ('c', 'abcd', 0)",
+		"one key for two agents":            "INSERT INTO tunnel_agent(name, pubkey, created_at) VALUES ('d', '" + key + "', 0)",
+		"one token for two agents":          "INSERT INTO tunnel_agent(name, token_id, created_at) VALUES ('e', 't1', 0)",
+	} {
+		if err := exec(q); err == nil {
+			t.Errorf("the store accepted %s", what)
+		}
+	}
+	if name, err := deployments.Runner().Revert(ctx, db, 9); err != nil {
+		t.Fatalf("reverting 000009 = %q, %v", name, err)
+	}
+	if err := exec("SELECT name FROM tunnel_agent"); err == nil {
+		t.Fatal("the tunnel_agent table outlived its revert")
 	}
 	if name, err := deployments.Runner().Revert(ctx, db, 8); err != nil {
 		t.Fatalf("reverting 000008 = %q, %v", name, err)
