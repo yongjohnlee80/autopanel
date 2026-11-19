@@ -107,6 +107,8 @@ func Run(ctx context.Context, dial Dialer, log *slog.Logger) error {
 	g.trustedNow.Store(&trusted)
 	g.api = newAPIServer(l, log, func() Trusted { return *g.trustedNow.Load() }, g.up.Load)
 	g.certs.also = g.api.isHost // the API's host has a certificate, though no route names it
+	g.tunnels = newTunnels(l, log)
+	tunnelTLS := g.tunnels.tlsConfig(g.certs.get)
 	// The first table before the first request: a gate that listens with an
 	// empty table answers 404 for every site.
 	for {
@@ -128,17 +130,27 @@ func Run(ctx context.Context, dial Dialer, log *slog.Logger) error {
 			GetCertificate: g.certs.get,
 			NextProtos:     []string{"h2", "http/1.1", acmeTLS1}, // HTTP's first; acme-tls/1 stays, for the TLS-ALPN challenge
 			MinVersion:     tls.VersionTLS12,
+			// An agent's handshake, and only that, gets the tunnel's settings:
+			// no browser is asked for a certificate.
+			GetConfigForClient: func(h *tls.ClientHelloInfo) (*tls.Config, error) {
+				if isTunnel(h) {
+					return tunnelTLS, nil
+				}
+				return nil, nil
+			},
 		}),
 		httpserver.ReadHeaderTimeout(10*time.Second), httpserver.IdleTimeout(120*time.Second),
-		httpserver.MaxHeaderBytes(64<<10), httpserver.NotFound(counted(&g.https, g.api.or(Handler(table))).ServeHTTP)) // no routes: every request is the gate's
+		httpserver.MaxHeaderBytes(64<<10), httpserver.NotFound(g.tunnels.or(counted(&g.https, g.api.or(Handler(table)))).ServeHTTP)) // no routes: every request is the gate's
 	plain := httpserver.New(httpserver.Addr(hello.HTTP),
 		httpserver.ReadHeaderTimeout(10*time.Second), httpserver.IdleTimeout(60*time.Second),
 		httpserver.MaxHeaderBytes(16<<10), httpserver.NotFound(counted(&g.http, g.challengeOr(g.api.notPlain(http.HandlerFunc(toHTTPS)))).ServeHTTP))
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
+	g.tunnels.ctx = ctx
+	defer g.tunnels.stopAll()
 	var wg sync.WaitGroup
-	errs := make(chan error, 5)
+	errs := make(chan error, 6)
 	run := func(name string, fn func(context.Context) error) {
 		wg.Add(1)
 		go func() {
@@ -154,6 +166,7 @@ func Run(ctx context.Context, dial Dialer, log *slog.Logger) error {
 	run("gate routes", g.follow)
 	run("gate streams", g.followStreams)
 	run("gate probes", g.streams.probes)
+	run("gate tunnels", g.tunnels.follow)
 	run("gate report", g.report)
 	log.Info("gate serving", "https", hello.HTTPS, "http", hello.HTTP, "core", hello.Version, "routes", len(table.Routes()))
 	<-ctx.Done()
@@ -173,6 +186,7 @@ type process struct {
 	rev     int64 // the table's revision; only sync and follow touch it, one at a time
 	streams *forwarder
 	api     *apiServer
+	tunnels *tunnels
 
 	trustedNow atomic.Pointer[Trusted] // trusted, for whoever reads it while follow may change it
 	up         atomic.Bool             // the core answered the last time it was asked
@@ -306,6 +320,7 @@ func (g *process) report(ctx context.Context) error {
 		case <-t.C:
 			now := Report{HTTPSRequests: g.https.Load(), HTTPRequests: g.http.Load(), PID: os.Getpid(), MemoryBytes: residentBytes(),
 				StreamsOpen: g.streams.openNow(), StreamsServed: g.streams.served.Load(), StreamsRefused: g.streams.refused.Load()}
+			now.Tunnels = g.tunnels.states()
 			if p := g.streams.probed.Load(); p != nil {
 				now.ProbedAt, now.Unproxied = p.at, p.unproxied
 			}

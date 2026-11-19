@@ -1,0 +1,53 @@
+# AutoPanel's tunnel agent: it runs on a machine with no open port, dials
+# AutoPanel's gate on 443 and serves the services its own file lists
+# (/etc/autopanel-agent/agent.yaml). It listens on nothing.
+#
+# Set-up, as root on the agent's machine:
+#   useradd --system --no-create-home --shell /usr/sbin/nologin autopanel-agent
+#   install -d -m 0700 -o autopanel-agent -g autopanel-agent /etc/autopanel-agent
+#   sudo -u autopanel-agent autopanel-agent enroll panel.example.com   # paste the token
+#   systemctl enable --now autopanel-agent
+
+[Unit]
+Description=AutoPanel tunnel agent
+Wants=network-online.target
+After=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=autopanel-agent
+Group=autopanel-agent
+ExecStart=/usr/local/bin/autopanel-agent run
+Restart=always
+RestartSec=5s
+
+# It needs the network, its file and its key, and nothing else of the machine.
+UMask=0077
+MemoryMax=64M
+MemorySwapMax=0
+LimitNOFILE=4096
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictAddressFamilies=AF_INET AF_INET6
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+
+[Install]
+WantedBy=multi-user.target
