@@ -115,8 +115,8 @@ the whole build.
   and WOFF and WOFF2 fonts. Each image and font must start with the bytes its type has.
 - **A page is parsed, not searched,** so prose or a code block about `<script>` passes, and markup
   hidden behind entities does not. A page may not hold a script, a style element or attribute, an
-  event attribute, a form, a frame, an object, a base, a `meta http-equiv`, MathML, or a `<link>`
-  that preloads or connects anywhere.
+  event attribute, a form, an input other than a task list's disabled checkbox, a frame, an
+  object, a base, a `meta http-equiv`, MathML, or a `<link>` that preloads or connects anywhere.
   - Whatever the browser fetches (an image, a stylesheet, a `srcset`) must be a path of the site.
   - A link may go to a path of the site, or to an `http`, `https` or `mailto` address.
   - The rules apply to addresses as a browser reads them: tabs and newlines removed, entities
