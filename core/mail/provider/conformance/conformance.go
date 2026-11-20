@@ -171,6 +171,88 @@ func Run(t *testing.T, tg Target) {
 		_ = s.RevokeAppPassword(ctx, id, p.ID)
 	})
 
+	t.Run("ADisabledAccountSignsNothingIn", func(t *testing.T) {
+		p, secret := add(t, s, id, "disabled-test", tg.Now().Add(10*time.Minute))
+		defer func() { _ = s.RevokeAppPassword(context.Background(), id, p.ID) }()
+		signIn(t, tg, address, secret, true, "an app password of an enabled account")
+		disabled := func() bool {
+			t.Helper()
+			as, err := s.Accounts(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			i := slices.IndexFunc(as, func(a provider.Account) bool { return a.ID == id })
+			if i < 0 {
+				t.Fatal("the account is gone")
+			}
+			return as[i].Disabled
+		}
+		if disabled() {
+			t.Fatal("a new account is listed as disabled")
+		}
+		if err := s.SetDisabled(ctx, id, true); err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = s.SetDisabled(context.Background(), id, false) }()
+		if !disabled() {
+			t.Fatal("a disabled account is not listed as disabled")
+		}
+		signIn(t, tg, address, secret, false, "an app password of a disabled account")
+		if ps := list(t, s, id); !slices.ContainsFunc(ps, func(x provider.AppPassword) bool { return x.ID == p.ID }) {
+			t.Fatal("disabling an account took its app passwords")
+		}
+		if err := s.SetDisabled(ctx, id, true); err != nil {
+			t.Fatalf("disabling it twice: %v", err)
+		}
+		if err := s.SetDisabled(ctx, id, false); err != nil {
+			t.Fatal(err)
+		}
+		if disabled() {
+			t.Fatal("an enabled account is listed as disabled")
+		}
+		signIn(t, tg, address, secret, true, "an app password of an account enabled again")
+	})
+
+	t.Run("Aliases", func(t *testing.T) {
+		aliases := func() []provider.Alias {
+			t.Helper()
+			as, err := s.Accounts(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			i := slices.IndexFunc(as, func(a provider.Account) bool { return a.ID == id })
+			if i < 0 {
+				t.Fatal("the account is gone")
+			}
+			out := slices.Clone(as[i].Aliases)
+			slices.SortFunc(out, func(a, b provider.Alias) int { return strings.Compare(a.Local, b.Local) })
+			return out
+		}
+		if got := aliases(); len(got) != 0 {
+			t.Fatalf("a new account has aliases: %+v", got)
+		}
+		two := []provider.Alias{{Local: "sales", DomainID: d.ID}, {Local: "info", DomainID: d.ID}}
+		if err := s.SetAliases(ctx, id, two); err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = s.SetAliases(context.Background(), id, nil) }()
+		if got, want := aliases(), []provider.Alias{{Local: "info", DomainID: d.ID}, {Local: "sales", DomainID: d.ID}}; !slices.Equal(got, want) {
+			t.Fatalf("after setting two: %+v", got)
+		}
+		if err := s.SetAliases(ctx, id, two[:1]); err != nil {
+			t.Fatal(err)
+		}
+		if got := aliases(); !slices.Equal(got, two[:1]) {
+			t.Fatalf("after setting one: %+v; the other must be gone", got)
+		}
+		if err := s.SetAliases(ctx, id, nil); err != nil {
+			t.Fatal(err)
+		}
+		if got := aliases(); len(got) != 0 {
+			t.Fatalf("after setting none: %+v", got)
+		}
+	})
+
 	t.Run("DKIM", func(t *testing.T) {
 		_, key, _ := ed25519.GenerateKey(rand.Reader)
 		der, _ := x509.MarshalPKCS8PrivateKey(key)

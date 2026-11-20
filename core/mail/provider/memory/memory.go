@@ -252,6 +252,50 @@ func (s *Server) SetQuota(_ context.Context, id string, bytes int64) error {
 	return nil
 }
 
+func (s *Server) SetDisabled(_ context.Context, id string, disabled bool) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := s.enter("SetDisabled"); err != nil {
+		return err
+	}
+	a, err := s.account(id)
+	if err != nil {
+		return err
+	}
+	a.Disabled = disabled
+	return nil
+}
+
+// SetAliases replaces the account's aliases. As a real server would, it
+// refuses one of a domain it does not hold, or an address another account
+// holds as its own or as an alias.
+func (s *Server) SetAliases(_ context.Context, id string, aliases []provider.Alias) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := s.enter("SetAliases"); err != nil {
+		return err
+	}
+	a, err := s.account(id)
+	if err != nil {
+		return err
+	}
+	for _, al := range aliases {
+		if _, ok := s.domains[al.DomainID]; !ok {
+			return refuse("no such domain")
+		}
+		for _, o := range s.accounts {
+			if o.Local == al.Local && o.DomainID == al.DomainID {
+				return refuse("the address is an account's")
+			}
+			if o != a && slices.Contains(o.Aliases, al) {
+				return refuse("the address is another account's alias")
+			}
+		}
+	}
+	a.Aliases = slices.Clone(aliases)
+	return nil
+}
+
 func (s *Server) RemoveAccount(_ context.Context, id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -345,7 +389,7 @@ func (s *Server) SignIn(user, secret string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for _, a := range s.accounts {
-		if a.Address != user {
+		if a.Address != user || a.Disabled {
 			continue
 		}
 		for _, p := range a.apps {
@@ -634,6 +678,20 @@ func (k keyed) SetQuota(ctx context.Context, id string, b int64) error {
 	}
 	return k.s.SetQuota(ctx, id, b)
 }
+func (k keyed) SetDisabled(ctx context.Context, id string, d bool) error {
+	if err := k.check(ctx); err != nil {
+		return err
+	}
+	return k.s.SetDisabled(ctx, id, d)
+}
+
+func (k keyed) SetAliases(ctx context.Context, id string, as []provider.Alias) error {
+	if err := k.check(ctx); err != nil {
+		return err
+	}
+	return k.s.SetAliases(ctx, id, as)
+}
+
 func (k keyed) RemoveAccount(ctx context.Context, id string) error {
 	if err := k.check(ctx); err != nil {
 		return err

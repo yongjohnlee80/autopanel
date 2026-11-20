@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -394,6 +395,7 @@ type Account struct {
 	Used     int64   `json:"usedDiskQuota"`
 	Aliases  []Alias `json:"-"` // the enabled ones
 	Admin    bool    `json:"-"` // Stalwart's administrator: the one the bootstrap made
+	Disabled bool    `json:"-"` // its permissions take away authenticate: it signs nothing in
 	// AppPasswordLimit is quotas' maxAppPasswords; 0 when unset (Stalwart's
 	// default of 5 applies).
 	AppPasswordLimit int64 `json:"-"`
@@ -420,6 +422,7 @@ func (c *Client) Accounts(ctx context.Context) ([]Account, error) {
 				DomainID string `json:"domainId"`
 				Enable   bool   `json:"enable"`
 			} `json:"aliases"`
+			Permissions permissions `json:"permissions"`
 		} `json:"list"`
 	}
 	if err := c.call(ctx, "x:Account/get", map[string]any{"ids": nil}, &got); err != nil {
@@ -434,6 +437,7 @@ func (c *Client) Accounts(ctx context.Context) ([]Account, error) {
 		acc.Quota = a.Quotas["maxDiskQuota"]
 		acc.AppPasswordLimit = a.Quotas["maxAppPasswords"]
 		acc.Admin = a.Roles.Type == "Admin"
+		acc.Disabled = a.Permissions.Disabled[permAuthenticate]
 		for _, al := range a.Aliases {
 			if al.Enable {
 				acc.Aliases = append(acc.Aliases, Alias{Name: al.Name, DomainID: al.DomainID})
@@ -509,6 +513,65 @@ func (c *Client) SetSecret(ctx context.Context, id, secret string) error {
 		return errors.New("mail: the account has no password")
 	}
 	_, err := c.set(ctx, "Account", map[string]any{"update": map[string]any{id: map[string]any{"credentials/" + key + "/secret": secret}}})
+	return err
+}
+
+// permAuthenticate is the permission every sign-in needs: taken away, the
+// account signs nothing in, by password or app password, over any protocol.
+// Stalwart v1 has no other way to disable an account.
+const permAuthenticate = "authenticate"
+
+// permissions is an account's own permissions: inherited from its roles, or
+// merged with these.
+type permissions struct {
+	Type     string          `json:"@type"`
+	Enabled  map[string]bool `json:"enabledPermissions"`
+	Disabled map[string]bool `json:"disabledPermissions"`
+}
+
+// SetDisabled takes authenticate from the account's permissions, or gives it
+// back. Any other permission the account's own list holds is kept; a list
+// left empty goes back to inheriting.
+func (c *Client) SetDisabled(ctx context.Context, id string, disabled bool) error {
+	var got struct {
+		List []struct {
+			Permissions permissions `json:"permissions"`
+		} `json:"list"`
+	}
+	if err := c.call(ctx, "x:Account/get", map[string]any{"ids": []string{id}, "properties": []string{"permissions"}}, &got); err != nil {
+		return err
+	}
+	if len(got.List) != 1 {
+		return fmt.Errorf("mail: Stalwart has no account %q", id)
+	}
+	p := got.List[0].Permissions
+	if p.Enabled == nil {
+		p.Enabled = map[string]bool{}
+	}
+	if p.Disabled == nil {
+		p.Disabled = map[string]bool{}
+	}
+	if disabled {
+		p.Disabled[permAuthenticate] = true
+	} else {
+		delete(p.Disabled, permAuthenticate)
+	}
+	var value any = map[string]any{"@type": "Merge", "enabledPermissions": p.Enabled, "disabledPermissions": p.Disabled}
+	if len(p.Enabled) == 0 && len(p.Disabled) == 0 {
+		value = map[string]any{"@type": "Inherit"}
+	}
+	_, err := c.set(ctx, "Account", map[string]any{"update": map[string]any{id: map[string]any{"permissions": value}}})
+	return err
+}
+
+// SetAliases replaces the account's aliases: every one given, enabled, and
+// no other.
+func (c *Client) SetAliases(ctx context.Context, id string, aliases []Alias) error {
+	m := make(map[string]any, len(aliases))
+	for i, a := range aliases {
+		m[strconv.Itoa(i)] = map[string]any{"name": a.Name, "domainId": a.DomainID, "enable": true}
+	}
+	_, err := c.set(ctx, "Account", map[string]any{"update": map[string]any{id: map[string]any{"aliases": m}}})
 	return err
 }
 
