@@ -23,9 +23,10 @@ file and the constants together, so a limit cannot be raised without the memory 
 | API calls | 8 ([The HTTPS API](api.md)) |
 
 - **Each thing is counted by what holds it:** a socket's buffers by sockets, whether in use or not;
-  a proxied request by requests; a connection waiting to be accepted by the queue's length; and an
-  allowance for sockets closed and not yet freed. The heap figures are measured on a test host and
-  rounded up.
+  a proxied request by requests; and an allowance for sockets closed and not yet freed. The heap
+  figures are measured on a test host and rounded up.
+- **A connection waiting to be accepted is not the gate's:** until it is accepted, the kernel holds
+  it in the host's memory, outside the gate's limit. The queue's length bounds how many there are.
 - `MemoryHigh` is below `MemoryMax`: the kernel reclaims and slows the gate before it would end it.
   `GOMEMLIMIT` is the runtime's own part of the sum.
 - An idle gate uses a few megabytes. These are ceilings, not reservations.
