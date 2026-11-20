@@ -66,21 +66,25 @@ func goodSite() map[string]string {
 			`<img src="photo.png" alt="p" srcset="photo.png 1x, /a/photo.png 2x" width="10" height="10">` +
 			`<picture><source srcset="/a/photo.webp" type="image/webp"><img src="/a/photo.png" alt=""></picture>` +
 			`<pre class="mermaid">graph TD; A--&gt;B</pre>` +
+			`<ul><li><input disabled="" type="checkbox"> to do</li><li><input checked="" disabled="" type="checkbox"> done</li></ul>` +
+			`<img src="./https:/x/photo.png" alt="a folder named like a scheme">` +
+			`<table><tr><td align="left">a</td></tr><tr><td colspan="1">… 1200 more rows</td></tr></table>` +
 			`</article>`),
-		"a/index.html":      page(`<pre class="mermaid">graph TD; A--&gt;B</pre>` + scriptMermaid + scriptStart),
-		"a/photo.png":       pngBytes,
-		"a/photo.webp":      "RIFF\x00\x00\x00\x00WEBPVP8 ",
-		"photo.png":         pngBytes,
-		"favicon.png":       pngBytes,
-		"_astro/site.css":   `/* the kit */ :root{--accent:#0b6e4f} body{font-family:serif;background:url(/_astro/bg.png) no-repeat} @font-face{font-family:K;src:url("/_astro/k.woff2") format("woff2")} a::after{content:"url(http://x)"}`,
-		"_astro/bg.png":     pngBytes,
-		"_astro/k.woff2":    "wOF2rest",
-		"robots.txt":        "User-agent: *\nAllow: /\n",
-		"feed.xml":          `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/"><channel><title>T</title><link>https://example.org/</link><description>&lt;p&gt;d&lt;/p&gt;</description><item><title>A</title><link>https://example.org/a/</link><guid>https://example.org/a/</guid><pubDate>Sat, 21 Nov 2026 00:00:00 GMT</pubDate><dc:creator>me</dc:creator></item></channel></rss>`,
-		"sitemap.xml":       `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://example.org/</loc><lastmod>2026-11-21</lastmod></url></urlset>`,
-		"doc/index.html":    page(`<iframe src="_doc.html" sandbox="" title="the document" loading="lazy"></iframe>`),
-		"doc/_doc.html":     `<!doctype html><html><head><style>p{color:red} .x{background:url(img.png)}</style></head><body><p style="margin:0">inert</p></body></html>`,
-		"active/index.html": page(`<iframe src="https://content.example.org/d/1/" sandbox="allow-scripts" title="t"></iframe>`),
+		"https:/x/photo.png": pngBytes,
+		"a/index.html":       page(`<pre class="mermaid">graph TD; A--&gt;B</pre>` + scriptMermaid + scriptStart),
+		"a/photo.png":        pngBytes,
+		"a/photo.webp":       "RIFF\x00\x00\x00\x00WEBPVP8 ",
+		"photo.png":          pngBytes,
+		"favicon.png":        pngBytes,
+		"_astro/site.css":    `/* the kit */ :root{--accent:#0b6e4f} body{font-family:serif;background:url(/_astro/bg.png) no-repeat} @font-face{font-family:K;src:url("/_astro/k.woff2") format("woff2")} a::after{content:"url(http://x)"}`,
+		"_astro/bg.png":      pngBytes,
+		"_astro/k.woff2":     "wOF2rest",
+		"robots.txt":         "User-agent: *\nAllow: /\n",
+		"feed.xml":           `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/"><channel><title>T</title><link>https://example.org/</link><description>&lt;p&gt;d&lt;/p&gt;</description><item><title>A</title><link>https://example.org/a/</link><guid>https://example.org/a/</guid><pubDate>Sat, 21 Nov 2026 00:00:00 GMT</pubDate><dc:creator>me</dc:creator></item></channel></rss>`,
+		"sitemap.xml":        `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://example.org/</loc><lastmod>2026-11-21</lastmod></url></urlset>`,
+		"doc/index.html":     page(`<iframe src="_doc.html" sandbox="" title="the document" loading="lazy"></iframe>`),
+		"doc/_doc.html":      `<!doctype html><html><head><style>p{color:red} .x{background:url(img.png)}</style></head><body><p style="margin:0">inert</p></body></html>`,
+		"active/index.html":  page(`<iframe src="https://content.example.org/d/1/" sandbox="allow-scripts" title="t"></iframe>`),
 	}
 }
 
@@ -139,6 +143,10 @@ func TestHostilePagesAreRefused(t *testing.T) {
 		"a frame of a missing document":    `<iframe src="nothere/_doc.html" sandbox=""></iframe>`,
 		"a form":                           `<form action="/x"><button>go</button></form>`,
 		"an input":                         `<input type="image" src="https://evil.example/x.png">`,
+		"a checkbox that is enabled":       `<input type="checkbox">`,
+		"a disabled text input":            `<input type="text" disabled>`,
+		"a checkbox with a form":           `<input type="checkbox" disabled form="f">`,
+		"a checkbox with an event":         `<input type="checkbox" disabled onclick="x()">`,
 		"a formaction":                     `<button formaction="https://evil.example/">x</button>`,
 		"a base":                           `<base href="https://evil.example/">`,
 		"a refresh":                        `<meta http-equiv="refresh" content="0;url=https://evil.example/">`,

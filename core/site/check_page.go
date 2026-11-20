@@ -24,7 +24,7 @@ const inertPage = "_doc.html"
 // own below.
 var deniedElements = map[string]bool{
 	"object": true, "embed": true, "applet": true, "param": true,
-	"base": true, "form": true, "input": true,
+	"base": true, "form": true,
 	"frame": true, "frameset": true, "portal": true, "fencedframe": true,
 	"template": true, "noscript": true, "noembed": true, "noframes": true,
 	"audio": true, "video": true, "track": true,
@@ -104,6 +104,8 @@ func (p *pageCheck) element(n *html.Node) error {
 		return fmt.Errorf("a <%s> element", name)
 	}
 	switch name {
+	case "input":
+		return checkbox(n)
 	case "script":
 		return p.script(n)
 	case "iframe":
@@ -197,6 +199,22 @@ func (p *pageCheck) link(n *html.Node) error {
 	}
 	if !loads && href != "" && !navigableURL(href) {
 		return fmt.Errorf("<link rel=%q> goes to %q", rel, href)
+	}
+	return nil
+}
+
+// checkbox allows the one input a page has: a task list's item, a checkbox
+// that is disabled, with nothing that sends or loads. Any other input fails.
+func checkbox(n *html.Node) error {
+	typ, _ := attr(n, "type")
+	_, disabled := attr(n, "disabled")
+	if !strings.EqualFold(typ, "checkbox") || !disabled {
+		return errors.New("an <input> that is not a disabled checkbox")
+	}
+	for _, a := range n.Attr {
+		if a.Namespace != "" || (a.Key != "type" && a.Key != "disabled" && a.Key != "checked" && a.Key != "class") {
+			return fmt.Errorf("an <input> with a %s attribute", a.Key)
+		}
 	}
 	return nil
 }
