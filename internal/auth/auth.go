@@ -63,11 +63,13 @@ type Module struct {
 	hasher   password.Argon2id
 	sem      chan struct{}
 	now      func() time.Time
+	browser  *browserGate // one browser login verified at a time, a few waiting
 
-	mu      sync.Mutex
-	fails   map[string]failure // per name, known or not: the doubling wait, and an unknown name's lock
-	touched map[int64]int64    // a token's last_used_at, written once a minute (L4)
-	tokFail []int64            // token login failures in the last minute, for the burst alarm (N1)
+	mu       sync.Mutex
+	fails    map[string]failure // per name, known or not: the doubling wait, and an unknown name's lock
+	webFails map[string]failure // the same for logins from a browser, counted apart (browser.go)
+	touched  map[int64]int64    // a token's last_used_at, written once a minute (L4)
+	tokFail  []int64            // token login failures in the last minute, for the burst alarm (N1)
 }
 
 type failure struct {
@@ -97,7 +99,7 @@ func New(store Store, secrets Secrets, aud Auditor, vault *keyslot.Vault, onUnlo
 	}
 	return &Module{store: store, secrets: secrets, audit: aud, vault: vault, onUnlock: onUnlock, params: params,
 		dummy: dummy, dummyVer: dv, hasher: h, sem: make(chan struct{}, 1), now: time.Now,
-		fails: map[string]failure{}, touched: map[int64]int64{}}, nil
+		fails: map[string]failure{}, webFails: map[string]failure{}, browser: newBrowserGate(), touched: map[int64]int64{}}, nil
 }
 
 func (m *Module) Name() string { return "auth" }
