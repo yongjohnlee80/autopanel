@@ -398,6 +398,42 @@ func applyAndCheck(t *testing.T, db dao.DataConn) {
 			t.Fatalf("%d rows of %s outlived their site: %v", n, table, err)
 		}
 	}
+	// 000011: browser sessions. A session's hash and key are 32 bytes, its host
+	// app or admin, its user a user; a user's sessions go with the user.
+	hash := "'" + strings.Repeat("a", 32) + "'"
+	if err := exec("INSERT INTO app_user(name, created_at) VALUES ('sess', 0)"); err != nil {
+		t.Fatal(err)
+	}
+	sess := func(id, key, host, user string) string {
+		return "INSERT INTO web_session(id_hash, csrf_key, user_id, host, created_at, seen_at) SELECT " + id + ", " + key + ", " + user + ", '" + host + "', 10, 10 FROM app_user WHERE name = 'sess'"
+	}
+	if err := exec(sess(hash, hash, "app", "id")); err != nil {
+		t.Fatal(err)
+	}
+	for what, q := range map[string]string{
+		"a session's hash twice":       sess(hash, hash, "admin", "id"),
+		"a hash that is no digest":     sess("'short'", hash, "app", "id"),
+		"a key that is no key":         sess("'"+strings.Repeat("b", 32)+"'", "'short'", "app", "id"),
+		"a session on no host":         sess("'"+strings.Repeat("c", 32)+"'", hash, "api", "id"),
+		"a session of no user":         sess("'"+strings.Repeat("d", 32)+"'", hash, "app", "999999"),
+		"a session seen before it was": "INSERT INTO web_session(id_hash, csrf_key, user_id, host, created_at, seen_at) SELECT '" + strings.Repeat("e", 32) + "', " + hash + ", id, 'app', 10, 9 FROM app_user WHERE name = 'sess'",
+	} {
+		if err := exec(q); err == nil {
+			t.Errorf("the store accepted %s", what)
+		}
+	}
+	if err := exec("DELETE FROM app_user WHERE name = 'sess'"); err != nil {
+		t.Fatal(err)
+	}
+	if n, err := countRows(ctx, db, "web_session"); err != nil || n != 0 {
+		t.Fatalf("%d sessions outlived their user: %v", n, err)
+	}
+	if name, err := deployments.Runner().Revert(ctx, db, 11); err != nil {
+		t.Fatalf("reverting 000011 = %q, %v", name, err)
+	}
+	if err := exec("SELECT host FROM web_session"); err == nil {
+		t.Fatal("the web_session table outlived its revert")
+	}
 	if name, err := deployments.Runner().Revert(ctx, db, 10); err != nil {
 		t.Fatalf("reverting 000010 = %q, %v", name, err)
 	}
