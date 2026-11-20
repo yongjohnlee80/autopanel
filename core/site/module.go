@@ -50,6 +50,7 @@ var (
 	ErrBodyTooLong = errors.New("site: a document's body is at most 512 KiB, and its front matter 16 KiB")
 	ErrBadMeta     = errors.New("site: a document's front matter is a JSON object")
 	ErrBadData     = errors.New("site: a file's data is base64")
+	ErrHostTaken   = errors.New("site: that host is a site's, or a site's content host")
 )
 
 // Module is site.*.
@@ -92,6 +93,8 @@ func (m *Module) Errors() []module.PublicError {
 		{Err: ErrResourceType, Code: -32320, Name: "site.bad_type", Message: "a file is a PNG, JPEG, WebP or GIF image, a .mmd, a .chart.json or a .csv, and its content must be what its name says"},
 		{Err: ErrResourceSize, Code: -32321, Name: "site.too_large", Message: "an image holds at most 1.4 MiB, a diagram, chart or table 512 KiB"},
 		{Err: ErrNoResource, Code: -32322, Name: "site.no_file", Message: "the document has no such file"},
+		{Err: ErrBadConfig, Code: -32323, Name: "site.bad_config", Message: "the configuration was refused"},
+		{Err: ErrHostTaken, Code: -32324, Name: "site.host_taken", Message: "that host is a site's, or a site's content host"},
 	}
 }
 
@@ -107,6 +110,10 @@ func (m *Module) Verbs() []module.Verb {
 			Doc: "The sites, and how many documents each holds."}), m.list),
 		module.Handle(admin(module.Contract{Verb: "site.remove", Mutates: true, Privileged: true, Param: "{host}",
 			Doc: "Deletes a site with every document published to it."}), m.remove),
+		module.Handle(admin(module.Contract{Verb: "site.set", Mutates: true, Privileged: true, Param: "{host, config?, content_host?}", Result: "{host, content_host, config}",
+			Doc: "Sets a site's configuration (YAML: title, tagline, language, theme, home, nav, footer, look) and its content host. A configuration is validated whole; a refused one changes nothing. Leaving a field out keeps it; an empty content_host clears it."}), m.set),
+		module.Handle(admin(module.Contract{Verb: "site.get", Discloses: module.Plain, Param: "{host}", Result: "{host, content_host, config, security_gen, documents}",
+			Doc: "A site's configuration, with its defaults filled in."}), m.getSite),
 		module.Handle(site(module.Contract{Verb: "site.doc.put", Mutates: true, Param: "{site, slug, format, body, meta?, visibility?, share?: [name], collection?, order?, active?}",
 			Result: "{slug, visibility, version, generation, served}",
 			Doc:    "Publishes a document, or a new version of one of yours. A first publish that names no level is private; an update that names none keeps its level. In this release a document is stored and not yet served."}), m.put),
@@ -162,6 +169,9 @@ func (m *Module) add(ctx context.Context, p SiteAsk) (SiteView, error) {
 	if !validHost(host) {
 		return SiteView{}, ErrBadHost
 	}
+	if err := m.hostFree(ctx, host, 0); err != nil {
+		return SiteView{}, err
+	}
 	s, err := m.store.AddSite(ctx, Site{Host: host, CreatedAt: m.now().Unix()})
 	if err != nil {
 		return SiteView{}, err
@@ -191,6 +201,92 @@ func (m *Module) remove(ctx context.Context, p SiteAsk) (struct{}, error) {
 		return struct{}{}, err
 	}
 	return struct{}{}, m.store.RemoveSite(ctx, s.ID)
+}
+
+// hostFree: no site but except has host as its host or its content host.
+// A content host holds no session and no route; were it also a site's host,
+// an active document would run on a page's origin.
+func (m *Module) hostFree(ctx context.Context, host string, except int64) error {
+	ss, err := m.store.Sites(ctx)
+	if err != nil {
+		return err
+	}
+	for _, s := range ss {
+		if s.ID == except && s.Host == host {
+			continue
+		}
+		if s.Host == host || s.ContentHost == host {
+			return ErrHostTaken
+		}
+	}
+	return nil
+}
+
+// SiteSet changes a site: the fields left out are kept.
+type SiteSet struct {
+	Host        string  `json:"host"`
+	Config      *string `json:"config,omitempty"`       // YAML
+	ContentHost *string `json:"content_host,omitempty"` // "" clears it
+}
+
+// SiteConfigView is a site with its configuration.
+type SiteConfigView struct {
+	Host        string `json:"host"`
+	ContentHost string `json:"content_host,omitempty"`
+	Config      Config `json:"config"`
+	SecurityGen int64  `json:"security_gen,omitempty"`
+	Documents   int    `json:"documents"`
+}
+
+func (m *Module) set(ctx context.Context, p SiteSet) (SiteConfigView, error) {
+	s, err := m.store.SiteByHost(ctx, strings.TrimSpace(p.Host))
+	if err != nil {
+		return SiteConfigView{}, err
+	}
+	config := s.Config
+	if p.Config != nil {
+		c, err := ParseConfig(*p.Config)
+		if err != nil {
+			return SiteConfigView{}, err
+		}
+		config = c.JSON()
+	}
+	content := s.ContentHost
+	if p.ContentHost != nil {
+		content = strings.TrimSpace(*p.ContentHost)
+		if content != "" {
+			if !validHost(content) || content == s.Host {
+				return SiteConfigView{}, ErrBadHost
+			}
+			if err := m.hostFree(ctx, content, s.ID); err != nil {
+				return SiteConfigView{}, err
+			}
+		}
+	}
+	if s, err = m.store.SetSite(ctx, s.ID, config, content); err != nil {
+		return SiteConfigView{}, err
+	}
+	return m.siteView(ctx, s)
+}
+
+func (m *Module) getSite(ctx context.Context, p SiteAsk) (SiteConfigView, error) {
+	s, err := m.store.SiteByHost(ctx, strings.TrimSpace(p.Host))
+	if err != nil {
+		return SiteConfigView{}, err
+	}
+	return m.siteView(ctx, s)
+}
+
+func (m *Module) siteView(ctx context.Context, s Site) (SiteConfigView, error) {
+	c, err := StoredConfig(s)
+	if err != nil {
+		return SiteConfigView{}, err
+	}
+	ds, err := m.store.Docs(ctx, s.ID)
+	if err != nil {
+		return SiteConfigView{}, err
+	}
+	return SiteConfigView{Host: s.Host, ContentHost: s.ContentHost, Config: c, SecurityGen: s.SecurityGen, Documents: len(ds)}, nil
 }
 
 // --- documents -----------------------------------------------------------------
