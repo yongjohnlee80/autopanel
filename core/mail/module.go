@@ -203,6 +203,8 @@ var (
 	ErrBadAddress        = errors.New("mail: not a mail address of a mail domain")
 	ErrNoAccount         = errors.New("mail: no such account")
 	ErrAccountExists     = errors.New("mail: the account exists")
+	ErrAddressTaken      = errors.New("mail: the address is an account's, or another account's alias")
+	ErrTooManyAliases    = errors.New("mail: an account has at most 20 aliases")
 	ErrServer            = errors.New("mail: the mail server refused")
 	ErrAdminAccount      = errors.New("mail: that is the mail server's administrator")
 	ErrNoRecord          = errors.New("mail: no record of that name and type is held by another")
@@ -317,6 +319,8 @@ func (m *Module) Errors() []module.PublicError {
 		{Err: ErrBadAddress, Code: -32140, Name: "mail.bad_address", Message: "an address is a local part (letters, digits, . _ + -) and a domain that receives mail"},
 		{Err: ErrNoAccount, Code: -32141, Name: "mail.no_account", Message: "no such account"},
 		{Err: ErrAccountExists, Code: -32142, Name: "mail.account_exists", Message: "that account exists"},
+		{Err: ErrAddressTaken, Code: -32218, Name: "mail.address_taken", Message: "the address is an account's, or another account's alias"},
+		{Err: ErrTooManyAliases, Code: -32219, Name: "mail.too_many_aliases", Message: "an account has at most 20 aliases"},
 		{Err: ErrServer, Code: -32144, Name: "mail.refused", Message: "the mail server refused the change"},
 		{Err: ErrNoRecord, Code: -32146, Name: "mail.no_record", Message: "no needed record of that name and type is held by one AutoPanel did not write"},
 		{Err: ErrNoDNS, Code: -32147, Name: "mail.no_dns", Message: "no DNS token: set one (certs.cloudflare.set) for AutoPanel to publish records"},
@@ -355,7 +359,7 @@ func (m *Module) Verbs() []module.Verb {
 		module.Handle(module.Contract{Verb: "mail.domain.list", Discloses: module.Plain, Since: 6, Result: "[{name}]", Doc: "The domains that receive mail."}, m.domainList),
 		module.Handle(change("mail.domain.add", "{name}", "Has a registry domain receive mail."), m.domainAdd),
 		module.Handle(change("mail.domain.remove", "{name}", "Stops a domain receiving mail; refused while it has accounts."), m.domainRemove),
-		module.Handle(module.Contract{Verb: "mail.account.list", Discloses: module.Plain, Since: 6, Param: "{domain?}", Result: "[{address, quota, used, aliases}]",
+		module.Handle(module.Contract{Verb: "mail.account.list", Discloses: module.Plain, Since: 6, Param: "{domain?}", Result: "[{address, quota, used, aliases, disabled}]",
 			Doc: "The mail accounts, of one domain or of all."}, m.accountList),
 		module.Handle(change("mail.account.add", "{address, quota?}", "Makes a mail account. Its own password is generated and told to no one: mail apps sign in with its app passwords."), m.accountAdd),
 		module.Handle(change("mail.account.lock", "{address}", "Replaces an account's own password, typed under an older AutoPanel, with one no one knows: from then on only its app passwords sign in."), m.accountLock),
@@ -366,6 +370,11 @@ func (m *Module) Verbs() []module.Verb {
 		module.Handle(change("mail.apppassword.keep", "{address, id}", "Keeps a pending app password, once its device signs in: it works until revoked. One already expired is destroyed instead."), m.appPasswordKeep),
 		module.Handle(change("mail.apppassword.revoke", "{address, id}", "Revokes an app password: its device stops signing in at once."), m.appPasswordRevoke),
 		module.Handle(change("mail.account.quota", "{address, quota}", "Sets an account's quota, in bytes."), m.accountQuota),
+		module.Handle(func() module.Contract {
+			c := change("mail.account.set", "{address, disabled?, aliases?: [address]}", "Disables an account or enables it again (a disabled account signs nothing in and keeps its mail), or replaces its aliases: addresses of mail's domains that deliver to it.")
+			c.Since = 11
+			return c
+		}(), m.accountSet),
 		module.Handle(change("mail.account.remove", "{address}", "Deletes a mail account and its mail."), m.accountRemove),
 		module.Handle(module.Contract{Verb: "mail.records", Discloses: module.Plain, Since: 6, Param: "{domain}", Result: "{at, records: [{name, type, value, found, state, why, error?}], dkim: [{selector, step, since}]}",
 			Doc: "The records a mail domain (or the mail host) needs, and each one's state as the last pass found it: ok, publishing, different (a record AutoPanel did not write holds its place), manual (no DNS token), failed."}, m.records),
@@ -1049,10 +1058,11 @@ func (m *Module) Uses(ctx context.Context, name string) (string, bool) {
 
 // AccountView is one mail account.
 type AccountView struct {
-	Address string   `json:"address"`
-	Quota   int64    `json:"quota"`
-	Used    int64    `json:"used"`
-	Aliases []string `json:"aliases"`
+	Address  string   `json:"address"`
+	Quota    int64    `json:"quota"`
+	Used     int64    `json:"used"`
+	Aliases  []string `json:"aliases"`
+	Disabled bool     `json:"disabled"`
 }
 
 // DomainAsk is mail.account.list's param.
@@ -1065,6 +1075,17 @@ type AccountAsk struct {
 	Address string `json:"address"`
 	Quota   int64  `json:"quota"`
 }
+
+// AccountSet is mail.account.set's param: what to change of an account.
+// What is left out is not changed.
+type AccountSet struct {
+	Address  string    `json:"address"`
+	Disabled *bool     `json:"disabled,omitempty"`
+	Aliases  *[]string `json:"aliases,omitempty"` // every alias it is to have; [] for none
+}
+
+// MaxAliases is how many aliases an account may have.
+const MaxAliases = 20
 
 var localPart = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9._+-]{0,62}[a-z0-9])?$`)
 
@@ -1116,7 +1137,7 @@ func (m *Module) accountList(ctx context.Context, p DomainAsk) ([]AccountView, e
 		if p.Domain != "" && names[a.DomainID] != strings.ToLower(p.Domain) {
 			continue
 		}
-		v := AccountView{Address: a.Address, Quota: a.Quota, Used: a.Used, Aliases: []string{}}
+		v := AccountView{Address: a.Address, Quota: a.Quota, Used: a.Used, Aliases: []string{}, Disabled: a.Disabled}
 		for _, al := range a.Aliases {
 			v.Aliases = append(v.Aliases, al.Local+"@"+names[al.DomainID])
 		}
@@ -1175,6 +1196,11 @@ func (m *Module) accountAdd(ctx context.Context, p AccountAsk) (AccountView, err
 	case !errors.Is(err, ErrNoAccount):
 		return AccountView{}, err
 	}
+	if owner, err := aliasOwner(ctx, c, local, domainID); err != nil {
+		return AccountView{}, err
+	} else if owner != "" {
+		return AccountView{}, ErrAddressTaken
+	}
 	if _, err := c.AddAccount(ctx, provider.NewAccount{Local: local, DomainID: domainID, Quota: quota, AppPasswords: AppPasswordLimit}); err != nil {
 		return AccountView{}, serverErr(err)
 	}
@@ -1198,6 +1224,108 @@ func (m *Module) accountQuota(ctx context.Context, p AccountAsk) (struct{}, erro
 		return struct{}{}, err
 	}
 	return struct{}{}, serverErr(c.SetQuota(ctx, a.ID, p.Quota))
+}
+
+// aliasOwner is the id of the account that has local@domainID as an alias,
+// or "".
+func aliasOwner(ctx context.Context, c provider.Server, local, domainID string) (string, error) {
+	accounts, err := c.Accounts(ctx)
+	if err != nil {
+		return "", err
+	}
+	for _, a := range accounts {
+		for _, al := range a.Aliases {
+			if al.Local == local && al.DomainID == domainID {
+				return a.ID, nil
+			}
+		}
+	}
+	return "", nil
+}
+
+// accountSet disables or enables an account, or replaces its aliases. An
+// alias is an address of a domain that receives mail, and is no account's
+// own address and no other account's alias. Aliases are checked before
+// anything is changed: a change that is refused changes nothing.
+func (m *Module) accountSet(ctx context.Context, p AccountSet) (AccountView, error) {
+	c, err := m.ready(ctx)
+	if err != nil {
+		return AccountView{}, err
+	}
+	local, domain, err := m.address(ctx, p.Address)
+	if err != nil {
+		return AccountView{}, err
+	}
+	if p.Disabled == nil && p.Aliases == nil {
+		return AccountView{}, module.ErrInvalidParams
+	}
+	a, _, err := m.find(ctx, c, local, domain)
+	if err != nil {
+		return AccountView{}, err
+	}
+	var want []provider.Alias
+	if p.Aliases != nil {
+		if len(*p.Aliases) > MaxAliases {
+			return AccountView{}, ErrTooManyAliases
+		}
+		ds, err := c.Domains(ctx)
+		if err != nil {
+			return AccountView{}, err
+		}
+		ids := map[string]string{}
+		for _, d := range ds {
+			ids[d.Name] = d.ID
+		}
+		accounts, err := c.Accounts(ctx)
+		if err != nil {
+			return AccountView{}, err
+		}
+		seen := map[provider.Alias]bool{}
+		for _, addr := range *p.Aliases {
+			l, dom, err := m.address(ctx, addr)
+			if err != nil {
+				return AccountView{}, err
+			}
+			id, ok := ids[dom]
+			if !ok {
+				return AccountView{}, ErrBadAddress
+			}
+			al := provider.Alias{Local: l, DomainID: id}
+			if seen[al] {
+				continue
+			}
+			seen[al] = true
+			for _, o := range accounts {
+				if o.Local == l && o.DomainID == id {
+					return AccountView{}, ErrAddressTaken // an account's own address, this one's included
+				}
+				if o.ID != a.ID && slices.Contains(o.Aliases, al) {
+					return AccountView{}, ErrAddressTaken
+				}
+			}
+			want = append(want, al)
+		}
+	}
+	if p.Aliases != nil {
+		if err := c.SetAliases(ctx, a.ID, want); err != nil {
+			return AccountView{}, serverErr(err)
+		}
+	}
+	if p.Disabled != nil && *p.Disabled != a.Disabled {
+		if err := c.SetDisabled(ctx, a.ID, *p.Disabled); err != nil {
+			return AccountView{}, serverErr(err)
+		}
+	}
+	views, err := m.accountList(ctx, DomainAsk{Domain: domain})
+	if err != nil {
+		return AccountView{}, err
+	}
+	for _, v := range views {
+		if v.Address == local+"@"+domain {
+			return v, nil
+		}
+	}
+	return AccountView{}, ErrNoAccount
 }
 
 func (m *Module) accountRemove(ctx context.Context, p AccountAsk) (struct{}, error) {
