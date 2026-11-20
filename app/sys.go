@@ -47,6 +47,8 @@ type sysModule struct {
 	// tunnelChecks is the check of the tunnels that routes and forwards
 	// depend on. It does not wait on the firewall being readable.
 	tunnelChecks func(ctx context.Context) []Check
+	// busyChecks is the check of what the gate refused at its limits.
+	busyChecks func(ctx context.Context) []Check
 	// certRows are the certificates' states, for their host checks; nil
 	// when none are wired.
 	certRows func(ctx context.Context) []CertRow

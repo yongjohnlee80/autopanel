@@ -127,6 +127,9 @@ func (m *sysModule) checks(ctx context.Context, _ struct{}) ([]Check, error) {
 	if m.tunnelChecks != nil {
 		out = append(out, m.tunnelChecks(ctx)...)
 	}
+	if m.busyChecks != nil {
+		out = append(out, m.busyChecks(ctx)...)
+	}
 	if m.moreChecks != nil && fwErr == nil {
 		out = append(out, m.moreChecks(ctx, fw)...)
 	}

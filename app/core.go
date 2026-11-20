@@ -317,6 +317,7 @@ func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateContr
 	agentsRev := newRevision(time.Now().Unix())
 	tm := coretunnel.NewModule(st.Tunnels(), func(context.Context) error { agentsRev.bump(); return nil }, counts.tunnelStatus)
 	sys.tunnelChecks = tunnelChecks(st.Routes(), st.Forwards(), counts.tunnelStatus)
+	sys.busyChecks = busyChecks(counts)
 	mods := []module.Module{am, gm, fm, tm, &certsModule{sw: sw}, sys, firewallModule{fwm}, servicesModule{svcs}, mailMod, apiMod}
 	if err := apiMod.serve(mods...); err != nil {
 		return err

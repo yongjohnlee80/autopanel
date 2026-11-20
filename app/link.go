@@ -153,6 +153,7 @@ func (m *linkModule) report(_ context.Context, p hostgate.Report) (struct{}, err
 	m.counts.streamsOpen.Store(p.StreamsOpen)
 	m.counts.streamsServed.Store(p.StreamsServed)
 	m.counts.streamsRefused.Store(p.StreamsRefused)
+	m.counts.noteRefused(p.ConnsRefused, p.ProxiedRefused, time.Now())
 	if len(p.Unproxied) > maxUnproxied { // the gate's word: kept short, whatever it sent
 		p.Unproxied = p.Unproxied[:maxUnproxied]
 	}
