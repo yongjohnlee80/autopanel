@@ -1911,6 +1911,10 @@
         <source>Nothing reaches the forward from outside until its port is allowed: edit the forward and open its port, or allow it in System → Firewall.</source>
         <translation>ポートを許可するまで、外部からこの転送には届きません。転送を編集してポートを開くか、システム → ファイアウォールで許可してください。</translation>
     </message>
+    <message id="autopanel.notice.check.gateBusy">
+        <source>The gate takes a fixed number of connections and of requests at once, so that no load can use up its memory. A short burst needs nothing done. If it lasts, the gate's log says how much (sudo journalctl -u autopanel-gate).</source>
+        <translation>ゲートは、どんな負荷でもメモリを使い切らないよう、同時に受け付ける接続数とリクエスト数を固定しています。一時的な集中であれば対応は不要です。続く場合は、ゲートのログで規模を確認してください（sudo journalctl -u autopanel-gate）。</translation>
+    </message>
     <message id="autopanel.notice.check.gatePortBlocked">
         <source>Allow them in System → Firewall: without them the sites cannot be reached and certificates cannot renew.</source>
         <translation>システム → ファイアウォールで許可してください。ないとサイトに届かず、証明書も更新できません。</translation>
@@ -3350,6 +3354,10 @@
     <message id="autopanel.value.check.forwardPortBlocked">
         <source>The firewall blocks a port forward's port: %1</source>
         <translation>ファイアウォールがポート転送のポートを遮断しています: %1</translation>
+    </message>
+    <message id="autopanel.value.check.gateBusy">
+        <source>The gate turned requests away at its limits in the last ten minutes: %1</source>
+        <translation>過去10分間に、ゲートが上限に達してリクエストを拒否しました: %1</translation>
     </message>
     <message id="autopanel.value.check.gatePortBlocked">
         <source>The firewall blocks AutoPanel's web ports: %1</source>

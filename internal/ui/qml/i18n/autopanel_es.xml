@@ -1911,6 +1911,10 @@
         <source>Nothing reaches the forward from outside until its port is allowed: edit the forward and open its port, or allow it in System → Firewall.</source>
         <translation>Nada llega al reenvío desde fuera hasta que se permita su puerto: edite el reenvío y abra su puerto, o permítalo en Sistema → Cortafuegos.</translation>
     </message>
+    <message id="autopanel.notice.check.gateBusy">
+        <source>The gate takes a fixed number of connections and of requests at once, so that no load can use up its memory. A short burst needs nothing done. If it lasts, the gate's log says how much (sudo journalctl -u autopanel-gate).</source>
+        <translation>La pasarela acepta un número fijo de conexiones y de solicitudes a la vez, para que ninguna carga pueda agotar su memoria. Un pico breve no requiere hacer nada. Si persiste, el registro de la pasarela indica cuánto (sudo journalctl -u autopanel-gate).</translation>
+    </message>
     <message id="autopanel.notice.check.gatePortBlocked">
         <source>Allow them in System → Firewall: without them the sites cannot be reached and certificates cannot renew.</source>
         <translation>Permítelos en Sistema → Cortafuegos: sin ellos los sitios no se alcanzan y los certificados no se renuevan.</translation>
@@ -3350,6 +3354,10 @@
     <message id="autopanel.value.check.forwardPortBlocked">
         <source>The firewall blocks a port forward's port: %1</source>
         <translation>El cortafuegos bloquea el puerto de un reenvío: %1</translation>
+    </message>
+    <message id="autopanel.value.check.gateBusy">
+        <source>The gate turned requests away at its limits in the last ten minutes: %1</source>
+        <translation>La pasarela rechazó solicitudes al llegar a sus límites en los últimos diez minutos: %1</translation>
     </message>
     <message id="autopanel.value.check.gatePortBlocked">
         <source>The firewall blocks AutoPanel's web ports: %1</source>

@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"net/netip"
 	"net/url"
@@ -11,6 +12,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -47,6 +49,68 @@ type counters struct {
 
 	// The gate's last probe of its streams' targets: nil before the first.
 	probe atomic.Pointer[hostgate.Report]
+
+	// What the gate refused at its limits, lately (busy).
+	busyMu     sync.Mutex
+	busyLast   [2]int64 // the gate's totals at its last report: connections, requests
+	busyRecent []busyAt
+}
+
+// busyAt is what one report added to the gate's refusals.
+type busyAt struct {
+	at          time.Time
+	conns, reqs int64
+}
+
+// busyWindow is how long a refusal is still spoken of.
+const busyWindow = 10 * time.Minute
+
+// noteRefused takes the gate's totals of connections closed and requests
+// answered 503 at its limits. The totals start again when the gate does.
+func (c *counters) noteRefused(conns, reqs int64, now time.Time) {
+	c.busyMu.Lock()
+	defer c.busyMu.Unlock()
+	dc, dr := conns-c.busyLast[0], reqs-c.busyLast[1]
+	if dc < 0 || dr < 0 { // a new gate: its totals are all new
+		dc, dr = conns, reqs
+	}
+	c.busyLast = [2]int64{conns, reqs}
+	if dc > 0 || dr > 0 {
+		c.busyRecent = append(c.busyRecent, busyAt{at: now, conns: dc, reqs: dr})
+	}
+	c.trimBusy(now)
+}
+
+func (c *counters) trimBusy(now time.Time) {
+	i := 0
+	for i < len(c.busyRecent) && now.Sub(c.busyRecent[i].at) > busyWindow {
+		i++
+	}
+	c.busyRecent = c.busyRecent[i:]
+}
+
+// busy is what the gate refused at its limits within busyWindow.
+func (c *counters) busy(now time.Time) (conns, reqs int64) {
+	c.busyMu.Lock()
+	defer c.busyMu.Unlock()
+	c.trimBusy(now)
+	for _, b := range c.busyRecent {
+		conns, reqs = conns+b.conns, reqs+b.reqs
+	}
+	return conns, reqs
+}
+
+// busyChecks is the host check gate-busy: the gate closed connections or
+// answered 503 at its limits in the last minutes. A notice: the limits are
+// what keeps the gate up, and a burst needs nothing done.
+func busyChecks(c *counters) func(context.Context) []Check {
+	return func(context.Context) []Check {
+		conns, reqs := c.busy(time.Now())
+		if conns == 0 && reqs == 0 {
+			return nil
+		}
+		return []Check{{ID: "gate-busy", Severity: notice, Detail: fmt.Sprintf("%d requests, %d connections", reqs, conns)}}
+	}
 }
 
 // unproxied are the streams whose target no longer waits for the gate's PROXY
