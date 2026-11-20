@@ -230,16 +230,28 @@ func (h *Host) HasImage(ctx context.Context, name, ref string) (bool, error) {
 // and waits for it. Run as the core's own child it would count against the
 // core's memory limit, and unpacking an image takes more than the core has.
 func (h *Host) pull(ctx context.Context, name, ref string) error {
+	_, err := h.Transient(ctx, name, nil, "/usr/bin/podman", "pull", "--quiet", ref)
+	return err
+}
+
+// Transient runs argv as a transient unit of the stack user's own systemd and
+// waits for it, answering what it printed. The unit is collected when it
+// ends, its control group killed with it, so nothing it started outlives it.
+// props are the unit's properties (systemd-run -p), such as MemoryMax.
+func (h *Host) Transient(ctx context.Context, name string, props []string, argv ...string) ([]byte, error) {
 	usr, uid, _, err := stackUser(name)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	home := h.home(name)
-	_, err = hostcmd.Run(ctx, hostcmd.Runuser, "-u", usr, "--", "/usr/bin/env", "-C", home,
-		"XDG_RUNTIME_DIR=/run/user/"+strconv.Itoa(uid), "HOME="+home,
-		"/usr/bin/systemd-run", "--user", "--quiet", "--wait", "--collect", "--pipe", "--working-directory="+home,
-		"--setenv=HOME="+home, "/usr/bin/podman", "pull", "--quiet", ref)
-	return err
+	args := []string{"-u", usr, "--", "/usr/bin/env", "-C", home,
+		"XDG_RUNTIME_DIR=/run/user/" + strconv.Itoa(uid), "HOME=" + home,
+		"/usr/bin/systemd-run", "--user", "--quiet", "--wait", "--collect", "--pipe", "--working-directory=" + home,
+		"--setenv=HOME=" + home}
+	for _, p := range props {
+		args = append(args, "-p", p)
+	}
+	return hostcmd.Run(ctx, hostcmd.Runuser, append(append(args, "--"), argv...)...)
 }
 
 // Pull pulls ref as the stack's user and answers the digest it resolved.

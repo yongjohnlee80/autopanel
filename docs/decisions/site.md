@@ -158,6 +158,27 @@ the whole build.
 **In the code:** `host/site/files.go`; `TestTheSwapIsAtomic` reads continuously from four readers
 during 100 swaps.
 
+## A build runs as its own user, in a container with no network
+
+**Decided:** the build runs as `ap-site` under that user's own systemd, as a stack's pull does. It
+is not a child of the core, so its memory is not counted against the core.
+
+- **The unit is collected when it ends,** its control group killed with it, so nothing the build
+  started outlives it and writes to the output after the core has taken it away. The unit has a
+  memory ceiling of its own, above the container's.
+- **The container:**
+  - no network, a read-only root, no capability, no new privilege;
+  - at most 512 MB of memory and no swap, 256 processes, 120 seconds, no file over 10 MiB, and
+    64 MB of scratch in `/tmp`;
+  - the input and a theme read-only; the output is the one place it writes;
+  - it never pulls: the image is prepared beforehand, by its digest, and named by digest every time.
+- **`site` is no stack's name.** A stack runs as `ap-` and its name, and would get the builder's
+  user.
+
+**In the code:** `host/site/builder.go`. `TestARealBuild` runs on the test VM as root with a small
+image by digest, and checks from inside the container that the network, a write outside the
+output, a write to the input and a file over the limit all fail.
+
 ## The audit log names a document, never its text
 
 **Decided:** every change to a site or a document has its entry, written in the change's own

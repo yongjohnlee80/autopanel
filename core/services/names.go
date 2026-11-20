@@ -46,3 +46,17 @@ func ValidName(name string) bool { return nameRE.MatchString(name) }
 
 // UserOf is the host user a stack runs as.
 func UserOf(name string) string { return "ap-" + name }
+
+// builtIn are names AutoPanel's own users hold, which no stack may take: a
+// stack is run as "ap-" and its name, and would get that user. "site" is the
+// site's builder (ap-site).
+var builtIn = map[string]bool{"site": true}
+
+// BuiltIn reports whether name is one of AutoPanel's own users' names.
+func BuiltIn(name string) bool { return builtIn[name] }
+
+// owned reports whether name is a stack nobody but AutoPanel may write: one
+// of its own users' names, or a stack a module owns (mail).
+func (m *Module) owned(name string) bool {
+	return builtIn[name] || (m.guard != nil && m.guard.Owns(name))
+}

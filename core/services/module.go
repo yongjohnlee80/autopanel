@@ -243,7 +243,7 @@ func (m *Module) Errors() []module.PublicError {
 		{Err: ErrNotApplied, Code: -32185, Name: "services.not_applied", Message: "the stack has not been applied yet"},
 		{Err: ErrLegacy, Code: -32186, Name: "services.legacy", Message: "the stack was deployed from a template by an older AutoPanel; remove it, and add it again as a stack"},
 		{Err: ErrNoService, Code: -32187, Name: "services.no_service", Message: "the stack has no such service"},
-		{Err: ErrReserved, Code: -32188, Name: "services.reserved", Message: "that stack is AutoPanel's own: it is written and changed from its menu (Mail), never imported"},
+		{Err: ErrReserved, Code: -32188, Name: "services.reserved", Message: "that name is AutoPanel's own: the mail stack is written and changed from its menu (Mail), and site is the site builder's user; neither is imported or removed as a stack"},
 		{Err: ErrNotOwnPort, Code: -32143, Name: "services.not_own_port", Message: "a port to open is not one the stack publishes on a public address"},
 		{Err: ErrNoDefinition, Code: -32190, Name: "services.no_definition", Message: "no folder of that name with a compose.yaml in it"},
 		{Err: ErrNotFound, Code: -32191, Name: "services.not_found", Message: "no such stack"},
@@ -694,7 +694,7 @@ func (m *Module) restart(ctx context.Context, r Ref) (View, error) {
 }
 
 func (m *Module) remove(ctx context.Context, p Remove) (struct{}, error) {
-	if m.guard != nil && m.guard.Owns(p.Name) {
+	if m.owned(p.Name) {
 		return struct{}{}, ErrReserved // its owner removes it, with what it keeps beside the stack
 	}
 	return struct{}{}, m.removeStack(ctx, p)
