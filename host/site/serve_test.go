@@ -29,6 +29,7 @@ func served(t *testing.T) (Server, Files) {
 		"s.css":            "body{}",
 		"p.png":            "\x89PNG\r\n\x1a\nrest",
 		"x.js":             "alert(1)", // never passes the check; the server must not serve it either
+		"_kit/m.js":        "/* the kit's */",
 		"feed.xml":         "<rss/>",
 		"robots.txt":       "User-agent: *\n",
 		".hidden.html":     "<p>hidden</p>",
@@ -50,7 +51,7 @@ func served(t *testing.T) (Server, Files) {
 		t.Fatal(err)
 	}
 	m := Manifest{Build: 7, SecurityGen: 1, Mermaid: []string{"d/index.html"},
-		ScriptHashes: []string{"sha256-AAAA", "sha256-BBBB"}, ContentHost: "content.example.com"}
+		ScriptHashes: []string{"sha256-AAAA", "sha256-BBBB"}, Scripts: []string{"_kit/m.js"}, ContentHost: "content.example.com"}
 	if err := f.WriteManifest(w, m); err != nil {
 		t.Fatal(err)
 	}
@@ -119,6 +120,10 @@ func TestTheServerServesPagesWithTheirPolicy(t *testing.T) {
 	// An inert document is a sandbox.
 	if csp := get(s, "GET", "blog.example.com", "/doc/_doc.html").Header.Get("Content-Security-Policy"); !strings.HasPrefix(csp, "sandbox;") {
 		t.Errorf("an inert document's policy: %s", csp)
+	}
+	// The kit's script, named by the manifest, is served as a script; no other is.
+	if res := get(s, "GET", "blog.example.com", "/_kit/m.js"); res.StatusCode != 200 || res.Header.Get("Content-Type") != "text/javascript; charset=utf-8" {
+		t.Errorf("the kit's script: %d %q", res.StatusCode, res.Header.Get("Content-Type"))
 	}
 	// Types by the fixed list.
 	for target, ctype := range map[string]string{"/s.css": "text/css; charset=utf-8", "/p.png": "image/png", "/feed.xml": "application/xml; charset=utf-8", "/robots.txt": "text/plain; charset=utf-8"} {

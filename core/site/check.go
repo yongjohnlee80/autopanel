@@ -2,6 +2,8 @@ package site
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -238,6 +240,12 @@ func (c *checker) check(rel string) error {
 		if sniffImage(data) != want {
 			return refuse(rel, "an image whose content is not what its name says")
 		}
+	case ".js":
+		// Only the kit's own scripts, at their paths, with the bytes their
+		// integrity names: the one script a site may serve.
+		if !c.kitScript(rel, data) {
+			return refuse(rel, "a script that is not one of the kit's, with its integrity")
+		}
 	case ".woff2", ".woff":
 		magic := map[string]string{".woff2": "wOF2", ".woff": "wOFF"}[ext]
 		if !bytes.HasPrefix(data, []byte(magic)) {
@@ -247,6 +255,19 @@ func (c *checker) check(rel string) error {
 		return refuse(rel, "a type of file a site does not serve")
 	}
 	return nil
+}
+
+// kitScript reports whether rel is one of the kit's scripts and data is what
+// its integrity value names (sha256, base64, as Subresource Integrity has it).
+func (c *checker) kitScript(rel string, data []byte) bool {
+	sum := sha256.Sum256(data)
+	got := "sha256-" + base64.StdEncoding.EncodeToString(sum[:])
+	for _, k := range c.opt.KitScripts {
+		if strings.TrimPrefix(k.Path, "/") == rel && k.Integrity == got {
+			return true
+		}
+	}
+	return false
 }
 
 // exists reports whether the walk found rel: once the walk is done, the disk

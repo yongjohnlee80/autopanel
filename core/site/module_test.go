@@ -240,6 +240,19 @@ func TestADocumentsFiles(t *testing.T) {
 	if _, err := call[[]site.AssetView](t, m, "user:bob", "site.asset.list", ask("", "")); !errors.Is(err, site.ErrNotYours) {
 		t.Fatalf("another member's list of a public document's files: %v", err)
 	}
+	if _, err := call[site.AssetData](t, m, "user:bob", "site.asset.get", ask("images/flow.png", "")); !errors.Is(err, site.ErrNotYours) {
+		t.Fatalf("another member reading a file: %v", err)
+	}
+	// An administrator reads a document's files, audited each time.
+	if list, err := call[[]site.AssetView](t, m, "user:root", "site.asset.list", ask("", "")); err != nil || len(list) != 1 {
+		t.Fatalf("an administrator's list: %+v, %v", list, err)
+	}
+	if d, err := call[site.AssetData](t, m, "user:root", "site.asset.get", ask("images/flow.png", "")); err != nil || d.Data != png || d.MIME != "image/png" {
+		t.Fatalf("an administrator reading a file: %+v, %v", d, err)
+	}
+	if n := auditCount(t, st, "site.doc.read"); n != 2 {
+		t.Fatalf("an administrator's reads audited %d times", n)
+	}
 	if _, err := call[struct{}](t, m, "user:ann", "site.asset.remove", ask("images/flow.png", "")); err != nil {
 		t.Fatal(err)
 	}
