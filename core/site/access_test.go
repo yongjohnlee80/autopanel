@@ -28,15 +28,15 @@ func TestWhoMayDoWhat(t *testing.T) {
 	want := map[string]map[string][]string{
 		ActRead: {
 			Public:    {"anonymous", "a grant", "a stale grant", "the owner", "a shared member", "another member", "an admin", "an admin owner"},
-			Protected: {"a grant"},
+			Protected: {"a grant", "an admin", "an admin owner"},
 			Internal:  {"the owner", "a shared member", "another member", "an admin", "an admin owner"},
-			Private:   {"the owner", "a shared member", "an admin owner"},
+			Private:   {"the owner", "a shared member", "an admin", "an admin owner"},
 		},
 		ActList: {
 			Public:    {"anonymous", "a grant", "a stale grant", "the owner", "a shared member", "another member", "an admin", "an admin owner"},
-			Protected: {"the owner", "an admin owner"},
+			Protected: {"the owner", "an admin", "an admin owner"},
 			Internal:  {"the owner", "a shared member", "another member", "an admin", "an admin owner"},
-			Private:   {"the owner", "a shared member", "an admin owner"},
+			Private:   {"the owner", "a shared member", "an admin", "an admin owner"},
 		},
 		ActExists: {
 			Public:    {"anonymous", "a grant", "a stale grant", "the owner", "a shared member", "another member", "an admin", "an admin owner"},
@@ -44,7 +44,7 @@ func TestWhoMayDoWhat(t *testing.T) {
 			Internal:  {"the owner", "a shared member", "another member", "an admin", "an admin owner"},
 			Private:   {"the owner", "a shared member", "an admin", "an admin owner"},
 		},
-		ActSource:   {Public: {"the owner", "an admin owner"}, Protected: {"the owner", "an admin owner"}, Internal: {"the owner", "an admin owner"}, Private: {"the owner", "an admin owner"}},
+		ActSource:   {Public: {"the owner", "an admin", "an admin owner"}, Protected: {"the owner", "an admin", "an admin owner"}, Internal: {"the owner", "an admin", "an admin owner"}, Private: {"the owner", "an admin", "an admin owner"}},
 		ActChange:   {Public: {"the owner", "an admin owner"}, Protected: {"the owner", "an admin owner"}, Internal: {"the owner", "an admin owner"}, Private: {"the owner", "an admin owner"}},
 		ActProtect:  {Protected: {"the owner", "an admin", "an admin owner"}},
 		ActRemove:   {Public: {"the owner", "an admin", "an admin owner"}, Protected: {"the owner", "an admin", "an admin owner"}, Internal: {"the owner", "an admin", "an admin owner"}, Private: {"the owner", "an admin", "an admin owner"}},
@@ -64,10 +64,26 @@ func TestWhoMayDoWhat(t *testing.T) {
 			}
 		}
 	}
-	// The two things the table must never give: an admin who is not the owner
-	// reads no private document, and nobody transfers one.
-	if MayRead(readers["an admin"], doc(Private)) {
-		t.Error("an administrator read a private document that is not theirs")
+	// An administrator answers for what the site holds, so reads everything
+	// (Johno, 2026-11-21: "for legal purposes"), changes nothing of another's,
+	// and each read only the role allows is one the audit log records.
+	for _, level := range []string{Public, Protected, Internal, Private} {
+		if !MayRead(readers["an admin"], doc(level)) || May(readers["an admin"], ActChange, doc(level)) {
+			t.Errorf("an administrator and a %s document", level)
+		}
+	}
+	for level, want := range map[string]bool{Public: false, Protected: true, Internal: false, Private: true} {
+		if got := ByAdminOnly(readers["an admin"], ActRead, doc(level)); got != want {
+			t.Errorf("reading a %s document by the role alone: %v", level, got)
+		}
+		// An owner's read of their own source is never the role's (their page,
+		// when protected, needs a grant like anyone's).
+		if ByAdminOnly(readers["an admin owner"], ActSource, doc(level)) || ByAdminOnly(readers["the owner"], ActSource, doc(level)) {
+			t.Errorf("an owner's read of their %s document's source is not the role's", level)
+		}
+	}
+	if got := ByAdminOnly(readers["an admin"], ActSource, doc(Public)); !got {
+		t.Error("an administrator's read of another's source is the role's")
 	}
 	// A grant does not open a document that is no longer protected.
 	for _, level := range []string{Internal, Private} {

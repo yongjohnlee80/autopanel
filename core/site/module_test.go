@@ -72,7 +72,8 @@ func call[R any](t *testing.T, m *site.Module, as, verb string, param any) (R, e
 // what it does not name, a document is its owner's to change and read the
 // source of, a list shows only what the caller may see listed, a refusal for
 // what the caller may not know of is "no such document", and an
-// administrator may remove but not read a private document.
+// administrator may read (audited) and remove a private document, and not
+// change it.
 func TestTheSitesVerbs(t *testing.T) {
 	ctx := context.Background()
 	st, err := store.Open(ctx, store.Config{Engine: dao.DialectSQLite, Path: filepath.Join(t.TempDir(), "store.db")})
@@ -155,9 +156,16 @@ func TestTheSitesVerbs(t *testing.T) {
 			t.Errorf("%s was published", what)
 		}
 	}
-	// An administrator sees that it exists and may remove it, and cannot read it.
-	if _, err := call[site.SourceView](t, m, "user:root", "site.doc.get", site.DocAsk{Site: "blog.example.com", Slug: "notes"}); !errors.Is(err, site.ErrNotYours) {
-		t.Fatalf("an administrator reading a private document: %v", err)
+	// An administrator answers for the site: they read it, audited, and may
+	// remove it; they change nothing of it.
+	if v, err := call[site.SourceView](t, m, "user:root", "site.doc.get", site.DocAsk{Site: "blog.example.com", Slug: "notes"}); err != nil || v.Body != "# Notes\nsecond" {
+		t.Fatalf("an administrator reading a private document: %+v, %v", v, err)
+	}
+	if n := auditCount(t, st, "site.doc.read"); n != 1 {
+		t.Fatalf("the administrator's read is audited %d times", n)
+	}
+	if _, err := call[site.Published](t, m, "user:root", "site.doc.put", site.Put{Site: "blog.example.com", Slug: "notes", Format: "md", Body: "edited"}); !errors.Is(err, site.ErrNotYours) {
+		t.Fatalf("an administrator changing it: %v", err)
 	}
 	if _, err := call[struct{}](t, m, "user:root", "site.doc.remove", site.DocAsk{Site: "blog.example.com", Slug: "notes"}); err != nil {
 		t.Fatalf("an administrator removing it: %v", err)
@@ -301,4 +309,14 @@ func TestASitesConfiguration(t *testing.T) {
 	if _, err := call[site.SiteConfigView](t, m, "user:root", "site.set", site.SiteSet{Host: "none.example.com"}); !errors.Is(err, site.ErrNoSite) {
 		t.Fatalf("no such site: %v", err)
 	}
+}
+
+// auditCount is how many audit entries the store holds of action.
+func auditCount(t *testing.T, st *store.Store, action string) int {
+	t.Helper()
+	entries, err := st.AuditLog(context.Background(), action, 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return len(entries)
 }

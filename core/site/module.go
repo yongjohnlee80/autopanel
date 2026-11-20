@@ -139,7 +139,7 @@ func (m *Module) Verbs() []module.Verb {
 		module.Handle(site(module.Contract{Verb: "site.doc.list", Discloses: module.Plain, Param: "{site}", Result: "[{slug, format, visibility, owner, version}]",
 			Doc: "The documents of a site that the caller may see listed."}), m.docs),
 		module.Handle(site(module.Contract{Verb: "site.doc.get", Param: "{site, slug}", Result: "{slug, format, visibility, share, meta, body, version}",
-			Doc: "A document as it was published: its owner's alone."}), m.get),
+			Doc: "A document as it was published: its owner's, and an administrator's, who answers for what the site holds; an administrator's read of a document not theirs is audited."}), m.get),
 		module.Handle(site(module.Contract{Verb: "site.doc.remove", Mutates: true, Param: "{site, slug}",
 			Doc: "Deletes a document: its owner or an administrator."}), m.removeDoc),
 		module.Handle(site(module.Contract{Verb: "site.asset.put", Mutates: true, Param: "{site, slug, name, data}", Result: "{name, mime, size}",
@@ -567,6 +567,14 @@ func (m *Module) get(ctx context.Context, p DocAsk) (SourceView, error) {
 	}
 	if !May(who, ActSource, d) {
 		return SourceView{}, ErrNotYours
+	}
+	if ByAdminOnly(who, ActSource, d) {
+		// An administrator answers for what the site holds and may read
+		// anything of it; the read is written down before anything is shown,
+		// and nothing is shown if it cannot be.
+		if err := m.store.NoteRead(ctx, d); err != nil {
+			return SourceView{}, err
+		}
 	}
 	src, err := m.store.Source(ctx, d.ID)
 	if err != nil {
