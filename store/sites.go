@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 
@@ -18,13 +19,16 @@ func (s *Store) Sites() site.Store { return sites{s} }
 type sites struct{ s *Store }
 
 const (
-	siteCols = "id, host, content_host, config, security_gen, created_at"
+	siteCols = "id, host, content_host, config, security_gen, created_at, build, live_build, build_state, build_error, built_at, down"
 	docCols  = "id, site_id, slug, format, owner_id, visibility, collection, ord, active, generation, version"
 )
 
 func scanSite(rows dao.Rows) (site.Site, error) {
 	var v site.Site
-	err := rows.Scan(&v.ID, &v.Host, &v.ContentHost, &v.Config, &v.SecurityGen, &v.CreatedAt)
+	var down int64
+	err := rows.Scan(&v.ID, &v.Host, &v.ContentHost, &v.Config, &v.SecurityGen, &v.CreatedAt,
+		&v.Build, &v.LiveBuild, &v.BuildState, &v.BuildError, &v.BuiltAt, &down)
+	v.Down = down != 0
 	return v, err
 }
 
@@ -563,4 +567,151 @@ func (ss sites) RemoveResource(ctx context.Context, doc int64, name string) erro
 		_, err = tx.ExecContext(ctx, ss.s.q("UPDATE site_doc SET version = version + 1, updated_at = ? WHERE id = ?"), ss.s.now().Unix(), doc)
 		return err
 	})
+}
+
+// --- builds ----------------------------------------------------------------------
+
+func (ss sites) SiteByID(ctx context.Context, id int64) (site.Site, error) {
+	return ss.oneSite(ctx, ss.s.conn, "SELECT "+siteCols+" FROM site WHERE id = ?", id)
+}
+
+// AskBuild raises the site's build number; the state is waiting unless a
+// build is running, which the new number will follow.
+func (ss sites) AskBuild(ctx context.Context, id int64) (n int64, err error) {
+	err = ss.s.tx(ctx, func(tx dao.TxConn) error {
+		v, err := ss.oneSite(ctx, tx, "UPDATE site SET build = build + 1, build_state = CASE WHEN build_state = 'building' THEN 'building' ELSE 'waiting' END WHERE id = ? RETURNING "+siteCols, id)
+		n = v.Build
+		return err
+	})
+	return n, err
+}
+
+// StartBuild answers the newest build asked for, with the site's public
+// documents and the digests of their sources and resources, read in one
+// transaction with the security generation the build will carry.
+func (ss sites) StartBuild(ctx context.Context, id int64) (snap site.Snapshot, err error) {
+	err = ss.s.tx(ctx, func(tx dao.TxConn) error {
+		v, err := ss.oneSite(ctx, tx, "SELECT "+siteCols+" FROM site WHERE id = ?", id)
+		if err != nil {
+			return err
+		}
+		if v.Build == 0 || (v.LiveBuild >= v.Build && !v.Down) {
+			return site.ErrNoBuild
+		}
+		if v, err = ss.oneSite(ctx, tx, "UPDATE site SET build_state = 'building' WHERE id = ? RETURNING "+siteCols, id); err != nil {
+			return err
+		}
+		snap = site.Snapshot{Site: v, Build: v.Build}
+		rows, err := tx.QueryContext(ctx, ss.s.q("SELECT "+docCols+", meta, sha256 FROM site_doc WHERE site_id = ? AND visibility = 'public' ORDER BY slug"), id)
+		if err != nil {
+			return err
+		}
+		for rows.Next() {
+			var d site.Doc
+			var active int64
+			var sd site.SnapDoc
+			if err := rows.Scan(&d.ID, &d.Site, &d.Slug, &d.Format, &d.Owner, &d.Visibility, &d.Collection, &d.Order, &active, &d.Generation, &d.Version, &sd.Meta, &sd.SHA256); err != nil {
+				_ = rows.Close()
+				return err
+			}
+			d.Active = active != 0
+			sd.Doc = d
+			snap.Docs = append(snap.Docs, sd)
+		}
+		if err := rows.Err(); err != nil {
+			_ = rows.Close()
+			return err
+		}
+		if err := rows.Close(); err != nil {
+			return err
+		}
+		for i := range snap.Docs {
+			rows, err := tx.QueryContext(ctx, ss.s.q("SELECT "+resourceCols+" FROM site_resource WHERE doc_id = ? ORDER BY name"), snap.Docs[i].Doc.ID)
+			if err != nil {
+				return err
+			}
+			for rows.Next() {
+				r, err := scanResource(rows)
+				if err != nil {
+					_ = rows.Close()
+					return err
+				}
+				snap.Docs[i].Resources = append(snap.Docs[i].Resources, r)
+			}
+			if err := rows.Close(); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	return snap, err
+}
+
+// FinishBuild records build n's end. A build that went live is served from
+// now on, unless a later one already is; the site is up again. A failed one
+// leaves what was served, or leaves the site down if it was. Either way the
+// state is waiting when a newer build is owed.
+func (ss sites) FinishBuild(ctx context.Context, id, n int64, failure string, at int64) (out site.Site, err error) {
+	if len(failure) > 4000 {
+		failure = failure[len(failure)-4000:]
+	}
+	err = ss.s.tx(ctx, func(tx dao.TxConn) error {
+		v, err := ss.oneSite(ctx, tx, "SELECT "+siteCols+" FROM site WHERE id = ?", id)
+		if err != nil {
+			return err
+		}
+		live, down, state := v.LiveBuild, v.Down, site.BuildFailed
+		if failure == "" {
+			live, down, state = max(live, n), false, site.BuildLive
+		}
+		if v.Build > n {
+			state = site.BuildWaiting
+		}
+		downInt := 0
+		if down {
+			downInt = 1
+		}
+		out, err = ss.oneSite(ctx, tx, "UPDATE site SET live_build = ?, down = ?, build_state = ?, build_error = ?, built_at = ? WHERE id = ? RETURNING "+siteCols,
+			live, downInt, state, failure, at, id)
+		if err != nil {
+			return err
+		}
+		detail := fmt.Sprintf("build %d live", n)
+		if failure != "" {
+			detail = fmt.Sprintf("build %d failed", n)
+		}
+		return ss.audit(ctx, tx, "site.build", "site "+out.Host, detail)
+	})
+	return out, err
+}
+
+// TakeDown records that the live pages were taken down: nothing is served
+// until a build passes.
+func (ss sites) TakeDown(ctx context.Context, id int64) error {
+	return ss.s.tx(ctx, func(tx dao.TxConn) error {
+		v, err := ss.oneSite(ctx, tx, "UPDATE site SET down = 1 WHERE id = ? RETURNING "+siteCols, id)
+		if err != nil {
+			return err
+		}
+		return ss.audit(ctx, tx, "site.down", "site "+v.Host, "something public was withdrawn")
+	})
+}
+
+// Owed are the sites whose newest build is not live: asked for, running when
+// the core stopped, or down.
+func (ss sites) Owed(ctx context.Context) ([]site.Site, error) {
+	rows, err := ss.s.conn.QueryContext(ctx, ss.s.q("SELECT "+siteCols+" FROM site WHERE (build > live_build AND build_state <> 'failed') OR build_state = 'building' OR down = 1 ORDER BY id"))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []site.Site
+	for rows.Next() {
+		v, err := scanSite(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, v)
+	}
+	return out, rows.Err()
 }

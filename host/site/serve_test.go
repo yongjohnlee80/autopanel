@@ -179,3 +179,48 @@ func TestTheServerKeepsHTTPsOwnRules(t *testing.T) {
 		t.Errorf("a range: %d", res.StatusCode)
 	}
 }
+
+// Taken down, every path of the site answers 503 at once, the withdrawn pages
+// are gone from the disk, and the next build brings it back.
+func TestATakenDownSiteAnswers503UntilItsNextBuild(t *testing.T) {
+	s, f := served(t)
+	if err := f.TakeDown("blog.example.com"); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.TakeDown("blog.example.com"); err != nil {
+		t.Fatalf("taken down twice: %v", err)
+	}
+	for _, target := range []string{"/", "/a/", "/feed.xml", "/p.png", "/nope"} {
+		res := get(s, "GET", "blog.example.com", target)
+		if res.StatusCode != 503 || res.Header.Get("Retry-After") == "" || res.Header.Get("Cache-Control") != "no-store" {
+			t.Errorf("%s: %d %v", target, res.StatusCode, res.Header)
+		}
+	}
+	marker := filepath.Join(f.Dir, downDir, "blog.example.com")
+	if entries, err := os.ReadDir(marker); err != nil || len(entries) != 0 {
+		t.Fatalf("the withdrawn pages are kept: %v, %v", entries, err)
+	}
+	if res := get(s, "GET", "other.example.com", "/"); res.StatusCode != 404 {
+		t.Errorf("another site: %d", res.StatusCode)
+	}
+	build(t, f, "blog.example.com", "back")
+	if res := get(s, "GET", "blog.example.com", "/"); res.StatusCode != 200 || body(t, res) != "back" {
+		t.Fatalf("after the next build: %d", res.StatusCode)
+	}
+	if _, err := os.Lstat(marker); !os.IsNotExist(err) {
+		t.Fatalf("the marker outlived the build: %v", err)
+	}
+	// A site taken down before its first build is down too; removing it ends that.
+	if err := f.TakeDown("new.example.com"); err != nil {
+		t.Fatal(err)
+	}
+	if res := get(s, "GET", "new.example.com", "/"); res.StatusCode != 503 {
+		t.Fatalf("a new site taken down: %d", res.StatusCode)
+	}
+	if err := f.Remove("new.example.com"); err != nil {
+		t.Fatal(err)
+	}
+	if res := get(s, "GET", "new.example.com", "/"); res.StatusCode != 404 {
+		t.Fatalf("a removed site: %d", res.StatusCode)
+	}
+}

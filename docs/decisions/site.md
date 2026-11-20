@@ -207,3 +207,31 @@ holds no secret, and it decides nothing but which file a request names.
   for 5 minutes, refusals not at all. Nothing is logged per request.
 
 **In the code:** `host/site/serve.go`, `app/sitemain.go`.
+
+## A build sees public documents only, and is one of a kind at a time
+
+**Decided:** the core builds a site's public pages from its public documents, one build at a time
+on the host. A build starts two seconds after the last change, so an article and its ten images
+are one build.
+
+- **The input is a snapshot of public documents.** A held document's text, files and front
+  matter are in no build's input. The snapshot names each source and file by its digest. If one
+  has changed by the time it is read, the build is superseded, never a mix, and the build
+  already owed reads the change.
+- **The core chooses each page's path,** and gives it to the kit in `build.json`.
+- **The core decides which pages draw diagrams,** from its own reading of the sources: a
+  `mermaid` fence, or a `.mmd` among the document's files. Only those pages may load the kit's
+  scripts, by the output check and by the page's policy.
+- **Withdrawing something public takes the pages down before the publish answers:** a level
+  lowered, or a public document removed. Every path of the site answers `503` until a build
+  passes. A theme may have copied the text anywhere, so none of the old pages is served. A build
+  that was running when the withdrawal happened carries the old security generation, and is
+  discarded.
+- **A failed build leaves what was served,** or leaves the site down if it was down, and its
+  reason is kept. Publishing again asks for a new build. When the core starts, it runs every build
+  that is owed.
+- **`site.status`** answers `build` (the newest asked for), `live_build` (the one served),
+  `state` (`waiting`, `building`, `live`, `failed` or `down`) and the last failure. A change made
+  in build N is live once `live_build` is N or more.
+
+**In the code:** `core/site/build.go`, `app/sitebuild.go`; `core/site/build_test.go`.

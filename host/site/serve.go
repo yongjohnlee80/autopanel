@@ -15,6 +15,8 @@ import (
 	"time"
 
 	"golang.org/x/sys/unix"
+
+	coresite "github.com/yongjohnlee80/autopanel/core/site"
 )
 
 // ManifestName is the file the core writes into a build's output after the
@@ -24,17 +26,8 @@ import (
 // serving process never serves a hidden name.
 const ManifestName = ".autopanel-site.json"
 
-// Manifest is the core's word on one build.
-type Manifest struct {
-	Build       int64 `json:"build"`
-	SecurityGen int64 `json:"security_gen"`
-	// Mermaid are the pages that may load the kit's scripts, by path in the
-	// output; ScriptHashes are those scripts' hashes ("sha256-…"), which the
-	// page's policy names.
-	Mermaid      []string `json:"mermaid,omitempty"`
-	ScriptHashes []string `json:"script_hashes,omitempty"`
-	ContentHost  string   `json:"content_host,omitempty"`
-}
+// Manifest is the core's word on one build (core/site).
+type Manifest = coresite.Manifest
 
 // WriteManifest writes m into the output, after Normalize, as the core's.
 func (f Files) WriteManifest(w Work, m Manifest) error {
@@ -125,6 +118,13 @@ func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	root, err := os.OpenRoot(path.Join(s.Dir, host))
 	if err != nil {
+		if (Files{Dir: s.Dir}).IsDown(host) {
+			// Taken down when something public was withdrawn: every path, until
+			// a build passes. Not a missing page, so nothing caches it as one.
+			h.Set("Retry-After", "30")
+			s.refuse(w, http.StatusServiceUnavailable)
+			return
+		}
 		s.refuse(w, http.StatusNotFound)
 		return
 	}

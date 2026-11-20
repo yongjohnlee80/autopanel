@@ -319,8 +319,16 @@ func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateContr
 	tm := coretunnel.NewModule(st.Tunnels(), func(context.Context) error { agentsRev.bump(); return nil }, counts.tunnelStatus)
 	sys.tunnelChecks = tunnelChecks(st.Routes(), st.Forwards(), counts.tunnelStatus)
 	sys.busyChecks = busyChecks(counts)
-	// The site: documents are stored and not yet served.
+	// The site: public documents are built when a kit is named; held ones are
+	// stored and not yet served.
 	siteMod := coresite.NewModule(st.Sites(), sitePeople{am})
+	builds, err := siteBuilds(cfg, st.Sites(), log)
+	if err != nil {
+		return err
+	}
+	if builds != nil {
+		siteMod.SetBuilds(builds)
+	}
 	mods := []module.Module{am, gm, fm, tm, &certsModule{sw: sw}, sys, firewallModule{fwm}, servicesModule{svcs}, mailMod, apiMod, siteMod}
 	if err := apiMod.serve(mods...); err != nil {
 		return err
@@ -370,6 +378,9 @@ func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateContr
 	run("control", ctl.Run)
 	run("link", lnk.Run)
 	run("lease", func(ctx context.Context) error { return renewLease(ctx, st, holder) })
+	if builds != nil {
+		run("site builds", func(ctx context.Context) error { builds.Run(ctx); return nil })
+	}
 	if os.Getuid() == 0 { // mail runs a stack and loads a kernel rule: root's work
 		run("mail", mailMod.Run)
 	}
