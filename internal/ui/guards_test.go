@@ -196,6 +196,7 @@ func TestEveryButtonHasAnAccessKeyAndATooltip(t *testing.T) {
 		"App.confirmOther":     {"autopanel.button.confirm.purge"},
 		"App.planToggleText":   {"autopanel.button.plan.allow", "autopanel.button.plan.block"},
 		"App.reviewToggleText": {"autopanel.button.review.open", "autopanel.button.review.leave"},
+		"App.mailToggleText":   {"autopanel.button.mail.disable", "autopanel.button.mail.enable"},
 	}
 	textRe := regexp.MustCompile(`text:\s*(qsTrId\("([^"]+)"\)|App\.[A-Za-z]+|model\.[a-z]+)`)
 	n := 0

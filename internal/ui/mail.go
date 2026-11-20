@@ -55,7 +55,7 @@ func newMailPanes() mailPanes {
 	return mailPanes{
 		domains:  tuidecl.NewListModel("key", "name"),
 		records:  tuidecl.NewListModel("key", "state", "type", "name"),
-		accounts: tuidecl.NewListModel("key", "address", "quota", "used"),
+		accounts: tuidecl.NewListModel("key", "address", "quota", "used", "state"),
 		apps:     tuidecl.NewListModel("key", "device", "made", "state"),
 		server:   tuidecl.NewListModel("key", "label", "value"),
 		dns:      tuidecl.NewListModel("key", "type", "host", "value"),
@@ -89,6 +89,7 @@ func (d *mailPanes) state() map[string]any {
 		"App.mailRecordDetail":      "",
 		"App.mailAccountsTitle":     "",
 		"App.mailAccountDetail":     "",
+		"App.mailToggleText":        "",
 		"App.mailServerTitle":       "",
 		"App.secretTitle":           "",
 		"App.secretText":            "",
@@ -174,7 +175,11 @@ func (h *host) renderMail() {
 	m.records.Reset(rrows)
 	arows := make([]tuidecl.Row, 0, len(m.accountList))
 	for _, a := range m.accountList {
-		arows = append(arows, tuidecl.Row{"key": a.Address, "address": a.Address, "quota": sizeText(a.Quota), "used": sizeText(a.Used)})
+		state := ""
+		if a.Disabled {
+			state = h.tr("autopanel.value.mail.disabled")
+		}
+		arows = append(arows, tuidecl.Row{"key": a.Address, "address": a.Address, "quota": sizeText(a.Quota), "used": sizeText(a.Used), "state": state})
 	}
 	m.accounts.Reset(arows)
 	m.server.Reset(h.mailServerRows())
@@ -192,6 +197,7 @@ func (h *host) renderMail() {
 		"App.mailRecordDetail":  h.mailRecordDetail(),
 		"App.mailAccountsTitle": h.trf("autopanel.title.list.count", h.tr("autopanel.title.list.mailAccounts"), len(m.accountList), at),
 		"App.mailAccountDetail": h.mailAccountDetail(),
+		"App.mailToggleText":    h.mailToggleText(),
 		"App.mailServerTitle":   h.tr("autopanel.title.panel.mailServer") + " · " + at,
 	})
 }
@@ -248,7 +254,8 @@ func (h *host) mailAccountDetail() string {
 		[2]string{"autopanel.label.mail.address", a.Address},
 		[2]string{"autopanel.label.mail.quota", sizeText(a.Quota)},
 		[2]string{"autopanel.label.mail.used", sizeText(a.Used)},
-		[2]string{"autopanel.label.mail.aliases", orDash(aliases)})
+		[2]string{"autopanel.label.mail.aliases", orDash(aliases)},
+		[2]string{"autopanel.label.mail.signIn", accountState(h, a.Disabled)})
 }
 
 // mailServerRows are Mail › Server's facts, a row each (a problem a row of
@@ -373,7 +380,16 @@ func (h *host) mailAccountMoved(row int) error {
 		h.mail.appAt = 0
 		h.loadAppPasswords()
 	}
-	return h.p.Set("App.mailAccountDetail", h.mailAccountDetail())
+	return h.p.SetMany(map[string]any{"App.mailAccountDetail": h.mailAccountDetail(), "App.mailToggleText": h.mailToggleText()})
+}
+
+// mailToggleText names what Disable/Enable would do to the selected account.
+func (h *host) mailToggleText() string {
+	m := &h.mail
+	if m.accountAt >= 0 && m.accountAt < len(m.accountList) && m.accountList[m.accountAt].Disabled {
+		return h.tr("autopanel.button.mail.enable")
+	}
+	return h.tr("autopanel.button.mail.disable")
 }
 
 // --- setting up ---------------------------------------------------------------
@@ -651,6 +667,79 @@ func (h *host) mailAddAccount() error {
 			_ = h.ask("autopanel.title.confirm.appFirst", h.trf("autopanel.question.mail.appFirst", addr), func() error {
 				return h.addAppPasswordFor(addr)
 			})
+		})
+		return nil
+	})
+}
+
+// accountState is whether an account signs in, in words.
+func accountState(h *host, disabled bool) string {
+	if disabled {
+		return h.tr("autopanel.value.mail.disabledLong")
+	}
+	return h.tr("autopanel.value.mail.enabled")
+}
+
+// mailToggleAccount disables the selected account, after asking, or enables
+// it again.
+func (h *host) mailToggleAccount(row int) error {
+	if row < 0 || row >= len(h.mail.accountList) {
+		h.say(h.tr("autopanel.notice.mail.none"))
+		return nil
+	}
+	a := h.mail.accountList[row]
+	addr, disable := a.Address, !a.Disabled
+	set := func() error {
+		h.change(func(ctx context.Context) error {
+			_, err := h.client.MailSetAccount(ctx, addr, &disable, nil)
+			return err
+		}, func() {
+			if disable {
+				h.say(h.trf("autopanel.notice.mail.accountDisabled", addr))
+			} else {
+				h.say(h.trf("autopanel.notice.mail.accountEnabled", addr))
+			}
+			h.loadMail()
+		})
+		return nil
+	}
+	if !disable {
+		return set()
+	}
+	return h.ask("autopanel.title.confirm.mailDisable", h.trf("autopanel.question.mail.disable", addr), set)
+}
+
+// mailAccountAliases edits the selected account's aliases as one line of
+// addresses; an empty line removes them all.
+func (h *host) mailAccountAliases(row int) error {
+	if row < 0 || row >= len(h.mail.accountList) {
+		h.say(h.tr("autopanel.notice.mail.none"))
+		return nil
+	}
+	a := h.mail.accountList[row]
+	addr := a.Address
+	return h.prompt("autopanel.title.prompt.mailAliases", "autopanel.label.prompt.mailAliases", strings.Join(a.Aliases, ", "), func(text string) error {
+		aliases := []string{}
+		for _, f := range strings.FieldsFunc(text, func(r rune) bool { return r == ',' || r == ' ' || r == ';' }) {
+			aliases = append(aliases, strings.ToLower(f))
+		}
+		if h.busy {
+			h.promptRefused(h.tr("autopanel.notice.app.busy"))
+			return nil
+		}
+		h.busy = true
+		h.background(func(ctx context.Context) error {
+			_, err := h.client.MailSetAccount(ctx, addr, nil, &aliases)
+			return err
+		}, func(err error) {
+			h.busy = false
+			if err != nil {
+				h.promptRefused(h.trf("autopanel.notice.app.error", err.Error()))
+				return
+			}
+			h.promptDone()
+			h.say(h.trf("autopanel.notice.mail.aliasesSet", addr, len(aliases)))
+			h.loadMail()
 		})
 		return nil
 	})

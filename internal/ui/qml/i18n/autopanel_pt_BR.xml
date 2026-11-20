@@ -3743,5 +3743,69 @@
         <source>waiting</source>
         <translation>aguardando</translation>
     </message>
+    <message id="autopanel.button.mail.aliases">
+        <source>Al&amp;iases…</source>
+        <translation>Apel&amp;idos…</translation>
+    </message>
+    <message id="autopanel.tip.mail.accountDisable">
+        <source>Disable the selected account, so it signs nothing in, or enable it again. Its mail, app passwords and aliases are kept</source>
+        <translation>Desativa a conta selecionada, para que não entre de nenhuma forma, ou ativa de novo. Seus e-mails, senhas de app e apelidos são mantidos</translation>
+    </message>
+    <message id="autopanel.tip.mail.accountAliases">
+        <source>Set the addresses that deliver to the selected account</source>
+        <translation>Define os endereços que entregam na conta selecionada</translation>
+    </message>
+    <message id="autopanel.value.mail.disabled">
+        <source>disabled</source>
+        <translation>desativada</translation>
+    </message>
+    <message id="autopanel.value.mail.disabledLong">
+        <source>disabled: signs nothing in</source>
+        <translation>desativada: não entra de nenhuma forma</translation>
+    </message>
+    <message id="autopanel.value.mail.enabled">
+        <source>enabled</source>
+        <translation>ativada</translation>
+    </message>
+    <message id="autopanel.label.mail.signIn">
+        <source>Sign-in</source>
+        <translation>Login</translation>
+    </message>
+    <message id="autopanel.notice.mail.accountDisabled">
+        <source>%1 is disabled: it signs nothing in, and keeps its mail</source>
+        <translation>%1 está desativada: não entra de nenhuma forma e mantém seus e-mails</translation>
+    </message>
+    <message id="autopanel.notice.mail.accountEnabled">
+        <source>%1 is enabled again</source>
+        <translation>%1 está ativada de novo</translation>
+    </message>
+    <message id="autopanel.title.confirm.mailDisable">
+        <source>Disable a mail account</source>
+        <translation>Desativar uma conta de e-mail</translation>
+    </message>
+    <message id="autopanel.question.mail.disable">
+        <source>Disable %1? Its mail apps stop signing in at once. Its mail, app passwords and aliases are kept for when it is enabled again.</source>
+        <translation>Desativar %1? Os apps de e-mail param de entrar na hora. Os e-mails, as senhas de app e os apelidos são mantidos para quando for ativada de novo.</translation>
+    </message>
+    <message id="autopanel.title.prompt.mailAliases">
+        <source>Aliases</source>
+        <translation>Apelidos</translation>
+    </message>
+    <message id="autopanel.label.prompt.mailAliases">
+        <source>Addresses that deliver to this account, separated by commas (empty for none):</source>
+        <translation>Endereços que entregam nesta conta, separados por vírgulas (vazio para nenhum):</translation>
+    </message>
+    <message id="autopanel.notice.mail.aliasesSet">
+        <source>%1 has %2 aliases</source>
+        <translation>%1 tem %2 apelidos</translation>
+    </message>
+    <message id="autopanel.button.mail.disable">
+        <source>&amp;Disable</source>
+        <translation>&amp;Desativar</translation>
+    </message>
+    <message id="autopanel.button.mail.enable">
+        <source>&amp;Enable</source>
+        <translation>R&amp;eativar</translation>
+    </message>
 </context>
 </TS>

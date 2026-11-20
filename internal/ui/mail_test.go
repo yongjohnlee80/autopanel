@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strconv"
@@ -172,6 +173,27 @@ func (f *fakeClient) MailRevokeAppPassword(_ context.Context, address, id string
 	f.mail.apps[address] = slices.DeleteFunc(f.mail.apps[address], func(p mail.AppPasswordView) bool { return p.ID == id })
 	f.mail.asks = append(f.mail.asks, "app-revoke "+id)
 	return nil
+}
+
+func (f *fakeClient) MailSetAccount(_ context.Context, address string, disabled *bool, aliases *[]string) (mail.AccountView, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for i := range f.mail.accounts {
+		a := &f.mail.accounts[i]
+		if a.Address != address {
+			continue
+		}
+		if disabled != nil {
+			a.Disabled = *disabled
+			f.mail.asks = append(f.mail.asks, "set-disabled "+address+" "+strconv.FormatBool(*disabled))
+		}
+		if aliases != nil {
+			a.Aliases = append([]string{}, (*aliases)...)
+			f.mail.asks = append(f.mail.asks, "set-aliases "+address+" "+strings.Join(*aliases, ","))
+		}
+		return *a, nil
+	}
+	return mail.AccountView{}, errors.New("no such account")
 }
 
 func (f *fakeClient) MailRemoveAccount(_ context.Context, address string) error {
@@ -473,4 +495,43 @@ func TestTheMailServerShowsItsPortsAndOpensThem(t *testing.T) {
 	if a := f.mailAsked(); a[len(a)-1] != "ports 25" {
 		t.Fatalf("Open ports with nothing to open asked %v", a)
 	}
+}
+
+// TestAnAccountIsDisabledAndItsAliasesSet: d on Mail › Accounts disables the
+// selected account after a question, and enables it again without one; i
+// edits its aliases as one line, and an empty line removes them.
+func TestAnAccountIsDisabledAndItsAliasesSet(t *testing.T) {
+	f := withMail()
+	h, s := startHost(t, f)
+	s.WaitForText(t, "CA LE staging")
+	run(t, h, h.openMailAccounts)
+	s.WaitForText(t, "ana@example.com")
+
+	s.Keys(t, decltest.Rune('d'))
+	s.WaitForText(t, "Disable ana@example.com?")
+	s.Keys(t, decltest.Type("y")...)
+	waitMailAsked(t, s, f, "set-disabled ana@example.com true")
+	s.WaitForText(t, "ana@example.com is disabled")
+	s.WaitForText(t, "disabled: signs nothing in")
+
+	s.Keys(t, decltest.Rune('d')) // enabling asks nothing
+	waitMailAsked(t, s, f, "set-disabled ana@example.com false")
+	s.WaitForText(t, "ana@example.com is enabled again")
+
+	s.Keys(t, decltest.Rune('i'))
+	s.WaitForText(t, "Addresses that deliver to this account")
+	s.Keys(t, decltest.Type("Sales@example.com, info@example.com")...)
+	s.Keys(t, enter)
+	waitMailAsked(t, s, f, "set-aliases ana@example.com sales@example.com,info@example.com")
+	s.WaitForText(t, "ana@example.com has 2 aliases")
+	s.WaitForText(t, "sales@example.com, info@example.com")
+
+	s.Keys(t, decltest.Rune('i'))
+	s.WaitForText(t, "Addresses that deliver to this account")
+	for range len("sales@example.com, info@example.com") {
+		s.Keys(t, backspace)
+	}
+	s.Keys(t, enter)
+	waitMailAsked(t, s, f, "set-aliases ana@example.com ")
+	s.WaitForText(t, "ana@example.com has 0 aliases")
 }
