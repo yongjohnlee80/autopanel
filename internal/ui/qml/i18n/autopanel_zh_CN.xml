@@ -3743,5 +3743,69 @@
         <source>waiting</source>
         <translation>等待注册</translation>
     </message>
+    <message id="autopanel.button.mail.aliases">
+        <source>Al&amp;iases…</source>
+        <translation>别名(&amp;I)…</translation>
+    </message>
+    <message id="autopanel.tip.mail.accountDisable">
+        <source>Disable the selected account, so it signs nothing in, or enable it again. Its mail, app passwords and aliases are kept</source>
+        <translation>停用所选账户，使其无法登录，或重新启用。其邮件、应用密码和别名会保留</translation>
+    </message>
+    <message id="autopanel.tip.mail.accountAliases">
+        <source>Set the addresses that deliver to the selected account</source>
+        <translation>设置投递到所选账户的地址</translation>
+    </message>
+    <message id="autopanel.value.mail.disabled">
+        <source>disabled</source>
+        <translation>已停用</translation>
+    </message>
+    <message id="autopanel.value.mail.disabledLong">
+        <source>disabled: signs nothing in</source>
+        <translation>已停用：不接受任何登录</translation>
+    </message>
+    <message id="autopanel.value.mail.enabled">
+        <source>enabled</source>
+        <translation>已启用</translation>
+    </message>
+    <message id="autopanel.label.mail.signIn">
+        <source>Sign-in</source>
+        <translation>登录</translation>
+    </message>
+    <message id="autopanel.notice.mail.accountDisabled">
+        <source>%1 is disabled: it signs nothing in, and keeps its mail</source>
+        <translation>%1 已停用：不接受任何登录，邮件会保留</translation>
+    </message>
+    <message id="autopanel.notice.mail.accountEnabled">
+        <source>%1 is enabled again</source>
+        <translation>%1 已重新启用</translation>
+    </message>
+    <message id="autopanel.title.confirm.mailDisable">
+        <source>Disable a mail account</source>
+        <translation>停用邮件账户</translation>
+    </message>
+    <message id="autopanel.question.mail.disable">
+        <source>Disable %1? Its mail apps stop signing in at once. Its mail, app passwords and aliases are kept for when it is enabled again.</source>
+        <translation>要停用 %1 吗？其邮件应用将立即无法登录。邮件、应用密码和别名会保留，以便重新启用。</translation>
+    </message>
+    <message id="autopanel.title.prompt.mailAliases">
+        <source>Aliases</source>
+        <translation>别名</translation>
+    </message>
+    <message id="autopanel.label.prompt.mailAliases">
+        <source>Addresses that deliver to this account, separated by commas (empty for none):</source>
+        <translation>投递到此账户的地址，用逗号分隔（留空表示无）：</translation>
+    </message>
+    <message id="autopanel.notice.mail.aliasesSet">
+        <source>%1 has %2 aliases</source>
+        <translation>%1 有 %2 个别名</translation>
+    </message>
+    <message id="autopanel.button.mail.disable">
+        <source>&amp;Disable</source>
+        <translation>停用(&amp;D)</translation>
+    </message>
+    <message id="autopanel.button.mail.enable">
+        <source>&amp;Enable</source>
+        <translation>启用(&amp;E)</translation>
+    </message>
 </context>
 </TS>

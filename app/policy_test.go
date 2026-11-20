@@ -63,7 +63,7 @@ func TestEveryVerbHasADecision(t *testing.T) {
 		"mail.sync": {"mail", true, false}, "mail.account.add": {"mail", true, false}, "mail.account.lock": {"mail", true, false},
 		"mail.apppassword.list": {"mail", false, true}, "mail.apppassword.add": {"mail", true, false},
 		"mail.apppassword.keep": {"mail", true, false}, "mail.apppassword.revoke": {"mail", true, false},
-		"mail.account.quota": {"mail", true, false}, "mail.account.remove": {"mail", true, false},
+		"mail.account.quota": {"mail", true, false}, "mail.account.remove": {"mail", true, false}, "mail.account.set": {"mail", true, false},
 
 		"site.add": {"site.admin", true, false}, "site.list": {"site.admin", false, true}, "site.remove": {"site.admin", true, false},
 		"site.set": {"site.admin", true, false}, "site.get": {"site.admin", false, true}, "site.status": {"site", false, true},

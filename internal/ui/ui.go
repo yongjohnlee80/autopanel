@@ -298,6 +298,9 @@ type Client interface {
 	MailKeepAppPassword(ctx context.Context, address, id string) error
 	MailRevokeAppPassword(ctx context.Context, address, id string) error
 	MailRemoveAccount(ctx context.Context, address string) error
+	// MailSetAccount disables an account or enables it again, or replaces its
+	// aliases; nil leaves that one as it is.
+	MailSetAccount(ctx context.Context, address string, disabled *bool, aliases *[]string) (mail.AccountView, error)
 
 	// The panel's preferences, kept by the daemon.
 	Prefs(ctx context.Context) (Prefs, error)

@@ -112,6 +112,8 @@ func (h *host) commandTable() map[string]decl.HandlerFunc {
 		"App.appPasswordCancelled":  none(h.appPasswordCancelled),
 		"App.appPasswordCopy":       none(h.appPasswordCopy),
 		"App.mailRemoveAccount":     oneRow("App.mailRemoveAccount", h.mailRemoveAccount),
+		"App.mailToggleAccount":     oneRow("App.mailToggleAccount", h.mailToggleAccount),
+		"App.mailAccountAliases":    oneRow("App.mailAccountAliases", h.mailAccountAliases),
 		"App.secretEntered":         oneString("App.secretEntered", h.secretEntered),
 		"App.openDnsRecords":        none(h.openDNSRecords),
 

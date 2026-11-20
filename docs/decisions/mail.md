@@ -292,6 +292,25 @@ again without someone there; phones move between networks. Revocation is the con
 `sdk/stalwart/server.go` and `jmap.go` (`AddAppPassword`, `KeepAppPassword`, `RevokeAppPassword`, `SetSecret`),
 `internal/ui/apppassword.go` (the dialog and its QR code).
 
+## An account can be disabled, and has aliases
+
+**Decided:** `mail.account.set` disables an account or enables it again, and replaces its aliases.
+
+- **A disabled account signs nothing in,** by its password or any app password, over any protocol. It
+  keeps its mail, its app passwords and its aliases for when it is enabled again. The mail server's
+  administrator, AutoPanel's way in, is never disabled through Mail.
+- **An alias is another address that delivers to the account:** an address of one of mail's domains,
+  given once, and never an account's own address or another account's alias. The aliases are given
+  as a whole and checked before anything changes, so a refused change changes nothing. An address
+  that is an alias cannot become an account. An account has at most 20.
+- With Stalwart, disabling takes the `authenticate` permission from the account's own permissions
+  (Stalwart has no other switch), and gives it back on enabling; any other permission of the
+  account's own is kept. Proved by the provider's conformance suite against a real Stalwart: a
+  disabled account's app password is refused over IMAP.
+
+**In the code:** `core/mail/module.go` (`accountSet`), `core/mail/provider/provider.go`
+(`SetDisabled`, `SetAliases`), `sdk/stalwart/jmap.go`, Mail › Accounts in the panel.
+
 ## What AutoPanel cannot set
 
 **Decided:** two things decide whether a host's mail is accepted, and neither is AutoPanel's to

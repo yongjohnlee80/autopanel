@@ -809,6 +809,8 @@ Window {
         Shortcut { sequence: "v"; onActivated: App.mailRevokeAppPassword(mailAppPasswordsTable.currentIndex) }
         Shortcut { sequence: "o"; onActivated: App.mailLockAccount(mailAccountsTable.currentIndex) }
         Shortcut { sequence: "r"; onActivated: App.mailRemoveAccount(mailAccountsTable.currentIndex) }
+        Shortcut { sequence: "d"; onActivated: App.mailToggleAccount(mailAccountsTable.currentIndex) }
+        Shortcut { sequence: "i"; onActivated: App.mailAccountAliases(mailAccountsTable.currentIndex) }
         Flex {
             direction: Tui.Vertical
             Split {
@@ -826,6 +828,7 @@ Window {
                         TableViewColumn { role: "address"; title: "ADDRESS"; width: 0 }
                         TableViewColumn { role: "used"; title: "USED"; width: 10 }
                         TableViewColumn { role: "quota"; title: "QUOTA"; width: 10 }
+                        TableViewColumn { role: "state"; title: "STATE"; width: 9 }
                     }
                 }
                 Split {
@@ -849,6 +852,14 @@ Window {
                         }
                     }
                 }
+            }
+            Flex {
+                direction: Tui.Horizontal
+                Text { text: " "; Layout.fillWidth: true }
+                Button { text: App.mailToggleText; toolTipText: App.tipMailAccountDisable; onClicked: App.mailToggleAccount(mailAccountsTable.currentIndex) }
+                Text { text: " " }
+                Button { text: qsTrId("autopanel.button.mail.aliases"); toolTipText: App.tipMailAccountAliases; onClicked: App.mailAccountAliases(mailAccountsTable.currentIndex) }
+                Text { text: " "; Layout.fillWidth: true }
             }
             Flex {
                 direction: Tui.Horizontal
