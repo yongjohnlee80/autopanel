@@ -34,6 +34,7 @@ func TestEveryVerbHasADecision(t *testing.T) {
 		"gate.domain.remove": {"gate", true, false},
 		"gate.forward.list":  {"gate", false, true}, "gate.forward.check": {"gate", false, true},
 		"gate.forward.add": {"gate", true, false}, "gate.forward.update": {"gate", true, false}, "gate.forward.remove": {"gate", true, false},
+		"gate.tunnel.agent.list": {"gate", false, true}, "gate.tunnel.agent.add": {"gate", true, false}, "gate.tunnel.agent.remove": {"gate", true, false},
 
 		"certs.ca.set": {"certs", true, false}, "certs.cloudflare.set": {"certs", true, false}, "certs.cloudflare.clear": {"certs", true, false},
 		"certs.list": {"certs", false, true},
@@ -62,6 +63,10 @@ func TestEveryVerbHasADecision(t *testing.T) {
 		"mail.apppassword.list": {"mail", false, true}, "mail.apppassword.add": {"mail", true, false},
 		"mail.apppassword.keep": {"mail", true, false}, "mail.apppassword.revoke": {"mail", true, false},
 		"mail.account.quota": {"mail", true, false}, "mail.account.remove": {"mail", true, false},
+
+		"site.add": {"site.admin", true, false}, "site.list": {"site.admin", false, true}, "site.remove": {"site.admin", true, false},
+		"site.doc.put": {"site", true, false}, "site.doc.list": {"site", false, true}, "site.doc.get": {"site", false, false},
+		"site.doc.remove": {"site", true, false},
 	}
 	seen := map[string]bool{}
 	var unplaced []string
