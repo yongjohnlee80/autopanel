@@ -316,9 +316,16 @@ func (f *forwarder) serve(ctx context.Context, r *streamRun) {
 	var l net.Listener
 	for {
 		var err error
-		l, err = net.Listen("tcp", r.s.Listen)
+		// A connection waiting to be accepted has the listening socket's
+		// buffers: the forwarder's own to send, and a small one to receive,
+		// which accept raises. The queue of those is short (bounds.go).
+		lc := net.ListenConfig{Control: socketBuffers(forwardQueued, clientBuffer)}
+		l, err = lc.Listen(ctx, "tcp", r.s.Listen)
 		if err == nil {
-			break
+			if err = shortBacklog(l, forwardBacklog); err == nil {
+				break
+			}
+			_ = l.Close()
 		}
 		f.log.Error("gate: a stream's port cannot be bound; trying again", "stream", r.s.Name, "listen", r.s.Listen, "err", err)
 		select {
@@ -380,6 +387,7 @@ func (f *forwarder) forward(ctx context.Context, r *streamRun, c *net.TCPConn) {
 		return
 	}
 	_ = c.SetReadBuffer(clientBuffer)
+	_ = widenWindow(c, clientBuffer) // the listening socket's small buffer fixed the window it would offer: let it grow to this one
 	_ = c.SetWriteBuffer(clientBuffer)
 	key := peerKey{stream: r.s.Name, client: clientPrefix(client.Addr())}
 	if !f.admit(r, key) {
