@@ -15,5 +15,6 @@ the code disagree, the code is right and the page is fixed.
 | [Port forwards](forwards.md) | a public TCP port sent to a literal target; what a forward may never do (SSH, mail's inner ports, a host name); reviewed then applied; the firewall rule it owns; the limits |
 | [Mail](mail.md) | Stalwart as a stack behind the gate: the gate forwards the mail ports with a PROXY header, and only the gate can reach them |
 | [The HTTPS API](api.md) | served by the gate on a host of its own, to API tokens; the core decides and still listens on no network; one answer without a token; what is public; the limits and the sum behind them |
+| [The gate's limits](limits.md) | every part of the gate bounded and the unit's memory limit their sum; fixed socket buffers and wider ones for a few large transfers; requests in flight and connections; a request that stops moving |
 | [Users and roles](auth.md) | four roles checked on every call, only admins hold the master key, two-factor with one answer for every failure, login limits, sessions, API tokens |
 | [The admin screen](ui.md) | the tiled widgets, golib's panels and the dock, two panes for a list, access keys instead of help lines, the file browser, the route form's subdomain and domain |
