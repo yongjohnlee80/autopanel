@@ -53,6 +53,15 @@ type Store interface {
 	// Remove deletes the document, its share list and its resources. The
 	// site's SecurityGen rises when it was public.
 	Remove(ctx context.Context, id int64) (Doc, error)
+
+	// PutResource stores one of a document's files, replacing the one of
+	// exactly that name. A name that differs from an existing one only by
+	// case is ErrResourceTaken; one more than MaxResources is ErrTooMany.
+	// The document's version rises when the content is new.
+	PutResource(ctx context.Context, doc int64, r Resource, data []byte) (Resource, error)
+	Resources(ctx context.Context, doc int64) ([]Resource, error)                       // by name
+	ResourceData(ctx context.Context, doc int64, name string) (Resource, []byte, error) // ErrNoResource
+	RemoveResource(ctx context.Context, doc int64, name string) error                   // ErrNoResource
 }
 
 var (
