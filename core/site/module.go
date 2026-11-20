@@ -145,7 +145,9 @@ func (m *Module) Verbs() []module.Verb {
 		module.Handle(site(module.Contract{Verb: "site.asset.put", Mutates: true, Param: "{site, slug, name, data}", Result: "{name, mime, size}",
 			Doc: "Adds one of a document's files, or replaces the one of that name: an image, a Mermaid diagram (.mmd), a Vega-Lite chart (.chart.json) or a table (.csv). data is base64. Its kind is judged by its name and its content together."}), m.assetPut),
 		module.Handle(site(module.Contract{Verb: "site.asset.list", Param: "{site, slug}", Result: "[{name, mime, size}]",
-			Doc: "A document's files: its owner's alone."}), m.assetList),
+			Doc: "A document's files: its owner's, and an administrator's (audited)."}), m.assetList),
+		module.Handle(site(module.Contract{Verb: "site.asset.get", Param: "{site, slug, name}", Result: "{name, mime, data}",
+			Doc: "One of a document's files, data in base64: its owner's, and an administrator's (audited)."}), m.assetGet),
 		module.Handle(site(module.Contract{Verb: "site.asset.remove", Mutates: true, Param: "{site, slug, name}",
 			Doc: "Deletes one of a document's files: its owner's alone."}), m.assetRemove),
 	}
@@ -557,24 +559,12 @@ func (m *Module) find(ctx context.Context, who Reader, p DocAsk) (Doc, error) {
 }
 
 func (m *Module) get(ctx context.Context, p DocAsk) (SourceView, error) {
-	who, _, err := m.reader(ctx)
+	// An administrator answers for what the site holds and may read anything
+	// of it; the read is written down before anything is shown, and nothing
+	// is shown if it cannot be.
+	d, err := m.readable(ctx, p.Site, p.Slug)
 	if err != nil {
 		return SourceView{}, err
-	}
-	d, err := m.find(ctx, who, p)
-	if err != nil {
-		return SourceView{}, err
-	}
-	if !May(who, ActSource, d) {
-		return SourceView{}, ErrNotYours
-	}
-	if ByAdminOnly(who, ActSource, d) {
-		// An administrator answers for what the site holds and may read
-		// anything of it; the read is written down before anything is shown,
-		// and nothing is shown if it cannot be.
-		if err := m.store.NoteRead(ctx, d); err != nil {
-			return SourceView{}, err
-		}
 	}
 	src, err := m.store.Source(ctx, d.ID)
 	if err != nil {
@@ -685,8 +675,49 @@ func (m *Module) docChanged(ctx context.Context, d Doc) (int64, error) {
 	return m.changed(ctx, s, false)
 }
 
+// readable is a document whose source the caller may read: its owner's, or
+// an administrator's, whose read is audited first.
+func (m *Module) readable(ctx context.Context, site, slug string) (Doc, error) {
+	who, _, err := m.reader(ctx)
+	if err != nil {
+		return Doc{}, err
+	}
+	d, err := m.find(ctx, who, DocAsk{Site: site, Slug: slug})
+	if err != nil {
+		return Doc{}, err
+	}
+	if !May(who, ActSource, d) {
+		return Doc{}, ErrNotYours
+	}
+	if ByAdminOnly(who, ActSource, d) {
+		if err := m.store.NoteRead(ctx, d); err != nil {
+			return Doc{}, err
+		}
+	}
+	return d, nil
+}
+
+// AssetData is one of a document's files, its content in base64.
+type AssetData struct {
+	Name string `json:"name"`
+	MIME string `json:"mime"`
+	Data string `json:"data"`
+}
+
+func (m *Module) assetGet(ctx context.Context, p AssetAsk) (AssetData, error) {
+	d, err := m.readable(ctx, p.Site, p.Slug)
+	if err != nil {
+		return AssetData{}, err
+	}
+	r, data, err := m.store.ResourceData(ctx, d.ID, p.Name)
+	if err != nil {
+		return AssetData{}, err
+	}
+	return AssetData{Name: r.Name, MIME: r.MIME, Data: base64.StdEncoding.EncodeToString(data)}, nil
+}
+
 func (m *Module) assetList(ctx context.Context, p AssetAsk) ([]AssetView, error) {
-	d, err := m.owned(ctx, p.Site, p.Slug)
+	d, err := m.readable(ctx, p.Site, p.Slug)
 	if err != nil {
 		return nil, err
 	}

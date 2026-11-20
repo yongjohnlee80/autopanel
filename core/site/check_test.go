@@ -1,6 +1,8 @@
 package site
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
 	"errors"
 	"os"
 	"path/filepath"
@@ -399,6 +401,28 @@ func TestAddresses(t *testing.T) {
 	for _, u := range notNav {
 		if navigableURL(u) {
 			t.Errorf("%q may not be gone to", u)
+		}
+	}
+}
+
+// The kit's own scripts pass at their paths, with the bytes their integrity
+// names; any other script, or the kit's altered or moved, fails the build.
+func TestOnlyTheKitsScriptsPassAsFiles(t *testing.T) {
+	script := "/* mermaid */ window.x = 1;\n"
+	sum := sha256.Sum256([]byte(script))
+	opt := options()
+	opt.KitScripts = []KitScript{{Path: "/_kit/mermaid.12.1.0.js", Integrity: "sha256-" + base64.StdEncoding.EncodeToString(sum[:])}}
+	if _, err := CheckOutput(site(t, map[string]string{"_kit/mermaid.12.1.0.js": script}), opt); err != nil {
+		t.Fatalf("the kit's script: %v", err)
+	}
+	for name, files := range map[string]map[string]string{
+		"altered":        {"_kit/mermaid.12.1.0.js": script + "fetch('//evil.example')"},
+		"moved":          {"_kit/other.js": script},
+		"another script": {"app.js": "alert(1)"},
+		"under a folder": {"a/_kit/mermaid.12.1.0.js": script},
+	} {
+		if _, err := CheckOutput(site(t, files), opt); !errors.Is(err, ErrOutput) {
+			t.Errorf("%s: %v", name, err)
 		}
 	}
 }

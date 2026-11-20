@@ -55,7 +55,10 @@ type Manifest struct {
 	// are those scripts' hashes ("sha256-…"), which their policy names.
 	Mermaid      []string `json:"mermaid,omitempty"`
 	ScriptHashes []string `json:"script_hashes,omitempty"`
-	ContentHost  string   `json:"content_host,omitempty"`
+	// Scripts are the kit's scripts' paths: the only .js the serving process
+	// serves.
+	Scripts     []string `json:"scripts,omitempty"`
+	ContentHost string   `json:"content_host,omitempty"`
 }
 
 // Kit is what the core knows of the site kit's image: the scripts a diagram
@@ -337,9 +340,11 @@ func (b *Builds) build(ctx context.Context, snap Snapshot) error {
 		return ErrSuperseded // something public was withdrawn while it ran: its output may hold it
 	}
 	hashes := make([]string, 0, len(b.kit.Scripts))
+	scripts := make([]string, 0, len(b.kit.Scripts))
 	for _, k := range b.kit.Scripts {
 		hashes = append(hashes, k.Integrity)
+		scripts = append(scripts, strings.TrimPrefix(k.Path, "/"))
 	}
 	return b.pipe.Publish(job, Manifest{Build: snap.Build, SecurityGen: s.SecurityGen, Mermaid: mermaid,
-		ScriptHashes: hashes, ContentHost: s.ContentHost})
+		ScriptHashes: hashes, Scripts: scripts, ContentHost: s.ContentHost})
 }

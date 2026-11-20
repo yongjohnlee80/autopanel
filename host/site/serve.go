@@ -142,6 +142,11 @@ func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	ext := strings.ToLower(path.Ext(name))
 	ctype, ok := contentTypes[ext]
+	if ext == ".js" && contains(m.Scripts, name) {
+		// the kit's own scripts, which the output check matched to their
+		// integrity; no other script is served
+		ctype, ok = "text/javascript; charset=utf-8", true
+	}
 	if !ok {
 		s.refuse(w, http.StatusNotFound)
 		return

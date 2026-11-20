@@ -723,6 +723,6 @@ func (ss sites) NoteRead(ctx context.Context, d site.Doc) error {
 		if err != nil {
 			return err
 		}
-		return ss.audit(ctx, tx, "site.doc.read", "site "+v.Host+" document "+d.Slug, "read by an administrator; level "+d.Visibility)
+		return ss.audit(ctx, tx, "site.doc.read", fmt.Sprintf("site %s document %s (#%d)", v.Host, d.Slug, d.ID), "read by an administrator; level "+d.Visibility)
 	})
 }
