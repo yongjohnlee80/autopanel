@@ -3,6 +3,11 @@
 -- A site is a host name with pages. security_gen rises whenever something
 -- public is withdrawn: a build made before the change carries the older
 -- number and is never served.
+--   build        the newest build asked for; live_build the one being served
+--   build_state  none, waiting, building, live or failed
+--   down         1: the live pages were taken down when something public was
+--                withdrawn; every public path answers 503 until a build passes
+--   build_error  the last failed build's reason, its log's last lines
 --
 -- A document is what was published, as it was sent. The store owns its
 -- identity: an id that is never used again, the user who first published it
@@ -25,9 +30,18 @@ CREATE TABLE IF NOT EXISTS site (
   content_host text COLLATE "C" NOT NULL DEFAULT '',
   config       text COLLATE "C" NOT NULL DEFAULT '',
   security_gen bigint NOT NULL DEFAULT 1,
+  build        bigint NOT NULL DEFAULT 0,
+  live_build   bigint NOT NULL DEFAULT 0,
+  build_state  text COLLATE "C" NOT NULL DEFAULT 'none',
+  build_error  text COLLATE "C" NOT NULL DEFAULT '',
+  built_at     bigint NOT NULL DEFAULT 0,
+  down         bigint NOT NULL DEFAULT 0,
   created_at   bigint NOT NULL,
   CHECK (host <> '' AND host = lower(host)),
-  CHECK (content_host = lower(content_host) AND content_host <> host)
+  CHECK (content_host = lower(content_host) AND content_host <> host),
+  CHECK (build_state IN ('none', 'waiting', 'building', 'live', 'failed')),
+  CHECK (down IN (0, 1)),
+  CHECK (live_build <= build)
 );
 
 CREATE TABLE IF NOT EXISTS site_doc (

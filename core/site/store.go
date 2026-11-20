@@ -16,6 +16,43 @@ type Site struct {
 	// change carries the older number and is never served.
 	SecurityGen int64
 	CreatedAt   int64
+
+	// Its builds: the newest asked for, and the one being served. A change
+	// made in build N is live once LiveBuild is N or more.
+	Build, LiveBuild int64
+	BuildState       string // none, waiting, building, live or failed
+	BuildError       string // the last failed build's reason
+	BuiltAt          int64
+	// Down: the live pages were taken down when something public was
+	// withdrawn, and stay down until a build passes.
+	Down bool
+}
+
+// The states of a site's build.
+const (
+	BuildNone     = "none"
+	BuildWaiting  = "waiting"
+	BuildBuilding = "building"
+	BuildLive     = "live"
+	BuildFailed   = "failed"
+)
+
+// Snapshot is what one build reads, as it was at one moment: the site, and
+// its public documents with the digest of each source and resource. The data
+// is read after, by digest: a source or a resource that has changed since
+// makes the build superseded, never a mix.
+type Snapshot struct {
+	Site  Site // its Build is this build's number, SecurityGen the generation it carries
+	Build int64
+	Docs  []SnapDoc
+}
+
+// SnapDoc is one public document of a snapshot.
+type SnapDoc struct {
+	Doc       Doc
+	Meta      string
+	SHA256    string
+	Resources []Resource
 }
 
 // Source is a document as it was sent.
@@ -36,6 +73,20 @@ type Store interface {
 	// SetSite replaces the site's configuration and its content host, with
 	// its audit entry. ErrNoSite.
 	SetSite(ctx context.Context, id int64, config, contentHost string) (Site, error)
+	SiteByID(ctx context.Context, id int64) (Site, error) // ErrNoSite
+
+	// AskBuild records that the site needs a build, and answers its number.
+	AskBuild(ctx context.Context, id int64) (int64, error)
+	// StartBuild marks the newest build asked for as building and answers
+	// what it reads, in one transaction. ErrNoBuild when none is owed.
+	StartBuild(ctx context.Context, id int64) (Snapshot, error)
+	// FinishBuild records build n's end: failure "" when it went live.
+	FinishBuild(ctx context.Context, id, n int64, failure string, at int64) (Site, error)
+	// TakeDown records that the live pages were taken down.
+	TakeDown(ctx context.Context, id int64) error
+	// Owed are the sites a build is owed to: asked for and not yet live or
+	// failed, or interrupted.
+	Owed(ctx context.Context) ([]Site, error)
 
 	Doc(ctx context.Context, site int64, slug string) (Doc, error) // ErrNotFound
 	DocByID(ctx context.Context, id int64) (Doc, error)
@@ -73,4 +124,5 @@ var (
 	ErrNoSite     = errors.New("site: no such site")
 	ErrSiteExists = errors.New("site: a site has that host")
 	ErrNoUser     = errors.New("site: a document's owner and the members it is shared with must be users")
+	ErrNoBuild    = errors.New("site: no build is owed")
 )

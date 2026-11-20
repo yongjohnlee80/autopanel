@@ -58,6 +58,23 @@ type Module struct {
 	store  Store
 	people People
 	now    func() time.Time
+	builds *Builds // nil: nothing is built (a host without the builder; tests)
+}
+
+// SetBuilds has the module ask for builds as documents change.
+func (m *Module) SetBuilds(b *Builds) { m.builds = b }
+
+// changed asks for a build of s when what it serves may have changed; when
+// something public was withdrawn, its pages are taken down first. It answers
+// the build that will include the change, 0 for none.
+func (m *Module) changed(ctx context.Context, s Site, withdrawn bool) (int64, error) {
+	if m.builds == nil {
+		return 0, nil
+	}
+	if withdrawn {
+		return m.builds.Lowered(ctx, s)
+	}
+	return m.builds.Ask(ctx, s.ID)
 }
 
 // NewModule is the site's verbs over store.
@@ -114,6 +131,8 @@ func (m *Module) Verbs() []module.Verb {
 			Doc: "Sets a site's configuration (YAML: title, tagline, language, theme, home, nav, footer, look) and its content host. A configuration is validated whole; a refused one changes nothing. Leaving a field out keeps it; an empty content_host clears it."}), m.set),
 		module.Handle(admin(module.Contract{Verb: "site.get", Discloses: module.Plain, Param: "{host}", Result: "{host, content_host, config, security_gen, documents}",
 			Doc: "A site's configuration, with its defaults filled in."}), m.getSite),
+		module.Handle(site(module.Contract{Verb: "site.status", Discloses: module.Plain, Param: "{host}", Result: "{host, build, live_build, state, built_at, error}",
+			Doc: "Where a site's builds are: the newest asked for, the one served, and the last failure's reason. A change made in build N is live once live_build is N or more."}), m.status),
 		module.Handle(site(module.Contract{Verb: "site.doc.put", Mutates: true, Param: "{site, slug, format, body, meta?, visibility?, share?: [name], collection?, order?, active?}",
 			Result: "{slug, visibility, version, generation, served}",
 			Doc:    "Publishes a document, or a new version of one of yours. A first publish that names no level is private; an update that names none keeps its level. In this release a document is stored and not yet served."}), m.put),
@@ -200,7 +219,40 @@ func (m *Module) remove(ctx context.Context, p SiteAsk) (struct{}, error) {
 	if err != nil {
 		return struct{}{}, err
 	}
-	return struct{}{}, m.store.RemoveSite(ctx, s.ID)
+	if err := m.store.RemoveSite(ctx, s.ID); err != nil {
+		return struct{}{}, err
+	}
+	if m.builds != nil {
+		return struct{}{}, m.builds.Removed(s.Host)
+	}
+	return struct{}{}, nil
+}
+
+// Status is where a site's builds are: build is the newest asked for,
+// live_build the one served. A change made in build N is live once
+// live_build is N or more.
+type Status struct {
+	Host      string `json:"host"`
+	Build     int64  `json:"build"`
+	LiveBuild int64  `json:"live_build"`
+	State     string `json:"state"` // none, waiting, building, live, failed or down
+	BuiltAt   int64  `json:"built_at,omitempty"`
+	Error     string `json:"error,omitempty"`
+}
+
+func (m *Module) status(ctx context.Context, p SiteAsk) (Status, error) {
+	if _, _, err := m.reader(ctx); err != nil {
+		return Status{}, err
+	}
+	s, err := m.siteOf(ctx, p.Host)
+	if err != nil {
+		return Status{}, err
+	}
+	st := Status{Host: s.Host, Build: s.Build, LiveBuild: s.LiveBuild, State: s.BuildState, BuiltAt: s.BuiltAt, Error: s.BuildError}
+	if s.Down && s.BuildState != BuildBuilding && s.BuildState != BuildWaiting {
+		st.State = "down"
+	}
+	return st, nil
 }
 
 // hostFree: no site but except has host as its host or its content host.
@@ -266,6 +318,9 @@ func (m *Module) set(ctx context.Context, p SiteSet) (SiteConfigView, error) {
 	if s, err = m.store.SetSite(ctx, s.ID, config, content); err != nil {
 		return SiteConfigView{}, err
 	}
+	if _, err := m.changed(ctx, s, false); err != nil {
+		return SiteConfigView{}, err
+	}
 	return m.siteView(ctx, s)
 }
 
@@ -317,9 +372,10 @@ type Published struct {
 	Visibility string `json:"visibility"`
 	Version    int64  `json:"version"`
 	Generation int64  `json:"generation"`
-	// Served is false in this release: a document is kept, and no page is
-	// made of it yet.
-	Served bool `json:"served"`
+	// Served: a public document's page is made by Build; site.status says
+	// when it is live. A held document is kept and not yet served.
+	Served bool  `json:"served"`
+	Build  int64 `json:"build,omitempty"`
 }
 
 // DocView is a document in a list.
@@ -410,7 +466,7 @@ func (m *Module) put(ctx context.Context, p Put) (Published, error) {
 		if err != nil {
 			return Published{}, err
 		}
-		return Published{Slug: d.Slug, Visibility: d.Visibility, Version: d.Version, Generation: d.Generation}, nil
+		return m.published(ctx, s, d, d.Visibility == Public, false)
 	case err != nil:
 		return Published{}, err
 	}
@@ -420,7 +476,7 @@ func (m *Module) put(ctx context.Context, p Put) (Published, error) {
 		}
 		return Published{}, ErrDuplicate // someone else's slug, which the caller may not even see
 	}
-	d, _, err := m.store.Update(ctx, old.ID, func(cur Doc) (Doc, *Source, error) {
+	d, lowered, err := m.store.Update(ctx, old.ID, func(cur Doc) (Doc, *Source, error) {
 		if cur.Owner != me.ID { // changed hands since the read: it cannot, but the rule is the store's read
 			return Doc{}, nil, ErrNotYours
 		}
@@ -443,7 +499,21 @@ func (m *Module) put(ctx context.Context, p Put) (Published, error) {
 	if err != nil {
 		return Published{}, err
 	}
-	return Published{Slug: d.Slug, Visibility: d.Visibility, Version: d.Version, Generation: d.Generation}, nil
+	return m.published(ctx, s, d, old.Visibility == Public || d.Visibility == Public, lowered)
+}
+
+// published answers a publish, asking for the build it needs.
+func (m *Module) published(ctx context.Context, s Site, d Doc, public, lowered bool) (Published, error) {
+	p := Published{Slug: d.Slug, Visibility: d.Visibility, Version: d.Version, Generation: d.Generation}
+	if !public && !lowered {
+		return p, nil
+	}
+	n, err := m.changed(ctx, s, lowered)
+	if err != nil {
+		return p, err
+	}
+	p.Build, p.Served = n, n > 0 && d.Visibility == Public
+	return p, nil
 }
 
 func (m *Module) docs(ctx context.Context, p DocAsk) ([]DocView, error) {
@@ -524,7 +594,14 @@ func (m *Module) removeDoc(ctx context.Context, p DocAsk) (struct{}, error) {
 	if !May(who, ActRemove, d) {
 		return struct{}{}, ErrNotYours
 	}
-	_, err = m.store.Remove(ctx, d.ID)
+	if _, err = m.store.Remove(ctx, d.ID); err != nil || d.Visibility != Public {
+		return struct{}{}, err
+	}
+	s, err := m.store.SiteByID(ctx, d.Site)
+	if err != nil {
+		return struct{}{}, err
+	}
+	_, err = m.changed(ctx, s, true)
 	return struct{}{}, err
 }
 
@@ -540,9 +617,10 @@ type AssetAsk struct {
 
 // AssetView is a file as the verbs answer it.
 type AssetView struct {
-	Name string `json:"name"`
-	MIME string `json:"mime"`
-	Size int64  `json:"size"`
+	Name  string `json:"name"`
+	MIME  string `json:"mime"`
+	Size  int64  `json:"size"`
+	Build int64  `json:"build,omitempty"` // the build that will serve it, for a public document's file
 }
 
 // owned is a document the caller may change: its owner's. Anything else the
@@ -583,7 +661,20 @@ func (m *Module) assetPut(ctx context.Context, p AssetAsk) (AssetView, error) {
 	if err != nil {
 		return AssetView{}, err
 	}
-	return AssetView{Name: r.Name, MIME: r.MIME, Size: r.Size}, nil
+	n, err := m.docChanged(ctx, d)
+	return AssetView{Name: r.Name, MIME: r.MIME, Size: r.Size, Build: n}, err
+}
+
+// docChanged asks for a build when a public document's files changed.
+func (m *Module) docChanged(ctx context.Context, d Doc) (int64, error) {
+	if d.Visibility != Public || m.builds == nil {
+		return 0, nil
+	}
+	s, err := m.store.SiteByID(ctx, d.Site)
+	if err != nil {
+		return 0, err
+	}
+	return m.changed(ctx, s, false)
 }
 
 func (m *Module) assetList(ctx context.Context, p AssetAsk) ([]AssetView, error) {
@@ -607,5 +698,9 @@ func (m *Module) assetRemove(ctx context.Context, p AssetAsk) (struct{}, error) 
 	if err != nil {
 		return struct{}{}, err
 	}
-	return struct{}{}, m.store.RemoveResource(ctx, d.ID, p.Name)
+	if err := m.store.RemoveResource(ctx, d.ID, p.Name); err != nil {
+		return struct{}{}, err
+	}
+	_, err = m.docChanged(ctx, d)
+	return struct{}{}, err
 }

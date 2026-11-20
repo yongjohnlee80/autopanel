@@ -65,7 +65,7 @@ func TestEveryVerbHasADecision(t *testing.T) {
 		"mail.account.quota": {"mail", true, false}, "mail.account.remove": {"mail", true, false},
 
 		"site.add": {"site.admin", true, false}, "site.list": {"site.admin", false, true}, "site.remove": {"site.admin", true, false},
-		"site.set": {"site.admin", true, false}, "site.get": {"site.admin", false, true},
+		"site.set": {"site.admin", true, false}, "site.get": {"site.admin", false, true}, "site.status": {"site", false, true},
 		"site.doc.put": {"site", true, false}, "site.doc.list": {"site", false, true}, "site.doc.get": {"site", false, false},
 		"site.doc.remove": {"site", true, false},
 		"site.asset.put":  {"site", true, false}, "site.asset.list": {"site", false, false}, "site.asset.remove": {"site", true, false},

@@ -386,3 +386,75 @@ func TestASitesConfigurationIsReplacedWhole(t *testing.T) {
 		})
 	}
 }
+
+// TestASitesBuildsAreCounted: a build asked for is owed until it is live; a
+// failure keeps what was live; a site taken down is owed until a build passes.
+func TestASitesBuildsAreCounted(t *testing.T) {
+	for engine, s := range engines(t) {
+		t.Run(engine, func(t *testing.T) {
+			ctx := context.Background()
+			ss := s.Sites()
+			ann := testUser(t, s, "ann")
+			blog, err := ss.AddSite(ctx, site.Site{Host: "blog.example.com", CreatedAt: 1})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := ss.StartBuild(ctx, blog.ID); !errors.Is(err, site.ErrNoBuild) {
+				t.Fatalf("nothing asked: %v", err)
+			}
+			src := site.Source{Body: []byte("# pub"), SHA256: "p1"}
+			pub, err := ss.Create(ctx, site.Doc{Site: blog.ID, Slug: "pub", Format: site.Markdown, Owner: ann, Visibility: site.Public}, src)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := ss.Create(ctx, site.Doc{Site: blog.ID, Slug: "held", Format: site.Markdown, Owner: ann, Visibility: site.Private}, site.Source{Body: []byte("x"), SHA256: "h"}); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := ss.PutResource(ctx, pub.ID, site.Resource{Name: "a.png", MIME: "image/png", SHA256: "r1"}, []byte("\x89PNG\r\n\x1a\n")); err != nil {
+				t.Fatal(err)
+			}
+			if n, err := ss.AskBuild(ctx, blog.ID); err != nil || n != 1 {
+				t.Fatalf("ask: %d, %v", n, err)
+			}
+			if owed, _ := ss.Owed(ctx); len(owed) != 1 {
+				t.Fatalf("owed: %+v", owed)
+			}
+			snap, err := ss.StartBuild(ctx, blog.ID)
+			if err != nil || snap.Build != 1 || snap.Site.BuildState != site.BuildBuilding || len(snap.Docs) != 1 ||
+				snap.Docs[0].Doc.Slug != "pub" || snap.Docs[0].SHA256 != "p1" || len(snap.Docs[0].Resources) != 1 {
+				t.Fatalf("the snapshot: %+v, %v", snap, err)
+			}
+			if n, _ := ss.AskBuild(ctx, blog.ID); n != 2 {
+				t.Fatalf("asked while building: %d", n)
+			}
+			v, err := ss.FinishBuild(ctx, blog.ID, 1, "", 10)
+			if err != nil || v.LiveBuild != 1 || v.BuildState != site.BuildWaiting {
+				t.Fatalf("build 1 live, 2 owed: %+v, %v", v, err)
+			}
+			if _, err := ss.StartBuild(ctx, blog.ID); err != nil {
+				t.Fatal(err)
+			}
+			if v, err = ss.FinishBuild(ctx, blog.ID, 2, "it broke", 11); err != nil || v.LiveBuild != 1 || v.BuildState != site.BuildFailed || v.BuildError != "it broke" {
+				t.Fatalf("build 2 failed: %+v, %v", v, err)
+			}
+			if owed, _ := ss.Owed(ctx); len(owed) != 0 {
+				t.Fatalf("a failed build is not owed: %+v", owed)
+			}
+			if err := ss.TakeDown(ctx, blog.ID); err != nil {
+				t.Fatal(err)
+			}
+			if owed, _ := ss.Owed(ctx); len(owed) != 1 || !owed[0].Down {
+				t.Fatalf("a site taken down is owed: %+v", owed)
+			}
+			if _, err := ss.AskBuild(ctx, blog.ID); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := ss.StartBuild(ctx, blog.ID); err != nil {
+				t.Fatal(err)
+			}
+			if v, err = ss.FinishBuild(ctx, blog.ID, 3, "", 12); err != nil || v.Down || v.LiveBuild != 3 || v.BuildState != site.BuildLive {
+				t.Fatalf("up again: %+v, %v", v, err)
+			}
+		})
+	}
+}

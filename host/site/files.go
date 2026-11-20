@@ -41,7 +41,10 @@ type Work struct {
 	Host, Dir, Content, Out string
 }
 
-const workDir = ".work"
+const (
+	workDir = ".work"
+	downDir = ".down" // <host>: an empty marker; the site's pages were taken down
+)
 
 // ErrBadHost is a host name the files cannot be named by.
 var ErrBadHost = errors.New("site: not a host name")
@@ -259,7 +262,64 @@ func (f Files) Swap(w Work) (first bool, err error) {
 	default:
 		return false, fmt.Errorf("site: the first swap: %w", err)
 	}
-	return first, os.RemoveAll(w.Content)
+	if err := os.RemoveAll(w.Content); err != nil {
+		return first, err
+	}
+	// The site is up again.
+	if err := os.Remove(path.Join(f.Dir, downDir, w.Host)); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return first, err
+	}
+	return first, nil
+}
+
+// TakeDown withdraws host's live pages at once: one rename moves them off
+// the name the serving process reads, then they are deleted, and an empty
+// marker is left by which the serving process answers 503 for every path of
+// the site until the next swap. It is safe to call again.
+func (f Files) TakeDown(host string) error {
+	if err := hostName(host); err != nil {
+		return err
+	}
+	down := path.Join(f.Dir, downDir)
+	if err := f.ensureDir(f.Dir, 0o755); err != nil {
+		return err
+	}
+	if err := f.ensureDir(down, 0o755); err != nil {
+		return err
+	}
+	marker := path.Join(down, host)
+	if err := os.RemoveAll(marker); err != nil {
+		return err
+	}
+	err := os.Rename(path.Join(f.Dir, host), marker)
+	switch {
+	case errors.Is(err, fs.ErrNotExist):
+		if err := os.Mkdir(marker, 0o755); err != nil {
+			return err
+		}
+	case err != nil:
+		return err
+	}
+	// The withdrawn pages go; the marker stays, empty.
+	entries, err := os.ReadDir(marker)
+	if err != nil {
+		return err
+	}
+	for _, e := range entries {
+		if err := os.RemoveAll(path.Join(marker, e.Name())); err != nil {
+			return err
+		}
+	}
+	return os.Chmod(marker, 0o755)
+}
+
+// IsDown reports whether host's pages were taken down and not yet replaced.
+func (f Files) IsDown(host string) bool {
+	if hostName(host) != nil {
+		return false
+	}
+	info, err := os.Lstat(path.Join(f.Dir, downDir, host))
+	return err == nil && info.IsDir()
 }
 
 // Remove deletes a site's live pages and any work it has.
@@ -267,8 +327,10 @@ func (f Files) Remove(host string) error {
 	if err := hostName(host); err != nil {
 		return err
 	}
-	if err := os.RemoveAll(path.Join(f.Dir, workDir, host)); err != nil {
-		return err
+	for _, p := range []string{path.Join(f.Dir, workDir, host), path.Join(f.Dir, downDir, host)} {
+		if err := os.RemoveAll(p); err != nil {
+			return err
+		}
 	}
 	return os.RemoveAll(path.Join(f.Dir, host))
 }
