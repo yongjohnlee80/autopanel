@@ -312,7 +312,7 @@ func (m *Module) Errors() []module.PublicError {
 		{Err: ErrLocked, Code: -32136, Name: "mail.locked", Message: "the vault is locked: log in as root first"},
 		{Err: ErrDomainExists, Code: -32137, Name: "mail.domain_exists", Message: "the domain receives mail already"},
 		{Err: ErrNoDomain, Code: -32138, Name: "mail.no_domain", Message: "the domain does not receive mail"},
-		{Err: ErrDomainHasAccounts, Code: -32139, Name: "mail.domain_has_accounts", Message: "the domain has accounts: remove them first"},
+		{Err: ErrDomainHasAccounts, Code: -32139, Name: "mail.domain_has_accounts", Message: "the domain has accounts, or aliases of accounts: remove them first"},
 		{Err: ErrNotMailPort, Code: -32215, Name: "mail.not_mail_port", Message: "a port to open is not one of mail's (25, 465, 587, 993)"},
 		{Err: ErrNotOurs, Code: -32216, Name: "mail.not_ours", Message: "the mail stack's definition is not AutoPanel's: Mail cannot go on from it"},
 		{Err: ErrHasAccounts, Code: -32217, Name: "mail.has_accounts", Message: "mail still has accounts: remove them first"},
@@ -1022,6 +1022,12 @@ func (m *Module) domainRemove(ctx context.Context, p Name) (struct{}, error) {
 		for _, a := range accounts {
 			if a.DomainID == d.ID {
 				return struct{}{}, ErrDomainHasAccounts
+			}
+			// An alias of another domain's account in this one holds it too.
+			for _, al := range a.Aliases {
+				if al.DomainID == d.ID {
+					return struct{}{}, ErrDomainHasAccounts
+				}
 			}
 		}
 		if err := c.RemoveDomain(ctx, d.ID); err != nil {
