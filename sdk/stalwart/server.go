@@ -84,7 +84,7 @@ func (s server) Accounts(ctx context.Context) ([]provider.Account, error) {
 	out := make([]provider.Account, 0, len(as))
 	for _, a := range as {
 		v := provider.Account{ID: a.ID, Local: a.Name, DomainID: a.DomainID, Address: a.Address,
-			Quota: a.Quota, Used: a.Used, Admin: a.Admin}
+			Quota: a.Quota, Used: a.Used, Admin: a.Admin, Disabled: a.Disabled}
 		for _, al := range a.Aliases {
 			v.Aliases = append(v.Aliases, provider.Alias{Local: al.Name, DomainID: al.DomainID})
 		}
@@ -126,6 +126,18 @@ func lockedSecret() (string, error) {
 	}
 	defer clear(b[:])
 	return lockedHasher.Hash(base64.RawStdEncoding.EncodeToString(b[:]))
+}
+
+func (s server) SetDisabled(ctx context.Context, accountID string, disabled bool) error {
+	return refused(s.c.SetDisabled(ctx, accountID, disabled))
+}
+
+func (s server) SetAliases(ctx context.Context, accountID string, aliases []provider.Alias) error {
+	as := make([]Alias, len(aliases))
+	for i, a := range aliases {
+		as[i] = Alias{Name: a.Local, DomainID: a.DomainID}
+	}
+	return refused(s.c.SetAliases(ctx, accountID, as))
 }
 
 func (s server) SetQuota(ctx context.Context, accountID string, bytes int64) error {

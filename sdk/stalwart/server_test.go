@@ -534,13 +534,16 @@ func imapSignIn(t *testing.T, addr, user, secret string) bool {
 	_ = conn.SetDeadline(time.Now().Add(15 * time.Second))
 	r := bufio.NewReader(conn)
 	if _, err := r.ReadString('\n'); err != nil {
-		t.Fatal(err)
+		t.Fatalf("IMAPS %s closed before its greeting (a ban on this address?): %v", addr, err)
 	}
 	fmt.Fprintf(conn, "a1 LOGIN %q %q\r\n", user, secret)
 	for {
 		line, err := r.ReadString('\n')
 		if err != nil {
-			t.Fatal(err)
+			// A server may close the connection instead of answering a refused
+			// LOGIN: that is no sign-in.
+			t.Logf("IMAPS %s closed the connection after LOGIN: %v", addr, err)
+			return false
 		}
 		if strings.HasPrefix(line, "a1 ") {
 			return strings.HasPrefix(line, "a1 OK")

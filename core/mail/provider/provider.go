@@ -44,6 +44,15 @@ type Server interface {
 	LockPassword(ctx context.Context, accountID string) error
 	// SetQuota sets an account's disk quota, and nothing else.
 	SetQuota(ctx context.Context, accountID string, bytes int64) error
+	// SetDisabled disables an account or enables it again, and nothing else:
+	// a disabled account signs nothing in, by any password or app password,
+	// and keeps its mail, its app passwords and its aliases for when it is
+	// enabled.
+	SetDisabled(ctx context.Context, accountID string, disabled bool) error
+	// SetAliases replaces an account's aliases with these, and nothing else.
+	// Each is an address of a domain the server receives mail for, delivered
+	// to the account.
+	SetAliases(ctx context.Context, accountID string, aliases []Alias) error
 	RemoveAccount(ctx context.Context, accountID string) error
 
 	// AppPasswords are an account's app passwords, never their secrets.
@@ -179,6 +188,7 @@ type Account struct {
 	Used     int64   // bytes; -1 when the server does not account for it
 	Aliases  []Alias // the enabled ones
 	Admin    bool    // the server's administrator, AutoPanel's way in: not a mailbox
+	Disabled bool    // it signs nothing in: no app password, no password
 }
 
 // Alias is another address of an account's.
