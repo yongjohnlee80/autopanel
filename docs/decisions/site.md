@@ -141,6 +141,23 @@ the whole build.
 **In the code:** `core/site/check.go` (the walk), `core/site/check_page.go` (the rules);
 `core/site/check_test.go`.
 
+## The new pages replace the old in one system call
+
+**Decided:** a build runs in a work directory beside the live ones, on the same file system.
+
+- **Each build starts empty.** It never sees another build's input, output or scratch. Its input
+  is the core's, and only its output directory is the builder's.
+- **Once the build has exited, its output is taken away** before anything in it is looked at. The
+  work directory becomes the core's, mode `0700`, so no path reaches the output. After the check,
+  every entry becomes the core's, `0755` or `0644`, and no link is followed.
+- **The swap is one `renameat2` exchange:** a reader gets the old pages or the new ones, never a
+  missing directory or a mix. The first build of a site is a rename onto a name nothing holds.
+- **The old pages are kept, closed off, until the next build begins,** so a request that opened
+  them a moment before the swap still reads them whole.
+
+**In the code:** `host/site/files.go`; `TestTheSwapIsAtomic` reads continuously from four readers
+during 100 swaps.
+
 ## The audit log names a document, never its text
 
 **Decided:** every change to a site or a document has its entry, written in the change's own
