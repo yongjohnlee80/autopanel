@@ -20,10 +20,10 @@ const (
 )
 
 var policy = map[Role]map[string]access{
-	RoleAdmin:    {"sys": all, "sys.admin": all, "gate": all, "certs": all, "services": all, "mail": all, "mail.admin": all, "auth": all},
-	RoleOperator: {"sys": all, "sys.admin": none, "gate": all, "certs": read, "services": all, "mail": all, "mail.admin": all, "auth": own},
-	RoleMail:     {"sys": read, "sys.admin": none, "gate": read, "certs": none, "services": none, "mail": all, "mail.admin": none, "auth": own},
-	RoleViewer:   {"sys": read, "sys.admin": none, "gate": read, "certs": read, "services": read, "mail": read, "mail.admin": none, "auth": own},
+	RoleAdmin:    {"sys": all, "sys.admin": all, "gate": all, "certs": all, "services": all, "mail": all, "mail.admin": all, "auth": all, "site": all, "site.admin": all},
+	RoleOperator: {"sys": all, "sys.admin": none, "gate": all, "certs": read, "services": all, "mail": all, "mail.admin": all, "auth": own, "site": all, "site.admin": none},
+	RoleMail:     {"sys": read, "sys.admin": none, "gate": read, "certs": none, "services": none, "mail": all, "mail.admin": none, "auth": own, "site": none, "site.admin": none},
+	RoleViewer:   {"sys": read, "sys.admin": none, "gate": read, "certs": read, "services": read, "mail": read, "mail.admin": none, "auth": own, "site": none, "site.admin": none},
 }
 
 // ownVerbs are the auth verbs every role may call on its own account.

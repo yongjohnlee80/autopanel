@@ -302,3 +302,28 @@ func sameHash(a, b []byte) bool { return subtle.ConstantTimeCompare(a, b) == 1 }
 func (m *Module) audited(ctx context.Context, action, subject, detail string) {
 	_ = m.audit.Audit(ctx, audit.Actor(ctx), action, subject, detail)
 }
+
+// Caller is the enabled user a verb runs for (a token's owner for a token),
+// read from the store now. A principal that is no one, or a disabled user, is
+// ErrExpired.
+func (m *Module) Caller(ctx context.Context) (User, error) {
+	u, _, err := m.caller(ctx)
+	if err != nil {
+		return User{}, err
+	}
+	if u.DisabledAt != 0 {
+		return User{}, ErrExpired
+	}
+	return u, nil
+}
+
+// UserNamed is the user of that name, for another module that names users
+// (a document's share list). ErrNoUser when there is none.
+func (m *Module) UserNamed(ctx context.Context, name string) (User, error) {
+	return m.store.User(ctx, name)
+}
+
+// UserByID is the user of that id. ErrNoUser when there is none.
+func (m *Module) UserByID(ctx context.Context, id int64) (User, error) {
+	return m.store.UserByID(ctx, id)
+}
