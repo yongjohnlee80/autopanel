@@ -2,6 +2,7 @@ package site_test
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"path/filepath"
 	"testing"
@@ -170,5 +171,71 @@ func TestTheSitesVerbs(t *testing.T) {
 	}
 	if sites, err := call[[]site.SiteView](t, m, "user:root", "site.list", nil); err != nil || len(sites) != 1 || sites[0].Documents != 0 {
 		t.Fatalf("site.list = %+v, %v", sites, err)
+	}
+}
+
+// TestADocumentsFiles: only the owner adds, lists and removes a document's
+// files; a file is what its name and content say; data is base64; anyone
+// else is told the document is not theirs, or that it is missing.
+func TestADocumentsFiles(t *testing.T) {
+	ctx := context.Background()
+	st, err := store.Open(ctx, store.Config{Engine: dao.DialectSQLite, Path: filepath.Join(t.TempDir(), "store.db")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = st.Close() })
+	ann, err := st.Users().AddUser(ctx, "ann", auth.RoleOperator, nil, "v", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bob, err := st.Users().AddUser(ctx, "bob", auth.RoleOperator, nil, "v", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ppl := people{"user:ann": {ID: ann.ID, Name: "ann"}, "user:bob": {ID: bob.ID, Name: "bob"}, "user:root": {ID: 999, Name: "root", Admin: true}}
+	m := site.NewModule(st.Sites(), ppl)
+	if _, err := call[site.SiteView](t, m, "user:root", "site.add", site.SiteAsk{Host: "docs.example.com"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := call[site.Published](t, m, "user:ann", "site.doc.put", site.Put{Site: "docs.example.com", Slug: "guide", Format: "xmd", Body: "x", Visibility: "public"}); err != nil {
+		t.Fatal(err)
+	}
+	png := base64.StdEncoding.EncodeToString([]byte("\x89PNG\r\n\x1a\n...."))
+	ask := func(name, data string) site.AssetAsk {
+		return site.AssetAsk{Site: "docs.example.com", Slug: "guide", Name: name, Data: data}
+	}
+	if v, err := call[site.AssetView](t, m, "user:ann", "site.asset.put", ask("images/flow.png", png)); err != nil || v.MIME != "image/png" || v.Size != 12 {
+		t.Fatalf("a picture: %+v, %v", v, err)
+	}
+	for what, tc := range map[string]struct {
+		as   string
+		ask  site.AssetAsk
+		want error
+	}{
+		"someone else's document":     {"user:bob", ask("b.png", png), site.ErrNotYours},
+		"an administrator":            {"user:root", ask("b.png", png), site.ErrNotYours},
+		"data that is no base64":      {"user:ann", ask("b.png", "%%%"), site.ErrBadData},
+		"a renamed file":              {"user:ann", ask("b.jpg", png), site.ErrResourceType},
+		"an svg":                      {"user:ann", ask("b.svg", base64.StdEncoding.EncodeToString([]byte("<svg/>"))), site.ErrResourceType},
+		"a name that climbs":          {"user:ann", ask("../b.png", png), site.ErrBadResource},
+		"a name of the site's own":    {"user:ann", ask("_doc.html", png), site.ErrReservedName},
+		"a name that differs by case": {"user:ann", ask("images/Flow.png", png), site.ErrResourceTaken},
+		"no such document":            {"user:ann", site.AssetAsk{Site: "docs.example.com", Slug: "none", Name: "a.png", Data: png}, site.ErrNotFound},
+	} {
+		if _, err := call[site.AssetView](t, m, tc.as, "site.asset.put", tc.ask); !errors.Is(err, tc.want) {
+			t.Errorf("%s: %v; want %v", what, err, tc.want)
+		}
+	}
+	if list, err := call[[]site.AssetView](t, m, "user:ann", "site.asset.list", ask("", "")); err != nil || len(list) != 1 || list[0].Name != "images/flow.png" {
+		t.Fatalf("the owner's list: %+v, %v", list, err)
+	}
+	if _, err := call[[]site.AssetView](t, m, "user:bob", "site.asset.list", ask("", "")); !errors.Is(err, site.ErrNotYours) {
+		t.Fatalf("another member's list of a public document's files: %v", err)
+	}
+	if _, err := call[struct{}](t, m, "user:ann", "site.asset.remove", ask("images/flow.png", "")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := call[struct{}](t, m, "user:ann", "site.asset.remove", ask("images/flow.png", "")); !errors.Is(err, site.ErrNoResource) {
+		t.Fatalf("removing it twice: %v", err)
 	}
 }

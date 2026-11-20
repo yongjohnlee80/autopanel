@@ -67,6 +67,7 @@ func TestEveryVerbHasADecision(t *testing.T) {
 		"site.add": {"site.admin", true, false}, "site.list": {"site.admin", false, true}, "site.remove": {"site.admin", true, false},
 		"site.doc.put": {"site", true, false}, "site.doc.list": {"site", false, true}, "site.doc.get": {"site", false, false},
 		"site.doc.remove": {"site", true, false},
+		"site.asset.put":  {"site", true, false}, "site.asset.list": {"site", false, false}, "site.asset.remove": {"site", true, false},
 	}
 	seen := map[string]bool{}
 	var unplaced []string
