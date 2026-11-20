@@ -226,3 +226,117 @@ func TestSiteDocumentsKeepTheirIdentity(t *testing.T) {
 		})
 	}
 }
+
+// TestSiteResourcesBelongToOneDocument: a document's files on each engine.
+// A file is found only by its exact name and only under its own document;
+// the same name replaces, a name differing only by case is refused, and one
+// more than the limit too; new content is a new version of the document, the
+// same content is not; the files go with the document.
+func TestSiteResourcesBelongToOneDocument(t *testing.T) {
+	for engine, s := range engines(t) {
+		t.Run(engine, func(t *testing.T) {
+			ctx := context.Background()
+			ss := s.Sites()
+			ann := testUser(t, s, "ann")
+			blog, err := ss.AddSite(ctx, site.Site{Host: "docs.example.com", CreatedAt: 1})
+			if err != nil {
+				t.Fatal(err)
+			}
+			src := site.Source{Body: []byte("x"), SHA256: "aa"}
+			one, err := ss.Create(ctx, site.Doc{Site: blog.ID, Slug: "one", Format: site.XMD, Owner: ann, Visibility: site.Private}, src)
+			if err != nil {
+				t.Fatal(err)
+			}
+			two, err := ss.Create(ctx, site.Doc{Site: blog.ID, Slug: "two", Format: site.XMD, Owner: ann, Visibility: site.Public}, src)
+			if err != nil {
+				t.Fatal(err)
+			}
+			version := func(id int64) int64 {
+				t.Helper()
+				d, err := ss.DocByID(ctx, id)
+				if err != nil {
+					t.Fatal(err)
+				}
+				return d.Version
+			}
+			held := []byte("the private document's picture")
+			r, err := ss.PutResource(ctx, one.ID, site.Resource{Name: "images/Flow.png", MIME: "image/png", SHA256: "s1"}, held)
+			if err != nil || r.ID == 0 || r.Doc != one.ID || r.Size != int64(len(held)) || version(one.ID) != 2 {
+				t.Fatalf("PutResource = %+v, %v; the document's version is %d", r, err, version(one.ID))
+			}
+			// The same content again: no new version. New content: one, and the file is replaced.
+			if _, err := ss.PutResource(ctx, one.ID, site.Resource{Name: "images/Flow.png", MIME: "image/png", SHA256: "s1"}, held); err != nil || version(one.ID) != 2 {
+				t.Fatalf("the same file again: %v, version %d", err, version(one.ID))
+			}
+			if _, err := ss.PutResource(ctx, one.ID, site.Resource{Name: "images/Flow.png", MIME: "image/png", SHA256: "s2"}, []byte("new")); err != nil || version(one.ID) != 3 {
+				t.Fatalf("a new file of the same name: %v, version %d", err, version(one.ID))
+			}
+			if _, err := ss.PutResource(ctx, one.ID, site.Resource{Name: "images/flow.PNG", MIME: "image/png", SHA256: "s3"}, []byte("x")); !errors.Is(err, site.ErrResourceTaken) {
+				t.Fatalf("a name that differs only by case: %v", err)
+			}
+			if _, err := ss.PutResource(ctx, 999999, site.Resource{Name: "a.png", MIME: "image/png", SHA256: "s"}, []byte("x")); !errors.Is(err, site.ErrNotFound) {
+				t.Fatalf("a file of no document: %v", err)
+			}
+			// Found only by its exact name, and only under its own document.
+			if got, data, err := ss.ResourceData(ctx, one.ID, "images/Flow.png"); err != nil || string(data) != "new" || got.SHA256 != "s2" {
+				t.Fatalf("ResourceData = %+v, %q, %v", got, data, err)
+			}
+			for what, ask := range map[string]struct {
+				doc  int64
+				name string
+			}{
+				"another document":    {two.ID, "images/Flow.png"},
+				"another case":        {one.ID, "images/flow.png"},
+				"a path that climbs":  {two.ID, "../one/images/Flow.png"},
+				"a name it never had": {one.ID, "images/other.png"},
+			} {
+				if _, _, err := ss.ResourceData(ctx, ask.doc, ask.name); !errors.Is(err, site.ErrNoResource) {
+					t.Errorf("asked through %s: %v; want no such resource", what, err)
+				}
+			}
+			// The same name under another document is that document's own file.
+			if _, err := ss.PutResource(ctx, two.ID, site.Resource{Name: "images/Flow.png", MIME: "image/png", SHA256: "p1"}, []byte("public")); err != nil {
+				t.Fatal(err)
+			}
+			if _, data, _ := ss.ResourceData(ctx, one.ID, "images/Flow.png"); string(data) != "new" {
+				t.Fatalf("another document's file replaced this one's: %q", data)
+			}
+			// The limit.
+			for i := 1; i < site.MaxResources; i++ {
+				if _, err := ss.PutResource(ctx, one.ID, site.Resource{Name: "f" + strings.Repeat("x", i) + ".csv", MIME: "text/plain; charset=utf-8", SHA256: "c"}, []byte("a")); err != nil {
+					t.Fatalf("file %d: %v", i+1, err)
+				}
+			}
+			if _, err := ss.PutResource(ctx, one.ID, site.Resource{Name: "onemore.csv", MIME: "text/plain; charset=utf-8", SHA256: "c"}, []byte("a")); !errors.Is(err, site.ErrTooMany) {
+				t.Fatalf("one file over the limit: %v", err)
+			}
+			if _, err := ss.PutResource(ctx, one.ID, site.Resource{Name: "images/Flow.png", MIME: "image/png", SHA256: "s4"}, []byte("again")); err != nil {
+				t.Fatalf("replacing a file at the limit: %v", err)
+			}
+			if rs, err := ss.Resources(ctx, one.ID); err != nil || len(rs) != site.MaxResources {
+				t.Fatalf("Resources = %d, %v", len(rs), err)
+			}
+			// Removal: once, and it is a new version.
+			before := version(one.ID)
+			if err := ss.RemoveResource(ctx, one.ID, "images/Flow.png"); err != nil || version(one.ID) != before+1 {
+				t.Fatalf("RemoveResource: %v, version %d after %d", err, version(one.ID), before)
+			}
+			if err := ss.RemoveResource(ctx, one.ID, "images/Flow.png"); !errors.Is(err, site.ErrNoResource) {
+				t.Fatalf("removing it twice: %v", err)
+			}
+			// The files go with their document, and only with theirs.
+			if _, err := ss.Remove(ctx, one.ID); err != nil {
+				t.Fatal(err)
+			}
+			if n := count(t, s, "site_resource"); n != 1 {
+				t.Fatalf("%d files after the first document went; want the other document's one", n)
+			}
+			if err := ss.RemoveSite(ctx, blog.ID); err != nil {
+				t.Fatal(err)
+			}
+			if n := count(t, s, "site_resource"); n != 0 {
+				t.Fatalf("%d files outlived their site", n)
+			}
+		})
+	}
+}

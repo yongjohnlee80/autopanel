@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"strings"
 
 	"github.com/yongjohnlee80/golib/dao"
 
@@ -388,4 +389,145 @@ func (ss sites) Remove(ctx context.Context, id int64) (out site.Doc, err error) 
 		return ss.audit(ctx, tx, "site.doc.remove", subject, old.Visibility)
 	})
 	return out, err
+}
+
+const resourceCols = "id, doc_id, name, mime, size, sha256"
+
+func scanResource(rows dao.Rows) (site.Resource, error) {
+	var r site.Resource
+	err := rows.Scan(&r.ID, &r.Doc, &r.Name, &r.MIME, &r.Size, &r.SHA256)
+	return r, err
+}
+
+// PutResource stores the file and raises its document's version when the
+// content is new, in one transaction.
+func (ss sites) PutResource(ctx context.Context, doc int64, r site.Resource, data []byte) (out site.Resource, err error) {
+	err = ss.s.tx(ctx, func(tx dao.TxConn) error {
+		if _, err := ss.oneDoc(ctx, tx, "SELECT "+docCols+" FROM site_doc WHERE id = ?", doc); err != nil {
+			return err
+		}
+		rows, err := tx.QueryContext(ctx, ss.s.q("SELECT name, sha256 FROM site_resource WHERE doc_id = ?"), doc)
+		if err != nil {
+			return err
+		}
+		n, same, changed := 0, false, true
+		for rows.Next() {
+			var name, sum string
+			if err := rows.Scan(&name, &sum); err != nil {
+				_ = rows.Close()
+				return err
+			}
+			n++
+			switch {
+			case name == r.Name:
+				same, changed = true, sum != r.SHA256
+			case strings.EqualFold(name, r.Name):
+				_ = rows.Close()
+				return site.ErrResourceTaken
+			}
+		}
+		if err := rows.Err(); err != nil {
+			_ = rows.Close()
+			return err
+		}
+		if err := rows.Close(); err != nil {
+			return err
+		}
+		if !same && n >= site.MaxResources {
+			return site.ErrTooMany
+		}
+		if same {
+			if _, err := tx.ExecContext(ctx, ss.s.q("DELETE FROM site_resource WHERE doc_id = ? AND name = ?"), doc, r.Name); err != nil {
+				return err
+			}
+		}
+		res, err := tx.QueryContext(ctx, ss.s.q(`INSERT INTO site_resource(doc_id, name, name_fold, mime, size, sha256, data)
+			VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING `+resourceCols), doc, r.Name, strings.ToLower(r.Name), r.MIME, int64(len(data)), r.SHA256, data)
+		if err != nil {
+			if errors.Is(ss.s.translate(err), dao.ErrDuplicate) {
+				return site.ErrResourceTaken
+			}
+			return err
+		}
+		if !res.Next() {
+			err := res.Err()
+			_ = res.Close()
+			if err != nil && errors.Is(ss.s.translate(err), dao.ErrDuplicate) {
+				return site.ErrResourceTaken
+			}
+			if err == nil {
+				err = site.ErrNoResource
+			}
+			return err
+		}
+		if out, err = scanResource(res); err != nil {
+			_ = res.Close()
+			return err
+		}
+		if err := res.Close(); err != nil {
+			return err
+		}
+		if changed {
+			if _, err := tx.ExecContext(ctx, ss.s.q("UPDATE site_doc SET version = version + 1, updated_at = ? WHERE id = ?"), ss.s.now().Unix(), doc); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	return out, err
+}
+
+func (ss sites) Resources(ctx context.Context, doc int64) ([]site.Resource, error) {
+	rows, err := ss.s.conn.QueryContext(ctx, ss.s.q("SELECT "+resourceCols+" FROM site_resource WHERE doc_id = ? ORDER BY name"), doc)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []site.Resource
+	for rows.Next() {
+		r, err := scanResource(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
+// ResourceData reads one file by its exact name.
+func (ss sites) ResourceData(ctx context.Context, doc int64, name string) (site.Resource, []byte, error) {
+	rows, err := ss.s.conn.QueryContext(ctx, ss.s.q("SELECT "+resourceCols+", data FROM site_resource WHERE doc_id = ? AND name = ?"), doc, name)
+	if err != nil {
+		return site.Resource{}, nil, err
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return site.Resource{}, nil, err
+		}
+		return site.Resource{}, nil, site.ErrNoResource
+	}
+	var r site.Resource
+	var data []byte
+	if err := rows.Scan(&r.ID, &r.Doc, &r.Name, &r.MIME, &r.Size, &r.SHA256, &data); err != nil {
+		return site.Resource{}, nil, err
+	}
+	return r, data, rows.Close()
+}
+
+// RemoveResource deletes one file and raises its document's version.
+func (ss sites) RemoveResource(ctx context.Context, doc int64, name string) error {
+	return ss.s.tx(ctx, func(tx dao.TxConn) error {
+		res, err := tx.ExecContext(ctx, ss.s.q("DELETE FROM site_resource WHERE doc_id = ? AND name = ?"), doc, name)
+		if err != nil {
+			return err
+		}
+		if n, err := res.RowsAffected(); err != nil {
+			return err
+		} else if n == 0 {
+			return site.ErrNoResource
+		}
+		_, err = tx.ExecContext(ctx, ss.s.q("UPDATE site_doc SET version = version + 1, updated_at = ? WHERE id = ?"), ss.s.now().Unix(), doc)
+		return err
+	})
 }
