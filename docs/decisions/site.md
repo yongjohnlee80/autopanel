@@ -78,6 +78,46 @@ that one document and are found only by their exact name under it.
 
 **In the code:** `core/site/doc.go` (`ResourceName`), `core/site/resource.go` (`ResourceType`).
 
+## What a build wrote is checked before it is served
+
+**Decided:** a build's output is untrusted, because a theme is code and the builder ran it. The
+core checks the whole output before any of it is served, and one file that breaks a rule fails
+the whole build.
+
+- **It looks before it reads.** It walks the output through a root-scoped handle, looking at each
+  entry without following it. A symbolic link, a pipe, a socket or a device fails the build
+  before any file is opened. Depth, the number of files, each file's size and the site's total are
+  bounded. A hidden name (one starting with `.`) is refused.
+- **Only what a site serves:** `.html`, `.css`, `.xml`, `.txt`, PNG, JPEG, WebP and GIF images,
+  and WOFF and WOFF2 fonts. Each image and font must start with the bytes its type has.
+- **A page is parsed, not searched,** so prose or a code block about `<script>` passes, and markup
+  hidden behind entities does not. A page may not hold a script, a style element or attribute, an
+  event attribute, a form, a frame, an object, a base, a `meta http-equiv`, MathML, or a `<link>`
+  that preloads or connects anywhere.
+  - Whatever the browser fetches (an image, a stylesheet, a `srcset`) must be a path of the site.
+  - A link may go to a path of the site, or to an `http`, `https` or `mailto` address.
+  - The rules apply to addresses as a browser reads them: tabs and newlines removed, entities
+    decoded, and `//host` or a backslash taken as another host.
+- **The exceptions are exact.**
+  - A page the renderer says has a Mermaid diagram may load the kit's two scripts: their own
+    paths, with their integrity values, deferred, each once.
+  - A document's inert copy (`_doc.html`) is shown in a frame with `sandbox=""`, and only if the
+    build made it. The copy may have its own styles.
+  - An active document is shown from the content host, in a frame allowed scripts and nothing
+    more.
+- **Inline SVG is what the chart writer draws:** its shapes, clips, gradients and labels, with
+  `url()` only to a fragment of the same drawing. There is no script, `foreignObject`, `use`,
+  `image`, link, animation or style. The test fixtures are charts made by golib's own writer
+  (`core/site/testdata/charts`).
+- **A stylesheet is read as CSS reads it:** comments skipped, and escapes and strings decoded. An
+  `@import`, a `url()` that is not a path of the site, and the functions that load without
+  `url()` are refused.
+- **The feed and the sitemap** must be well formed, with no document type, no instruction other
+  than the XML declaration, and only RSS, Atom and sitemap elements.
+
+**In the code:** `core/site/check.go` (the walk), `core/site/check_page.go` (the rules);
+`core/site/check_test.go`.
+
 ## The audit log names a document, never its text
 
 **Decided:** every change to a site or a document has its entry, written in the change's own

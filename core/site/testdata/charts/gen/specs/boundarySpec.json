@@ -1,0 +1,20 @@
+{
+  "title": {"text": "The 2019 window is half-open", "subtitle": "min in, before out"},
+  "width": 400, "height": 60,
+  "layer": [
+    {"data": {"values": [{"t": "2019-01-01T00:00:00Z"}, {"t": "2020-01-01T00:00:00Z"}]},
+     "mark": {"type": "rule", "strokeDash": [4, 3], "strokeWidth": 2},
+     "encoding": {"x": {"field": "t", "type": "temporal"}, "color": {"value": "#7a7a7a"}}},
+    {"data": {"values": [
+       {"case": "just before", "d": "2018-12-31T23:59:59Z", "in": "no"},
+       {"case": "first instant", "d": "2019-01-01T00:00:00Z", "in": "yes"},
+       {"case": "mid-year", "d": "2019-07-01T12:00:00Z", "in": "yes"},
+       {"case": "after", "d": "2020-01-01T00:00:00Z", "in": "no"}]},
+     "mark": {"type": "point", "filled": true, "size": 220},
+     "encoding": {
+       "x": {"field": "d", "type": "temporal", "scale": {"domain": ["2018-11-01", "2020-03-01"]}},
+       "y": {"field": "in", "type": "nominal", "sort": ["yes", "no"]},
+       "color": {"field": "in", "type": "nominal", "scale": {"domain": ["yes", "no"], "range": ["#2e9e6a", "#d64545"]}, "legend": null},
+       "shape": {"field": "case", "type": "nominal", "title": "case"}}}
+  ]
+}
