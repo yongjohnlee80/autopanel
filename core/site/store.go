@@ -92,6 +92,9 @@ type Store interface {
 	DocByID(ctx context.Context, id int64) (Doc, error)
 	Docs(ctx context.Context, site int64) ([]Doc, error) // by slug
 	Source(ctx context.Context, id int64) (Source, error)
+	// NoteRead writes the audit entry for an administrator's read of a
+	// document that only the role allowed: which document, never its text.
+	NoteRead(ctx context.Context, d Doc) error
 
 	// Create stores a new document. Its ID is the store's, and so are its
 	// first generation and version. ErrDuplicate when the site has the slug.

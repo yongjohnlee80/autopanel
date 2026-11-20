@@ -49,12 +49,15 @@ writes, and nothing in a published file, is believed about them.
 place (`May`), from the level and from who asks: nobody, a passphrase's grant, a member, the
 owner, an administrator.
 
-- **An administrator has no branch for reading.** A private document is its owner's and its share
-  list's, as its level says. An administrator can remove any document, and see that it exists.
+- **An administrator reads everything on the site,** at every level, page and source: they answer
+  for what the site holds, legally too. Each read that only the role allows is written to the
+  audit log before anything is shown, naming the document and never its text; if the entry
+  cannot be written, nothing is shown. An administrator can remove any document, and changes none
+  that is not theirs.
 - A grant opens a protected document and nothing else: not one that has since become internal or
   private.
 - A document whose level is not one of the four is nobody's to read.
-- A protected document is unlisted: only its owner sees it in a list.
+- A protected document is unlisted: only its owner, and an administrator, see it in a list.
 
 **In the code:** `core/site/access.go`; `core/site/access_test.go` writes the whole table out.
 

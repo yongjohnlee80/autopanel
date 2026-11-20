@@ -715,3 +715,14 @@ func (ss sites) Owed(ctx context.Context) ([]site.Site, error) {
 	}
 	return out, rows.Err()
 }
+
+// NoteRead audits an administrator's read of a document not theirs.
+func (ss sites) NoteRead(ctx context.Context, d site.Doc) error {
+	return ss.s.tx(ctx, func(tx dao.TxConn) error {
+		v, err := ss.oneSite(ctx, tx, "SELECT "+siteCols+" FROM site WHERE id = ?", d.Site)
+		if err != nil {
+			return err
+		}
+		return ss.audit(ctx, tx, "site.doc.read", "site "+v.Host+" document "+d.Slug, "read by an administrator; level "+d.Visibility)
+	})
+}

@@ -5,8 +5,10 @@ import "slices"
 // WHO MAY DO WHAT — one table, read by every verb and by the serving of every
 // held file. A person is known only by a session the core has just found
 // valid for an enabled user; a passphrase is known only by a grant the core
-// issued. An administrator has no branch for reading: a private document is
-// its owner's and its share list's, as its level says.
+// issued. An administrator may read, list and see the source of every
+// document, so that content can be scrutinized (Johno, 2026-11-21); each such
+// read that only the role allows is audited (ByAdminOnly). Changing a
+// document stays its owner's.
 
 // Reader is whoever asks.
 type Reader struct {
@@ -37,6 +39,18 @@ const (
 	ActTransfer = "transfer" // give it another owner
 )
 
+// ByAdminOnly reports whether who may do act to doc only because they are
+// an administrator: the reads the audit log records.
+func ByAdminOnly(who Reader, act string, doc Doc) bool {
+	if who.User == nil || !who.User.Admin || !May(who, act, doc) {
+		return false
+	}
+	plain := *who.User
+	plain.Admin = false
+	who.User = &plain
+	return !May(who, act, doc)
+}
+
 // MayRead reports whether who may read doc's page and resources.
 func MayRead(who Reader, doc Doc) bool { return May(who, ActRead, doc) }
 
@@ -44,6 +58,12 @@ func MayRead(who Reader, doc Doc) bool { return May(who, ActRead, doc) }
 // refused.
 func May(who Reader, act string, doc Doc) bool {
 	u := who.User
+	if u != nil && u.Admin && ValidLevel(doc.Visibility) {
+		switch act {
+		case ActRead, ActList, ActExists, ActSource:
+			return true
+		}
+	}
 	owner := u != nil && u.ID == doc.Owner
 	admin := u != nil && u.Admin
 	shared := u != nil && doc.Visibility == Private && slices.Contains(doc.Share, u.ID)
