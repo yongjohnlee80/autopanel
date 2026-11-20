@@ -158,3 +158,34 @@ func TestAnAccountsAliases(t *testing.T) {
 		t.Fatalf("the server was never asked: %v", calls)
 	}
 }
+
+// TestADomainHeldByAnAliasIsNotRemoved: an alias in a domain, of an account
+// in another, holds the domain as an account would (tifa's review, F1).
+func TestADomainHeldByAnAliasIsNotRemoved(t *testing.T) {
+	m, st, v, _, _, _ := newTestModule(t)
+	st.state = &State{Host: "mail.example.net", CreatedAt: 1, Bootstrapped: 1}
+	st.domains = []string{"example.net", "example.org"}
+	v.m[sealedKey] = []byte(prod(m).Key)
+	srv := mem(m)
+	ctx := context.Background()
+	for _, d := range st.domains {
+		if _, err := srv.AddDomain(ctx, d); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := m.accountAdd(ctx, AccountAsk{Address: "ana@example.net"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := m.accountSet(ctx, AccountSet{Address: "ana@example.net", Aliases: ptr([]string{"ana@example.org"})}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := m.domainRemove(ctx, Name{Name: "example.org"}); !errors.Is(err, ErrDomainHasAccounts) {
+		t.Fatalf("removing a domain an alias holds: %v", err)
+	}
+	if _, err := m.accountSet(ctx, AccountSet{Address: "ana@example.net", Aliases: ptr([]string{})}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := m.domainRemove(ctx, Name{Name: "example.org"}); err != nil {
+		t.Fatalf("removing it once the alias is gone: %v", err)
+	}
+}

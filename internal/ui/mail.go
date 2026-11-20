@@ -728,8 +728,10 @@ func (h *host) mailAccountAliases(row int) error {
 			return nil
 		}
 		h.busy = true
+		kept := 0 // as the server answered, after it dropped duplicates
 		h.background(func(ctx context.Context) error {
-			_, err := h.client.MailSetAccount(ctx, addr, nil, &aliases)
+			v, err := h.client.MailSetAccount(ctx, addr, nil, &aliases)
+			kept = len(v.Aliases)
 			return err
 		}, func(err error) {
 			h.busy = false
@@ -738,7 +740,7 @@ func (h *host) mailAccountAliases(row int) error {
 				return
 			}
 			h.promptDone()
-			h.say(h.trf("autopanel.notice.mail.aliasesSet", addr, len(aliases)))
+			h.say(h.trf("autopanel.notice.mail.aliasesSet", addr, kept))
 			h.loadMail()
 		})
 		return nil
