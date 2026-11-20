@@ -499,7 +499,7 @@ func setup(t *testing.T) fixture {
 	t.Helper()
 	h, s := newMachine(), &rows{all: map[string]Service{}}
 	h.registry["example.com/db:1"], h.registry["example.com/web:1"] = digestA, digestA
-	h.defs["site"] = map[string]string{"compose.yaml": site, ".env": "TOKEN=t0ken\n", "web.conf": "listen 8080\n"}
+	h.defs["shop"] = map[string]string{"compose.yaml": site, ".env": "TOKEN=t0ken\n", "web.conf": "listen 8080\n"}
 	return fixture{t: t, m: NewModule(s, h), h: h, s: s}
 }
 
@@ -542,10 +542,10 @@ func TestAStackIsReviewedThenAdded(t *testing.T) {
 	ctx := context.Background()
 
 	av, err := f.m.available(ctx, struct{}{})
-	if err != nil || len(av) != 1 || av[0].Name != "site" {
+	if err != nil || len(av) != 1 || av[0].Name != "shop" {
 		t.Fatalf("available = %+v, %v", av, err)
 	}
-	r, err := f.m.check(ctx, Ref{Name: "site"})
+	r, err := f.m.check(ctx, Ref{Name: "shop"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -557,45 +557,45 @@ func TestAStackIsReviewedThenAdded(t *testing.T) {
 	}
 
 	// An apply names what was reviewed. Anything else is refused, with nothing done.
-	if _, err := f.m.add(ctx, Accept{Name: "site", Accept: "not-the-hash"}); !errors.Is(err, ErrChanged) {
+	if _, err := f.m.add(ctx, Accept{Name: "shop", Accept: "not-the-hash"}); !errors.Is(err, ErrChanged) {
 		t.Fatalf("add with another hash = %v; want ErrChanged", err)
 	}
 	// An edit of .env alone, after the review, changes what an apply must be given.
-	f.h.defs["site"][".env"] = "TOKEN=another\n"
-	if _, err := f.m.add(ctx, Accept{Name: "site", Accept: r.SHA256}); !errors.Is(err, ErrChanged) {
+	f.h.defs["shop"][".env"] = "TOKEN=another\n"
+	if _, err := f.m.add(ctx, Accept{Name: "shop", Accept: r.SHA256}); !errors.Is(err, ErrChanged) {
 		t.Fatalf("add after .env changed = %v; want ErrChanged", err)
 	}
-	f.h.defs["site"]["web.conf"] = "listen 8081\n"
-	if got := f.accept("site"); got == r.SHA256 {
+	f.h.defs["shop"]["web.conf"] = "listen 8081\n"
+	if got := f.accept("shop"); got == r.SHA256 {
 		t.Fatal("a changed configuration file left the review's hash as it was")
 	}
 	if len(f.h.users) != 0 || len(f.s.all) != 0 {
 		t.Fatal("a refused add made a user or a row")
 	}
 
-	v := f.add("site")
-	if v.State != string(Deployed) || v.User != "ap-site" || len(v.Containers) != 2 || v.Containers[1].Service != "web" || v.Containers[1].Health != "healthy" || v.Containers[1].Active != "active" {
+	v := f.add("shop")
+	if v.State != string(Deployed) || v.User != "ap-shop" || len(v.Containers) != 2 || v.Containers[1].Service != "web" || v.Containers[1].Health != "healthy" || v.Containers[1].Active != "active" {
 		t.Fatalf("the view = %+v", v)
 	}
-	if got, want := f.unitNames("site"), []string{"site-db.container", "site-web.container", "site.network"}; !reflect.DeepEqual(got, want) {
+	if got, want := f.unitNames("shop"), []string{"shop-db.container", "shop-web.container", "shop.network"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("the units = %v; want %v", got, want)
 	}
-	web := f.h.units["site"][unitDir+"site-web.container"]
+	web := f.h.units["shop"][unitDir+"shop-web.container"]
 	if !strings.Contains(web, "Image=example.com/web@"+digestA+"\n") || strings.Contains(web, "another") {
 		t.Errorf("web's unit runs its image by another name than its digest, or holds the secret:\n%s", web)
 	}
-	folder := f.h.folder["site"]
+	folder := f.h.folder["shop"]
 	if folder["web.conf"] != "listen 8081\n" || folder[".autopanel/web.env"] != "TOKEN=another\n" || folder["data"] != "<dir>" || folder["compose.yaml"] == "" {
 		t.Errorf("the stack's folder = %q", folder)
 	}
-	if _, err := f.m.add(ctx, Accept{Name: "site", Accept: f.accept("site")}); !errors.Is(err, ErrDuplicate) {
+	if _, err := f.m.add(ctx, Accept{Name: "shop", Accept: f.accept("shop")}); !errors.Is(err, ErrDuplicate) {
 		t.Errorf("a second add = %v; want ErrDuplicate", err)
 	}
 	if got, err := f.m.available(ctx, struct{}{}); err != nil || len(got) != 0 {
 		t.Errorf("available after the add = %+v, %v; want none", got, err)
 	}
 	users, err := f.m.Users(ctx)
-	if err != nil || users["ap-site"] != "site" {
+	if err != nil || users["ap-shop"] != "shop" {
 		t.Errorf("Users = %v, %v", users, err)
 	}
 }
@@ -603,12 +603,12 @@ func TestAStackIsReviewedThenAdded(t *testing.T) {
 func TestAStackThatIsRefusedChangesNothing(t *testing.T) {
 	f := setup(t)
 	ctx := context.Background()
-	f.h.defs["site"]["compose.yaml"] = "services:\n  web: {image: example.com/web:1, privileged: true}\n"
-	r, err := f.m.check(ctx, Ref{Name: "site"})
+	f.h.defs["shop"]["compose.yaml"] = "services:\n  web: {image: example.com/web:1, privileged: true}\n"
+	r, err := f.m.check(ctx, Ref{Name: "shop"})
 	if err != nil || !refused(r.Findings) {
 		t.Fatalf("the review = %+v, %v; want a refusal", r, err)
 	}
-	_, err = f.m.add(ctx, Accept{Name: "site", Accept: r.SHA256})
+	_, err = f.m.add(ctx, Accept{Name: "shop", Accept: r.SHA256})
 	var d interface{ PublicDetail() string }
 	if !errors.Is(err, ErrRefused) || !errors.As(err, &d) || !strings.Contains(d.PublicDetail(), "privileged") {
 		t.Fatalf("add = %v; want ErrRefused naming the key", err)
@@ -620,17 +620,17 @@ func TestAStackThatIsRefusedChangesNothing(t *testing.T) {
 	for what, c := range map[string]struct {
 		name string
 		want error
-	}{"a bad name": {"../site", ErrBadName}, "no folder": {"nothing", ErrNoDefinition}} {
+	}{"a bad name": {"../shop", ErrBadName}, "no folder": {"nothing", ErrNoDefinition}} {
 		if _, err := f.m.check(ctx, Ref{Name: c.name}); !errors.Is(err, c.want) {
 			t.Errorf("check of %s = %v; want %v", what, err, c.want)
 		}
 	}
 	f.h.podman = [2]int{4, 4}
-	if _, err := f.m.add(ctx, Accept{Name: "site", Accept: r.SHA256}); !errors.Is(err, ErrOldPodman) {
+	if _, err := f.m.add(ctx, Accept{Name: "shop", Accept: r.SHA256}); !errors.Is(err, ErrOldPodman) {
 		t.Errorf("add on Podman 4.4 = %v; want ErrOldPodman", err)
 	}
 	f.h.podman = [2]int{}
-	if _, err := f.m.add(ctx, Accept{Name: "site", Accept: r.SHA256}); !errors.Is(err, ErrNoPodman) {
+	if _, err := f.m.add(ctx, Accept{Name: "shop", Accept: r.SHA256}); !errors.Is(err, ErrNoPodman) {
 		t.Errorf("add with no Podman = %v; want ErrNoPodman", err)
 	}
 }
@@ -639,11 +639,11 @@ func TestAStackThatIsRefusedChangesNothing(t *testing.T) {
 // leaves the unit's text as it was, and the container must still restart.
 func TestAnApplyRestartsWhatItsChangeTouches(t *testing.T) {
 	f := setup(t)
-	f.add("site")
+	f.add("shop")
 
 	// Nothing changed: nothing restarts, and no image is asked for again.
 	f.h.offline = true
-	if _, err := f.apply("site"); err != nil {
+	if _, err := f.apply("shop"); err != nil {
 		t.Fatalf("an apply of the same definition, with no registry: %v", err)
 	}
 	if got := f.h.calls("restart"); len(got) != 0 {
@@ -651,44 +651,44 @@ func TestAnApplyRestartsWhatItsChangeTouches(t *testing.T) {
 	}
 	f.h.offline = false
 
-	f.h.defs["site"]["web.conf"] = "listen 9090\n"
-	if _, err := f.apply("site"); err != nil {
+	f.h.defs["shop"]["web.conf"] = "listen 9090\n"
+	if _, err := f.apply("shop"); err != nil {
 		t.Fatal(err)
 	}
-	if got := f.h.calls("restart"); !reflect.DeepEqual(got, []string{"restart site site-web.service"}) {
+	if got := f.h.calls("restart"); !reflect.DeepEqual(got, []string{"restart shop shop-web.service"}) {
 		t.Errorf("after a change to web's file, restarted = %v; want web alone", got)
 	}
-	if f.h.folder["site"]["web.conf"] != "listen 9090\n" {
+	if f.h.folder["shop"]["web.conf"] != "listen 9090\n" {
 		t.Error("the changed file was not committed")
 	}
 
 	// A key of .env that web uses: its generated file changes, and so it restarts.
-	f.h.defs["site"][".env"] = "TOKEN=rotated\n"
-	if _, err := f.apply("site"); err != nil {
+	f.h.defs["shop"][".env"] = "TOKEN=rotated\n"
+	if _, err := f.apply("shop"); err != nil {
 		t.Fatal(err)
 	}
-	if got := f.h.calls("restart"); !reflect.DeepEqual(got, []string{"restart site site-web.service"}) {
+	if got := f.h.calls("restart"); !reflect.DeepEqual(got, []string{"restart shop shop-web.service"}) {
 		t.Errorf("after a change to .env, restarted = %v; want web alone", got)
 	}
 
 	// An apply does not move a tag: the registry now answers another digest,
 	// and the unit still runs the one that was pulled.
 	f.h.registry["example.com/web:1"] = digestB
-	if _, err := f.apply("site"); err != nil {
+	if _, err := f.apply("shop"); err != nil {
 		t.Fatal(err)
 	}
 	if got := f.h.calls("pull"); len(got) != 0 {
 		t.Errorf("an apply pulled %v", got)
 	}
 	// services.pull does.
-	v, err := f.m.pull(context.Background(), Ref{Name: "site"})
+	v, err := f.m.pull(context.Background(), Ref{Name: "shop"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if v.Containers[1].Digest != digestB || !strings.Contains(f.h.units["site"][unitDir+"site-web.container"], "@"+digestB+"\n") {
+	if v.Containers[1].Digest != digestB || !strings.Contains(f.h.units["shop"][unitDir+"shop-web.container"], "@"+digestB+"\n") {
 		t.Errorf("after a pull, web = %+v", v.Containers[1])
 	}
-	if got := f.h.calls("restart"); !reflect.DeepEqual(got, []string{"restart site site-web.service"}) {
+	if got := f.h.calls("restart"); !reflect.DeepEqual(got, []string{"restart shop shop-web.service"}) {
 		t.Errorf("after a pull, restarted = %v; want the one whose image changed", got)
 	}
 }
@@ -698,30 +698,30 @@ func TestAnApplyRestartsWhatItsChangeTouches(t *testing.T) {
 // definition no longer mounts it.
 func TestAFolderMountedReadOnlyIsManaged(t *testing.T) {
 	f := setup(t)
-	f.h.defs["site"]["compose.yaml"] = strings.Replace(site, `"./web.conf:/etc/web.conf:ro"`, `"./web.conf:/etc/web.conf:ro", "./pages:/pages:ro"`, 1)
-	f.h.defs["site"]["pages/index.html"], f.h.defs["site"]["pages/img/logo.svg"] = "one", "<svg/>"
-	f.add("site")
-	if _, err := f.apply("site"); err != nil {
+	f.h.defs["shop"]["compose.yaml"] = strings.Replace(site, `"./web.conf:/etc/web.conf:ro"`, `"./web.conf:/etc/web.conf:ro", "./pages:/pages:ro"`, 1)
+	f.h.defs["shop"]["pages/index.html"], f.h.defs["shop"]["pages/img/logo.svg"] = "one", "<svg/>"
+	f.add("shop")
+	if _, err := f.apply("shop"); err != nil {
 		t.Fatalf("a second apply of a stack with a read-only folder: %v", err)
 	}
-	f.h.defs["site"]["pages/index.html"] = "two"
-	delete(f.h.defs["site"], "pages/img/logo.svg")
+	f.h.defs["shop"]["pages/index.html"] = "two"
+	delete(f.h.defs["shop"], "pages/img/logo.svg")
 	f.h.calls("")
-	if _, err := f.apply("site"); err != nil {
+	if _, err := f.apply("shop"); err != nil {
 		t.Fatal(err)
 	}
-	folder := f.h.folder["site"]
+	folder := f.h.folder["shop"]
 	if _, has := folder["pages/img/logo.svg"]; has || folder["pages/index.html"] != "two" {
 		t.Errorf("the folder after a file changed and another left the definition = %q", folder)
 	}
-	if got := f.h.calls("restart"); !reflect.DeepEqual(got, []string{"restart site site-web.service"}) {
+	if got := f.h.calls("restart"); !reflect.DeepEqual(got, []string{"restart shop shop-web.service"}) {
 		t.Errorf("restarted = %v; want web, which mounts the folder", got)
 	}
-	f.h.defs["site"]["compose.yaml"] = site
-	if _, err := f.apply("site"); err != nil {
+	f.h.defs["shop"]["compose.yaml"] = site
+	if _, err := f.apply("shop"); err != nil {
 		t.Fatal(err)
 	}
-	for file := range f.h.folder["site"] {
+	for file := range f.h.folder["shop"] {
 		if strings.HasPrefix(file, "pages") {
 			t.Errorf("%s is left of a folder the definition no longer mounts", file)
 		}
@@ -731,15 +731,15 @@ func TestAFolderMountedReadOnlyIsManaged(t *testing.T) {
 // TestAnApplyNeverWritesData: the folder a container writes to is made once.
 func TestAnApplyNeverWritesData(t *testing.T) {
 	f := setup(t)
-	f.add("site")
-	f.h.folder["site"]["data/db.sqlite"] = "the family's history"
-	delete(f.h.folder["site"], "data")
+	f.add("shop")
+	f.h.folder["shop"]["data/db.sqlite"] = "the family's history"
+	delete(f.h.folder["shop"], "data")
 
-	f.h.defs["site"]["web.conf"] = "listen 9090\n"
-	if _, err := f.apply("site"); err != nil {
+	f.h.defs["shop"]["web.conf"] = "listen 9090\n"
+	if _, err := f.apply("shop"); err != nil {
 		t.Fatal(err)
 	}
-	if f.h.folder["site"]["data/db.sqlite"] != "the family's history" {
+	if f.h.folder["shop"]["data/db.sqlite"] != "the family's history" {
 		t.Fatal("an apply touched the stack's data")
 	}
 
@@ -750,10 +750,10 @@ func TestAnApplyNeverWritesData(t *testing.T) {
 		"a folder inside it mounted read-only": strings.Replace(site, `volumes: ["./web.conf:/etc/web.conf:ro"]`,
 			`volumes: ["./web.conf:/etc/web.conf:ro", "./data/conf:/c:ro"]`, 1),
 	} {
-		f.h.defs["site"]["compose.yaml"] = compose
-		f.h.defs["site"]["data/db.sqlite"] = "a seed"
-		f.h.defs["site"]["data/conf/x"] = "x"
-		r, err := f.m.check(context.Background(), Ref{Name: "site"})
+		f.h.defs["shop"]["compose.yaml"] = compose
+		f.h.defs["shop"]["data/db.sqlite"] = "a seed"
+		f.h.defs["shop"]["data/conf/x"] = "x"
+		r, err := f.m.check(context.Background(), Ref{Name: "shop"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -764,11 +764,11 @@ func TestAnApplyNeverWritesData(t *testing.T) {
 		if !found {
 			t.Errorf("%s was not refused: %v", what, refusals(r.Findings))
 		}
-		if _, err := f.m.applyVerb(context.Background(), Accept{Name: "site", Accept: r.SHA256}); !errors.Is(err, ErrRefused) {
+		if _, err := f.m.applyVerb(context.Background(), Accept{Name: "shop", Accept: r.SHA256}); !errors.Is(err, ErrRefused) {
 			t.Errorf("%s was applied: %v", what, err)
 		}
 	}
-	if f.h.folder["site"]["data/db.sqlite"] != "the family's history" {
+	if f.h.folder["shop"]["data/db.sqlite"] != "the family's history" {
 		t.Fatal("a refused apply touched the stack's data")
 	}
 }
@@ -777,18 +777,18 @@ func TestAnApplyNeverWritesData(t *testing.T) {
 // included: its unit is on disk though nothing applied names it.
 func TestAnApplyRemovesWhatTheFileNoLongerHas(t *testing.T) {
 	f := setup(t)
-	f.add("site")
+	f.add("shop")
 	withCache := strings.Replace(site, "services:\n", "services:\n  cache:\n    image: example.com/web:1\n", 1)
 
 	// An apply that adds a service fails after its units are written.
-	f.h.defs["site"]["compose.yaml"] = withCache
+	f.h.defs["shop"]["compose.yaml"] = withCache
 	f.h.fail["start"] = errors.New("systemd did not answer")
-	_, err := f.apply("site")
+	_, err := f.apply("shop")
 	var d interface{ PublicDetail() string }
 	if !errors.Is(err, ErrIncomplete) || !errors.As(err, &d) || d.PublicDetail() != "start: systemd did not answer" {
 		t.Fatalf("a failed apply = %v; want ErrIncomplete, naming its step and why", err)
 	}
-	if _, has := f.h.units["site"][unitDir+"site-cache.container"]; !has {
+	if _, has := f.h.units["shop"][unitDir+"shop-cache.container"]; !has {
 		t.Fatal("the test's premise: the failed apply wrote the new unit")
 	}
 	list, _ := f.m.list(context.Background(), struct{}{})
@@ -798,13 +798,13 @@ func TestAnApplyRemovesWhatTheFileNoLongerHas(t *testing.T) {
 
 	// The administrator takes the service out again. A second apply fails
 	// too, earlier: the record must still hold what the first one left.
-	f.h.defs["site"]["compose.yaml"] = site
+	f.h.defs["shop"]["compose.yaml"] = site
 	for _, attempt := range []string{"second", "third"} {
 		f.h.fail["EnsureUser"] = errors.New("the host did not answer")
-		if _, err := f.apply("site"); err == nil {
+		if _, err := f.apply("shop"); err == nil {
 			t.Fatalf("the %s apply did not fail", attempt)
 		}
-		if _, has := f.h.units["site"][unitDir+"site-cache.container"]; !has {
+		if _, has := f.h.units["shop"][unitDir+"shop-cache.container"]; !has {
 			t.Fatal("the test's premise: these applies fail before anything is removed")
 		}
 	}
@@ -812,19 +812,19 @@ func TestAnApplyRemovesWhatTheFileNoLongerHas(t *testing.T) {
 	// And one that fails later, at the moment it stops what is to go: what it
 	// records then must still name the unit it has not deleted yet.
 	f.h.fail["stop"] = errors.New("systemd did not answer")
-	if _, err := f.apply("site"); err == nil {
+	if _, err := f.apply("shop"); err == nil {
 		t.Fatal("the fourth apply did not fail")
 	}
-	if _, has := f.h.units["site"][unitDir+"site-cache.container"]; !has {
+	if _, has := f.h.units["shop"][unitDir+"shop-cache.container"]; !has {
 		t.Fatal("the test's premise: the unit is still there after the stop failed")
 	}
 
 	f.h.calls("")
-	v, err := f.apply("site")
+	v, err := f.apply("shop")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got, want := f.unitNames("site"), []string{"site-db.container", "site-web.container", "site.network"}; !reflect.DeepEqual(got, want) {
+	if got, want := f.unitNames("shop"), []string{"shop-db.container", "shop-web.container", "shop.network"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("the units = %v; want %v: a unit a failed apply wrote would start at the next boot", got, want)
 	}
 	if v.State != string(Deployed) || len(v.Containers) != 2 {
@@ -832,25 +832,25 @@ func TestAnApplyRemovesWhatTheFileNoLongerHas(t *testing.T) {
 	}
 
 	// A service the file drops: stopped, and its unit deleted.
-	f.h.defs["site"]["compose.yaml"] = strings.Split(site, "  web:")[0]
-	r, _ := f.m.check(context.Background(), Ref{Name: "site"})
+	f.h.defs["shop"]["compose.yaml"] = strings.Split(site, "  web:")[0]
+	r, _ := f.m.check(context.Background(), Ref{Name: "shop"})
 	if !reflect.DeepEqual(r.Removes, []string{"web"}) {
 		t.Errorf("the review's removes = %v; want web", r.Removes)
 	}
 	f.h.calls("")
-	if _, err := f.apply("site"); err != nil {
+	if _, err := f.apply("shop"); err != nil {
 		t.Fatal(err)
 	}
-	if got := f.h.calls("stop"); !reflect.DeepEqual(got, []string{"stop site site-web.service"}) {
+	if got := f.h.calls("stop"); !reflect.DeepEqual(got, []string{"stop shop shop-web.service"}) {
 		t.Errorf("stopped = %v; want web", got)
 	}
-	if got, want := f.unitNames("site"), []string{"site-db.container", "site.network"}; !reflect.DeepEqual(got, want) {
+	if got, want := f.unitNames("shop"), []string{"shop-db.container", "shop.network"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("the units = %v; want %v", got, want)
 	}
-	if _, has := f.h.folder["site"]["web.conf"]; has {
+	if _, has := f.h.folder["shop"]["web.conf"]; has {
 		t.Error("a managed file the definition no longer has was left in the stack's folder")
 	}
-	if _, has := f.h.folder["site"][".autopanel/web.env"]; has {
+	if _, has := f.h.folder["shop"][".autopanel/web.env"]; has {
 		t.Error("a generated file of a service that is gone was left")
 	}
 }
@@ -859,20 +859,20 @@ func TestAnApplyRemovesWhatTheFileNoLongerHas(t *testing.T) {
 // new files, so "changed" is measured against what was applied.
 func TestARetryRestartsWhatChanged(t *testing.T) {
 	f := setup(t)
-	f.add("site")
-	f.h.defs["site"]["web.conf"] = "listen 9090\n"
+	f.add("shop")
+	f.h.defs["shop"]["web.conf"] = "listen 9090\n"
 	f.h.fail["Install"] = errors.New("no space")
-	if _, err := f.apply("site"); err == nil {
+	if _, err := f.apply("shop"); err == nil {
 		t.Fatal("the apply did not fail")
 	}
-	if f.h.folder["site"]["web.conf"] != "listen 9090\n" {
+	if f.h.folder["shop"]["web.conf"] != "listen 9090\n" {
 		t.Fatal("the test's premise: the failed apply committed the new file")
 	}
 	f.h.calls("")
-	if _, err := f.apply("site"); err != nil {
+	if _, err := f.apply("shop"); err != nil {
 		t.Fatal(err)
 	}
-	if got := f.h.calls("restart"); !reflect.DeepEqual(got, []string{"restart site site-web.service"}) {
+	if got := f.h.calls("restart"); !reflect.DeepEqual(got, []string{"restart shop shop-web.service"}) {
 		t.Errorf("the retry restarted %v; want web, whose file changed since the last apply that finished", got)
 	}
 }
@@ -881,38 +881,38 @@ func TestARetryRestartsWhatChanged(t *testing.T) {
 func TestPrepareStartsNothing(t *testing.T) {
 	f := setup(t)
 	ctx := context.Background()
-	v, err := f.m.prepare(ctx, Accept{Name: "site", Accept: f.accept("site")})
+	v, err := f.m.prepare(ctx, Accept{Name: "shop", Accept: f.accept("shop")})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if v.State != Prepared || len(v.Containers) != 0 {
 		t.Fatalf("the view = %+v; want prepared, with no container", v)
 	}
-	if len(f.h.units["site"]) != 0 || len(f.h.calls("start")) != 0 {
+	if len(f.h.units["shop"]) != 0 || len(f.h.calls("start")) != 0 {
 		t.Fatal("prepare wrote a unit or started one")
 	}
-	if !f.h.users["site"] || f.h.folder["site"]["web.conf"] == "" || !f.h.held["site"]["example.com/web@"+digestA] {
+	if !f.h.users["shop"] || f.h.folder["shop"]["web.conf"] == "" || !f.h.held["shop"]["example.com/web@"+digestA] {
 		t.Fatal("prepare left no user, no files or no image")
 	}
 	// The data is put in by hand, between the two.
-	f.h.folder["site"]["data/db.sqlite"] = "restored"
-	delete(f.h.folder["site"], "data")
+	f.h.folder["shop"]["data/db.sqlite"] = "restored"
+	delete(f.h.folder["shop"], "data")
 
 	// The files prepare itself put there are not taken for data, and no image
 	// is pulled again: the network may be cut by now.
 	f.h.offline = true
 	f.h.registry["example.com/web:1"] = digestB
-	v, err = f.m.add(ctx, Accept{Name: "site", Accept: f.accept("site")})
+	v, err = f.m.add(ctx, Accept{Name: "shop", Accept: f.accept("shop")})
 	if err != nil {
 		t.Fatalf("add after prepare: %v", err)
 	}
 	if v.State != string(Deployed) || len(v.Containers) != 2 || v.Containers[1].Digest != digestA {
 		t.Fatalf("the view = %+v; want it deployed, on the digests prepare pulled", v)
 	}
-	if got := f.h.calls("start"); !reflect.DeepEqual(got, []string{"start site site-db.service site-web.service"}) {
+	if got := f.h.calls("start"); !reflect.DeepEqual(got, []string{"start shop shop-db.service shop-web.service"}) {
 		t.Errorf("started = %v", got)
 	}
-	if f.h.folder["site"]["data/db.sqlite"] != "restored" {
+	if f.h.folder["shop"]["data/db.sqlite"] != "restored" {
 		t.Error("the add touched the data put in after prepare")
 	}
 }
@@ -922,37 +922,37 @@ func TestPrepareStartsNothing(t *testing.T) {
 func TestAStopIsRememberedAndCoversWhatDependsOnIt(t *testing.T) {
 	f := setup(t)
 	ctx := context.Background()
-	f.add("site")
-	db, web := unitDir+"site-db.container", unitDir+"site-web.container"
+	f.add("shop")
+	db, web := unitDir+"shop-db.container", unitDir+"shop-web.container"
 
-	v, err := f.m.stop(ctx, Ref{Name: "site", Service: "db"})
+	v, err := f.m.stop(ctx, Ref{Name: "shop", Service: "db"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !v.Containers[0].Stopped || !v.Containers[1].Stopped {
 		t.Fatalf("after stopping db: %+v; want db and web, which needs it, both stopped", v.Containers)
 	}
-	if got := f.h.calls("stop"); !reflect.DeepEqual(got, []string{"stop site site-db.service site-web.service"}) {
+	if got := f.h.calls("stop"); !reflect.DeepEqual(got, []string{"stop shop shop-db.service shop-web.service"}) {
 		t.Errorf("stopped = %v", got)
 	}
 	for _, u := range []string{db, web} {
-		if strings.Contains(f.h.units["site"][u], "[Install]") {
+		if strings.Contains(f.h.units["shop"][u], "[Install]") {
 			t.Errorf("%s keeps its [Install] section: a boot would start it", u)
 		}
 	}
 
-	if _, err := f.m.start(ctx, Ref{Name: "site", Service: "web"}); !errors.Is(err, ErrStoppedNeed) {
+	if _, err := f.m.start(ctx, Ref{Name: "shop", Service: "web"}); !errors.Is(err, ErrStoppedNeed) {
 		t.Fatalf("starting web while db is stopped = %v; want ErrStoppedNeed", err)
 	}
-	if _, err := f.m.restart(ctx, Ref{Name: "site"}); err != nil || len(f.h.calls("restart")) != 0 {
+	if _, err := f.m.restart(ctx, Ref{Name: "shop"}); err != nil || len(f.h.calls("restart")) != 0 {
 		t.Errorf("a restart of the stack started what was stopped (%v)", err)
 	}
 
 	// An apply keeps them stopped, and so a service it adds that needs one.
-	f.h.defs["site"]["compose.yaml"] = site + "  worker:\n    image: example.com/web:1\n    depends_on: [web]\n"
-	f.h.defs["site"]["web.conf"] = "listen 9090\n"
+	f.h.defs["shop"]["compose.yaml"] = site + "  worker:\n    image: example.com/web:1\n    depends_on: [web]\n"
+	f.h.defs["shop"]["web.conf"] = "listen 9090\n"
 	f.h.calls("")
-	v, err = f.apply("site")
+	v, err = f.apply("shop")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -964,22 +964,22 @@ func TestAStopIsRememberedAndCoversWhatDependsOnIt(t *testing.T) {
 			t.Errorf("%s is not recorded as stopped", c.Service)
 		}
 	}
-	if strings.Contains(f.h.units["site"][unitDir+"site-worker.container"], "[Install]") {
+	if strings.Contains(f.h.units["shop"][unitDir+"shop-worker.container"], "[Install]") {
 		t.Error("the added service keeps its [Install] section: at boot it would start, and db with it")
 	}
 
-	if _, err := f.m.start(ctx, Ref{Name: "site", Service: "db"}); err != nil {
+	if _, err := f.m.start(ctx, Ref{Name: "shop", Service: "db"}); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(f.h.units["site"][db], "[Install]") || strings.Contains(f.h.units["site"][web], "[Install]") {
+	if !strings.Contains(f.h.units["shop"][db], "[Install]") || strings.Contains(f.h.units["shop"][web], "[Install]") {
 		t.Error("after starting db: db has its [Install] section back, and web, still stopped, has not")
 	}
 	f.h.calls("")
-	v, err = f.m.start(ctx, Ref{Name: "site"})
+	v, err = f.m.start(ctx, Ref{Name: "shop"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := f.h.calls("start"); !reflect.DeepEqual(got, []string{"start site site-db.service site-web.service site-worker.service"}) {
+	if got := f.h.calls("start"); !reflect.DeepEqual(got, []string{"start shop shop-db.service shop-web.service shop-worker.service"}) {
 		t.Errorf("starting the stack started %v", got)
 	}
 	for _, c := range v.Containers {
@@ -992,13 +992,13 @@ func TestAStopIsRememberedAndCoversWhatDependsOnIt(t *testing.T) {
 func TestStacksDoNotShareAPort(t *testing.T) {
 	f := setup(t)
 	ctx := context.Background()
-	f.add("site")
+	f.add("shop")
 	f.h.defs["blog"] = map[string]string{"compose.yaml": "services:\n  web: {image: example.com/web:1, ports: [\"127.0.0.1:8080:80\"]}\n"}
 	r, err := f.m.check(ctx, Ref{Name: "blog"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := refusals(r.Findings); len(got) != 1 || !strings.HasPrefix(got[0], "port-taken web 8080/tcp is stack site's") {
+	if got := refusals(r.Findings); len(got) != 1 || !strings.HasPrefix(got[0], "port-taken web 8080/tcp is stack shop's") {
 		t.Errorf("a second stack on the first one's port: %q", got)
 	}
 	f.h.listen = []PortUse{{Proto: "tcp", From: 9000, To: 9000}}
@@ -1013,28 +1013,28 @@ func TestRemoveLogsAndTheVerbsOfAStackThatIsNotThere(t *testing.T) {
 	f := setup(t)
 	ctx := context.Background()
 	for what, err := range map[string]error{
-		"start":  func() error { _, err := f.m.start(ctx, Ref{Name: "site"}); return err }(),
-		"pull":   func() error { _, err := f.m.pull(ctx, Ref{Name: "site"}); return err }(),
-		"apply":  func() error { _, err := f.m.applyVerb(ctx, Accept{Name: "site", Accept: "x"}); return err }(),
-		"remove": func() error { _, err := f.m.remove(ctx, Remove{Name: "site"}); return err }(),
-		"logs":   func() error { _, err := f.m.logs(ctx, LogsAsk{Name: "site"}); return err }(),
+		"start":  func() error { _, err := f.m.start(ctx, Ref{Name: "shop"}); return err }(),
+		"pull":   func() error { _, err := f.m.pull(ctx, Ref{Name: "shop"}); return err }(),
+		"apply":  func() error { _, err := f.m.applyVerb(ctx, Accept{Name: "shop", Accept: "x"}); return err }(),
+		"remove": func() error { _, err := f.m.remove(ctx, Remove{Name: "shop"}); return err }(),
+		"logs":   func() error { _, err := f.m.logs(ctx, LogsAsk{Name: "shop"}); return err }(),
 	} {
 		if !errors.Is(err, ErrNotFound) {
 			t.Errorf("%s of a stack that is not registered = %v; want ErrNotFound", what, err)
 		}
 	}
-	f.add("site")
-	if _, err := f.m.stop(ctx, Ref{Name: "site", Service: "nothing"}); !errors.Is(err, ErrNoService) {
+	f.add("shop")
+	if _, err := f.m.stop(ctx, Ref{Name: "shop", Service: "nothing"}); !errors.Is(err, ErrNoService) {
 		t.Errorf("stop of a service the stack has not = %v; want ErrNoService", err)
 	}
-	l, err := f.m.logs(ctx, LogsAsk{Name: "site", Service: "web", Limit: 9999})
-	if err != nil || !reflect.DeepEqual(l.Lines, []string{`site "site-web" 500`}) {
+	l, err := f.m.logs(ctx, LogsAsk{Name: "shop", Service: "web", Limit: 9999})
+	if err != nil || !reflect.DeepEqual(l.Lines, []string{`shop "shop-web" 500`}) {
 		t.Errorf("logs = %v, %v; want web's container, 500 lines at most", l.Lines, err)
 	}
-	if _, err := f.m.remove(ctx, Remove{Name: "site", Purge: true}); err != nil {
+	if _, err := f.m.remove(ctx, Remove{Name: "shop", Purge: true}); err != nil {
 		t.Fatal(err)
 	}
-	if len(f.s.all) != 0 || f.h.users["site"] || f.h.folder["site"] != nil {
+	if len(f.s.all) != 0 || f.h.users["shop"] || f.h.folder["shop"] != nil {
 		t.Error("a purge left a row, a user or the folder")
 	}
 	if got, _ := f.m.available(ctx, struct{}{}); len(got) != 1 {
@@ -1074,57 +1074,57 @@ func TestEveryDeclaredErrorHasItsOwnCode(t *testing.T) {
 func TestAStackIsImportedFromAnywhere(t *testing.T) {
 	f := setup(t)
 	ctx := context.Background()
-	delete(f.h.defs, "site")
-	f.h.src["/home/admin/services/site"] = map[string]string{"compose.yaml": site, ".env": "TOKEN=t0ken\n", "web.conf": "listen 8080\n", "notes.txt": "not part of it"}
+	delete(f.h.defs, "shop")
+	f.h.src["/home/admin/services/shop"] = map[string]string{"compose.yaml": site, ".env": "TOKEN=t0ken\n", "web.conf": "listen 8080\n", "notes.txt": "not part of it"}
 
-	l, err := f.m.browse(ctx, Browse{Path: "/home/admin/services/site"})
+	l, err := f.m.browse(ctx, Browse{Path: "/home/admin/services/shop"})
 	if err != nil || !l.Stack {
 		t.Fatalf("browse = %+v, %v; want a stack's folder", l, err)
 	}
-	p, err := f.m.preview(ctx, Browse{Path: "/home/admin/services/site/.env"})
+	p, err := f.m.preview(ctx, Browse{Path: "/home/admin/services/shop/.env"})
 	if err != nil || strings.Contains(p.Text, "t0ken") || p.Masked != 1 {
 		t.Fatalf("the preview of .env = %+v, %v; want its value masked", p, err)
 	}
 
-	imp, err := f.m.importVerb(ctx, Import{From: "/home/admin/services/site"})
-	if err != nil || imp.Name != "site" || len(imp.Files) != 3 {
+	imp, err := f.m.importVerb(ctx, Import{From: "/home/admin/services/shop"})
+	if err != nil || imp.Name != "shop" || len(imp.Files) != 3 {
 		t.Fatalf("import = %+v, %v; want compose.yaml, .env and web.conf, named for the folder", imp, err)
 	}
-	if _, has := f.h.defs["site"]["notes.txt"]; has {
+	if _, has := f.h.defs["shop"]["notes.txt"]; has {
 		t.Error("a file the compose file does not name was copied")
 	}
-	if got := f.accept("site"); got != imp.SHA256 {
+	if got := f.accept("shop"); got != imp.SHA256 {
 		t.Errorf("the review's hash %s is not the import's %s: an unchanged import must review the same", got, imp.SHA256)
 	}
-	if _, err := f.m.importVerb(ctx, Import{From: "/home/admin/services/site"}); !errors.Is(err, ErrDuplicate) {
+	if _, err := f.m.importVerb(ctx, Import{From: "/home/admin/services/shop"}); !errors.Is(err, ErrDuplicate) {
 		t.Errorf("a second import of the name = %v; want ErrDuplicate", err)
 	}
-	if _, err := f.m.importVerb(ctx, Import{From: "/home/admin/services/site", Name: "Bad Name"}); !errors.Is(err, ErrBadName) {
+	if _, err := f.m.importVerb(ctx, Import{From: "/home/admin/services/shop", Name: "Bad Name"}); !errors.Is(err, ErrBadName) {
 		t.Errorf("an import under a bad name = %v", err)
 	}
 
-	v := f.add("site")
-	if v.Source == nil || v.Source.Path != "/home/admin/services/site" || v.Source.State != "same" {
+	v := f.add("shop")
+	if v.Source == nil || v.Source.Path != "/home/admin/services/shop" || v.Source.State != "same" {
 		t.Fatalf("the stack's source = %+v; want its folder, the same as imported", v.Source)
 	}
-	f.h.src["/home/admin/services/site"]["web.conf"] = "listen 9090\n"
+	f.h.src["/home/admin/services/shop"]["web.conf"] = "listen 9090\n"
 	list, _ := f.m.list(ctx, struct{}{})
 	if list[0].Source.State != "changed" {
 		t.Fatalf("after the source changed, its state = %q", list[0].Source.State)
 	}
-	if _, err := f.m.reimport(ctx, Ref{Name: "site"}); err != nil {
+	if _, err := f.m.reimport(ctx, Ref{Name: "shop"}); err != nil {
 		t.Fatal(err)
 	}
-	if f.h.defs["site"]["web.conf"] != "listen 9090\n" || len(f.h.calls("restart")) != 0 {
+	if f.h.defs["shop"]["web.conf"] != "listen 9090\n" || len(f.h.calls("restart")) != 0 {
 		t.Fatal("a reimport did not copy the change, or it changed what runs")
 	}
-	if _, err := f.apply("site"); err != nil {
+	if _, err := f.apply("shop"); err != nil {
 		t.Fatal(err)
 	}
-	if got := f.h.calls("restart"); !reflect.DeepEqual(got, []string{"restart site site-web.service"}) {
+	if got := f.h.calls("restart"); !reflect.DeepEqual(got, []string{"restart shop shop-web.service"}) {
 		t.Errorf("the apply after the reimport restarted %v", got)
 	}
-	delete(f.h.src, "/home/admin/services/site")
+	delete(f.h.src, "/home/admin/services/shop")
 	list, _ = f.m.list(ctx, struct{}{})
 	if list[0].Source.State != "missing" || list[0].Containers[0].Active != "active" {
 		t.Errorf("with its source gone, the stack = %+v; want it running, the source missing", list[0])

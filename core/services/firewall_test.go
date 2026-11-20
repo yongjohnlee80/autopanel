@@ -162,13 +162,30 @@ func (ownedBy) Mask(_ string, lines []string) []string           { return lines 
 // its owner's RemoveOwned removes it.
 func TestAnOwnedStackIsRemovedOnlyByItsOwner(t *testing.T) {
 	f := setup(t)
-	f.add("site")
-	f.m.SetGuard(ownedBy{"site"})
+	f.add("shop")
+	f.m.SetGuard(ownedBy{"shop"})
 	ctx := context.Background()
-	if _, err := f.m.remove(ctx, Remove{Name: "site"}); !errors.Is(err, ErrReserved) || len(f.s.all) != 1 {
+	if _, err := f.m.remove(ctx, Remove{Name: "shop"}); !errors.Is(err, ErrReserved) || len(f.s.all) != 1 {
 		t.Fatalf("services.remove of an owned stack = %v, rows %d", err, len(f.s.all))
 	}
-	if err := f.m.RemoveOwned(ctx, "site", false); err != nil || len(f.s.all) != 0 {
+	if err := f.m.RemoveOwned(ctx, "shop", false); err != nil || len(f.s.all) != 0 {
 		t.Fatalf("RemoveOwned = %v, rows %d", err, len(f.s.all))
+	}
+}
+
+// TestAStackMayNotTakeAutoPanelsOwnUser: a stack named site would run as
+// ap-site, the site's builder; it is refused as AutoPanel's own, imported or
+// removed, with no guard set.
+func TestAStackMayNotTakeAutoPanelsOwnUser(t *testing.T) {
+	f := setup(t)
+	ctx := context.Background()
+	if !BuiltIn("site") || BuiltIn("shop") {
+		t.Fatal("the built-in names")
+	}
+	if _, err := f.m.importFrom(ctx, t.TempDir(), "site", false); !errors.Is(err, ErrReserved) {
+		t.Fatalf("importing a stack named site: %v", err)
+	}
+	if _, err := f.m.remove(ctx, Remove{Name: "site"}); !errors.Is(err, ErrReserved) {
+		t.Fatalf("removing a stack named site: %v", err)
 	}
 }
