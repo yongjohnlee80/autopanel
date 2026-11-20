@@ -36,12 +36,15 @@ UMask=0077
 # killed, not swapped.
 # A UDP forward's pairing and a forwarded connection are each a socket or two.
 LimitNOFILE=8192
-# What the gate may hold at once, at the very worst, and room above it: the
-# API's calls (about 21 MB), 200 forwarded connections' socket buffers (about
-# 19 MB), and 256 UDP pairings (9 MB, measured). See docs/decisions/forwards.md.
-MemoryMax=64M
+# What the gate may hold at once, at the very worst, and room above it. Every
+# part is bounded and the sum is kept in host/gate/bounds.go (WorstBytes, about
+# 368 MiB; WorstHeapBytes, about 156 MiB): a test holds these three lines to
+# it. MemoryHigh makes the kernel reclaim and slow the gate before MemoryMax
+# would end it. An idle gate uses a few megabytes: these are ceilings.
+MemoryHigh=416M
+MemoryMax=460M
 MemorySwapMax=0
-Environment=GOMEMLIMIT=32MiB
+Environment=GOMEMLIMIT=176MiB
 
 NoNewPrivileges=yes
 ProtectSystem=strict

@@ -6,18 +6,20 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	stdlog "log"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/netip"
 	"os"
 	"runtime"
+	"runtime/metrics"
 	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	httpserver "github.com/yongjohnlee80/golib/server/http"
 	"github.com/yongjohnlee80/golib/server/rpc"
 
 	core "github.com/yongjohnlee80/autopanel/core/gate"
@@ -126,8 +128,28 @@ func Run(ctx context.Context, dial Dialer, log *slog.Logger) error {
 		}
 	}
 
-	https := httpserver.New(httpserver.Addr(hello.HTTPS),
-		httpserver.WithTLSConfig(&tls.Config{
+	trustedNow := func() Trusted {
+		if t := g.trustedNow.Load(); t != nil {
+			return *t
+		}
+		return nil
+	}
+	httpsLn, err := listenBounded(ctx, hello.HTTPS, httpsConns, peerConns, trustedNow)
+	if err != nil {
+		return err
+	}
+	plainLn, err := listenBounded(ctx, hello.HTTP, plainConns, peerConns, trustedNow)
+	if err != nil {
+		_ = httpsLn.Close()
+		return err
+	}
+	g.httpsLn, g.plainLn = httpsLn, plainLn
+	srvLog := stdlog.New(&serverLog{log: log}, "", 0)
+	g.inFlight = newInFlight(proxyInFlight, proxyPerClient)
+	routes := proxied(g.inFlight, trustedNow, requestStall, upgradedStall, Handler(table))
+	https := &http.Server{
+		Handler: g.tunnels.or(counted(&g.https, g.api.or(routes))), // no routes: every request is the gate's
+		TLSConfig: &tls.Config{
 			GetCertificate: g.certs.get,
 			NextProtos:     []string{"h2", "http/1.1", acmeTLS1}, // HTTP's first; acme-tls/1 stays, for the TLS-ALPN challenge
 			MinVersion:     tls.VersionTLS12,
@@ -139,12 +161,17 @@ func Run(ctx context.Context, dial Dialer, log *slog.Logger) error {
 				}
 				return nil, nil
 			},
-		}),
-		httpserver.ReadHeaderTimeout(10*time.Second), httpserver.IdleTimeout(120*time.Second),
-		httpserver.MaxHeaderBytes(64<<10), httpserver.NotFound(g.tunnels.or(counted(&g.https, g.api.or(Handler(table)))).ServeHTTP)) // no routes: every request is the gate's
-	plain := httpserver.New(httpserver.Addr(hello.HTTP),
-		httpserver.ReadHeaderTimeout(10*time.Second), httpserver.IdleTimeout(60*time.Second),
-		httpserver.MaxHeaderBytes(16<<10), httpserver.NotFound(counted(&g.http, g.challengeOr(g.api.notPlain(http.HandlerFunc(toHTTPS)))).ServeHTTP))
+		},
+		ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 120 * time.Second, MaxHeaderBytes: httpsHeaderBytes,
+		ConnContext: connContext,
+		HTTP2:       &http.HTTP2Config{MaxConcurrentStreams: h2Streams, MaxReceiveBufferPerStream: h2StreamWindow, MaxReceiveBufferPerConnection: h2ConnWindow, MaxReadFrameSize: h2FrameBytes},
+		ErrorLog:    srvLog,
+	}
+	plain := &http.Server{
+		Handler:           counted(&g.http, g.challengeOr(g.api.notPlain(http.HandlerFunc(toHTTPS)))),
+		ReadHeaderTimeout: 10 * time.Second, ReadTimeout: 20 * time.Second, WriteTimeout: 20 * time.Second, IdleTimeout: 60 * time.Second,
+		MaxHeaderBytes: 16 << 10, ErrorLog: srvLog, ConnContext: connContext,
+	}
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -162,8 +189,8 @@ func Run(ctx context.Context, dial Dialer, log *slog.Logger) error {
 			}
 		}()
 	}
-	run("gate https", https.Run)
-	run("gate http", plain.Run)
+	run("gate https", func(ctx context.Context) error { return serveUntil(ctx, https, httpsLn, true) })
+	run("gate http", func(ctx context.Context) error { return serveUntil(ctx, plain, plainLn, false) })
 	run("gate routes", g.follow)
 	run("gate streams", g.followStreams)
 	run("gate probes", g.streams.probes)
@@ -193,6 +220,9 @@ type process struct {
 	up         atomic.Bool             // the core answered the last time it was asked
 
 	https, http atomic.Int64 // requests served, per listener
+
+	httpsLn, plainLn *boundedListener
+	inFlight         *inFlight // requests being proxied
 }
 
 func parseTrusted(prefixes []string) (Trusted, error) {
@@ -314,6 +344,8 @@ func (g *process) followStreams(ctx context.Context) error {
 func (g *process) report(ctx context.Context) error {
 	t := time.NewTicker(ReportEvery)
 	defer t.Stop()
+	var lastConns, lastProxied int64
+	memlog := os.Getenv("AUTOPANEL_GATE_MEMLOG") != "" // a line of the runtime's memory with every report: for measuring
 	for {
 		select {
 		case <-ctx.Done():
@@ -322,6 +354,18 @@ func (g *process) report(ctx context.Context) error {
 			now := Report{HTTPSRequests: g.https.Load(), HTTPRequests: g.http.Load(), PID: os.Getpid(), MemoryBytes: residentBytes(),
 				StreamsOpen: g.streams.openNow(), StreamsServed: g.streams.served.Load(), StreamsRefused: g.streams.refused.Load()}
 			now.Tunnels = g.tunnels.states()
+			now.ConnsOpen, now.ConnsRefused = int64(g.httpsLn.openNow()+g.plainLn.openNow()), g.httpsLn.refused.Load()+g.plainLn.refused.Load()
+			now.ProxiedNow, now.ProxiedRefused = int64(g.inFlight.now()), g.inFlight.refused.Load()
+			if memlog {
+				rt, live, fixed := runtimeBytes()
+				g.log.Info("gate: memory", "runtime_bytes", rt, "heap_live_bytes", live, "runtime_fixed_bytes", fixed, "resident_bytes", now.MemoryBytes,
+					"proxied_now", now.ProxiedNow, "connections_now", now.ConnsOpen, "wide_now", g.httpsLn.wide.now()+g.plainLn.wide.now(), "streams_open", now.StreamsOpen)
+			}
+			if now.ConnsRefused != lastConns || now.ProxiedRefused != lastProxied {
+				g.log.Warn("gate: at its limits", "requests_refused", now.ProxiedRefused-lastProxied, "connections_closed", now.ConnsRefused-lastConns,
+					"proxied_now", now.ProxiedNow, "connections_now", now.ConnsOpen)
+				lastConns, lastProxied = now.ConnsRefused, now.ProxiedRefused
+			}
 			if p := g.streams.probed.Load(); p != nil {
 				now.ProbedAt, now.Unproxied = p.at, p.unproxied
 			}
@@ -590,4 +634,88 @@ func (cc *certCache) prune() {
 // it is the API's host.
 func (cc *certCache) holds(name string) bool {
 	return cc.table.Holds(name) || (cc.also != nil && cc.also(name))
+}
+
+// serverLog is where the two servers write. A failed handshake or a reset
+// connection is the internet's weather and is dropped; anything else (a
+// handler that panicked, an accept that failed) is counted and logged, at
+// most one line a second.
+type serverLog struct {
+	log     *slog.Logger
+	mu      sync.Mutex
+	last    time.Time
+	dropped int
+}
+
+func (l *serverLog) Write(b []byte) (int, error) {
+	line := strings.TrimSpace(string(b))
+	for _, weather := range []string{"TLS handshake error", "http2: server: error reading preface", "http: URL query contains semicolon"} {
+		if strings.Contains(line, weather) {
+			return len(b), nil
+		}
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if now := time.Now(); now.Sub(l.last) >= time.Second {
+		if len(line) > 2048 {
+			line = line[:2048]
+		}
+		l.log.Error("gate: the HTTP server reported", "line", line, "not_shown", l.dropped)
+		l.last, l.dropped = now, 0
+	} else {
+		l.dropped++
+	}
+	return len(b), nil
+}
+
+// serveUntil runs srv on ln until ctx ends, then lets requests in flight finish
+// for a few seconds and closes what is left.
+func serveUntil(ctx context.Context, srv *http.Server, ln net.Listener, withTLS bool) error {
+	done := make(chan error, 1)
+	go func() {
+		if withTLS {
+			done <- srv.ServeTLS(ln, "", "") // certificates come from TLSConfig
+			return
+		}
+		done <- srv.Serve(ln)
+	}()
+	select {
+	case err := <-done:
+		if errors.Is(err, http.ErrServerClosed) {
+			return nil
+		}
+		return err
+	case <-ctx.Done():
+		sctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = srv.Shutdown(sctx)
+		_ = srv.Close()
+		return nil
+	}
+}
+
+// runtimeBytes is the Go runtime's memory now: held, all it has mapped less
+// what it has given back (GOMEMLIMIT is a limit on this); live, the heap that
+// survived the last collection; and fixed, what it holds beside the heap's
+// objects (stacks, its own tables), which no collection gives back.
+func runtimeBytes() (held, live, fixed uint64) {
+	names := []string{"/memory/classes/total:bytes", "/memory/classes/heap/released:bytes", "/gc/heap/live:bytes",
+		"/memory/classes/heap/stacks:bytes", "/memory/classes/os-stacks:bytes", "/memory/classes/metadata/mspan/inuse:bytes",
+		"/memory/classes/metadata/mcache/inuse:bytes", "/memory/classes/metadata/other:bytes", "/memory/classes/other:bytes",
+		"/memory/classes/profiling/buckets:bytes"}
+	samples := make([]metrics.Sample, len(names))
+	for i, n := range names {
+		samples[i].Name = n
+	}
+	metrics.Read(samples)
+	v := func(i int) uint64 {
+		if samples[i].Value.Kind() != metrics.KindUint64 {
+			return 0
+		}
+		return samples[i].Value.Uint64()
+	}
+	for i := 3; i < len(names); i++ {
+		fixed += v(i)
+	}
+	return v(0) - v(1), v(2), fixed
 }

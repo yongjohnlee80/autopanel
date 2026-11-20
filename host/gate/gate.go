@@ -77,7 +77,7 @@ func NewProxy(route core.Route, trusted Trusted, dial TunnelDial) (http.Handler,
 	if err != nil {
 		return nil, err
 	}
-	var transport http.RoundTripper
+	var transport http.RoundTripper = upstreamTransport
 	var onError func(http.ResponseWriter, *http.Request, error)
 	if agent, target, ok := tunnel.ParseAddress(route.Upstream); ok {
 		// The URL's host is never resolved: the connection is the stream.
@@ -91,13 +91,16 @@ func NewProxy(route core.Route, trusted Trusted, dial TunnelDial) (http.Handler,
 			},
 			// A stream a request: an idle connection kept for the next one
 			// would hold one of the agent's streams while it waited.
-			DisableKeepAlives:     true,
-			ResponseHeaderTimeout: 60 * time.Second,
-			ForceAttemptHTTP2:     false,
+			DisableKeepAlives:      true,
+			MaxResponseHeaderBytes: upstreamHeaderBytes,
+			WriteBufferSize:        4 << 10,
+			ReadBufferSize:         4 << 10,
+			ResponseHeaderTimeout:  60 * time.Second,
+			ForceAttemptHTTP2:      false,
 		}
 		onError = tunnelDown
 	}
-	return &httputil.ReverseProxy{Transport: transport, ErrorHandler: onError, Rewrite: func(pr *httputil.ProxyRequest) {
+	return &httputil.ReverseProxy{Transport: transport, ErrorHandler: onError, BufferPool: proxyBuffers, Rewrite: func(pr *httputil.ProxyRequest) {
 		pr.SetURL(up)
 		pr.Out.Host = pr.In.Host // the upstream sees the name the client asked for
 		pr.SetXForwarded()

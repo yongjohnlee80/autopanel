@@ -206,6 +206,14 @@ type Report struct {
 	ProbedAt  int64    `json:"probed_at"`
 	Unproxied []string `json:"unproxied"`
 
+	// The public listeners' bounds (bounds.go): connections held now and closed
+	// by a limit since the gate started; requests being proxied now and
+	// answered 503 by a limit since it started.
+	ConnsOpen      int64 `json:"conns_open"`
+	ConnsRefused   int64 `json:"conns_refused"`
+	ProxiedNow     int64 `json:"proxied_now"`
+	ProxiedRefused int64 `json:"proxied_refused"`
+
 	// Tunnels is the agents connected now.
 	Tunnels []TunnelState `json:"tunnels,omitempty"`
 }
