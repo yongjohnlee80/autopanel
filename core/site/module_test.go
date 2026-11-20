@@ -239,3 +239,66 @@ func TestADocumentsFiles(t *testing.T) {
 		t.Fatalf("removing it twice: %v", err)
 	}
 }
+
+// TestASitesConfiguration: site.set validates the whole configuration and
+// keeps what it is not given; a content host is no site's host and no other
+// site's content host; site.get answers the defaults of a site never set.
+func TestASitesConfiguration(t *testing.T) {
+	ctx := context.Background()
+	st, err := store.Open(ctx, store.Config{Engine: dao.DialectSQLite, Path: filepath.Join(t.TempDir(), "store.db")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = st.Close() })
+	m := site.NewModule(st.Sites(), people{"user:root": {ID: 1, Name: "root", Admin: true}})
+	for _, h := range []string{"blog.example.com", "docs.example.com"} {
+		if _, err := call[site.SiteView](t, m, "user:root", "site.add", site.SiteAsk{Host: h}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	v, err := call[site.SiteConfigView](t, m, "user:root", "site.get", site.SiteAsk{Host: "blog.example.com"})
+	if err != nil || v.Config.Title != "blog.example.com" || v.Config.Theme != "journal" {
+		t.Fatalf("a site never set: %+v, %v", v, err)
+	}
+	str := func(s string) *string { return &s }
+	v, err = call[site.SiteConfigView](t, m, "user:root", "site.set", site.SiteSet{Host: "blog.example.com", Config: str("title: Notes\nlook: {accent: '#0b6e4f'}\n"), ContentHost: str("content.example.com")})
+	if err != nil || v.Config.Title != "Notes" || v.Config.Look.Accent != "#0b6e4f" || v.ContentHost != "content.example.com" {
+		t.Fatalf("set: %+v, %v", v, err)
+	}
+	// A refused configuration changes nothing, the content host included.
+	if _, err := call[site.SiteConfigView](t, m, "user:root", "site.set", site.SiteSet{Host: "blog.example.com", Config: str("title: X\nlook: {accent: red}\n"), ContentHost: str("")}); !errors.Is(err, site.ErrBadConfig) {
+		t.Fatalf("a bad colour: %v", err)
+	}
+	if v, _ := call[site.SiteConfigView](t, m, "user:root", "site.get", site.SiteAsk{Host: "blog.example.com"}); v.Config.Title != "Notes" || v.ContentHost != "content.example.com" {
+		t.Fatalf("after a refusal: %+v", v)
+	}
+	// Leaving the configuration out keeps it; an empty content host clears it.
+	if v, err := call[site.SiteConfigView](t, m, "user:root", "site.set", site.SiteSet{Host: "blog.example.com", ContentHost: str("")}); err != nil || v.Config.Title != "Notes" || v.ContentHost != "" {
+		t.Fatalf("clearing the content host: %+v, %v", v, err)
+	}
+	for what, tc := range map[string]struct {
+		host, content string
+		want          error
+	}{
+		"its own host":        {"blog.example.com", "blog.example.com", site.ErrBadHost},
+		"another site's host": {"blog.example.com", "docs.example.com", site.ErrHostTaken},
+		"not a host":          {"blog.example.com", "content", site.ErrBadHost},
+		"in capitals":         {"blog.example.com", "Content.example.com", site.ErrBadHost},
+	} {
+		if _, err := call[site.SiteConfigView](t, m, "user:root", "site.set", site.SiteSet{Host: tc.host, ContentHost: str(tc.content)}); !errors.Is(err, tc.want) {
+			t.Errorf("%s: %v", what, err)
+		}
+	}
+	if _, err := call[site.SiteConfigView](t, m, "user:root", "site.set", site.SiteSet{Host: "docs.example.com", ContentHost: str("content.example.com")}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := call[site.SiteConfigView](t, m, "user:root", "site.set", site.SiteSet{Host: "blog.example.com", ContentHost: str("content.example.com")}); !errors.Is(err, site.ErrHostTaken) {
+		t.Fatalf("another site's content host: %v", err)
+	}
+	if _, err := call[site.SiteView](t, m, "user:root", "site.add", site.SiteAsk{Host: "content.example.com"}); !errors.Is(err, site.ErrHostTaken) {
+		t.Fatalf("a site on a content host: %v", err)
+	}
+	if _, err := call[site.SiteConfigView](t, m, "user:root", "site.set", site.SiteSet{Host: "none.example.com"}); !errors.Is(err, site.ErrNoSite) {
+		t.Fatalf("no such site: %v", err)
+	}
+}

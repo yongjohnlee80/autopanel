@@ -33,6 +33,9 @@ type Store interface {
 	Sites(ctx context.Context) ([]Site, error)
 	SiteByHost(ctx context.Context, host string) (Site, error) // ErrNoSite
 	RemoveSite(ctx context.Context, id int64) error            // with every document; ErrNoSite
+	// SetSite replaces the site's configuration and its content host, with
+	// its audit entry. ErrNoSite.
+	SetSite(ctx context.Context, id int64, config, contentHost string) (Site, error)
 
 	Doc(ctx context.Context, site int64, slug string) (Doc, error) // ErrNotFound
 	DocByID(ctx context.Context, id int64) (Doc, error)

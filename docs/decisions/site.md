@@ -78,6 +78,29 @@ that one document and are found only by their exact name under it.
 
 **In the code:** `core/site/doc.go` (`ResourceName`), `core/site/resource.go` (`ResourceType`).
 
+## A site's configuration is checked whole
+
+**Decided:** an administrator sets a site's configuration with `site.set`, written in YAML. The
+whole configuration is checked before it is stored, and a refused one changes nothing.
+
+- **Unknown keys are refused,** as are a second document and anchors or aliases, so a small file
+  cannot expand. The limit is 16 KiB.
+- **No value is markup.**
+  - A colour is `#` and six hexadecimal digits.
+  - `font` is `serif`, `sans` or `mono`, and `width` is `narrow` or `wide`.
+  - `logo` is the plain name of an image.
+  - `theme` is one the kit ships.
+  - Text is printable, on one line, and bounded.
+  - A navigation link goes to a path of the site or to an `https://` address with no
+    credentials.
+- **It is stored as JSON** with its defaults filled in, and that is what the builder is given.
+- **A content host is no site's host,** and no other site's content host. A site cannot be added
+  on a content host either: an active document there would otherwise run on a page's origin.
+- The audit entry says what changed: the configuration, or the content host. It never holds the
+  configuration's text.
+
+**In the code:** `core/site/config.go`; `site.set` and `site.get` in `core/site/module.go`.
+
 ## What a build wrote is checked before it is served
 
 **Decided:** a build's output is untrusted, because a theme is code and the builder ran it. The

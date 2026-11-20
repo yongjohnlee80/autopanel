@@ -133,6 +133,39 @@ func (ss sites) RemoveSite(ctx context.Context, id int64) error {
 	})
 }
 
+// SetSite replaces the configuration and the content host, with the audit
+// entry; the entry says what changed, never the configuration's text.
+func (ss sites) SetSite(ctx context.Context, id int64, config, contentHost string) (out site.Site, err error) {
+	err = ss.s.tx(ctx, func(tx dao.TxConn) error {
+		old, err := ss.oneSite(ctx, tx, "SELECT "+siteCols+" FROM site WHERE id = ?", id)
+		if err != nil {
+			return err
+		}
+		if out, err = ss.oneSite(ctx, tx, "UPDATE site SET config = ?, content_host = ? WHERE id = ? RETURNING "+siteCols, config, contentHost, id); err != nil {
+			return err
+		}
+		var what []string
+		if old.Config != out.Config {
+			what = append(what, "configuration")
+		}
+		if old.ContentHost != out.ContentHost {
+			what = append(what, "content host "+quoteOrNone(out.ContentHost))
+		}
+		if len(what) == 0 {
+			what = append(what, "unchanged")
+		}
+		return ss.audit(ctx, tx, "site.set", "site "+out.Host, strings.Join(what, "; "))
+	})
+	return out, err
+}
+
+func quoteOrNone(s string) string {
+	if s == "" {
+		return "none"
+	}
+	return s
+}
+
 // oneDoc reads one document and its share list.
 func (ss sites) oneDoc(ctx context.Context, q querier, stmt string, args ...any) (site.Doc, error) {
 	rows, err := q.QueryContext(ctx, ss.s.q(stmt), args...)

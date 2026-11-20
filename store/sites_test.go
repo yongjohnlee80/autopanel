@@ -340,3 +340,49 @@ func TestSiteResourcesBelongToOneDocument(t *testing.T) {
 		})
 	}
 }
+
+// TestASitesConfigurationIsReplacedWhole: SetSite replaces the configuration
+// and the content host in one change, and its audit entry says what changed,
+// never the configuration's text.
+func TestASitesConfigurationIsReplacedWhole(t *testing.T) {
+	for engine, s := range engines(t) {
+		t.Run(engine, func(t *testing.T) {
+			ctx := context.Background()
+			ss := s.Sites()
+			blog, err := ss.AddSite(ctx, site.Site{Host: "blog.example.com", CreatedAt: 1})
+			if err != nil {
+				t.Fatal(err)
+			}
+			v, err := ss.SetSite(ctx, blog.ID, `{"title":"a secret title"}`, "content.example.com")
+			if err != nil || v.Config != `{"title":"a secret title"}` || v.ContentHost != "content.example.com" || v.Host != blog.Host {
+				t.Fatalf("%+v, %v", v, err)
+			}
+			if v, err = ss.SetSite(ctx, blog.ID, v.Config, ""); err != nil || v.ContentHost != "" {
+				t.Fatalf("clearing the content host: %+v, %v", v, err)
+			}
+			if got, _ := ss.SiteByHost(ctx, "blog.example.com"); got.Config != v.Config || got.ContentHost != "" {
+				t.Fatalf("read back: %+v", got)
+			}
+			if _, err := ss.SetSite(ctx, blog.ID+100, "{}", ""); !errors.Is(err, site.ErrNoSite) {
+				t.Fatalf("no such site: %v", err)
+			}
+			rows, err := s.conn.QueryContext(ctx, "SELECT detail FROM audit WHERE action = 'site.set' ORDER BY id")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer rows.Close()
+			var details []string
+			for rows.Next() {
+				var d string
+				if err := rows.Scan(&d); err != nil {
+					t.Fatal(err)
+				}
+				details = append(details, d)
+			}
+			want := []string{"configuration; content host content.example.com", "content host none"}
+			if strings.Join(details, "|") != strings.Join(want, "|") {
+				t.Fatalf("audit %q, want %q", details, want)
+			}
+		})
+	}
+}
