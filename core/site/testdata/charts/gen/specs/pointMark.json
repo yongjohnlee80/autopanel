@@ -1,0 +1,1 @@
+{"data":{"values":[{"a":"A","b":28,"c":"x"},{"a":"B","b":55,"c":"y"},{"a":"C","b":43,"c":"x"},{"a":"D","b":91,"c":"y"},{"a":"E <b>&amp;\"q\"","b":81,"c":"z"}]},"mark":{"type":"point","filled":false},"encoding":{"x":{"field":"b","type":"quantitative"},"y":{"field":"b","type":"quantitative"},"color":{"field":"c","type":"nominal"}}}

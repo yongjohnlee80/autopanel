@@ -1,0 +1,12 @@
+{
+  "data": {"values": [
+    {"m": "Jan", "kind": "b", "n": 2}, {"m": "Jan", "kind": "a", "n": 3},
+    {"m": "Feb", "kind": "a", "n": 1}, {"m": "Feb", "kind": "b", "n": 4}
+  ]},
+  "mark": "bar",
+  "encoding": {
+    "x": {"field": "m", "type": "ordinal", "sort": null},
+    "y": {"field": "n", "type": "quantitative"},
+    "color": {"field": "kind", "type": "nominal"}
+  }
+}

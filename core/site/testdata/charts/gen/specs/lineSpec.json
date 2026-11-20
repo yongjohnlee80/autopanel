@@ -1,0 +1,15 @@
+{
+  "data": {"values": [
+    {"date": "2024-03-01", "price": 30, "sym": "B"},
+    {"date": "2024-01-01", "price": 10, "sym": "A"},
+    {"date": "2024-02-01", "price": 20, "sym": "A"},
+    {"date": "2024-03-01", "price": 15, "sym": "A"},
+    {"date": "2024-01-01", "price": 25, "sym": "B"}
+  ]},
+  "mark": {"type": "line", "point": true},
+  "encoding": {
+    "x": {"field": "date", "type": "temporal", "title": "Day"},
+    "y": {"field": "price", "type": "quantitative"},
+    "color": {"field": "sym", "type": "nominal"}
+  }
+}

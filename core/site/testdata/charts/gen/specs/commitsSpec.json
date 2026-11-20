@@ -1,0 +1,20 @@
+{
+  "title": {"text": "A PR, commit by commit", "subtitle": "lines added (up) and removed (down)"},
+  "width": 300, "height": 120,
+  "data": {"values": [
+    {"sha": "f00", "order": 3, "layer": "Tests", "lines": 40},
+    {"sha": "f00", "order": 3, "layer": "Tests", "lines": -5},
+    {"sha": "b12", "order": 1, "layer": "ADR", "lines": 120},
+    {"sha": "b12", "order": 1, "layer": "ADR", "lines": -10},
+    {"sha": "a9e", "order": 2, "layer": "DAO", "lines": 80},
+    {"sha": "a9e", "order": 2, "layer": "DAO", "lines": -30}
+  ]},
+  "params": [{"name": "layer", "select": {"type": "point", "fields": ["layer"]}, "bind": "legend"}],
+  "mark": {"type": "bar"},
+  "encoding": {
+    "x": {"field": "sha", "type": "ordinal", "sort": {"field": "order"}, "title": "commit", "axis": {"labelAngle": -40}},
+    "y": {"field": "lines", "type": "quantitative"},
+    "color": {"field": "layer", "type": "nominal", "scale": {"domain": ["ADR", "DAO", "Tests"]}},
+    "opacity": {"condition": {"param": "layer", "value": 1}, "value": 0.2}
+  }
+}
