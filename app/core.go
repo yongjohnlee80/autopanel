@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/yongjohnlee80/autopanel/core/forward"
+	coresite "github.com/yongjohnlee80/autopanel/core/site"
 	coretunnel "github.com/yongjohnlee80/autopanel/core/tunnel"
 	"log/slog"
 	"net/http"
@@ -318,7 +319,9 @@ func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateContr
 	tm := coretunnel.NewModule(st.Tunnels(), func(context.Context) error { agentsRev.bump(); return nil }, counts.tunnelStatus)
 	sys.tunnelChecks = tunnelChecks(st.Routes(), st.Forwards(), counts.tunnelStatus)
 	sys.busyChecks = busyChecks(counts)
-	mods := []module.Module{am, gm, fm, tm, &certsModule{sw: sw}, sys, firewallModule{fwm}, servicesModule{svcs}, mailMod, apiMod}
+	// The site: documents are stored and not yet served.
+	siteMod := coresite.NewModule(st.Sites(), sitePeople{am})
+	mods := []module.Module{am, gm, fm, tm, &certsModule{sw: sw}, sys, firewallModule{fwm}, servicesModule{svcs}, mailMod, apiMod, siteMod}
 	if err := apiMod.serve(mods...); err != nil {
 		return err
 	}
