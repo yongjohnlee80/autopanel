@@ -41,6 +41,7 @@ const usage = `usage:
                                     the passphrase and the two-factor code on the terminal
   autopanel --call --token-file <file> <verb> [json]
                                     the same, logged in with the API token the file holds (0600, the caller's own)
+  autopanel --site                  serve the sites' pages, read-only, on a unix socket for the gate
   autopanel --ui                    open the admin TUI on the running core
   autopanel --contracts             print every verb's contract (no daemon needed)
   autopanel --firewall-setup --ports 80,443
@@ -93,6 +94,12 @@ func Main(args []string, stdout, stderr io.Writer) int {
 	case "--gate":
 		if err := Gate(GateLinkSocket(), log); err != nil {
 			log.Error("autopanel gate stopped", "err", err)
+			return 1
+		}
+		return 0
+	case "--site":
+		if err := Site(log); err != nil {
+			log.Error("autopanel site stopped", "err", err)
 			return 1
 		}
 		return 0

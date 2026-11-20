@@ -184,3 +184,26 @@ output, a write to the input and a file over the limit all fail.
 **Decided:** every change to a site or a document has its entry, written in the change's own
 transaction: the site's host and the document's slug, and its level before and after. Never a
 title, a body or front matter.
+
+## The serving process reads files and decides nothing else
+
+**Decided:** `autopanel --site` serves every site's live pages on a unix socket for the gate. It
+holds no secret, and it decides nothing but which file a request names.
+
+- **`GET` and `HEAD` only;** any other method is `405`. A hidden name, a path outside the site, a
+  host with no site and a type outside the output check's list are all `404`.
+- **Each request opens the site's directory once** and reads the page and the core's manifest
+  through that one handle. A swap between the two cannot give a page the policy of another build.
+- **The manifest is the core's,** written after the check. It is a hidden file, which the output
+  check refuses in a build's output and the server never serves. It names the pages that may load
+  the kit's scripts, and the content host.
+- **Each response class has one policy.**
+  - A page: `default-src 'none'`, its own styles, images and fonts, frames of itself and the
+    content host, no framing, no base, no form.
+  - A diagram page: the same, plus `script-src` with the kit's two hashes.
+  - An inert document: `sandbox`.
+  - Every answer, a refusal included, carries `nosniff` and `no-referrer`.
+- Ranges, conditional requests and `HEAD` are HTTP's own (`http.ServeContent`). Pages are cached
+  for 5 minutes, refusals not at all. Nothing is logged per request.
+
+**In the code:** `host/site/serve.go`, `app/sitemain.go`.
