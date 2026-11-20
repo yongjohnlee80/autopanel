@@ -3,6 +3,7 @@ package site
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -48,6 +49,7 @@ var (
 	ErrBadHost     = errors.New("site: a site's host is a host name with a dot, in lower case")
 	ErrBodyTooLong = errors.New("site: a document's body is at most 512 KiB, and its front matter 16 KiB")
 	ErrBadMeta     = errors.New("site: a document's front matter is a JSON object")
+	ErrBadData     = errors.New("site: a file's data is base64")
 )
 
 // Module is site.*.
@@ -81,6 +83,15 @@ func (m *Module) Errors() []module.PublicError {
 		{Err: ErrBadCollection, Code: -32312, Name: "site.bad_collection", Message: "a collection's name is 1 to 40 lower-case letters, digits and hyphens"},
 		{Err: ErrBadShare, Code: -32313, Name: "site.bad_share", Message: "only a private document has a share list, of at most 64 members, never its owner"},
 		{Err: ErrActiveHeld, Code: -32314, Name: "site.active_held", Message: "only a public html document may run its scripts"},
+		{Err: ErrBadData, Code: -32315, Name: "site.bad_data", Message: "a file's data is base64"},
+		{Err: ErrBadResource, Code: -32316, Name: "site.bad_name", Message: "a file's name is a relative path of at most six parts, with no empty, . or .. part"},
+		{Err: ErrReservedName, Code: -32317, Name: "site.reserved_name", Message: "a file's name may not start with an underscore or be index.html"},
+		{Err: ErrSameName, Code: -32318, Name: "site.same_name", Message: "two of the document's files have names that differ only by case"},
+		{Err: ErrResourceTaken, Code: -32318, Name: "site.same_name", Message: "two of the document's files have names that differ only by case"},
+		{Err: ErrTooMany, Code: -32319, Name: "site.too_many", Message: "a document has at most 64 files"},
+		{Err: ErrResourceType, Code: -32320, Name: "site.bad_type", Message: "a file is a PNG, JPEG, WebP or GIF image, a .mmd, a .chart.json or a .csv, and its content must be what its name says"},
+		{Err: ErrResourceSize, Code: -32321, Name: "site.too_large", Message: "an image holds at most 1.4 MiB, a diagram, chart or table 512 KiB"},
+		{Err: ErrNoResource, Code: -32322, Name: "site.no_file", Message: "the document has no such file"},
 	}
 }
 
@@ -105,6 +116,12 @@ func (m *Module) Verbs() []module.Verb {
 			Doc: "A document as it was published: its owner's alone."}), m.get),
 		module.Handle(site(module.Contract{Verb: "site.doc.remove", Mutates: true, Param: "{site, slug}",
 			Doc: "Deletes a document: its owner or an administrator."}), m.removeDoc),
+		module.Handle(site(module.Contract{Verb: "site.asset.put", Mutates: true, Param: "{site, slug, name, data}", Result: "{name, mime, size}",
+			Doc: "Adds one of a document's files, or replaces the one of that name: an image, a Mermaid diagram (.mmd), a Vega-Lite chart (.chart.json) or a table (.csv). data is base64. Its kind is judged by its name and its content together."}), m.assetPut),
+		module.Handle(site(module.Contract{Verb: "site.asset.list", Param: "{site, slug}", Result: "[{name, mime, size}]",
+			Doc: "A document's files: its owner's alone."}), m.assetList),
+		module.Handle(site(module.Contract{Verb: "site.asset.remove", Mutates: true, Param: "{site, slug, name}",
+			Doc: "Deletes one of a document's files: its owner's alone."}), m.assetRemove),
 	}
 }
 
@@ -413,4 +430,86 @@ func (m *Module) removeDoc(ctx context.Context, p DocAsk) (struct{}, error) {
 	}
 	_, err = m.store.Remove(ctx, d.ID)
 	return struct{}{}, err
+}
+
+// --- a document's files ----------------------------------------------------------
+
+// AssetAsk names one of a document's files; Data is its content, base64.
+type AssetAsk struct {
+	Site string `json:"site"`
+	Slug string `json:"slug"`
+	Name string `json:"name"`
+	Data string `json:"data,omitempty"`
+}
+
+// AssetView is a file as the verbs answer it.
+type AssetView struct {
+	Name string `json:"name"`
+	MIME string `json:"mime"`
+	Size int64  `json:"size"`
+}
+
+// owned is a document the caller may change: its owner's. Anything else the
+// caller may know exists is not theirs; the rest is missing.
+func (m *Module) owned(ctx context.Context, site, slug string) (Doc, error) {
+	who, _, err := m.reader(ctx)
+	if err != nil {
+		return Doc{}, err
+	}
+	d, err := m.find(ctx, who, DocAsk{Site: site, Slug: slug})
+	if err != nil {
+		return Doc{}, err
+	}
+	if !May(who, ActChange, d) {
+		return Doc{}, ErrNotYours
+	}
+	return d, nil
+}
+
+func (m *Module) assetPut(ctx context.Context, p AssetAsk) (AssetView, error) {
+	d, err := m.owned(ctx, p.Site, p.Slug)
+	if err != nil {
+		return AssetView{}, err
+	}
+	if err := ResourceName(p.Name); err != nil {
+		return AssetView{}, err
+	}
+	data, err := base64.StdEncoding.DecodeString(p.Data)
+	if err != nil {
+		return AssetView{}, ErrBadData
+	}
+	mime, err := ResourceType(p.Name, data)
+	if err != nil {
+		return AssetView{}, err
+	}
+	sum := sha256.Sum256(data)
+	r, err := m.store.PutResource(ctx, d.ID, Resource{Name: p.Name, MIME: mime, SHA256: hex.EncodeToString(sum[:])}, data)
+	if err != nil {
+		return AssetView{}, err
+	}
+	return AssetView{Name: r.Name, MIME: r.MIME, Size: r.Size}, nil
+}
+
+func (m *Module) assetList(ctx context.Context, p AssetAsk) ([]AssetView, error) {
+	d, err := m.owned(ctx, p.Site, p.Slug)
+	if err != nil {
+		return nil, err
+	}
+	rs, err := m.store.Resources(ctx, d.ID)
+	if err != nil {
+		return nil, err
+	}
+	out := []AssetView{}
+	for _, r := range rs {
+		out = append(out, AssetView{Name: r.Name, MIME: r.MIME, Size: r.Size})
+	}
+	return out, nil
+}
+
+func (m *Module) assetRemove(ctx context.Context, p AssetAsk) (struct{}, error) {
+	d, err := m.owned(ctx, p.Site, p.Slug)
+	if err != nil {
+		return struct{}{}, err
+	}
+	return struct{}{}, m.store.RemoveResource(ctx, d.ID, p.Name)
 }
