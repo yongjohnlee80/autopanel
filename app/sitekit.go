@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -58,6 +59,10 @@ func siteBuild(stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "autopanel --site-build: astro:", err)
 		return 1
 	}
+	if err := copyImages(p); err != nil {
+		fmt.Fprintln(stderr, "autopanel --site-build: a document's images:", err)
+		return 1
+	}
 	// What Astro keeps beside the pages while it builds is not a page: the
 	// output check would refuse a hidden name anyway.
 	if err := os.RemoveAll(filepath.Join(p.Out, ".prerender")); err != nil {
@@ -105,6 +110,60 @@ func renderFragments(p kitPaths) error {
 		}
 		if err := os.WriteFile(out, []byte(body), 0o644); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+// copyImages puts each public document's images beside its page, at the
+// names it links them by. A diagram, a chart or a table is the renderer's
+// input, not a file the site serves; the output check refuses them.
+func copyImages(p kitPaths) error {
+	raw, err := os.ReadFile(filepath.Join(p.Content, "build.json"))
+	if err != nil {
+		return err
+	}
+	var in coresite.BuildInput
+	if err := json.Unmarshal(raw, &in); err != nil {
+		return err
+	}
+	src, err := os.OpenRoot(p.Content)
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+	dst, err := os.OpenRoot(p.Out)
+	if err != nil {
+		return err
+	}
+	defer dst.Close()
+	for _, d := range in.Docs {
+		dir, err := src.OpenRoot(d.Dir)
+		if err != nil {
+			continue // a document with no files
+		}
+		err = fs.WalkDir(dir.FS(), ".", func(name string, e fs.DirEntry, err error) error {
+			if err != nil || e.IsDir() || !e.Type().IsRegular() {
+				return err
+			}
+			switch strings.ToLower(filepath.Ext(name)) {
+			case ".png", ".jpg", ".jpeg", ".webp", ".gif":
+			default:
+				return nil
+			}
+			data, err := dir.ReadFile(name)
+			if err != nil {
+				return err
+			}
+			to := d.Path + "/" + name
+			if err := dst.MkdirAll(filepath.Dir(to), 0o755); err != nil {
+				return err
+			}
+			return dst.WriteFile(to, data, 0o644)
+		})
+		dir.Close()
+		if err != nil {
+			return fmt.Errorf("%s: %w", d.Path, err)
 		}
 	}
 	return nil

@@ -19,6 +19,7 @@ COPY site/package.json site/package-lock.json site/.npmrc ./
 # compiler's WebAssembly build, which is marked for another CPU; every package
 # is still the lock file's, checked against its integrity.
 RUN npm ci --ignore-scripts --force --no-audit --no-fund \
+ && test -d node_modules/@astrojs/compiler-binding-wasm32-wasi \
  && rm -rf node_modules/@astrojs/compiler-binding-linux-x64-gnu node_modules/@astrojs/compiler-binding-linux-x64-musl
 COPY site/astro.config.mjs site/tsconfig.json ./
 COPY site/src ./src
