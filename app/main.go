@@ -42,6 +42,7 @@ const usage = `usage:
   autopanel --call --token-file <file> <verb> [json]
                                     the same, logged in with the API token the file holds (0600, the caller's own)
   autopanel --site                  serve the sites' pages, read-only, on a unix socket for the gate
+  autopanel --site-build            in the site kit's container: render the bodies, then build the pages
   autopanel --ui                    open the admin TUI on the running core
   autopanel --contracts             print every verb's contract (no daemon needed)
   autopanel --firewall-setup --ports 80,443
@@ -97,6 +98,8 @@ func Main(args []string, stdout, stderr io.Writer) int {
 			return 1
 		}
 		return 0
+	case "--site-build":
+		return siteBuild(stdout, stderr)
 	case "--site":
 		if err := Site(log); err != nil {
 			log.Error("autopanel site stopped", "err", err)

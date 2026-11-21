@@ -54,7 +54,8 @@ func TestTheBuildRunsWithEveryLimit(t *testing.T) {
 		"--security-opt=no-new-privileges", "--memory=512m", "--memory-swap=512m", "--pids-limit=256",
 		"--timeout=120", "--ulimit=fsize=10485760:10485760", "--user=0:0", "--env=ASTRO_TELEMETRY_DISABLED=1",
 		"--tmpfs=/tmp:rw,noexec,nosuid,nodev,size=64m",
-		"--volume=/w/content:/site/src/content:ro,nosuid,nodev,noexec",
+		"--volume=/w/content:/input:ro,nosuid,nodev,noexec",
+		"--tmpfs=/site/.astro:rw,noexec,nosuid,nodev,size=8m",
 		"--volume=/w/out:/site/dist:rw,nosuid,nodev,noexec",
 		"--volume=/themes/mine:/site/src/theme:ro,nosuid,nodev,noexec"} {
 		if !slices.Contains(h.argv, want) {

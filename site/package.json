@@ -1,0 +1,13 @@
+{
+  "name": "autopanel-site-kit",
+  "private": true,
+  "type": "module",
+  "description": "AutoPanel's site kit: the layouts, themes and pages a site is built with, in a container with no network.",
+  "scripts": {
+    "build": "astro build"
+  },
+  "dependencies": {
+    "@astrojs/compiler-binding-wasm32-wasi": "0.5.3",
+    "astro": "7.4.12"
+  }
+}

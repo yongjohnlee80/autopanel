@@ -1,0 +1,42 @@
+---
+// Every page's frame: its head, the site's navigation and its footer. No
+// script and no style of the page's own: one stylesheet for the kit, one for
+// the configuration's look.
+import '../styles/site.css';
+import { config, absolute } from '../lib/input';
+
+interface Props { title: string; description?: string; path: string; type?: 'website' | 'article' }
+const { title, description, path, type = 'website' } = Astro.props;
+const full = title === config.title ? title : `${title} · ${config.title}`;
+---
+<!doctype html>
+<html lang={config.language}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{full}</title>
+    {description && <meta name="description" content={description} />}
+    <link rel="canonical" href={absolute(path)} />
+    <link rel="alternate" type="application/rss+xml" title={config.title} href="/feed.xml" />
+    <link rel="stylesheet" href="/look.css" />
+    <meta property="og:title" content={title} />
+    <meta property="og:type" content={type} />
+    <meta property="og:url" content={absolute(path)} />
+    {description && <meta property="og:description" content={description} />}
+  </head>
+  <body class={`theme-${config.theme}`}>
+    <header class="site-header">
+      <a class="site-title" href="/">{config.title}</a>
+      {config.tagline && <p class="site-tagline">{config.tagline}</p>}
+      {config.nav && config.nav.length > 0 && (
+        <nav class="site-nav">
+          {config.nav.map((n) => <a href={n.to}>{n.label}</a>)}
+        </nav>
+      )}
+    </header>
+    <main class="site-main">
+      <slot />
+    </main>
+    {config.footer && <footer class="site-footer">{config.footer}</footer>}
+  </body>
+</html>

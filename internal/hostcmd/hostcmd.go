@@ -12,6 +12,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os/exec"
 	"strings"
@@ -42,6 +43,10 @@ var (
 	FirewallOfflineCmd = Tool{"/usr/bin/firewall-offline-cmd"}
 	Sshd               = Tool{"/usr/sbin/sshd"}
 	SystemdRun         = Tool{"/usr/bin/systemd-run"}
+
+	// Node is the site kit's, inside its container: autopanel --site-build
+	// runs Astro with it, and nowhere else.
+	Node = Tool{"/usr/local/bin/node"}
 )
 
 // Path is the tool's absolute path: what a transient unit is told to run.
@@ -87,6 +92,25 @@ func Run(ctx context.Context, tool Tool, args ...string) ([]byte, error) {
 		return out.Bytes(), fmt.Errorf("%s: %w", tool.path, err)
 	}
 	return out.Bytes(), fmt.Errorf("%s: %w: %s", tool.path, err, msg)
+}
+
+// Stream runs tool with args in dir, its output going to stdout and stderr
+// as it comes, with env beside the fixed PATH and locale: a long run whose
+// progress is the output (the site kit's build), with no deadline of its own
+// beyond ctx's.
+func Stream(ctx context.Context, tool Tool, dir string, env []string, stdout, stderr io.Writer, args ...string) error {
+	if tool.path == "" {
+		return ErrNoTool
+	}
+	cmd := exec.CommandContext(ctx, tool.path, args...)
+	cmd.Dir = dir
+	cmd.Env = append([]string{"PATH=/usr/sbin:/usr/bin:/sbin:/bin", "LANG=C", "LC_ALL=C"}, env...)
+	cmd.Stdout, cmd.Stderr = stdout, stderr
+	err := cmd.Run()
+	if errors.Is(err, exec.ErrNotFound) || errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("%w: %s", ErrNoTool, tool.path)
+	}
+	return err
 }
 
 // ExitCode is the code a failed run's tool exited with; ok is false for an
