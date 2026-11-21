@@ -4,6 +4,7 @@ package app
 
 import (
 	"context"
+	"encoding/base64"
 	"io"
 	"log/slog"
 	"net/http/httptest"
@@ -107,6 +108,10 @@ func TestTheKitBuildsASite(t *testing.T) {
 	kitCall(t, m, "user:ann", "site.doc.put", coresite.Put{Site: "blog.example.com", Folder: "guides", Slug: "install", Format: "md",
 		Body: "# Install\n\nRun it. <script>alert(1)</script> is text.\n", Visibility: "public", Meta: []byte(`{"title":"Install","date":"2026-11-21"}`)})
 	kitCall(t, m, "user:ann", "site.doc.put", coresite.Put{Site: "blog.example.com", Slug: "diary", Format: "md", Body: "# the held text\n", Visibility: "private"})
+	png := base64.StdEncoding.EncodeToString([]byte("\x89PNG\r\n\x1a\nthe picture"))
+	kitCall(t, m, "user:ann", "site.asset.put", coresite.AssetAsk{Site: "blog.example.com", Folder: "guides", Slug: "install", Name: "img/flow.png", Data: png})
+	kitCall(t, m, "user:ann", "site.asset.put", coresite.AssetAsk{Site: "blog.example.com", Folder: "guides", Slug: "install", Name: "flow.mmd", Data: base64.StdEncoding.EncodeToString([]byte("graph TD; A-->B"))})
+	kitCall(t, m, "user:ann", "site.asset.put", coresite.AssetAsk{Site: "blog.example.com", Slug: "diary", Name: "held.png", Data: png})
 
 	s, err := st.Sites().SiteByHost(ctx, "blog.example.com")
 	if err != nil {
@@ -146,6 +151,15 @@ func TestTheKitBuildsASite(t *testing.T) {
 	}
 	if code, _, _ := get("/diary/"); code != 404 {
 		t.Fatalf("a private document: %d", code)
+	}
+	if code, body, _ := get("/guides/install/img/flow.png"); code != 200 || body != "\x89PNG\r\n\x1a\nthe picture" {
+		t.Fatalf("a public document's image: %d", code)
+	}
+	if code, _, _ := get("/guides/install/flow.mmd"); code != 404 {
+		t.Fatalf("a diagram's source is served: %d", code)
+	}
+	if code, _, _ := get("/diary/held.png"); code != 404 {
+		t.Fatalf("a private document's image: %d", code)
 	}
 	live := filepath.Join(files.Dir, "blog.example.com")
 	_ = filepath.Walk(live, func(p string, info os.FileInfo, err error) error {
