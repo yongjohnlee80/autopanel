@@ -131,27 +131,6 @@ var siteSocket atomic.Pointer[string]
 // SetSiteSocket is where a site's route is served from.
 func SetSiteSocket(path string) { siteSocket.Store(&path) }
 
-// siteTransport dials the serving process for every site, its connections
-// kept a while as an upstream's are.
-var siteTransport = &http.Transport{
-	DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
-		p := siteSocket.Load()
-		if p == nil || *p == "" {
-			return nil, errNoSite
-		}
-		var d net.Dialer
-		return d.DialContext(ctx, "unix", *p)
-	},
-	MaxIdleConns:           upstreamIdleConns,
-	MaxIdleConnsPerHost:    upstreamIdleConns,
-	IdleConnTimeout:        90 * time.Second,
-	MaxResponseHeaderBytes: upstreamHeaderBytes,
-	WriteBufferSize:        upstreamSendBuffer,
-	ReadBufferSize:         upstreamRecvBuffer,
-	ResponseHeaderTimeout:  30 * time.Second,
-	ForceAttemptHTTP2:      false,
-}
-
 var errNoSite = errors.New("gate: this host serves no site")
 
 // siteDown answers when the serving process does not: the site's pages are

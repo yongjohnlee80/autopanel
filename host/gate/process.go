@@ -287,6 +287,7 @@ func (g *process) follow(ctx context.Context) error {
 				g.trusted = t
 				g.trustedNow.Store(&t)
 			}
+			SetSiteSocket(h.SiteSocket) // a core restarted with another setting: its word now
 			g.rev = 0 // whatever the core holds now, take it
 			lost = false
 			g.log.Info("gate: the core is back", "core", h.Version)

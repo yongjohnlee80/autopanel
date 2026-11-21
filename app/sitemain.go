@@ -26,9 +26,10 @@ func Site(log *slog.Logger) error {
 		return err
 	}
 	defer l.Close()
-	// Open to whoever reaches it: its directory is the gate's group's, 0750
-	// (the unit's), so the gate alone does. This process is not in that group.
-	if err := os.Chmod(sock, 0o666); err != nil {
+	// Its directory is the gate's group's, setgid (the unit's), so the socket
+	// takes that group: the gate's group alone may connect. This process is
+	// not in that group.
+	if err := os.Chmod(sock, 0o660); err != nil {
 		return err
 	}
 	log.Info("autopanel site serving", "dir", SiteDir(), "socket", sock)

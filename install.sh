@@ -640,7 +640,8 @@ put_back() {
   systemctl --no-pager status autopanel-core autopanel-gate >&2 || true
   systemctl disable --now autopanel-core >/dev/null 2>&1 || true
   systemctl stop autopanel-gate >/dev/null 2>&1 || true
-  rm -f "$CORE_UNIT" "$GATE_UNIT"
+  systemctl stop autopanel-site >/dev/null 2>&1 || true
+  rm -f "$CORE_UNIT" "$GATE_UNIT" "$SITE_UNIT"
   rm -rf "$UNIT_DIR/autopanel-core.service.d"
   restore_store
   own_by_service
@@ -671,8 +672,10 @@ if [ "$MIGRATE" -eq 1 ]; then
 else
   systemctl enable autopanel-core >/dev/null 2>&1
   if [ "$START" -eq 1 ]; then
-    # The gate stops first, so the core starts it again on the new binary.
+    # The gate and the sites' serving process stop first, so the core starts
+    # them again on the new binary. A site is down from here until then.
     systemctl stop autopanel-gate >/dev/null 2>&1 || true
+    systemctl stop autopanel-site >/dev/null 2>&1 || true
     # The core stops before its store is copied: a copy of a store in use
     # may be half a write.
     systemctl stop autopanel-core >/dev/null 2>&1 || true
