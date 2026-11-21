@@ -251,3 +251,47 @@ func TestAMoveIsCheckedWhole(t *testing.T) {
 		t.Fatal("a ninth level")
 	}
 }
+
+// A call refused for its own fields makes no folder on the way (tifa, N1);
+// a node marked public inside a closed folder was never public, so closing
+// it withdraws nothing (N2).
+func TestARefusedCallLeavesNoFolderAndAClosedFolderWithdrawsNothing(t *testing.T) {
+	f := treeSetup(t)
+	for name, p := range map[string]site.Put{
+		"a level of no kind":  {Site: "docs.example.com", Folder: "new/a", Parents: true, Slug: "x", Format: "md", Body: "x", Visibility: "secret"},
+		"a format of no kind": {Site: "docs.example.com", Folder: "new/b", Parents: true, Slug: "x", Format: "pdf", Body: "x"},
+		"a bad slug":          {Site: "docs.example.com", Folder: "new/c", Parents: true, Slug: "X Y", Format: "md", Body: "x"},
+	} {
+		if _, err := call[site.Published](t, f.m, "user:ann", "site.doc.put", p); err == nil {
+			t.Fatalf("%s was published", name)
+		}
+	}
+	if _, err := call[site.NodeView](t, f.m, "user:ann", "site.folder.add", site.FolderAsk{Site: "docs.example.com", Path: "new/d", Parents: true, Visibility: "secret"}); err == nil {
+		t.Fatal("a folder of no level")
+	}
+	if got, _ := f.list(t, "user:ann", ""); len(got) != 0 {
+		t.Fatalf("refused calls made folders: %v", got)
+	}
+	// N2
+	f.folder(t, "user:ann", "closed", "private")
+	if _, err := f.doc(t, "user:ann", "closed", "page", "public"); err != nil {
+		t.Fatal(err)
+	}
+	gen := func() int64 {
+		s, err := f.st.Sites().SiteByHost(context.Background(), "docs.example.com")
+		if err != nil {
+			t.Fatal(err)
+		}
+		return s.SecurityGen
+	}
+	before := gen()
+	if _, err := f.doc(t, "user:ann", "closed", "page", "internal"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := call[struct{}](t, f.m, "user:ann", "site.doc.remove", site.DocAsk{Site: "docs.example.com", Folder: "closed", Slug: "page"}); err != nil {
+		t.Fatal(err)
+	}
+	if gen() != before {
+		t.Fatalf("a node never public raised the security generation: %d→%d", before, gen())
+	}
+}

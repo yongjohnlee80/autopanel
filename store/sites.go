@@ -510,7 +510,13 @@ func (ss sites) Update(ctx context.Context, id int64, change func(old site.Doc) 
 			return err
 		}
 		next.Share = wantShare
-		lowered = site.Lowers(old.Visibility, next.Visibility)
+		// A withdrawal only when it was public along its whole path (tifa,
+		// N2): a node marked public inside a closed folder was never served.
+		above, err := ss.chain(ctx, tx, old.Parent)
+		if err != nil {
+			return err
+		}
+		lowered = site.Lowers(old.Visibility, next.Visibility) && allPublic(above)
 		if lowered {
 			if _, err := tx.ExecContext(ctx, ss.s.q("UPDATE site SET security_gen = security_gen + 1 WHERE id = ?"), old.Site); err != nil {
 				return err
@@ -549,7 +555,11 @@ func (ss sites) Remove(ctx context.Context, id int64) (out site.Doc, err error) 
 		if _, err := tx.ExecContext(ctx, ss.s.q("DELETE FROM site_node WHERE id = ?"), id); err != nil {
 			return err
 		}
-		if old.Visibility == site.Public {
+		above, err := ss.chain(ctx, tx, old.Parent)
+		if err != nil {
+			return err
+		}
+		if old.Visibility == site.Public && allPublic(above) {
 			if _, err := tx.ExecContext(ctx, ss.s.q("UPDATE site SET security_gen = security_gen + 1 WHERE id = ?"), old.Site); err != nil {
 				return err
 			}
