@@ -112,3 +112,58 @@ func May(who Reader, act string, doc Doc) bool {
 	}
 	return false
 }
+
+// MayAt reports whether who may do act to the last node of chain (the node
+// and every folder above it, the root first): act on the node, and read every
+// folder above it. A node is no more open than the most closed folder it is
+// in; a passphrase's grant for a folder opens what it holds that is public.
+func MayAt(who Reader, act string, chain []Doc) bool {
+	if len(chain) == 0 {
+		return false
+	}
+	for _, f := range chain[:len(chain)-1] {
+		if !f.IsRoot() && !May(who, ActRead, f) {
+			return false
+		}
+	}
+	return May(who, act, chain[len(chain)-1])
+}
+
+// ByAdminOnlyAt is ByAdminOnly over a chain: the role alone allowed it.
+func ByAdminOnlyAt(who Reader, act string, chain []Doc) bool {
+	if who.User == nil || !who.User.Admin || !MayAt(who, act, chain) {
+		return false
+	}
+	plain := *who.User
+	plain.Admin = false
+	who.User = &plain
+	return !MayAt(who, act, chain)
+}
+
+// MayPutIn reports whether who may put a folder or a document into the
+// folder at the end of chain: the root is any publisher's; another folder
+// is its owner's and an administrator's.
+func MayPutIn(who Reader, chain []Doc) bool {
+	if len(chain) == 0 || who.User == nil {
+		return false
+	}
+	f := chain[len(chain)-1]
+	if !f.IsFolder() {
+		return false
+	}
+	if f.IsRoot() {
+		return true
+	}
+	return (who.User.ID == f.Owner || who.User.Admin) && MayAt(who, ActRead, chain)
+}
+
+// PublicAt reports whether the last node of chain is public in effect: it
+// and every folder above it.
+func PublicAt(chain []Doc) bool {
+	for _, d := range chain {
+		if d.Visibility != Public {
+			return false
+		}
+	}
+	return len(chain) > 0
+}

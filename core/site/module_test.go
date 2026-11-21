@@ -109,7 +109,7 @@ func TestTheSitesVerbs(t *testing.T) {
 		t.Fatalf("a first publish: %+v, %v", pub, err)
 	}
 	// Bob cannot see it, list it, take its slug, read it or remove it; each refusal says nothing.
-	if list, err := call[[]site.DocView](t, m, "user:bob", "site.doc.list", site.DocAsk{Site: "blog.example.com"}); err != nil || len(list) != 0 {
+	if list, err := call[[]site.NodeView](t, m, "user:bob", "site.node.list", site.NodeAsk{Site: "blog.example.com"}); err != nil || len(list) != 0 {
 		t.Fatalf("bob's list: %+v, %v", list, err)
 	}
 	if _, err := call[site.SourceView](t, m, "user:bob", "site.doc.get", site.DocAsk{Site: "blog.example.com", Slug: "notes"}); !errors.Is(err, site.ErrNotFound) {
@@ -125,7 +125,7 @@ func TestTheSitesVerbs(t *testing.T) {
 	if _, err := call[site.Published](t, m, "user:ann", "site.doc.put", site.Put{Site: "blog.example.com", Slug: "notes", Format: "md", Body: "# Notes\nsecret", Share: &[]string{"bob"}}); err != nil {
 		t.Fatal(err)
 	}
-	if list, _ := call[[]site.DocView](t, m, "user:bob", "site.doc.list", site.DocAsk{Site: "blog.example.com"}); len(list) != 1 || list[0].Owner != "ann" {
+	if list, _ := call[[]site.NodeView](t, m, "user:bob", "site.node.list", site.NodeAsk{Site: "blog.example.com"}); len(list) != 1 || list[0].Owner != "ann" {
 		t.Fatalf("bob's list with the document shared: %+v", list)
 	}
 	if _, err := call[site.Published](t, m, "user:bob", "site.doc.put", site.Put{Site: "blog.example.com", Slug: "notes", Format: "md", Body: "x"}); !errors.Is(err, site.ErrNotYours) {
@@ -170,11 +170,11 @@ func TestTheSitesVerbs(t *testing.T) {
 	if _, err := call[struct{}](t, m, "user:root", "site.doc.remove", site.DocAsk{Site: "blog.example.com", Slug: "notes"}); err != nil {
 		t.Fatalf("an administrator removing it: %v", err)
 	}
-	if list, _ := call[[]site.DocView](t, m, "user:ann", "site.doc.list", site.DocAsk{Site: "blog.example.com"}); len(list) != 0 {
+	if list, _ := call[[]site.NodeView](t, m, "user:ann", "site.node.list", site.NodeAsk{Site: "blog.example.com"}); len(list) != 0 {
 		t.Fatalf("after its removal: %+v", list)
 	}
 	// Someone the store does not know is no caller.
-	if _, err := call[[]site.DocView](t, m, "user:ghost", "site.doc.list", site.DocAsk{Site: "blog.example.com"}); err == nil {
+	if _, err := call[[]site.NodeView](t, m, "user:ghost", "site.node.list", site.NodeAsk{Site: "blog.example.com"}); err == nil {
 		t.Fatal("a caller who is no one listed documents")
 	}
 	if sites, err := call[[]site.SiteView](t, m, "user:root", "site.list", nil); err != nil || len(sites) != 1 || sites[0].Documents != 0 {

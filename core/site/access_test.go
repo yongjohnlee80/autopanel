@@ -96,3 +96,63 @@ func TestWhoMayDoWhat(t *testing.T) {
 		t.Error("a document with an unknown level was read")
 	}
 }
+
+// A node is no more open than the most closed folder above it (tifa's review
+// of r3: kept), and a protected folder's grant opens what it holds that is
+// public, not a protected node with its own passphrase.
+func TestANodeIsNoMoreOpenThanItsFolders(t *testing.T) {
+	root := Doc{ID: 1, Kind: KindFolder, Visibility: Public}
+	folder := func(id int64, level string) Doc {
+		return Doc{ID: id, Parent: 1, Kind: KindFolder, Slug: "f", Owner: 7, Visibility: level}
+	}
+	doc := func(level string) Doc {
+		return Doc{ID: 50, Parent: 2, Kind: KindDoc, Slug: "d", Format: Markdown, Owner: 7, Visibility: level}
+	}
+	member := Reader{User: &User{ID: 9}}
+	anon := Reader{}
+	grantFor := func(id int64) Reader { return Reader{Granted: func(d Doc) bool { return d.ID == id }} }
+	admin := Reader{User: &User{ID: 1, Admin: true}}
+	cases := []struct {
+		name  string
+		who   Reader
+		chain []Doc
+		want  bool
+	}{
+		{"a public document in a public folder, anyone", anon, []Doc{root, folder(2, Public), doc(Public)}, true},
+		{"a public document in an internal folder, anyone", anon, []Doc{root, folder(2, Internal), doc(Public)}, false},
+		{"a public document in an internal folder, a member", member, []Doc{root, folder(2, Internal), doc(Public)}, true},
+		{"a public document in a private folder, a member", member, []Doc{root, folder(2, Private), doc(Public)}, false},
+		{"a public document in a protected folder, its grant", grantFor(2), []Doc{root, folder(2, Protected), doc(Public)}, true},
+		{"a protected document in a protected folder, the folder's grant", grantFor(2), []Doc{root, folder(2, Protected), doc(Protected)}, false},
+		{"a protected document in a protected folder, its own grant", grantFor(50), []Doc{root, folder(2, Protected), doc(Protected)}, false},
+		{"a private document in a private folder, an administrator", admin, []Doc{root, folder(2, Private), doc(Private)}, true},
+	}
+	for _, tc := range cases {
+		if got := MayAt(tc.who, ActRead, tc.chain); got != tc.want {
+			t.Errorf("%s: %v", tc.name, got)
+		}
+	}
+	// Who may put things into a folder: anyone at the root; its owner and an
+	// administrator elsewhere.
+	owner := Reader{User: &User{ID: 7}}
+	for _, tc := range []struct {
+		name  string
+		who   Reader
+		chain []Doc
+		want  bool
+	}{
+		{"the root, a member", member, []Doc{root}, true},
+		{"the root, nobody", anon, []Doc{root}, false},
+		{"a folder, its owner", owner, []Doc{root, folder(2, Private)}, true},
+		{"a folder, another member", member, []Doc{root, folder(2, Public)}, false},
+		{"a folder, an administrator", admin, []Doc{root, folder(2, Private)}, true},
+		{"a document", owner, []Doc{root, doc(Public)}, false},
+	} {
+		if got := MayPutIn(tc.who, tc.chain); got != tc.want {
+			t.Errorf("putting into %s: %v", tc.name, got)
+		}
+	}
+	if !PublicAt([]Doc{root, folder(2, Public), doc(Public)}) || PublicAt([]Doc{root, folder(2, Internal), doc(Public)}) {
+		t.Error("public in effect")
+	}
+}

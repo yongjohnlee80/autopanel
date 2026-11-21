@@ -25,6 +25,12 @@ const (
 	Private   = "private"   // its owner, and the members it is shared with
 )
 
+// A node is a folder or a document: a site is a tree of them.
+const (
+	KindFolder = "folder"
+	KindDoc    = "doc"
+)
+
 // A document's format, as AutoDoc wrote it.
 const (
 	Markdown = "md"
@@ -35,41 +41,54 @@ const (
 // The limits of a document.
 const (
 	MaxSlug          = 80
-	MaxShare         = 64  // members a private document is shared with
-	MaxResources     = 64  // files of one document
-	MaxResourceName  = 200 // bytes
-	MaxResourceDepth = 6   // path segments
-	MaxCollection    = 40
+	MaxShare         = 64   // members a private document is shared with
+	MaxResources     = 64   // files of one document
+	MaxResourceName  = 200  // bytes
+	MaxResourceDepth = 6    // path segments
+	MaxDepth         = 8    // folders below the root
+	MaxChildren      = 1000 // nodes in one folder
+	MaxPath          = 255  // bytes of a node's address, its slugs joined by /
 )
 
 // Refusals. Each says what was wrong and nothing of any other document.
 var (
-	ErrBadLevel      = errors.New("site: a document's level is public, protected, internal or private")
-	ErrBadFormat     = errors.New("site: a document's format is md, xmd or html")
-	ErrBadSlug       = errors.New("site: a slug is 1 to 80 lower-case letters, digits and hyphens, starting and ending with a letter or a digit")
-	ErrBadCollection = errors.New("site: a collection's name is 1 to 40 lower-case letters, digits and hyphens")
-	ErrBadShare      = errors.New("site: only a private document has a share list, of at most 64 members, each once, and never its owner")
-	ErrActiveHeld    = errors.New("site: only a public html document may run its scripts")
-	ErrBadResource   = errors.New("site: a resource's name is a relative path of at most six parts, with no empty part, no . or .. part, no backslash and no control character")
-	ErrReservedName  = errors.New("site: a resource's name may not start with an underscore or be index.html: those are the site's own")
-	ErrSameName      = errors.New("site: two of the document's resources have the same name, or names that differ only by case")
-	ErrTooMany       = errors.New("site: a document has at most 64 resources")
+	ErrBadLevel     = errors.New("site: a document's level is public, protected, internal or private")
+	ErrBadFormat    = errors.New("site: a document's format is md, xmd or html")
+	ErrBadSlug      = errors.New("site: a slug is 1 to 80 lower-case letters, digits and hyphens, starting and ending with a letter or a digit")
+	ErrNotAFolder   = errors.New("site: that is no folder")
+	ErrNotEmpty     = errors.New("site: a folder is removed only when it is empty")
+	ErrCycle        = errors.New("site: a folder cannot move into itself or anything under it")
+	ErrTooDeep      = errors.New("site: folders nest at most 8 deep")
+	ErrPathTooLong  = errors.New("site: an address is at most 255 bytes")
+	ErrTooManyNodes = errors.New("site: a folder holds at most 1000 folders and documents")
+	ErrBadPath      = errors.New("site: a path is slugs joined by /, with no empty part")
+	ErrRoot         = errors.New("site: the site's root folder is not changed, moved or removed")
+	ErrBadShare     = errors.New("site: only a private document has a share list, of at most 64 members, each once, and never its owner")
+	ErrActiveHeld   = errors.New("site: only a public html document may run its scripts")
+	ErrBadResource  = errors.New("site: a resource's name is a relative path of at most six parts, with no empty part, no . or .. part, no backslash and no control character")
+	ErrReservedName = errors.New("site: a resource's name may not start with an underscore or be index.html: those are the site's own")
+	ErrSameName     = errors.New("site: two of the document's resources have the same name, or names that differ only by case")
+	ErrTooMany      = errors.New("site: a document has at most 64 resources")
 )
 
-// Doc is a published document, as the core records it.
+// Doc is a node of a site's tree, as the core records it: a folder or a
+// published document (Kind). Every node but the site's root folder has a
+// parent folder; what a reader may do with a node is what May allows for it
+// and every folder above it.
 type Doc struct {
-	ID         int64  // the core's; never reused: every path and grant names it
-	Site       int64  // the site it belongs to
-	Slug       string // its address; a slug may be used again after a removal, by a document with a new ID
-	Format     string
-	Owner      int64   // the user whose token first published it; never changed
+	ID         int64   // the core's; never reused: every path and grant names it
+	Site       int64   // the site it belongs to
+	Parent     int64   // its folder; 0 for the root folder alone
+	Kind       string  // KindFolder or KindDoc
+	Slug       string  // its part of the address; may be used again after a removal, by a node with a new ID
+	Format     string  // a document's; "" for a folder
+	Owner      int64   // the user who made it; never changed; 0 for the root folder
 	Visibility string  // one of the four levels
 	Share      []int64 // private only: the users who may read it besides its owner
-	Collection string  // "": none
-	Order      int
-	Active     bool  // html only: its scripts run; only when public
-	Generation int64 // raised when the level, the share list or the protection changes
-	Version    int64 // raised when the content changes
+	Order      int     // its place among its siblings
+	Active     bool    // html only: its scripts run; only when public
+	Generation int64   // raised when the level, the share list or the protection changes
+	Version    int64   // raised when the content changes
 }
 
 // ValidLevel reports whether level is one of the four.
@@ -104,14 +123,20 @@ func (d Doc) Check() error {
 	if !ValidLevel(d.Visibility) {
 		return ErrBadLevel
 	}
-	if d.Format != Markdown && d.Format != XMD && d.Format != HTML {
+	switch d.Kind {
+	case KindDoc:
+		if d.Format != Markdown && d.Format != XMD && d.Format != HTML {
+			return ErrBadFormat
+		}
+	case KindFolder:
+		if d.Format != "" || d.Active {
+			return ErrBadFormat
+		}
+	default:
 		return ErrBadFormat
 	}
 	if !validName(d.Slug, MaxSlug) {
 		return ErrBadSlug
-	}
-	if d.Collection != "" && !validName(d.Collection, MaxCollection) {
-		return ErrBadCollection
 	}
 	if len(d.Share) > 0 && d.Visibility != Private || len(d.Share) > MaxShare || slices.Contains(d.Share, d.Owner) {
 		return ErrBadShare
@@ -196,4 +221,33 @@ func ResourceNames(names []string) error {
 		seen[k] = true
 	}
 	return nil
+}
+
+// IsFolder reports whether the node is a folder.
+func (d Doc) IsFolder() bool { return d.Kind == KindFolder }
+
+// IsRoot reports whether the node is its site's root folder.
+func (d Doc) IsRoot() bool { return d.Parent == 0 }
+
+// SplitPath reads a node's path, its slugs joined by "/": "" is the root.
+// Leading and trailing slashes are allowed; an empty part, or one that is no
+// slug, is refused.
+func SplitPath(p string) ([]string, error) {
+	p = strings.Trim(p, "/")
+	if p == "" {
+		return nil, nil
+	}
+	if len(p) > MaxPath {
+		return nil, ErrPathTooLong
+	}
+	parts := strings.Split(p, "/")
+	if len(parts) > MaxDepth+1 {
+		return nil, ErrTooDeep
+	}
+	for _, part := range parts {
+		if !validName(part, MaxSlug) {
+			return nil, ErrBadPath
+		}
+	}
+	return parts, nil
 }
