@@ -281,10 +281,15 @@ that socket's path when it starts, never from a route.
   site's host, the site's certificate works as any route's does.
 - **The serving process runs as `autopanel-site`,** never in the gate's group, which reaches the
   core's link socket. Its socket is in `/run/autopanel-site`, a directory that belongs to the
-  gate's group with mode `0750`: the gate can pass through it, and nobody else can.
+  gate's group, mode `2750`: the gate can pass through it and nobody else can, and the socket
+  takes that group, mode `0660`.
+- **The gate holds a site's connections as an upstream's:** the same fixed buffers, a dial
+  timeout, the in-flight cap, and an idle pool of 8 that the memory ledger counts.
+- **An upgrade stops the serving process with the gate,** so the core starts both again on the new
+  binary.
 - **Its unit** (`deploy/autopanel-site.service`): no network but loopback, only unix sockets, a
-  read-only root, the pages read-only, the core's state and keys out of reach, no capability, and
-  24 MB of memory. The core starts it while a site exists and stops it after the last one goes.
+  read-only root, the pages read-only, the core's state and keys out of reach, no capability,
+  64 tasks, and 24 MB of memory. The core starts it while a site exists and stops it after the last one goes.
   A core that is down leaves the pages served.
 - **The pages are in `/var/lib/autopanel-site`,** not under the core's own state, which the
   serving process must not be able to enter.

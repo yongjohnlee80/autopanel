@@ -1,6 +1,7 @@
 package gate
 
 import (
+	"context"
 	"errors"
 	"io"
 	"net"
@@ -69,5 +70,48 @@ func TestASitesRouteIsServedFromItsSocket(t *testing.T) {
 	t.Cleanup(func() { SetSiteSocket("") })
 	if rec := get(); rec.Code != 200 || rec.Body.String() != "page of blog.example.com" {
 		t.Fatalf("from its socket: %d %q", rec.Code, rec.Body.String())
+	}
+}
+
+// A connection to the serving process is held as an upstream's is: the same
+// fixed kernel buffers, small bufio buffers, and an idle pool the ledger
+// counts (tifa's review, F1).
+func TestASitesConnectionIsBoundedAsAnUpstreams(t *testing.T) {
+	sock := filepath.Join(t.TempDir(), "site.sock")
+	l, err := net.Listen("unix", sock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer l.Close()
+	go func() {
+		for {
+			c, err := l.Accept()
+			if err != nil {
+				return
+			}
+			defer c.Close()
+		}
+	}()
+	SetSiteSocket(sock)
+	t.Cleanup(func() { SetSiteSocket("") })
+	c, err := siteTransport.DialContext(context.Background(), "tcp", "site.local:80")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	raw, err := c.(*net.UnixConn).SyscallConn()
+	if err != nil {
+		t.Fatal(err)
+	}
+	recv, send, err := socketBuffersOf(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// the kernel doubles what is asked for its own bookkeeping
+	if recv > 2*upstreamRecvBuffer || send > 2*upstreamSendBuffer {
+		t.Fatalf("a site connection's buffers: %d and %d bytes", recv, send)
+	}
+	if siteTransport.MaxIdleConns != siteIdleConns || siteTransport.WriteBufferSize != 4<<10 || siteTransport.ReadBufferSize != 4<<10 {
+		t.Fatalf("the site transport: %+v", siteTransport)
 	}
 }

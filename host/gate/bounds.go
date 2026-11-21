@@ -58,6 +58,7 @@ const (
 	httpsHeaderBytes    = 32 << 10 // a request's headers
 	upstreamHeaderBytes = 64 << 10 // an upstream's answer's headers
 	upstreamIdleConns   = 32       // idle connections kept to upstreams, and 4 to one
+	siteIdleConns       = 8        // idle connections kept to the sites' serving process
 
 	h2Streams      = 16        // streams a connection may have open
 	h2StreamWindow = 128 << 10 // unread upload held of one stream
@@ -129,7 +130,7 @@ const (
 
 // worstKernelBytes is what the kernel may hold for the gate's sockets.
 func worstKernelBytes() int {
-	return (httpsConns+plainConns)*costSocket + (proxyInFlight+upstreamIdleConns)*costUpstream + wideGrants*costWide +
+	return (httpsConns+plainConns)*costSocket + (proxyInFlight+upstreamIdleConns+siteIdleConns)*costUpstream + wideGrants*costWide +
 		tunnelStreamsTotal*(costTunnelStream-costTunnelHeap) + forwardedConns*costForwarded +
 		udpPairings*costPairing + udpForwards*costUDPPublic +
 		costRetiring
@@ -646,6 +647,37 @@ func newUpstreamTransport() *http.Transport {
 		ReadBufferSize:         4 << 10,
 		ForceAttemptHTTP2:      false,
 		TLSNextProto:           map[string]func(string, *tls.Conn) http.RoundTripper{}, // no HTTP/2 to an upstream
+	}
+}
+
+// siteTransport dials the sites' serving process at the socket the core
+// named (Hello.SiteSocket), as an upstream is dialled: the same fixed
+// buffers, the same small bufio buffers, a dial timeout, and an idle pool of
+// its own that the ledger counts. A site's request is a proxied request, so
+// the in-flight cap holds it too.
+var siteTransport = newSiteTransport()
+
+func newSiteTransport() *http.Transport {
+	d := &net.Dialer{Timeout: 5 * time.Second, Control: socketBuffers(upstreamRecvBuffer, upstreamSendBuffer)}
+	return &http.Transport{
+		Proxy: nil,
+		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+			p := siteSocket.Load()
+			if p == nil || *p == "" {
+				return nil, errNoSite
+			}
+			return d.DialContext(ctx, "unix", *p)
+		},
+		ExpectContinueTimeout:  time.Second,
+		ResponseHeaderTimeout:  30 * time.Second,
+		MaxResponseHeaderBytes: upstreamHeaderBytes,
+		MaxIdleConns:           siteIdleConns,
+		MaxIdleConnsPerHost:    siteIdleConns,
+		IdleConnTimeout:        90 * time.Second,
+		WriteBufferSize:        4 << 10,
+		ReadBufferSize:         4 << 10,
+		ForceAttemptHTTP2:      false,
+		TLSNextProto:           map[string]func(string, *tls.Conn) http.RoundTripper{},
 	}
 }
 
