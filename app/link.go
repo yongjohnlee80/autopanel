@@ -101,7 +101,7 @@ func (m *linkModule) hello(context.Context, struct{}) (hostgate.Hello, error) {
 	for _, p := range m.cfg.Trusted {
 		trusted = append(trusted, p.String())
 	}
-	return hostgate.Hello{Version: Version, HTTPS: m.cfg.HTTPSAddr, HTTP: m.cfg.HTTPAddr, Trusted: trusted}, nil
+	return hostgate.Hello{Version: Version, HTTPS: m.cfg.HTTPSAddr, HTTP: m.cfg.HTTPAddr, Trusted: trusted, SiteSocket: SiteSocket()}, nil
 }
 
 // routes holds the call open until the table is not the one the gate has: it

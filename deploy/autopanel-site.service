@@ -1,0 +1,61 @@
+# AutoPanel's serving process: it reads the sites' live pages and answers the
+# gate on a unix socket. It holds no secret and decides nothing but which file
+# a request names. The core starts it while a site exists and stops it after
+# the last one goes (docs/decisions/site.md).
+#
+# Its socket's directory belongs to the gate's group (autopanel), mode 0750:
+# the gate passes through it, nobody else does. This process is never in the
+# gate's group, which reaches the core's link socket.
+[Unit]
+Description=AutoPanel site (serves the sites' pages to the gate)
+After=autopanel-core.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=autopanel-site
+Group=autopanel-site
+ExecStart=/usr/local/bin/autopanel --site
+Restart=always
+RestartSec=2s
+# Made by root before each start, not by RuntimeDirectory=: systemd would give
+# that one the unit's group again when it starts the process. A socket left by
+# a stopped process is replaced at the next start.
+ExecStartPre=+/usr/bin/install -d -m 0750 -o autopanel-site -g autopanel /run/autopanel-site
+ReadWritePaths=-/run/autopanel-site
+Environment=AUTOPANEL_SITE_DIR=/var/lib/autopanel-site
+Environment=AUTOPANEL_SITE_SOCKET=/run/autopanel-site/site.sock
+Environment=GOMEMLIMIT=12MiB
+MemoryHigh=20M
+MemoryMax=24M
+MemorySwapMax=0
+LimitNOFILE=4096
+UMask=0077
+ReadOnlyPaths=/var/lib/autopanel-site
+InaccessiblePaths=-/var/lib/autopanel -/etc/autopanel -/run/autopanel-core -/var/lib/autopanel-services
+PrivateNetwork=yes
+RestrictAddressFamilies=AF_UNIX
+CapabilityBoundingSet=
+AmbientCapabilities=
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+PrivateUsers=no
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+

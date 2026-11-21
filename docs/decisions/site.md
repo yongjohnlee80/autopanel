@@ -266,3 +266,31 @@ are one build.
   in build N is live once `live_build` is N or more.
 
 **In the code:** `core/site/build.go`, `app/sitebuild.go`; `core/site/build_test.go`.
+
+## The gate reaches a site through a route only the core makes
+
+**Decided:** each site is a route in the gate's table that the core makes and never stores. Its
+upstream is `site:`, which the gate serves from the serving process's socket. The gate learns
+that socket's path when it starts, never from a route.
+
+- **A stored route cannot be a site's.** `site:` is accepted only on a route the core made (a
+  negative ID; a stored route's is positive), and only with the path `/`. So no route can name a
+  socket, edit a site's route or outlive its site.
+- **A site's host is its own.** No stored route may hold a site's host or content host, and a site
+  cannot take a host that a route, the mail host or the API holds. Because the table holds the
+  site's host, the site's certificate works as any route's does.
+- **The serving process runs as `autopanel-site`,** never in the gate's group, which reaches the
+  core's link socket. Its socket is in `/run/autopanel-site`, a directory that belongs to the
+  gate's group with mode `0750`: the gate can pass through it, and nobody else can.
+- **Its unit** (`deploy/autopanel-site.service`): no network but loopback, only unix sockets, a
+  read-only root, the pages read-only, the core's state and keys out of reach, no capability, and
+  24 MB of memory. The core starts it while a site exists and stops it after the last one goes.
+  A core that is down leaves the pages served.
+- **The pages are in `/var/lib/autopanel-site`,** not under the core's own state, which the
+  serving process must not be able to enter.
+
+**In the code:** `SiteRoute` and `IsSite` in `core/gate/route.go`, the site transport in
+`host/gate/gate.go`, `app/siteconf.go`, `deploy/autopanel-site.service`, `install.sh`.
+`TestASitesRouteIsServedFromItsSocket` serves a route from a real unix socket. On the test VM the
+unit served the gate's user and refused another, with only a loopback interface and about 4 MB of
+memory.

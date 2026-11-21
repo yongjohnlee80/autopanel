@@ -24,6 +24,9 @@ set -eu
 UNIT_DIR=/etc/systemd/system
 CORE_UNIT=$UNIT_DIR/autopanel-core.service
 GATE_UNIT=$UNIT_DIR/autopanel-gate.service
+SITE_UNIT=$UNIT_DIR/autopanel-site.service
+SITE_USER=autopanel-site
+SITE_DIR=/var/lib/autopanel-site
 OLD_UNIT=$UNIT_DIR/autopanel.service   # the one service of v0.1.4 and earlier
 BIN=/usr/local/bin/autopanel
 SELF=/usr/local/sbin/autopanel-uninstall
@@ -174,9 +177,10 @@ fi
 # The gate first, then the core that runs it; then the one service of an
 # earlier version, if it is still here.
 systemctl stop autopanel-gate >/dev/null 2>&1 || true
+systemctl stop autopanel-site >/dev/null 2>&1 || true
 systemctl disable --now autopanel-core >/dev/null 2>&1 || true
 systemctl disable --now autopanel >/dev/null 2>&1 || true
-rm -f "$CORE_UNIT" "$GATE_UNIT" "$OLD_UNIT"
+rm -f "$CORE_UNIT" "$GATE_UNIT" "$SITE_UNIT" "$OLD_UNIT"
 rm -rf "$UNIT_DIR/autopanel-core.service.d" "$UNIT_DIR/autopanel.service.d"
 systemctl daemon-reload
 rm -f "$BIN" "$BIN.previous"
@@ -192,8 +196,12 @@ if [ "$MODE" = purge ]; then
     tar -C "$(dirname "$STATE_DIR")" -czf "$out" "$(basename "$STATE_DIR")"
     info "backed up the store to $out (0600; no keyfile: restoring needs the master passphrase)"
   fi
-  rm -rf "$STATE_DIR" "$CONF_DIR"
-  info "removed $STATE_DIR and $CONF_DIR (the keyfile with it)"
+  rm -rf "$STATE_DIR" "$CONF_DIR" "$SITE_DIR"
+  info "removed $STATE_DIR, $SITE_DIR and $CONF_DIR (the keyfile with it)"
+  if id "$SITE_USER" >/dev/null 2>&1; then
+    userdel "$SITE_USER" 2>/dev/null || info "could not remove user $SITE_USER; remove it by hand"
+    info "removed system user $SITE_USER"
+  fi
   if id "$SVC_USER" >/dev/null 2>&1; then
     userdel "$SVC_USER" 2>/dev/null || info "could not remove user $SVC_USER; remove it by hand"
     info "removed system user $SVC_USER"

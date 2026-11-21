@@ -4,12 +4,14 @@ package gate
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/netip"
 	"net/url"
+	"sync/atomic"
 	"time"
 
 	"github.com/yongjohnlee80/autopanel/internal/tunnel"
@@ -79,7 +81,13 @@ func NewProxy(route core.Route, trusted Trusted, dial TunnelDial) (http.Handler,
 	}
 	var transport http.RoundTripper = upstreamTransport
 	var onError func(http.ResponseWriter, *http.Request, error)
-	if agent, target, ok := tunnel.ParseAddress(route.Upstream); ok {
+	if route.IsSite() {
+		// The serving process, on its socket: the gate's own setting, never
+		// the route's. The URL's host is never resolved.
+		up = &url.URL{Scheme: "http", Host: "site.local"}
+		transport = siteTransport
+		onError = siteDown
+	} else if agent, target, ok := tunnel.ParseAddress(route.Upstream); ok {
 		// The URL's host is never resolved: the connection is the stream.
 		up = &url.URL{Scheme: "http", Host: target + "." + agent + ".tunnel"}
 		transport = &http.Transport{
@@ -114,6 +122,46 @@ func NewProxy(route core.Route, trusted Trusted, dial TunnelDial) (http.Handler,
 			pr.Out.Header.Set(cfConnectingIP, ip.String())
 		}
 	}}, nil
+}
+
+// siteSocket is the serving process's socket, as the core said at the
+// gate's start (Hello.SiteSocket).
+var siteSocket atomic.Pointer[string]
+
+// SetSiteSocket is where a site's route is served from.
+func SetSiteSocket(path string) { siteSocket.Store(&path) }
+
+// siteTransport dials the serving process for every site, its connections
+// kept a while as an upstream's are.
+var siteTransport = &http.Transport{
+	DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+		p := siteSocket.Load()
+		if p == nil || *p == "" {
+			return nil, errNoSite
+		}
+		var d net.Dialer
+		return d.DialContext(ctx, "unix", *p)
+	},
+	MaxIdleConns:           upstreamIdleConns,
+	MaxIdleConnsPerHost:    upstreamIdleConns,
+	IdleConnTimeout:        90 * time.Second,
+	MaxResponseHeaderBytes: upstreamHeaderBytes,
+	WriteBufferSize:        upstreamSendBuffer,
+	ReadBufferSize:         upstreamRecvBuffer,
+	ResponseHeaderTimeout:  30 * time.Second,
+	ForceAttemptHTTP2:      false,
+}
+
+var errNoSite = errors.New("gate: this host serves no site")
+
+// siteDown answers when the serving process does not: the site's pages are
+// not served right now; nothing more is said.
+func siteDown(w http.ResponseWriter, _ *http.Request, _ error) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Retry-After", "30")
+	w.WriteHeader(http.StatusServiceUnavailable)
+	_, _ = io.WriteString(w, "This site is not served right now. Try again shortly.\n")
 }
 
 // TunnelDial opens a stream to a tunnel agent's target.

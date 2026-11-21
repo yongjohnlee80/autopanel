@@ -394,4 +394,3 @@ func TestABuildTakesWhatIsPublicAlongItsPath(t *testing.T) {
 		t.Fatalf("the source at its path: %v", err)
 	}
 }
-

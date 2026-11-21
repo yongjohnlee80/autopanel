@@ -333,3 +333,30 @@ func auditCount(t *testing.T, st *store.Store, action string) int {
 	}
 	return len(entries)
 }
+
+// A site cannot take a host something else serves, and the gate's table is
+// rebuilt when sites come and go.
+func TestASitesHostIsItsOwn(t *testing.T) {
+	ctx := context.Background()
+	st, err := store.Open(ctx, store.Config{Engine: dao.DialectSQLite, Path: filepath.Join(t.TempDir(), "store.db")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = st.Close() })
+	m := site.NewModule(st.Sites(), people{"user:root": {ID: 1, Name: "root", Admin: true}})
+	routed := 0
+	m.SetHosts(func(context.Context) error { routed++; return nil }, func(h string) bool { return h == "app.example.com" })
+	if _, err := call[site.SiteView](t, m, "user:root", "site.add", site.SiteAsk{Host: "app.example.com"}); !errors.Is(err, site.ErrHostTaken) {
+		t.Fatalf("a host a route holds: %v", err)
+	}
+	if _, err := call[site.SiteView](t, m, "user:root", "site.add", site.SiteAsk{Host: "blog.example.com"}); err != nil || routed != 1 {
+		t.Fatalf("a site added: %v, rerouted %d", err, routed)
+	}
+	content := "app.example.com"
+	if _, err := call[site.SiteConfigView](t, m, "user:root", "site.set", site.SiteSet{Host: "blog.example.com", ContentHost: &content}); !errors.Is(err, site.ErrHostTaken) {
+		t.Fatalf("a content host a route holds: %v", err)
+	}
+	if _, err := call[struct{}](t, m, "user:root", "site.remove", site.SiteAsk{Host: "blog.example.com"}); err != nil || routed != 2 {
+		t.Fatalf("a site removed: %v, rerouted %d", err, routed)
+	}
+}

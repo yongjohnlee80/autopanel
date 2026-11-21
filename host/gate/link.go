@@ -94,6 +94,9 @@ type Hello struct {
 	HTTPS   string   `json:"https"`   // the TLS listener's address
 	HTTP    string   `json:"http"`    // the plain listener's address
 	Trusted []string `json:"trusted"` // the proxies whose CF-Connecting-IP is believed, as prefixes
+	// SiteSocket is the serving process's socket, which the gate dials for
+	// a site's route; "" when this host has none.
+	SiteSocket string `json:"site_socket,omitempty"`
 }
 
 // After is link.routes's param: the revision the gate holds, 0 for none.
