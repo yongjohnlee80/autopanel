@@ -21,7 +21,7 @@ build-linux:
 # side, with the checksum install.sh verifies.
 dist: build-linux
 	install -m 0755 install.sh uninstall.sh $(DIST)/
-	install -m 0644 deploy/autopanel-core.service deploy/autopanel-gate.service deploy/autopanel.env.example $(DIST)/
+	install -m 0644 deploy/autopanel-core.service deploy/autopanel-gate.service deploy/autopanel-site.service deploy/autopanel.env.example $(DIST)/
 	tar -C bin -czf $(DIST).tar.gz $(notdir $(DIST))
 	cd bin && sha256sum $(notdir $(DIST)).tar.gz > $(notdir $(DIST)).tar.gz.sha256
 	@echo $(DIST).tar.gz

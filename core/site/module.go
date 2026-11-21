@@ -59,6 +59,24 @@ type Module struct {
 	people People
 	now    func() time.Time
 	builds *Builds // nil: nothing is built (a host without the builder; tests)
+	// routed is called when a site is added or removed, or its content host
+	// changes: the gate's table holds a route for each site. taken reports a
+	// host something else serves (a route, the mail host, the API). nil: none.
+	routed func(ctx context.Context) error
+	taken  func(host string) bool
+}
+
+// SetHosts has the module keep the gate's table in step with the sites,
+// and refuse a host something else serves.
+func (m *Module) SetHosts(routed func(ctx context.Context) error, taken func(host string) bool) {
+	m.routed, m.taken = routed, taken
+}
+
+func (m *Module) reroute(ctx context.Context) error {
+	if m.routed == nil {
+		return nil
+	}
+	return m.routed(ctx)
 }
 
 // SetBuilds has the module ask for builds as documents change.
@@ -208,8 +226,14 @@ func (m *Module) add(ctx context.Context, p SiteAsk) (SiteView, error) {
 	if err := m.hostFree(ctx, host, 0); err != nil {
 		return SiteView{}, err
 	}
+	if m.taken != nil && m.taken(host) {
+		return SiteView{}, ErrHostTaken // a route's, the mail host, or the API's
+	}
 	s, err := m.store.AddSite(ctx, Site{Host: host, CreatedAt: m.now().Unix()})
 	if err != nil {
+		return SiteView{}, err
+	}
+	if err := m.reroute(ctx); err != nil {
 		return SiteView{}, err
 	}
 	return SiteView{Host: s.Host, SecurityGen: s.SecurityGen}, nil
@@ -237,6 +261,9 @@ func (m *Module) remove(ctx context.Context, p SiteAsk) (struct{}, error) {
 		return struct{}{}, err
 	}
 	if err := m.store.RemoveSite(ctx, s.ID); err != nil {
+		return struct{}{}, err
+	}
+	if err := m.reroute(ctx); err != nil {
 		return struct{}{}, err
 	}
 	if m.builds != nil {
@@ -330,9 +357,15 @@ func (m *Module) set(ctx context.Context, p SiteSet) (SiteConfigView, error) {
 			if err := m.hostFree(ctx, content, s.ID); err != nil {
 				return SiteConfigView{}, err
 			}
+			if content != s.ContentHost && m.taken != nil && m.taken(content) {
+				return SiteConfigView{}, ErrHostTaken
+			}
 		}
 	}
 	if s, err = m.store.SetSite(ctx, s.ID, config, content); err != nil {
+		return SiteConfigView{}, err
+	}
+	if err := m.reroute(ctx); err != nil {
 		return SiteConfigView{}, err
 	}
 	if _, err := m.changed(ctx, s, false); err != nil {

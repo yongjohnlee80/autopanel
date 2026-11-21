@@ -98,6 +98,7 @@ func Run(ctx context.Context, dial Dialer, log *slog.Logger) error {
 			return nil
 		}
 	}
+	SetSiteSocket(hello.SiteSocket) // a site's route is served there, whatever a route says
 	trusted, err := parseTrusted(hello.Trusted)
 	if err != nil {
 		return err

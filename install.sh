@@ -54,6 +54,9 @@ UNINSTALLER=/usr/local/sbin/autopanel-uninstall
 UNIT_DIR=/etc/systemd/system
 CORE_UNIT=$UNIT_DIR/autopanel-core.service
 GATE_UNIT=$UNIT_DIR/autopanel-gate.service
+SITE_UNIT=$UNIT_DIR/autopanel-site.service   # the sites' serving process: the core starts it while a site exists
+SITE_USER=autopanel-site
+SITE_DIR=/var/lib/autopanel-site
 OLD_UNIT=$UNIT_DIR/autopanel.service   # the one service of v0.1.4 and earlier
 CONTROL_SOCK=/run/autopanel-core/control.sock
 CONF_DIR=/etc/autopanel
@@ -343,7 +346,7 @@ build_source() {
   ( cd "$TMP/src" && CGO_ENABLED=0 go build -trimpath \
       -ldflags "-s -w -X github.com/$REPO/app.Version=$WANT_VERSION" \
       -o "$TMP/build/autopanel" ./cmd/autopanel ) || die "the build failed; nothing was installed"
-  cp "$TMP/src/uninstall.sh" "$TMP/src/deploy/autopanel-core.service" "$TMP/src/deploy/autopanel-gate.service" "$TMP/build/" \
+  cp "$TMP/src/uninstall.sh" "$TMP/src/deploy/autopanel-core.service" "$TMP/src/deploy/autopanel-gate.service" "$TMP/src/deploy/autopanel-site.service" "$TMP/build/" \
     || die "the source has no uninstall.sh or units"
   FILES=$TMP/build
   BINARY=$FILES/autopanel
@@ -377,6 +380,7 @@ else
 fi
 [ -f "$FILES/autopanel-core.service" ] || die "autopanel-core.service is missing from $FILES"
 [ -f "$FILES/autopanel-gate.service" ] || die "autopanel-gate.service is missing from $FILES"
+[ -f "$FILES/autopanel-site.service" ] || die "autopanel-site.service is missing from $FILES"
 [ -f "$FILES/uninstall.sh" ] || die "uninstall.sh is missing from $FILES"
 VERSION=$("$BINARY" --version 2>/dev/null) || die "$BINARY does not run on this host"
 # The binary must be the one asked for: compare the version token exactly.
@@ -400,6 +404,14 @@ else
   useradd --system --home-dir /nonexistent --no-create-home --shell /usr/sbin/nologin "$SVC_USER"
   info "created system user $SVC_USER"
 fi
+# The sites' serving process: a user of its own, never in the gate's group.
+if id "$SITE_USER" >/dev/null 2>&1; then
+  info "user $SITE_USER exists"
+else
+  useradd --system --home-dir /nonexistent --no-create-home --shell /usr/sbin/nologin "$SITE_USER"
+  info "created system user $SITE_USER"
+fi
+install -d -m 0755 -o root -g root "$SITE_DIR"
 
 # --- 2. the binary and the units ---------------------------------------------
 
@@ -412,6 +424,7 @@ fi
 install -m 0755 "$BINARY" "$PREFIX_BIN/autopanel"
 install -m 0644 "$FILES/autopanel-core.service" "$CORE_UNIT"
 install -m 0644 "$FILES/autopanel-gate.service" "$GATE_UNIT"
+install -m 0644 "$FILES/autopanel-site.service" "$SITE_UNIT"
 DROPIN=$UNIT_DIR/autopanel-core.service.d/restart.conf
 if [ "$RESTART" = always ]; then
   rm -f "$DROPIN"

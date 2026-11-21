@@ -238,6 +238,15 @@ func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateContr
 		if err != nil {
 			return err
 		}
+		// Each of AutoPanel's sites is a route the core makes, never stored:
+		// it cannot be edited in the Routes panel, nor outlive its site.
+		sites, err := st.Sites().Sites(ctx)
+		if err != nil {
+			return err
+		}
+		for _, s := range sites {
+			rs = append(rs, gate.SiteRoute(s.ID, s.Host))
+		}
 		snap, err := hostgate.Build(rs, cfg.Trusted, nil) // the core's copy says which names are held; it carries nothing
 		if err != nil {
 			return err
@@ -279,7 +288,22 @@ func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateContr
 	if err := apiMod.load(ctx); err != nil {
 		return err
 	}
-	gm.SetReserved(apiMod.hosts)
+	// The API's hosts and the sites' are AutoPanel's own: no route may hold one.
+	siteHosts := func() []string {
+		ss, err := st.Sites().Sites(context.Background())
+		if err != nil {
+			return nil
+		}
+		var out []string
+		for _, s := range ss {
+			out = append(out, s.Host)
+			if s.ContentHost != "" {
+				out = append(out, s.ContentHost)
+			}
+		}
+		return out
+	}
+	gm.SetReserved(func() []string { return append(apiMod.hosts(), siteHosts()...) })
 	// The mail host and the API's host have certificates, though no route names them.
 	sw.also = func(h string) bool { return mailMod.IsHost(h) || apiMod.IsHost(h) }
 	sw.extra = func() []string { return append([]string{mailMod.HostName()}, apiMod.hosts()...) }
@@ -329,6 +353,14 @@ func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateContr
 	if builds != nil {
 		siteMod.SetBuilds(builds)
 	}
+	siteMod.SetHosts(func(ctx context.Context) error {
+		if err := reload(ctx); err != nil {
+			return err
+		}
+		keepSiteUnit(ctx, st.Sites().Sites, log)
+		return nil
+	}, func(h string) bool { return table.Holds(h) || mailMod.IsHost(h) || apiMod.IsHost(h) })
+	keepSiteUnit(ctx, st.Sites().Sites, log)
 	mods := []module.Module{am, gm, fm, tm, &certsModule{sw: sw}, sys, firewallModule{fwm}, servicesModule{svcs}, mailMod, apiMod, siteMod}
 	if err := apiMod.serve(mods...); err != nil {
 		return err

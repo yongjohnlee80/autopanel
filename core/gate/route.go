@@ -40,6 +40,15 @@ func (r Route) Normalize() (Route, error) {
 		strings.Contains(r.PathPrefix, "//") || strings.ContainsAny(r.PathPrefix, "?#") {
 		return Route{}, ErrBadPrefix
 	}
+	if r.Upstream == SiteUpstream {
+		// AutoPanel's own site, served by its serving process: only on a route
+		// the core made (a negative ID; a stored route's is positive), and
+		// never with a path of its own, so no route names a socket.
+		if r.ID >= 0 || r.PathPrefix != "/" {
+			return Route{}, ErrBadUpstream
+		}
+		return r, nil
+	}
 	if strings.HasPrefix(r.Upstream, tunnel.Scheme) {
 		// A service behind a tunnel agent, by the agent's name and the
 		// target's: where it leads is the agent's file's to say.
@@ -54,6 +63,19 @@ func (r Route) Normalize() (Route, error) {
 	}
 	return r, nil
 }
+
+// SiteUpstream is the upstream of a route the core makes for each of
+// AutoPanel's sites: the gate dials the serving process's socket, at the
+// path it was told at its start, for it.
+const SiteUpstream = "site:"
+
+// SiteRoute is the route the core makes for the site of id at host.
+func SiteRoute(id int64, host string) Route {
+	return Route{ID: RouteID(-id), Host: host, PathPrefix: "/", Upstream: SiteUpstream}
+}
+
+// IsSite reports whether r is a site's route.
+func (r Route) IsSite() bool { return r.Upstream == SiteUpstream && r.ID < 0 }
 
 // UpstreamURL is the parsed upstream of a normalized route.
 func (r Route) UpstreamURL() (*url.URL, error) { return url.Parse(r.Upstream) }
