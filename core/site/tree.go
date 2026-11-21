@@ -203,13 +203,8 @@ func (m *Module) folderAdd(ctx context.Context, p FolderAsk) (NodeView, error) {
 	if len(parts) == 0 {
 		return NodeView{}, ErrRoot
 	}
-	parent, err := m.folderFor(ctx, who, me, s, strings.Join(parts[:len(parts)-1], "/"), p.Parents)
-	if err != nil {
-		return NodeView{}, err
-	}
-	if !MayPutIn(who, parent) {
-		return NodeView{}, ErrNotYours
-	}
+	// Its own fields first, so a refused call makes no folder on the way
+	// (tifa, N1).
 	level, err := Level(p.Visibility, nil)
 	if err != nil {
 		return NodeView{}, err
@@ -225,6 +220,19 @@ func (m *Module) folderAdd(ctx context.Context, p FolderAsk) (NodeView, error) {
 		if meta, err = folderMeta(*p.Title); err != nil {
 			return NodeView{}, err
 		}
+	}
+	if err := (Doc{Parent: 1, Kind: KindFolder, Slug: parts[len(parts)-1], Owner: me.ID, Visibility: level, Share: shared}).Check(); err != nil {
+		return NodeView{}, err
+	}
+	if len(parts) > MaxDepth {
+		return NodeView{}, ErrTooDeep
+	}
+	parent, err := m.folderFor(ctx, who, me, s, strings.Join(parts[:len(parts)-1], "/"), p.Parents)
+	if err != nil {
+		return NodeView{}, err
+	}
+	if !MayPutIn(who, parent) {
+		return NodeView{}, ErrNotYours
 	}
 	f := Doc{Site: s.ID, Parent: parent[len(parent)-1].ID, Kind: KindFolder, Slug: parts[len(parts)-1], Owner: me.ID, Visibility: level, Share: shared}
 	if p.Order != nil {

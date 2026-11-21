@@ -464,6 +464,18 @@ func (m *Module) put(ctx context.Context, p Put) (Published, error) {
 			return Published{}, err
 		}
 	}
+	// Its own fields and its address first, so a refused call makes no folder
+	// on the way (tifa, N1).
+	if _, err := Level(p.Visibility, nil); err != nil {
+		return Published{}, err
+	}
+	probe := Doc{Parent: 1, Kind: KindDoc, Slug: p.Slug, Format: p.Format, Owner: me.ID, Visibility: Private, Order: p.Order}
+	if err := probe.Check(); err != nil {
+		return Published{}, err
+	}
+	if _, err := SplitPath(strings.Trim(p.Folder, "/") + "/" + p.Slug); err != nil {
+		return Published{}, err
+	}
 	folder, err := m.folderFor(ctx, who, me, s, p.Folder, p.Parents)
 	if err != nil {
 		return Published{}, err
