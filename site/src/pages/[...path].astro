@@ -1,0 +1,47 @@
+---
+// A page for every public document and every public folder, at the path the
+// core chose. A document's body is its fragment, as the renderer made it; a
+// folder's page lists what it holds that is public.
+import Base from '../layouts/Base.astro';
+import { input, children, fragment, href, docTitle, entryOfFolder, type InputDoc, type InputFolder } from '../lib/input';
+
+export function getStaticPaths() {
+  return [
+    ...input.docs.map((d) => ({ params: { path: d.path }, props: { doc: d } })),
+    ...input.folders.map((f) => ({ params: { path: f.path }, props: { folder: f } })),
+  ];
+}
+
+interface Props { doc?: InputDoc; folder?: InputFolder }
+const { doc, folder } = Astro.props;
+const meta = doc?.meta ?? {};
+const summary = typeof meta.summary === 'string' ? meta.summary : undefined;
+const date = typeof meta.date === 'string' ? meta.date : undefined;
+const crumbs = (doc?.path ?? folder?.path ?? '').split('/').slice(0, -1);
+---
+{doc && (
+  <Base title={docTitle(doc)} description={summary} path={doc.path} type="article">
+    {crumbs.length > 0 && (
+      <nav class="crumbs">
+        {crumbs.map((c, i) => <a href={href(crumbs.slice(0, i + 1).join('/'))}>{c}</a>)}
+      </nav>
+    )}
+    <article class="doc">
+      {date && <time datetime={date}>{date}</time>}
+      <Fragment set:html={fragment(doc)} />
+    </article>
+  </Base>
+)}
+{folder && (
+  <Base title={entryOfFolder(folder).title} path={folder.path}>
+    <h1>{entryOfFolder(folder).title}</h1>
+    <ul class="entries">
+      {children(folder.path).map((e) => (
+        <li class={`entry entry-${e.kind}`}>
+          <a href={href(e.path)}>{e.title}</a>
+          {e.summary && <p>{e.summary}</p>}
+        </li>
+      ))}
+    </ul>
+  </Base>
+)}

@@ -299,3 +299,38 @@ that socket's path when it starts, never from a route.
 `TestASitesRouteIsServedFromItsSocket` serves a route from a real unix socket. On the test VM the
 unit served the gate's user and refused another, with only a loopback interface and about 4 MB of
 memory.
+
+## The site kit: Astro, in an image of its own
+
+**Decided:** a site's pages are laid out by the site kit, an Astro project in `site/`. It runs in
+the builder's container, from an image pinned by digest (`site/Containerfile`).
+
+- **Its inputs are the core's:** `/input/site.json` (the configuration), `/input/build.json` (the
+  public folders and documents, at the paths the core chose, and the site's host), and each
+  document's source and files. The input is mounted outside the project, so Astro never reads it
+  as content of its own.
+- **`autopanel --site-build` is the container's entrypoint.** It renders each body into a fragment
+  on the scratch, then runs Astro. Until AutoDoc's `Fragment` is imported, a body is shown as its
+  escaped source.
+- **What it makes:**
+  - the home page, a page at each document's and each folder's address, and a folder's page
+    listing its public children;
+  - `feed.xml`, `sitemap.xml` and `robots.txt`;
+  - `look.css`, CSS variables made from the configuration's checked values.
+- **Pages carry no script and no style of their own:** `inlineStylesheets: 'never'`, and Astro's own
+  content security policy is off (it would be a `<meta http-equiv>`). The serving process sets the
+  policy as a header.
+- **The image:**
+  - Its bases are pinned by digest and taken only once they're a week old.
+  - Astro is pinned to an exact version.
+  - `npm ci` runs with install scripts off.
+  - The final stage has no npm, npx, corepack, yarn, curl or git.
+- **Astro's compiler runs as WebAssembly.** Its native build needs AVX2: on a server without it (an
+  Ivy Bridge Xeon, an `x86-64-v2` VM) it dies with an illegal instruction as it loads. So the
+  native build is removed from the image and the WebAssembly build is used.
+- The project is read-only in the container. Astro's generated types go to a small scratch of
+  their own (`/site/.astro`), its cache to `/tmp`.
+
+**In the code:** `site/`, `app/sitekit.go`. `TestTheKitBuildsASite` runs as root on the test VM with
+the image built there. It publishes through the verbs, builds in the container, checks the output,
+swaps it live and reads it from the serving process. A private document is nowhere in it.

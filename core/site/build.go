@@ -71,6 +71,7 @@ type Kit struct {
 // the paths the core chose.
 type BuildInput struct {
 	Build   int64         `json:"build"`
+	Host    string        `json:"host"` // the site's host: its canonical addresses, its feed's and its sitemap's
 	Folders []InputFolder `json:"folders"`
 	Docs    []InputDoc    `json:"docs"`
 }
@@ -267,7 +268,7 @@ func (b *Builds) build(ctx context.Context, snap Snapshot) error {
 	if err != nil {
 		return err
 	}
-	in := BuildInput{Build: snap.Build, Folders: []InputFolder{}, Docs: []InputDoc{}}
+	in := BuildInput{Build: snap.Build, Host: s.Host, Folders: []InputFolder{}, Docs: []InputDoc{}}
 	for _, f := range snap.Folders {
 		in.Folders = append(in.Folders, InputFolder{Path: f.Path, Title: titleOf(f.Meta), Order: f.Doc.Order, Page: PagePath(f.Path)})
 	}

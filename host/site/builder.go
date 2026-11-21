@@ -104,7 +104,12 @@ func podmanRun(w Work, theme, image string, command []string) []string {
 		"--user=0:0", // ap-site itself, in its own namespace: the one owner of the output
 		"--env=ASTRO_TELEMETRY_DISABLED=1",
 		"--tmpfs=/tmp:rw,noexec,nosuid,nodev," + buildScratch,
-		mount(w.Content, "/site/src/content", "ro"),
+		// Astro writes its generated types beside the project, whatever it
+		// builds: a small scratch of its own, the project itself read-only.
+		"--tmpfs=/site/.astro:rw,noexec,nosuid,nodev,size=8m",
+		// The input is not under src/: Astro would read src/content as its
+		// own content collections.
+		mount(w.Content, "/input", "ro"),
 		mount(w.Out, "/site/dist", "rw"),
 	}
 	if theme != "" {

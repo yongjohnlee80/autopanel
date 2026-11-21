@@ -1,0 +1,24 @@
+---
+// The home page: the newest documents (journal), what the root holds (docs),
+// or the page the configuration names.
+import Base from '../layouts/Base.astro';
+import { config, input, children, latest, fragment, href, docTitle } from '../lib/input';
+
+const named = config.home !== 'latest' ? input.docs.find((d) => d.path === config.home) : undefined;
+const entries = config.theme === 'journal' ? latest(20) : children('');
+---
+<Base title={named ? docTitle(named) : config.title} description={config.tagline} path="">
+  {named ? (
+    <article class="doc" set:html={fragment(named)} />
+  ) : (
+    <ul class="entries">
+      {entries.map((e) => (
+        <li class={`entry entry-${e.kind}`}>
+          <a href={href(e.path)}>{e.title}</a>
+          {e.date && <time datetime={e.date}>{e.date}</time>}
+          {e.summary && <p>{e.summary}</p>}
+        </li>
+      ))}
+    </ul>
+  )}
+</Base>

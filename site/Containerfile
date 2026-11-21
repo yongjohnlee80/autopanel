@@ -1,0 +1,38 @@
+# AutoPanel's site kit: the image a site is built in (docs/decisions/site.md).
+# It runs with no network, a read-only root, and its output the one place it
+# writes; autopanel --site-build renders each body, then Astro lays the pages
+# out. Built from the repository's root:
+#   podman build -f site/Containerfile -t autopanel-site-kit .
+# Every base is pinned by digest, and taken only once it is a week old.
+
+FROM docker.io/library/golang:1.27.4-bookworm@sha256:4fa7c968ba93f1635670522dbb01a2c78150443e1385746924566079f36570ea AS autopanel
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o /autopanel ./cmd/autopanel
+
+FROM docker.io/library/node:24-bookworm-slim@sha256:dc26ae92c9fb15cf6b1d63e20f0944b2efe0f115b20e00be48fb23fceb061c54 AS kit
+WORKDIR /site
+COPY site/package.json site/package-lock.json site/.npmrc ./
+# No package's install script runs, here or ever. --force only lets in the
+# compiler's WebAssembly build, which is marked for another CPU; every package
+# is still the lock file's, checked against its integrity.
+RUN npm ci --ignore-scripts --force --no-audit --no-fund \
+ && rm -rf node_modules/@astrojs/compiler-binding-linux-x64-gnu node_modules/@astrojs/compiler-binding-linux-x64-musl
+COPY site/astro.config.mjs site/tsconfig.json ./
+COPY site/src ./src
+
+FROM docker.io/library/node:24-bookworm-slim@sha256:dc26ae92c9fb15cf6b1d63e20f0944b2efe0f115b20e00be48fb23fceb061c54
+# Nothing that fetches or installs: no npm, npx, corepack or yarn.
+RUN rm -rf /usr/local/lib/node_modules /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
+      /usr/local/bin/yarn /usr/local/bin/yarnpkg /opt/yarn-*
+COPY --from=kit /site /site
+COPY --from=autopanel /autopanel /usr/local/bin/autopanel
+WORKDIR /site
+# Astro's compiler as WebAssembly, not its native build: that one needs AVX2,
+# which older servers (an Ivy Bridge Xeon, an x86-64-v2 VM) lack, and dies
+# with an illegal instruction as it loads; it is removed above, so the loader
+# takes the WASI build. A module with no WASI build keeps its native one.
+ENV ASTRO_TELEMETRY_DISABLED=1 NODE_ENV=production NAPI_RS_FORCE_WASI=1
+ENTRYPOINT ["/usr/local/bin/autopanel", "--site-build"]
