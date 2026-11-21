@@ -64,23 +64,23 @@ func TestSiteDocumentsKeepTheirIdentity(t *testing.T) {
 			}
 			secret := "the body nobody may see in a log"
 			src := site.Source{Meta: `{"title":"A secret title"}`, Body: []byte(secret), SHA256: "aa"}
-			d, err := ss.Create(ctx, site.Doc{Site: blog.ID, Slug: "notes", Format: site.Markdown, Owner: ann, Visibility: site.Private, Share: []int64{cyd, bob}}, src)
+			d, err := ss.Create(ctx, site.Doc{Site: blog.ID, Parent: rootOf(t, ss, blog.ID), Kind: site.KindDoc, Slug: "notes", Format: site.Markdown, Owner: ann, Visibility: site.Private, Share: []int64{cyd, bob}}, src)
 			if err != nil || d.ID == 0 || d.Generation != 1 || d.Version != 1 || !slices.Equal(d.Share, []int64{bob, cyd}) {
 				t.Fatalf("Create = %+v, %v", d, err)
 			}
-			if _, err := ss.Create(ctx, site.Doc{Site: blog.ID, Slug: "notes", Format: site.Markdown, Owner: bob, Visibility: site.Public}, src); !errors.Is(err, site.ErrDuplicate) {
+			if _, err := ss.Create(ctx, site.Doc{Site: blog.ID, Parent: rootOf(t, ss, blog.ID), Kind: site.KindDoc, Slug: "notes", Format: site.Markdown, Owner: bob, Visibility: site.Public}, src); !errors.Is(err, site.ErrDuplicate) {
 				t.Fatalf("a slug twice: %v", err)
 			}
-			if _, err := ss.Create(ctx, site.Doc{Site: blog.ID, Slug: "ghost", Format: site.Markdown, Owner: 999999, Visibility: site.Private}, src); !errors.Is(err, site.ErrNoUser) {
+			if _, err := ss.Create(ctx, site.Doc{Site: blog.ID, Parent: rootOf(t, ss, blog.ID), Kind: site.KindDoc, Slug: "ghost", Format: site.Markdown, Owner: 999999, Visibility: site.Private}, src); !errors.Is(err, site.ErrNoUser) {
 				t.Fatalf("an owner who is no user: %v", err)
 			}
-			if _, err := ss.Create(ctx, site.Doc{Site: blog.ID, Slug: "ghost", Format: site.Markdown, Owner: ann, Visibility: site.Private, Share: []int64{999999}}, src); !errors.Is(err, site.ErrNoUser) {
+			if _, err := ss.Create(ctx, site.Doc{Site: blog.ID, Parent: rootOf(t, ss, blog.ID), Kind: site.KindDoc, Slug: "ghost", Format: site.Markdown, Owner: ann, Visibility: site.Private, Share: []int64{999999}}, src); !errors.Is(err, site.ErrNoUser) {
 				t.Fatalf("a share with someone who is no user: %v", err)
 			}
-			if _, err := ss.Doc(ctx, blog.ID, "ghost"); !errors.Is(err, site.ErrNotFound) {
+			if _, err := ss.Child(ctx, rootOf(t, ss, blog.ID), "ghost"); !errors.Is(err, site.ErrNotFound) {
 				t.Fatalf("a refused document was kept: %v", err)
 			}
-			if got, err := ss.Doc(ctx, blog.ID, "notes"); err != nil || got.ID != d.ID || got.Owner != ann || !slices.Equal(got.Share, []int64{bob, cyd}) {
+			if got, err := ss.Child(ctx, rootOf(t, ss, blog.ID), "notes"); err != nil || got.ID != d.ID || got.Owner != ann || !slices.Equal(got.Share, []int64{bob, cyd}) {
 				t.Fatalf("Doc = %+v, %v", got, err)
 			}
 			if got, err := ss.Source(ctx, d.ID); err != nil || string(got.Body) != secret || got.Meta != src.Meta || got.SHA256 != "aa" {
@@ -149,7 +149,7 @@ func TestSiteDocumentsKeepTheirIdentity(t *testing.T) {
 			if _, err := ss.Remove(ctx, d.ID); err != nil || gen() != 2 {
 				t.Fatalf("removing an internal document: %v, site generation %d", err, gen())
 			}
-			pub, err := ss.Create(ctx, site.Doc{Site: blog.ID, Slug: "notes", Format: site.HTML, Owner: bob, Visibility: site.Public, Active: true}, src)
+			pub, err := ss.Create(ctx, site.Doc{Site: blog.ID, Parent: rootOf(t, ss, blog.ID), Kind: site.KindDoc, Slug: "notes", Format: site.HTML, Owner: bob, Visibility: site.Public, Active: true}, src)
 			if err != nil || pub.ID <= d.ID || !pub.Active || pub.Owner != bob {
 				t.Fatalf("the slug used again: %+v (the first was %d), %v", pub, d.ID, err)
 			}
@@ -201,7 +201,7 @@ func TestSiteDocumentsKeepTheirIdentity(t *testing.T) {
 			}
 
 			// A site's removal takes its documents; a user with documents cannot be removed until they are gone.
-			keep, err := ss.Create(ctx, site.Doc{Site: blog.ID, Slug: "kept", Format: site.Markdown, Owner: ann, Visibility: site.Private, Share: []int64{bob}}, src)
+			keep, err := ss.Create(ctx, site.Doc{Site: blog.ID, Parent: rootOf(t, ss, blog.ID), Kind: site.KindDoc, Slug: "kept", Format: site.Markdown, Owner: ann, Visibility: site.Private, Share: []int64{bob}}, src)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -243,11 +243,11 @@ func TestSiteResourcesBelongToOneDocument(t *testing.T) {
 				t.Fatal(err)
 			}
 			src := site.Source{Body: []byte("x"), SHA256: "aa"}
-			one, err := ss.Create(ctx, site.Doc{Site: blog.ID, Slug: "one", Format: site.XMD, Owner: ann, Visibility: site.Private}, src)
+			one, err := ss.Create(ctx, site.Doc{Site: blog.ID, Parent: rootOf(t, ss, blog.ID), Kind: site.KindDoc, Slug: "one", Format: site.XMD, Owner: ann, Visibility: site.Private}, src)
 			if err != nil {
 				t.Fatal(err)
 			}
-			two, err := ss.Create(ctx, site.Doc{Site: blog.ID, Slug: "two", Format: site.XMD, Owner: ann, Visibility: site.Public}, src)
+			two, err := ss.Create(ctx, site.Doc{Site: blog.ID, Parent: rootOf(t, ss, blog.ID), Kind: site.KindDoc, Slug: "two", Format: site.XMD, Owner: ann, Visibility: site.Public}, src)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -403,11 +403,11 @@ func TestASitesBuildsAreCounted(t *testing.T) {
 				t.Fatalf("nothing asked: %v", err)
 			}
 			src := site.Source{Body: []byte("# pub"), SHA256: "p1"}
-			pub, err := ss.Create(ctx, site.Doc{Site: blog.ID, Slug: "pub", Format: site.Markdown, Owner: ann, Visibility: site.Public}, src)
+			pub, err := ss.Create(ctx, site.Doc{Site: blog.ID, Parent: rootOf(t, ss, blog.ID), Kind: site.KindDoc, Slug: "pub", Format: site.Markdown, Owner: ann, Visibility: site.Public}, src)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if _, err := ss.Create(ctx, site.Doc{Site: blog.ID, Slug: "held", Format: site.Markdown, Owner: ann, Visibility: site.Private}, site.Source{Body: []byte("x"), SHA256: "h"}); err != nil {
+			if _, err := ss.Create(ctx, site.Doc{Site: blog.ID, Parent: rootOf(t, ss, blog.ID), Kind: site.KindDoc, Slug: "held", Format: site.Markdown, Owner: ann, Visibility: site.Private}, site.Source{Body: []byte("x"), SHA256: "h"}); err != nil {
 				t.Fatal(err)
 			}
 			if _, err := ss.PutResource(ctx, pub.ID, site.Resource{Name: "a.png", MIME: "image/png", SHA256: "r1"}, []byte("\x89PNG\r\n\x1a\n")); err != nil {
@@ -454,6 +454,77 @@ func TestASitesBuildsAreCounted(t *testing.T) {
 			}
 			if v, err = ss.FinishBuild(ctx, blog.ID, 3, "", 12); err != nil || v.Down || v.LiveBuild != 3 || v.BuildState != site.BuildLive {
 				t.Fatalf("up again: %+v, %v", v, err)
+			}
+		})
+	}
+}
+
+// rootOf is the site's root folder's ID.
+func rootOf(t *testing.T, ss site.Store, siteID int64) int64 {
+	t.Helper()
+	r, err := ss.Root(context.Background(), siteID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return r.ID
+}
+
+// TestATreeMovesAndGoesWithItsSite: on both engines, a move is one change
+// that refuses a cycle, a folder is removed only empty, and removing a site
+// removes its whole tree.
+func TestATreeMovesAndGoesWithItsSite(t *testing.T) {
+	for engine, s := range engines(t) {
+		t.Run(engine, func(t *testing.T) {
+			ctx := context.Background()
+			ss := s.Sites()
+			ann := testUser(t, s, "ann")
+			blog, err := ss.AddSite(ctx, site.Site{Host: "tree.example.com", CreatedAt: 1})
+			if err != nil {
+				t.Fatal(err)
+			}
+			root := rootOf(t, ss, blog.ID)
+			mk := func(parent int64, kind, slug, level string) site.Doc {
+				t.Helper()
+				d := site.Doc{Site: blog.ID, Parent: parent, Kind: kind, Slug: slug, Owner: ann, Visibility: level}
+				if kind == site.KindDoc {
+					d.Format = site.Markdown
+				}
+				out, err := ss.Create(ctx, d, site.Source{Body: []byte("x"), SHA256: "h"})
+				if err != nil {
+					t.Fatalf("%s: %v", slug, err)
+				}
+				return out
+			}
+			a := mk(root, site.KindFolder, "a", site.Public)
+			b := mk(a.ID, site.KindFolder, "b", site.Public)
+			p := mk(b.ID, site.KindDoc, "page", site.Public)
+			x := mk(root, site.KindFolder, "x", site.Private)
+			if _, _, err := ss.Move(ctx, a.ID, b.ID); !errors.Is(err, site.ErrCycle) {
+				t.Fatalf("a cycle: %v", err)
+			}
+			if _, err := ss.Remove(ctx, a.ID); !errors.Is(err, site.ErrNotEmpty) {
+				t.Fatalf("a folder holding something: %v", err)
+			}
+			if _, err := ss.Remove(ctx, root); !errors.Is(err, site.ErrRoot) {
+				t.Fatalf("the root: %v", err)
+			}
+			gen := func() int64 {
+				v, err := ss.SiteByID(ctx, blog.ID)
+				if err != nil {
+					t.Fatal(err)
+				}
+				return v.SecurityGen
+			}
+			g0 := gen()
+			moved, lowered, err := ss.Move(ctx, p.ID, x.ID)
+			if err != nil || !lowered || moved.Parent != x.ID || moved.Generation != p.Generation+1 || gen() != g0+1 {
+				t.Fatalf("out of the public: %+v, lowered %v, %v, gen %d→%d", moved, lowered, err, g0, gen())
+			}
+			if chain, err := ss.Chain(ctx, p.ID); err != nil || len(chain) != 3 || chain[1].ID != x.ID {
+				t.Fatalf("its chain: %+v, %v", chain, err)
+			}
+			if err := ss.RemoveSite(ctx, blog.ID); err != nil {
+				t.Fatalf("removing a site that holds a tree: %v", err)
 			}
 		})
 	}

@@ -42,17 +42,26 @@ const (
 // is read after, by digest: a source or a resource that has changed since
 // makes the build superseded, never a mix.
 type Snapshot struct {
-	Site  Site // its Build is this build's number, SecurityGen the generation it carries
-	Build int64
-	Docs  []SnapDoc
+	Site    Site // its Build is this build's number, SecurityGen the generation it carries
+	Build   int64
+	Folders []SnapFolder // public folders under public folders only
+	Docs    []SnapDoc    // public documents under public folders only
 }
 
-// SnapDoc is one public document of a snapshot.
+// SnapDoc is one public document of a snapshot, at its path.
 type SnapDoc struct {
 	Doc       Doc
 	Meta      string
 	SHA256    string
+	Path      string // its slugs from the root, joined by /
 	Resources []Resource
+}
+
+// SnapFolder is one public folder of a snapshot, at its path.
+type SnapFolder struct {
+	Doc  Doc
+	Meta string
+	Path string
 }
 
 // Source is a document as it was sent.
@@ -88,16 +97,21 @@ type Store interface {
 	// failed, or interrupted.
 	Owed(ctx context.Context) ([]Site, error)
 
-	Doc(ctx context.Context, site int64, slug string) (Doc, error) // ErrNotFound
+	Root(ctx context.Context, site int64) (Doc, error)                 // the site's root folder
+	Child(ctx context.Context, parent int64, slug string) (Doc, error) // ErrNotFound
+	Children(ctx context.Context, parent int64) ([]Doc, error)         // in their order, then by slug
+	Chain(ctx context.Context, id int64) ([]Doc, error)                // the node and every folder above it, the root first
 	DocByID(ctx context.Context, id int64) (Doc, error)
-	Docs(ctx context.Context, site int64) ([]Doc, error) // by slug
+	Docs(ctx context.Context, site int64) ([]Doc, error) // every node but the root, folders and documents
 	Source(ctx context.Context, id int64) (Source, error)
 	// NoteRead writes the audit entry for an administrator's read of a
 	// document that only the role allowed: which document, never its text.
 	NoteRead(ctx context.Context, d Doc) error
 
-	// Create stores a new document. Its ID is the store's, and so are its
-	// first generation and version. ErrDuplicate when the site has the slug.
+	// Create stores a new node in the folder d.Parent. Its ID is the
+	// store's, and so are its first generation and version. ErrDuplicate when
+	// the folder has the slug; ErrNotAFolder, ErrTooDeep, ErrPathTooLong,
+	// ErrTooManyNodes for a place it cannot have.
 	Create(ctx context.Context, d Doc, src Source) (Doc, error)
 	// Update changes the document as change says, in one transaction with
 	// the read change is given: change returns the document as it should be
@@ -107,9 +121,14 @@ type Store interface {
 	// generation when the level or the share list does; and the site's
 	// SecurityGen when the change lowers the level (Lowers). lowered says so.
 	Update(ctx context.Context, id int64, change func(old Doc) (Doc, *Source, error)) (d Doc, lowered bool, err error)
-	// Remove deletes the document, its share list and its resources. The
+	// Remove deletes the node, its share list and its resources; a folder
+	// only when it is empty (ErrNotEmpty), never the root (ErrRoot). The
 	// site's SecurityGen rises when it was public.
 	Remove(ctx context.Context, id int64) (Doc, error)
+	// Move puts the node into the folder parent, checked whole (ErrCycle,
+	// ErrTooDeep, ErrPathTooLong, ErrTooManyNodes, ErrDuplicate). lowered: it
+	// was public in effect and is no longer; the site's SecurityGen rose.
+	Move(ctx context.Context, id, parent int64) (d Doc, lowered bool, err error)
 
 	// PutResource stores one of a document's files, replacing the one of
 	// exactly that name. A name that differs from an existing one only by

@@ -206,7 +206,7 @@ func TestAPublicDocumentIsBuiltAndAHeldOneIsNot(t *testing.T) {
 		t.Fatalf("the public document's source: %v", f.pipe.inputs)
 	}
 	m := f.pipe.published[len(f.pipe.published)-1]
-	if m.Build != 1 || len(m.Mermaid) != 1 || m.Mermaid[0] != "articles/hello/index.html" || len(m.ScriptHashes) != 2 {
+	if m.Build != 1 || len(m.Mermaid) != 1 || m.Mermaid[0] != "hello/index.html" || len(m.ScriptHashes) != 2 {
 		t.Fatalf("the manifest: %+v", m)
 	}
 	// Nothing owed: no second build.
@@ -349,3 +349,49 @@ func TestChangesTogetherAreOneBuild(t *testing.T) {
 		t.Fatalf("the build's documents: %+v, %v", in, err)
 	}
 }
+
+// A build is given what is public along its whole path: a public document in
+// a private folder is in no build's input, and a public folder's page lists
+// what it holds.
+func TestABuildTakesWhatIsPublicAlongItsPath(t *testing.T) {
+	f := buildSetup(t)
+	for _, fo := range []site.FolderAsk{
+		{Site: "blog.example.com", Path: "guides", Visibility: "public", Title: str("Guides")},
+		{Site: "blog.example.com", Path: "guides/install", Visibility: "public"},
+		{Site: "blog.example.com", Path: "drafts", Visibility: "private"},
+	} {
+		if _, err := call[site.NodeView](t, f.m, "user:ann", "site.folder.add", fo); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, p := range []site.Put{
+		{Site: "blog.example.com", Folder: "guides/install", Slug: "linux", Format: "md", Body: "# Linux", Visibility: "public"},
+		{Site: "blog.example.com", Folder: "drafts", Slug: "secret-plan", Format: "md", Body: "# the held text", Visibility: "public"},
+	} {
+		if _, err := call[site.Published](t, f.m, "user:ann", "site.doc.put", p); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := f.b.BuildOnce(f.ctx, f.blog.ID); err != nil {
+		t.Fatal(err)
+	}
+	var in site.BuildInput
+	if err := json.Unmarshal([]byte(f.pipe.inputs["build.json"]), &in); err != nil {
+		t.Fatal(err)
+	}
+	if len(in.Docs) != 1 || in.Docs[0].Path != "guides/install/linux" || in.Docs[0].Folder != "guides/install" || in.Docs[0].Page != "guides/install/linux/index.html" {
+		t.Fatalf("the documents: %+v", in.Docs)
+	}
+	if len(in.Folders) != 2 || in.Folders[0].Path != "guides" || in.Folders[0].Title != "Guides" || in.Folders[1].Page != "guides/install/index.html" {
+		t.Fatalf("the folders: %+v", in.Folders)
+	}
+	for name, data := range f.pipe.inputs {
+		if strings.Contains(name, "drafts") || strings.Contains(name, "secret") || strings.Contains(data, "held text") || strings.Contains(data, "drafts") {
+			t.Fatalf("something of a private folder is in the build's input: %s", name)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(f.pipe.dir, "blog.example.com", "content", "docs", "guides", "install", "linux", "index.md")); err != nil {
+		t.Fatalf("the source at its path: %v", err)
+	}
+}
+

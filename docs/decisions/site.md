@@ -33,15 +33,43 @@ writes, and nothing in a published file, is believed about them.
   cannot be removed until the documents are. There is no transfer: a way to give a document
   another owner would be a way to read it.
 - **An update cannot move, rename or reassign a document:** it runs in one transaction with the
-  read it was decided from, and the store keeps the ID, the site, the slug and the owner whatever
-  the update says.
+  read it was decided from, and the store keeps the ID, the site, the folder, the slug and the
+  owner whatever the update says. Moving is its own verb (below).
 - **Two counters:** the version rises when the content changes; the generation when who may read
   changes (the level, the share list).
-- **A site's security generation** rises when a document is taken from public, by a lower level or
-  by removal, and at nothing else. Pages built before the change carry the older number and are
+- **A site's security generation** rises when something is taken from public, by a lower level, a
+  removal or a move out of the public, and at nothing else. Pages built before the change carry the older number and are
   never served again.
 
 **In the code:** `core/site/store.go`, `store/sites.go`, `sql/deployments/*/000010_update_sites.sql`.
+
+## A site is a tree of folders and documents
+
+**Decided:** everything on a site is a node, either a folder or a document. Folders nest, and
+each site has one root folder.
+
+- **A node's address is its path:** the slugs of its folders and its own, such as
+  `/guides/install/linux/`. A slug is unique among its siblings, folders and documents together.
+  Folders nest at most 8 deep, a folder holds at most 1,000 nodes, and an address is at most
+  255 bytes.
+- **A folder has a level, like a document, and a node is no more open than the most closed folder
+  above it.** To read a node you must be allowed it and every folder above it. A public document
+  in an internal folder is internal. A passphrase for a protected folder opens what it holds that
+  is public; a protected node inside it needs its own passphrase too.
+- **Lists are filtered node by node.** A folder you may not read is, to you, no folder at all.
+- **Who puts things where:** anyone who may publish can put things at the root. Inside a folder,
+  only its owner and an administrator can.
+  - `parents: true` makes the missing folders of a path, private and yours, and only where you
+    may put things.
+- **A folder is removed only when empty.** The root is never changed, moved or removed.
+- **A move is checked whole.** A folder can't move into itself or under itself, and everything it
+  carries must stay within the depth and address limits. Moving anything public out of the public
+  takes the public pages down first, as lowering a level does.
+- **The public build** gets the nodes that are public along their whole path. A folder's page lists
+  its public children.
+
+**In the code:** `core/site/tree.go` (the verbs `site.folder.*`, `site.node.list`,
+`site.node.move`), `MayAt` and `MayPutIn` in `core/site/access.go`, `Move` in `store/sites.go`.
 
 ## One table of who may do what
 
@@ -185,7 +213,7 @@ output, a write to the input and a file over the limit all fail.
 ## The audit log names a document, never its text
 
 **Decided:** every change to a site or a document has its entry, written in the change's own
-transaction: the site's host and the document's slug, and its level before and after. Never a
+transaction: the site's host and the node's path, and its level before and after. Never a
 title, a body or front matter.
 
 ## The serving process reads files and decides nothing else

@@ -44,7 +44,7 @@ func TestOnlyLeavingPublicLowers(t *testing.T) {
 }
 
 func TestADocumentsFields(t *testing.T) {
-	ok := Doc{ID: 1, Site: 1, Slug: "a-first-article", Format: Markdown, Owner: 7, Visibility: Private, Share: []int64{8, 9}, Collection: "handbook"}
+	ok := Doc{ID: 1, Site: 1, Parent: 1, Kind: KindDoc, Slug: "a-first-article", Format: Markdown, Owner: 7, Visibility: Private, Share: []int64{8, 9}}
 	if err := ok.Check(); err != nil {
 		t.Fatalf("a good document: %v", err)
 	}
@@ -70,7 +70,8 @@ func TestADocumentsFields(t *testing.T) {
 		"a slug with a dot":               {with(func(d *Doc) { d.Slug = ".." }), ErrBadSlug},
 		"a slug starting with a hyphen":   {with(func(d *Doc) { d.Slug = "-a" }), ErrBadSlug},
 		"a slug too long":                 {with(func(d *Doc) { d.Slug = strings.Repeat("a", MaxSlug+1) }), ErrBadSlug},
-		"a collection with a space":       {with(func(d *Doc) { d.Collection = "hand book" }), ErrBadCollection},
+		"no kind":                         {with(func(d *Doc) { d.Kind = "" }), ErrBadFormat},
+		"a folder with a format":          {with(func(d *Doc) { d.Kind = KindFolder }), ErrBadFormat},
 		"a share list on a public one":    {with(func(d *Doc) { d.Visibility = Public }), ErrBadShare},
 		"a share list on an internal one": {with(func(d *Doc) { d.Visibility = Internal }), ErrBadShare},
 		"a share list on a protected one": {with(func(d *Doc) { d.Visibility = Protected }), ErrBadShare},
@@ -151,5 +152,23 @@ func TestAResourcesName(t *testing.T) {
 	}
 	if err := ResourceNames(many); !errors.Is(err, ErrTooMany) {
 		t.Errorf("too many: %v", err)
+	}
+}
+
+func TestPaths(t *testing.T) {
+	for p, want := range map[string]string{"": "", "/": "", "guides": "guides", "/guides/install/": "guides/install"} {
+		parts, err := SplitPath(p)
+		if err != nil || strings.Join(parts, "/") != want {
+			t.Errorf("%q: %v, %v", p, parts, err)
+		}
+	}
+	deep := strings.TrimSuffix(strings.Repeat("a/", MaxDepth+2), "/")
+	for p, want := range map[string]error{
+		"a//b": ErrBadPath, "a/../b": ErrBadPath, "A": ErrBadPath, "a/b c": ErrBadPath, "a/_kit": ErrBadPath,
+		deep: ErrTooDeep, strings.Repeat("a", MaxPath+1): ErrPathTooLong,
+	} {
+		if _, err := SplitPath(p); !errors.Is(err, want) {
+			t.Errorf("%q: %v; want %v", p, err, want)
+		}
 	}
 }

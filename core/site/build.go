@@ -70,37 +70,39 @@ type Kit struct {
 // BuildInput is the build's index (build.json): what the kit lays out, at
 // the paths the core chose.
 type BuildInput struct {
-	Build int64      `json:"build"`
-	Docs  []InputDoc `json:"docs"`
+	Build   int64         `json:"build"`
+	Folders []InputFolder `json:"folders"`
+	Docs    []InputDoc    `json:"docs"`
+}
+
+// InputFolder is one public folder of a build: its page at Page lists its
+// public children, in their order.
+type InputFolder struct {
+	Path  string `json:"path"`
+	Title string `json:"title,omitempty"`
+	Order int    `json:"order,omitempty"`
+	Page  string `json:"page"`
 }
 
 // InputDoc is one document of a build: its source at Source, its files under
 // Dir, its page at Page.
 type InputDoc struct {
-	Slug       string          `json:"slug"`
-	Format     string          `json:"format"`
-	Collection string          `json:"collection,omitempty"`
-	Order      int             `json:"order,omitempty"`
-	Active     bool            `json:"active,omitempty"`
-	Meta       json.RawMessage `json:"meta,omitempty"`
-	Source     string          `json:"source"`
-	Dir        string          `json:"dir"`
-	Page       string          `json:"page"`
-	Mermaid    bool            `json:"mermaid,omitempty"`
+	Slug    string          `json:"slug"`
+	Path    string          `json:"path"`   // its address: its folders' slugs and its own
+	Folder  string          `json:"folder"` // its folder's path; "": the root
+	Format  string          `json:"format"`
+	Order   int             `json:"order,omitempty"`
+	Active  bool            `json:"active,omitempty"`
+	Meta    json.RawMessage `json:"meta,omitempty"`
+	Source  string          `json:"source"`
+	Dir     string          `json:"dir"`
+	Page    string          `json:"page"`
+	Mermaid bool            `json:"mermaid,omitempty"`
 }
 
-// PagePath is where a document's page is in the output: a page (front matter
-// page: true) at /<slug>/, an article at /articles/<slug>/.
-func PagePath(d SnapDoc) string {
-	var meta struct {
-		Page bool `json:"page"`
-	}
-	_ = json.Unmarshal([]byte(d.Meta), &meta)
-	if meta.Page {
-		return d.Doc.Slug + "/index.html"
-	}
-	return "articles/" + d.Doc.Slug + "/index.html"
-}
+// PagePath is where a node's page is in the output: at its address, as
+// <path>/index.html. A folder's page lists what it holds.
+func PagePath(path string) string { return path + "/index.html" }
 
 var mermaidFence = regexp.MustCompile("(?m)^[ \t]{0,3}(```|~~~)[ \t]*mermaid\\b")
 
@@ -265,11 +267,14 @@ func (b *Builds) build(ctx context.Context, snap Snapshot) error {
 	if err != nil {
 		return err
 	}
-	in := BuildInput{Build: snap.Build, Docs: []InputDoc{}}
+	in := BuildInput{Build: snap.Build, Folders: []InputFolder{}, Docs: []InputDoc{}}
+	for _, f := range snap.Folders {
+		in.Folders = append(in.Folders, InputFolder{Path: f.Path, Title: titleOf(f.Meta), Order: f.Doc.Order, Page: PagePath(f.Path)})
+	}
 	var mermaid []string
 	for _, sd := range snap.Docs {
 		d := sd.Doc
-		dir := "docs/" + d.Slug
+		dir := "docs/" + sd.Path
 		src, err := b.store.Source(ctx, d.ID)
 		if err != nil {
 			return err
@@ -290,7 +295,7 @@ func (b *Builds) build(ctx context.Context, snap Snapshot) error {
 				return err
 			}
 		}
-		page := PagePath(sd)
+		page := PagePath(sd.Path)
 		draws := hasMermaid(src.Body, sd.Resources)
 		if draws {
 			mermaid = append(mermaid, page)
@@ -299,7 +304,11 @@ func (b *Builds) build(ctx context.Context, snap Snapshot) error {
 		if sd.Meta != "" {
 			meta = json.RawMessage(sd.Meta)
 		}
-		in.Docs = append(in.Docs, InputDoc{Slug: d.Slug, Format: d.Format, Collection: d.Collection, Order: d.Order,
+		folder := ""
+		if i := strings.LastIndex(sd.Path, "/"); i >= 0 {
+			folder = sd.Path[:i]
+		}
+		in.Docs = append(in.Docs, InputDoc{Slug: d.Slug, Path: sd.Path, Folder: folder, Format: d.Format, Order: d.Order,
 			Active: d.Active, Meta: meta, Source: source, Dir: dir, Page: page, Mermaid: draws})
 	}
 	index, err := json.Marshal(in)

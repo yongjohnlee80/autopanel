@@ -98,7 +98,7 @@ func (m *Module) Errors() []module.PublicError {
 		{Err: ErrBadLevel, Code: -32309, Name: "site.bad_level", Message: "a document's level is public, protected, internal or private"},
 		{Err: ErrBadFormat, Code: -32310, Name: "site.bad_format", Message: "a document's format is md, xmd or html"},
 		{Err: ErrBadSlug, Code: -32311, Name: "site.bad_slug", Message: "a slug is 1 to 80 lower-case letters, digits and hyphens"},
-		{Err: ErrBadCollection, Code: -32312, Name: "site.bad_collection", Message: "a collection's name is 1 to 40 lower-case letters, digits and hyphens"},
+		{Err: ErrNotAFolder, Code: -32312, Name: "site.not_a_folder", Message: "that is no folder"},
 		{Err: ErrBadShare, Code: -32313, Name: "site.bad_share", Message: "only a private document has a share list, of at most 64 members, never its owner"},
 		{Err: ErrActiveHeld, Code: -32314, Name: "site.active_held", Message: "only a public html document may run its scripts"},
 		{Err: ErrBadData, Code: -32315, Name: "site.bad_data", Message: "a file's data is base64"},
@@ -112,6 +112,13 @@ func (m *Module) Errors() []module.PublicError {
 		{Err: ErrNoResource, Code: -32322, Name: "site.no_file", Message: "the document has no such file"},
 		{Err: ErrBadConfig, Code: -32323, Name: "site.bad_config", Message: "the configuration was refused"},
 		{Err: ErrHostTaken, Code: -32324, Name: "site.host_taken", Message: "that host is a site's, or a site's content host"},
+		{Err: ErrNotEmpty, Code: -32325, Name: "site.not_empty", Message: "a folder is removed only when it is empty"},
+		{Err: ErrCycle, Code: -32326, Name: "site.cycle", Message: "a folder cannot move into itself or anything under it"},
+		{Err: ErrTooDeep, Code: -32327, Name: "site.too_deep", Message: "folders nest at most 8 deep"},
+		{Err: ErrPathTooLong, Code: -32328, Name: "site.path_too_long", Message: "an address is at most 255 bytes"},
+		{Err: ErrTooManyNodes, Code: -32329, Name: "site.folder_full", Message: "a folder holds at most 1000 folders and documents"},
+		{Err: ErrBadPath, Code: -32330, Name: "site.bad_path", Message: "a path is slugs joined by /, with no empty part"},
+		{Err: ErrRoot, Code: -32331, Name: "site.root", Message: "the site's root folder is not changed, moved or removed"},
 	}
 }
 
@@ -133,11 +140,19 @@ func (m *Module) Verbs() []module.Verb {
 			Doc: "A site's configuration, with its defaults filled in."}), m.getSite),
 		module.Handle(site(module.Contract{Verb: "site.status", Discloses: module.Plain, Param: "{host}", Result: "{host, build, live_build, state, built_at, error}",
 			Doc: "Where a site's builds are: the newest asked for, the one served, and the last failure's reason. A change made in build N is live once live_build is N or more."}), m.status),
-		module.Handle(site(module.Contract{Verb: "site.doc.put", Mutates: true, Param: "{site, slug, format, body, meta?, visibility?, share?: [name], collection?, order?, active?}",
+		module.Handle(site(module.Contract{Verb: "site.folder.add", Mutates: true, Param: "{site, path, title?, visibility?, share?: [name], order?, parents?}", Result: "{path, kind, title, visibility, owner, order, build}",
+			Doc: "Makes a folder at path, private unless said. Its folder must exist (or parents: true makes the missing ones, private and yours) and be one you may put things into: the root, or a folder of yours."}), m.folderAdd),
+		module.Handle(site(module.Contract{Verb: "site.folder.set", Mutates: true, Param: "{site, path, title?, visibility?, share?: [name], order?}", Result: "{path, kind, title, visibility, owner, order, build}",
+			Doc: "Changes a folder of yours: its title, level, share list or order. What it holds is no more open than it is."}), m.folderSet),
+		module.Handle(site(module.Contract{Verb: "site.folder.remove", Mutates: true, Param: "{site, path}",
+			Doc: "Deletes an empty folder: its owner or an administrator."}), m.folderRemove),
+		module.Handle(site(module.Contract{Verb: "site.node.list", Discloses: module.Plain, Param: "{site, path?}", Result: "[{path, kind, title, format, visibility, owner, order, version}]",
+			Doc: "The folders and documents in a folder (the root when path is empty) that the caller may see listed."}), m.nodeList),
+		module.Handle(site(module.Contract{Verb: "site.node.move", Mutates: true, Param: "{site, path, to}", Result: "{path, kind, title, visibility, owner, order, build}",
+			Doc: "Moves a folder or a document of yours into the folder to, one you may put things into. Its address changes, and its contents'."}), m.nodeMove),
+		module.Handle(site(module.Contract{Verb: "site.doc.put", Mutates: true, Param: "{site, folder?, parents?, slug, format, body, meta?, visibility?, share?: [name], order?, active?}",
 			Result: "{slug, visibility, version, generation, served}",
 			Doc:    "Publishes a document, or a new version of one of yours. A first publish that names no level is private; an update that names none keeps its level. In this release a document is stored and not yet served."}), m.put),
-		module.Handle(site(module.Contract{Verb: "site.doc.list", Discloses: module.Plain, Param: "{site}", Result: "[{slug, format, visibility, owner, version}]",
-			Doc: "The documents of a site that the caller may see listed."}), m.docs),
 		module.Handle(site(module.Contract{Verb: "site.doc.get", Param: "{site, slug}", Result: "{slug, format, visibility, share, meta, body, version}",
 			Doc: "A document as it was published: its owner's, and an administrator's, who answers for what the site holds; an administrator's read of a document not theirs is audited."}), m.get),
 		module.Handle(site(module.Contract{Verb: "site.doc.remove", Mutates: true, Param: "{site, slug}",
@@ -348,11 +363,15 @@ func (m *Module) siteView(ctx context.Context, s Site) (SiteConfigView, error) {
 
 // --- documents -----------------------------------------------------------------
 
-// DocAsk names a document: its site's host and its slug.
+// DocAsk names a document: its site's host, its folder's path ("": the
+// root) and its slug.
 type DocAsk struct {
-	Site string `json:"site"`
-	Slug string `json:"slug"`
+	Site   string `json:"site"`
+	Folder string `json:"folder,omitempty"`
+	Slug   string `json:"slug"`
 }
+
+func (a DocAsk) path() string { return strings.Trim(strings.Trim(a.Folder, "/")+"/"+a.Slug, "/") }
 
 // Put is site.doc.put's param.
 type Put struct {
@@ -362,14 +381,16 @@ type Put struct {
 	Body       string          `json:"body"`
 	Meta       json.RawMessage `json:"meta,omitempty"`
 	Visibility string          `json:"visibility,omitempty"`
-	Share      *[]string       `json:"share,omitempty"` // nil: unchanged on an update, none on a first publish
-	Collection string          `json:"collection,omitempty"`
+	Share      *[]string       `json:"share,omitempty"`   // nil: unchanged on an update, none on a first publish
+	Folder     string          `json:"folder,omitempty"`  // its folder's path; "": the root
+	Parents    bool            `json:"parents,omitempty"` // make the folders of Folder that are missing, private and the caller's
 	Order      int             `json:"order,omitempty"`
 	Active     bool            `json:"active,omitempty"`
 }
 
 // Published is site.doc.put's answer.
 type Published struct {
+	Path       string `json:"path"`
 	Slug       string `json:"slug"`
 	Visibility string `json:"visibility"`
 	Version    int64  `json:"version"`
@@ -378,15 +399,6 @@ type Published struct {
 	// when it is live. A held document is kept and not yet served.
 	Served bool  `json:"served"`
 	Build  int64 `json:"build,omitempty"`
-}
-
-// DocView is a document in a list.
-type DocView struct {
-	Slug       string `json:"slug"`
-	Format     string `json:"format"`
-	Visibility string `json:"visibility"`
-	Owner      string `json:"owner"`
-	Version    int64  `json:"version"`
 }
 
 // Source view is site.doc.get's answer.
@@ -452,15 +464,22 @@ func (m *Module) put(ctx context.Context, p Put) (Published, error) {
 			return Published{}, err
 		}
 	}
-	old, err := m.store.Doc(ctx, s.ID, p.Slug)
+	folder, err := m.folderFor(ctx, who, me, s, p.Folder, p.Parents)
+	if err != nil {
+		return Published{}, err
+	}
+	old, err := m.store.Child(ctx, folder[len(folder)-1].ID, p.Slug)
 	switch {
 	case errors.Is(err, ErrNotFound): // a first publish
+		if !MayPutIn(who, folder) {
+			return Published{}, ErrNotYours
+		}
 		level, err := Level(p.Visibility, nil)
 		if err != nil {
 			return Published{}, err
 		}
-		d := Doc{Site: s.ID, Slug: p.Slug, Format: p.Format, Owner: me.ID, Visibility: level, Share: shared,
-			Collection: p.Collection, Order: p.Order, Active: p.Active}
+		d := Doc{Site: s.ID, Parent: folder[len(folder)-1].ID, Kind: KindDoc, Slug: p.Slug, Format: p.Format, Owner: me.ID,
+			Visibility: level, Share: shared, Order: p.Order, Active: p.Active}
 		if err := d.Check(); err != nil {
 			return Published{}, err
 		}
@@ -468,12 +487,13 @@ func (m *Module) put(ctx context.Context, p Put) (Published, error) {
 		if err != nil {
 			return Published{}, err
 		}
-		return m.published(ctx, s, d, d.Visibility == Public, false)
+		return m.published(ctx, s, folder, d, false)
 	case err != nil:
 		return Published{}, err
 	}
-	if !May(who, ActChange, old) {
-		if May(who, ActExists, old) {
+	oldChain := append(append([]Doc{}, folder...), old)
+	if old.IsFolder() || !MayAt(who, ActChange, oldChain) {
+		if !old.IsFolder() && MayAt(who, ActExists, oldChain) {
 			return Published{}, ErrNotYours
 		}
 		return Published{}, ErrDuplicate // someone else's slug, which the caller may not even see
@@ -487,7 +507,7 @@ func (m *Module) put(ctx context.Context, p Put) (Published, error) {
 			return Doc{}, nil, err
 		}
 		next := cur
-		next.Format, next.Visibility, next.Collection, next.Order, next.Active = p.Format, level, p.Collection, p.Order, p.Active
+		next.Format, next.Visibility, next.Order, next.Active = p.Format, level, p.Order, p.Active
 		if p.Share != nil {
 			next.Share = shared
 		} else if level != Private {
@@ -501,68 +521,48 @@ func (m *Module) put(ctx context.Context, p Put) (Published, error) {
 	if err != nil {
 		return Published{}, err
 	}
-	return m.published(ctx, s, d, old.Visibility == Public || d.Visibility == Public, lowered)
+	return m.published(ctx, s, folder, d, PublicAt(oldChain) && !PublicAt(append(append([]Doc{}, folder...), d)) && lowered)
 }
 
-// published answers a publish, asking for the build it needs.
-func (m *Module) published(ctx context.Context, s Site, d Doc, public, lowered bool) (Published, error) {
-	p := Published{Slug: d.Slug, Visibility: d.Visibility, Version: d.Version, Generation: d.Generation}
-	if !public && !lowered {
+// published answers a publish into folder, asking for the build it needs:
+// when the document is public in effect, or something public was withdrawn.
+func (m *Module) published(ctx context.Context, s Site, folder []Doc, d Doc, withdrawn bool) (Published, error) {
+	chain := append(append([]Doc{}, folder...), d)
+	p := Published{Path: pathOfChain(chain), Slug: d.Slug, Visibility: d.Visibility, Version: d.Version, Generation: d.Generation}
+	public := PublicAt(chain)
+	if !public && !withdrawn {
 		return p, nil
 	}
-	n, err := m.changed(ctx, s, lowered)
+	n, err := m.changed(ctx, s, withdrawn)
 	if err != nil {
 		return p, err
 	}
-	p.Build, p.Served = n, n > 0 && d.Visibility == Public
+	p.Build, p.Served = n, n > 0 && public
 	return p, nil
-}
-
-func (m *Module) docs(ctx context.Context, p DocAsk) ([]DocView, error) {
-	who, _, err := m.reader(ctx)
-	if err != nil {
-		return nil, err
-	}
-	s, err := m.siteOf(ctx, p.Site)
-	if err != nil {
-		return nil, err
-	}
-	ds, err := m.store.Docs(ctx, s.ID)
-	if err != nil {
-		return nil, err
-	}
-	out := []DocView{}
-	for _, d := range ds {
-		if !May(who, ActList, d) {
-			continue
-		}
-		out = append(out, DocView{Slug: d.Slug, Format: d.Format, Visibility: d.Visibility, Owner: m.people.Name(ctx, d.Owner), Version: d.Version})
-	}
-	return out, nil
 }
 
 // find is a document the caller may at least know exists; any other is
 // ErrNotFound, so a refusal says nothing of what is there.
-func (m *Module) find(ctx context.Context, who Reader, p DocAsk) (Doc, error) {
+func (m *Module) find(ctx context.Context, who Reader, p DocAsk) ([]Doc, error) {
 	s, err := m.siteOf(ctx, p.Site)
 	if err != nil {
-		return Doc{}, err
+		return nil, err
 	}
-	d, err := m.store.Doc(ctx, s.ID, p.Slug)
+	chain, err := m.node(ctx, who, s, p.path())
 	if err != nil {
-		return Doc{}, err
+		return nil, err
 	}
-	if !May(who, ActExists, d) {
-		return Doc{}, ErrNotFound
+	if chain[len(chain)-1].IsFolder() {
+		return nil, ErrNotFound // a document's verb on a folder: no such document
 	}
-	return d, nil
+	return chain, nil
 }
 
 func (m *Module) get(ctx context.Context, p DocAsk) (SourceView, error) {
 	// An administrator answers for what the site holds and may read anything
 	// of it; the read is written down before anything is shown, and nothing
 	// is shown if it cannot be.
-	d, err := m.readable(ctx, p.Site, p.Slug)
+	d, err := m.readable(ctx, DocAsk{Site: p.Site, Folder: p.Folder, Slug: p.Slug})
 	if err != nil {
 		return SourceView{}, err
 	}
@@ -585,14 +585,15 @@ func (m *Module) removeDoc(ctx context.Context, p DocAsk) (struct{}, error) {
 	if err != nil {
 		return struct{}{}, err
 	}
-	d, err := m.find(ctx, who, p)
+	chain, err := m.find(ctx, who, p)
 	if err != nil {
 		return struct{}{}, err
 	}
-	if !May(who, ActRemove, d) {
+	d := chain[len(chain)-1]
+	if !MayAt(who, ActRemove, chain) {
 		return struct{}{}, ErrNotYours
 	}
-	if _, err = m.store.Remove(ctx, d.ID); err != nil || d.Visibility != Public {
+	if _, err = m.store.Remove(ctx, d.ID); err != nil || !PublicAt(chain) {
 		return struct{}{}, err
 	}
 	s, err := m.store.SiteByID(ctx, d.Site)
@@ -607,10 +608,11 @@ func (m *Module) removeDoc(ctx context.Context, p DocAsk) (struct{}, error) {
 
 // AssetAsk names one of a document's files; Data is its content, base64.
 type AssetAsk struct {
-	Site string `json:"site"`
-	Slug string `json:"slug"`
-	Name string `json:"name"`
-	Data string `json:"data,omitempty"`
+	Site   string `json:"site"`
+	Folder string `json:"folder,omitempty"`
+	Slug   string `json:"slug"`
+	Name   string `json:"name"`
+	Data   string `json:"data,omitempty"`
 }
 
 // AssetView is a file as the verbs answer it.
@@ -623,26 +625,27 @@ type AssetView struct {
 
 // owned is a document the caller may change: its owner's. Anything else the
 // caller may know exists is not theirs; the rest is missing.
-func (m *Module) owned(ctx context.Context, site, slug string) (Doc, error) {
+func (m *Module) owned(ctx context.Context, a AssetAsk) ([]Doc, error) {
 	who, _, err := m.reader(ctx)
 	if err != nil {
-		return Doc{}, err
+		return nil, err
 	}
-	d, err := m.find(ctx, who, DocAsk{Site: site, Slug: slug})
+	chain, err := m.find(ctx, who, DocAsk{Site: a.Site, Folder: a.Folder, Slug: a.Slug})
 	if err != nil {
-		return Doc{}, err
+		return nil, err
 	}
-	if !May(who, ActChange, d) {
-		return Doc{}, ErrNotYours
+	if !MayAt(who, ActChange, chain) {
+		return nil, ErrNotYours
 	}
-	return d, nil
+	return chain, nil
 }
 
 func (m *Module) assetPut(ctx context.Context, p AssetAsk) (AssetView, error) {
-	d, err := m.owned(ctx, p.Site, p.Slug)
+	chain, err := m.owned(ctx, p)
 	if err != nil {
 		return AssetView{}, err
 	}
+	d := chain[len(chain)-1]
 	if err := ResourceName(p.Name); err != nil {
 		return AssetView{}, err
 	}
@@ -659,13 +662,14 @@ func (m *Module) assetPut(ctx context.Context, p AssetAsk) (AssetView, error) {
 	if err != nil {
 		return AssetView{}, err
 	}
-	n, err := m.docChanged(ctx, d)
+	n, err := m.docChanged(ctx, chain)
 	return AssetView{Name: r.Name, MIME: r.MIME, Size: r.Size, Build: n}, err
 }
 
 // docChanged asks for a build when a public document's files changed.
-func (m *Module) docChanged(ctx context.Context, d Doc) (int64, error) {
-	if d.Visibility != Public || m.builds == nil {
+func (m *Module) docChanged(ctx context.Context, chain []Doc) (int64, error) {
+	d := chain[len(chain)-1]
+	if !PublicAt(chain) || m.builds == nil {
 		return 0, nil
 	}
 	s, err := m.store.SiteByID(ctx, d.Site)
@@ -677,19 +681,20 @@ func (m *Module) docChanged(ctx context.Context, d Doc) (int64, error) {
 
 // readable is a document whose source the caller may read: its owner's, or
 // an administrator's, whose read is audited first.
-func (m *Module) readable(ctx context.Context, site, slug string) (Doc, error) {
+func (m *Module) readable(ctx context.Context, a DocAsk) (Doc, error) {
 	who, _, err := m.reader(ctx)
 	if err != nil {
 		return Doc{}, err
 	}
-	d, err := m.find(ctx, who, DocAsk{Site: site, Slug: slug})
+	chain, err := m.find(ctx, who, a)
 	if err != nil {
 		return Doc{}, err
 	}
-	if !May(who, ActSource, d) {
+	d := chain[len(chain)-1]
+	if !MayAt(who, ActSource, chain) {
 		return Doc{}, ErrNotYours
 	}
-	if ByAdminOnly(who, ActSource, d) {
+	if ByAdminOnlyAt(who, ActSource, chain) {
 		if err := m.store.NoteRead(ctx, d); err != nil {
 			return Doc{}, err
 		}
@@ -705,7 +710,7 @@ type AssetData struct {
 }
 
 func (m *Module) assetGet(ctx context.Context, p AssetAsk) (AssetData, error) {
-	d, err := m.readable(ctx, p.Site, p.Slug)
+	d, err := m.readable(ctx, DocAsk{Site: p.Site, Folder: p.Folder, Slug: p.Slug})
 	if err != nil {
 		return AssetData{}, err
 	}
@@ -717,7 +722,7 @@ func (m *Module) assetGet(ctx context.Context, p AssetAsk) (AssetData, error) {
 }
 
 func (m *Module) assetList(ctx context.Context, p AssetAsk) ([]AssetView, error) {
-	d, err := m.readable(ctx, p.Site, p.Slug)
+	d, err := m.readable(ctx, DocAsk{Site: p.Site, Folder: p.Folder, Slug: p.Slug})
 	if err != nil {
 		return nil, err
 	}
@@ -733,13 +738,14 @@ func (m *Module) assetList(ctx context.Context, p AssetAsk) ([]AssetView, error)
 }
 
 func (m *Module) assetRemove(ctx context.Context, p AssetAsk) (struct{}, error) {
-	d, err := m.owned(ctx, p.Site, p.Slug)
+	chain, err := m.owned(ctx, p)
 	if err != nil {
 		return struct{}{}, err
 	}
+	d := chain[len(chain)-1]
 	if err := m.store.RemoveResource(ctx, d.ID, p.Name); err != nil {
 		return struct{}{}, err
 	}
-	_, err = m.docChanged(ctx, d)
+	_, err = m.docChanged(ctx, chain)
 	return struct{}{}, err
 }

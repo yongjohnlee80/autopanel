@@ -307,20 +307,33 @@ func applyAndCheck(t *testing.T, db dao.DataConn) {
 			t.Errorf("the store accepted %s", what)
 		}
 	}
-	// 000010: sites and their documents. A document is private unless said,
-	// active only when public html, its slug one of its site's, its owner a
-	// user who cannot be removed while it is theirs; two resources of one
-	// document cannot differ only by case.
+	// 000010: sites, a tree of folders and documents each. A site has one
+	// root folder (no parent, no slug, no owner, public); every other node a
+	// parent and a slug unique among its siblings. A document is private
+	// unless said, active only when public html, its owner a user who cannot
+	// be removed while it is theirs; two resources of one document cannot
+	// differ only by case; a folder is not removed while it holds anything.
 	if err := exec("INSERT INTO site(host, created_at) VALUES ('blog.example.com', 0)"); err != nil {
 		t.Fatal(err)
 	}
-	doc := func(slug, more, values string) string {
-		return "INSERT INTO site_doc(site_id, slug, format, owner_id, source, sha256, created_at, updated_at" + more + ") SELECT s.id, '" + slug + "', 'md', u.id, 'x', 'h', 0, 0" + values + " FROM site s, app_user u WHERE s.host = 'blog.example.com' AND u.name = 'root'"
+	if err := exec("INSERT INTO site_node(site_id, kind, slug, visibility, created_at, updated_at) SELECT id, 'folder', '', 'public', 0, 0 FROM site WHERE host = 'blog.example.com'"); err != nil {
+		t.Fatalf("a site's root folder: %v", err)
 	}
+	const root = "(SELECT n.id FROM site_node n JOIN site s ON s.id = n.site_id WHERE s.host = 'blog.example.com' AND n.parent_id IS NULL)"
+	node := func(kind, slug, format, more, values string) string {
+		return "INSERT INTO site_node(site_id, parent_id, kind, slug, format, owner_id, source, sha256, created_at, updated_at" + more + ") SELECT s.id, " + root + ", '" + kind + "', '" + slug + "', '" + format + "', u.id, 'x', 'h', 0, 0" + values + " FROM site s, app_user u WHERE s.host = 'blog.example.com' AND u.name = 'root'"
+	}
+	doc := func(slug, more, values string) string { return node("doc", slug, "md", more, values) }
 	if err := exec(doc("first", "", "")); err != nil {
-		t.Fatal(err)
+		t.Fatalf("the first document: %v", err)
 	}
-	rows, err = db.QueryContext(ctx, "SELECT visibility, active, generation, version FROM site_doc WHERE slug = 'first'")
+	if err := exec(node("folder", "guides", "", "", "")); err != nil {
+		t.Fatalf("a folder: %v", err)
+	}
+	if err := exec("INSERT INTO site_node(site_id, parent_id, kind, slug, format, owner_id, created_at, updated_at) SELECT s.id, g.id, 'doc', 'first', 'md', u.id, 0, 0 FROM site s, app_user u, site_node g WHERE s.host = 'blog.example.com' AND u.name = 'root' AND g.slug = 'guides'"); err != nil {
+		t.Fatalf("one slug in two folders: %v", err)
+	}
+	rows, err = db.QueryContext(ctx, "SELECT visibility, active, generation, version FROM site_node WHERE slug = 'first' AND kind = 'doc' ORDER BY id")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -336,41 +349,51 @@ func applyAndCheck(t *testing.T, db dao.DataConn) {
 	if level != "private" || activeDoc != 0 || generation != 1 || version != 1 {
 		t.Fatalf("a document with nothing said is %s, active %d, generation %d, version %d; want private, 0, 1, 1", level, activeDoc, generation, version)
 	}
-	if err := exec("INSERT INTO site_resource(doc_id, name, name_fold, mime, size, sha256, data) SELECT id, 'Flow.png', 'flow.png', 'image/png', 1, 'h', 'x' FROM site_doc WHERE slug = 'first'"); err != nil {
-		t.Fatal(err)
+	const first = "(SELECT MIN(id) FROM site_node WHERE slug = 'first')"
+	if err := exec("INSERT INTO site_resource(doc_id, name, name_fold, mime, size, sha256, data) SELECT " + first + ", 'Flow.png', 'flow.png', 'image/png', 1, 'h', 'x'"); err != nil {
+		t.Fatalf("a resource: %v", err)
 	}
-	if err := exec("INSERT INTO site_doc_share(doc_id, user_id) SELECT d.id, u.id FROM site_doc d, app_user u WHERE d.slug = 'first' AND u.name = 'root'"); err != nil {
-		t.Fatal(err)
+	if err := exec("INSERT INTO site_node_share(node_id, user_id) SELECT " + first + ", u.id FROM app_user u WHERE u.name = 'root'"); err != nil {
+		t.Fatalf("a share: %v", err)
 	}
 	for what, q := range map[string]string{
 		"a site's host twice":                     "INSERT INTO site(host, created_at) VALUES ('blog.example.com', 0)",
 		"a host in capitals":                      "INSERT INTO site(host, created_at) VALUES ('Blog2.example.com', 0)",
 		"a site with no host":                     "INSERT INTO site(host, created_at) VALUES ('', 0)",
 		"a content host that is the site's own":   "INSERT INTO site(host, content_host, created_at) VALUES ('a.example.com', 'a.example.com', 0)",
-		"a slug twice in one site":                doc("first", "", ""),
+		"a second root folder":                    "INSERT INTO site_node(site_id, kind, slug, visibility, created_at, updated_at) SELECT id, 'folder', '', 'public', 0, 0 FROM site WHERE host = 'blog.example.com'",
+		"a root that is a document":               "INSERT INTO site_node(site_id, kind, slug, format, visibility, created_at, updated_at) SELECT id, 'doc', '', 'md', 'public', 0, 0 FROM site WHERE host = 'blog.example.com'",
+		"a node with no slug":                     doc("", "", ""),
+		"a node of no kind":                       node("page", "ninth", "md", "", ""),
+		"a folder with a format":                  node("folder", "tenth", "md", "", ""),
+		"a node of no owner":                      "INSERT INTO site_node(site_id, parent_id, kind, slug, format, created_at, updated_at) SELECT s.id, " + root + ", 'doc', 'eleventh', 'md', 0, 0 FROM site s WHERE s.host = 'blog.example.com'",
+		"a node in no folder":                     "INSERT INTO site_node(site_id, parent_id, kind, slug, format, owner_id, created_at, updated_at) SELECT s.id, 999999, 'doc', 'twelfth', 'md', u.id, 0, 0 FROM site s, app_user u WHERE s.host = 'blog.example.com' AND u.name = 'root'",
+		"a slug twice in one folder":              doc("first", "", ""),
+		"a folder and a document of one slug":     node("folder", "first", "", "", ""),
 		"a slug in capitals":                      doc("Second", "", ""),
 		"a level of no kind":                      doc("third", ", visibility", ", 'secret'"),
-		"a format of no kind":                     "INSERT INTO site_doc(site_id, slug, format, owner_id, source, sha256, created_at, updated_at) SELECT s.id, 'fourth', 'pdf', u.id, 'x', 'h', 0, 0 FROM site s, app_user u",
+		"a format of no kind":                     node("doc", "fourth", "pdf", "", ""),
 		"an active document that is private":      doc("fifth", ", active", ", 1"),
 		"an active Markdown document":             doc("sixth", ", active, visibility", ", 1, 'public'"),
-		"a document of no site":                   "INSERT INTO site_doc(site_id, slug, format, owner_id, source, sha256, created_at, updated_at) SELECT 999999, 'seventh', 'md', u.id, 'x', 'h', 0, 0 FROM app_user u",
-		"a document of no user":                   "INSERT INTO site_doc(site_id, slug, format, owner_id, source, sha256, created_at, updated_at) SELECT s.id, 'eighth', 'md', 999999, 'x', 'h', 0, 0 FROM site s",
-		"a resource's name twice but for case":    "INSERT INTO site_resource(doc_id, name, name_fold, mime, size, sha256, data) SELECT id, 'flow.PNG', 'flow.png', 'image/png', 1, 'h', 'x' FROM site_doc WHERE slug = 'first'",
-		"a resource whose folded name is not its": "INSERT INTO site_resource(doc_id, name, name_fold, mime, size, sha256, data) SELECT id, 'A.png', 'b.png', 'image/png', 1, 'h', 'x' FROM site_doc WHERE slug = 'first'",
-		"a share twice":                           "INSERT INTO site_doc_share(doc_id, user_id) SELECT d.id, u.id FROM site_doc d, app_user u WHERE d.slug = 'first' AND u.name = 'root'",
+		"a document of no site":                   "INSERT INTO site_node(site_id, parent_id, kind, slug, format, owner_id, created_at, updated_at) SELECT 999999, " + root + ", 'doc', 'seventh', 'md', u.id, 0, 0 FROM app_user u WHERE u.name = 'root'",
+		"a document of no user":                   "INSERT INTO site_node(site_id, parent_id, kind, slug, format, owner_id, created_at, updated_at) SELECT s.id, " + root + ", 'doc', 'eighth', 'md', 999999, 0, 0 FROM site s WHERE s.host = 'blog.example.com'",
+		"a resource's name twice but for case":    "INSERT INTO site_resource(doc_id, name, name_fold, mime, size, sha256, data) SELECT " + first + ", 'flow.PNG', 'flow.png', 'image/png', 1, 'h', 'x'",
+		"a resource whose folded name is not its": "INSERT INTO site_resource(doc_id, name, name_fold, mime, size, sha256, data) SELECT " + first + ", 'A.png', 'b.png', 'image/png', 1, 'h', 'x'",
+		"a share twice":                           "INSERT INTO site_node_share(node_id, user_id) SELECT " + first + ", u.id FROM app_user u WHERE u.name = 'root'",
 		"removing a user who owns a document":     "DELETE FROM app_user WHERE name = 'root'",
+		"removing a folder that holds something":  "DELETE FROM site_node WHERE slug = 'guides'",
 	} {
 		if err := exec(q); err == nil {
 			t.Errorf("the store accepted %s", what)
 		}
 	}
-	if err := exec("INSERT INTO site_doc(site_id, slug, format, owner_id, visibility, active, source, sha256, created_at, updated_at) SELECT s.id, 'demo', 'html', u.id, 'public', 1, 'x', 'h', 0, 0 FROM site s, app_user u WHERE u.name = 'root'"); err != nil {
+	if err := exec(node("doc", "demo", "html", ", visibility, active", ", 'public', 1")); err != nil {
 		t.Fatalf("an active public html document: %v", err)
 	}
 	if err := exec("DELETE FROM site"); err != nil {
 		t.Fatal(err)
 	}
-	for _, table := range []string{"site_doc", "site_doc_share", "site_resource"} {
+	for _, table := range []string{"site_node", "site_node_share", "site_resource"} {
 		if n, err := countRows(ctx, db, table); err != nil || n != 0 {
 			t.Fatalf("%d rows of %s outlived their site: %v", n, table, err)
 		}
