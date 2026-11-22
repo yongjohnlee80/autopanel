@@ -1,14 +1,18 @@
 package site
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
+	"image/color"
 	"os"
 	"path/filepath"
 	"strings"
 	"syscall"
 	"testing"
+
+	chartvl "github.com/yongjohnlee80/golib/chart/vegalite"
 )
 
 const (
@@ -116,6 +120,37 @@ func TestGolibsChartsPass(t *testing.T) {
 		if _, err := CheckOutput(site(t, files), options()); err != nil {
 			t.Errorf("%s: %v", c, err)
 		}
+	}
+}
+
+// Every chart the renderer draws (golib's chart/vegalite, which the site
+// kit uses: no GUI, no fonts) passes inside a page, for every fixture spec.
+func TestTheRenderersChartsPass(t *testing.T) {
+	specs, _ := filepath.Glob("testdata/charts/gen/specs/*.json")
+	if len(specs) < 10 {
+		t.Fatalf("%d chart specs", len(specs))
+	}
+	drawn := 0
+	for _, f := range specs {
+		spec, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		laid, err := chartvl.Lay(context.Background(), string(spec), 640, chartvl.Theme{
+			Background: color.NRGBA{246, 242, 231, 255}, Text: color.NRGBA{46, 42, 36, 255},
+			Axis: color.NRGBA{122, 113, 99, 255}, Grid: color.NRGBA{179, 170, 150, 255},
+		}, nil)
+		if err != nil {
+			continue // outside the writer's subset: the renderer leaves the spec as its source
+		}
+		drawn++
+		files := map[string]string{"index.html": page(`<div class="embed chart">` + string(laid.SVG()) + `</div>`)}
+		if _, err := CheckOutput(site(t, files), options()); err != nil {
+			t.Errorf("%s: %v", f, err)
+		}
+	}
+	if drawn < 8 {
+		t.Fatalf("only %d of %d specs drawn", drawn, len(specs))
 	}
 }
 

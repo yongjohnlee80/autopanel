@@ -367,9 +367,10 @@ func srcsetURLs(s string) []string {
 	return out
 }
 
-// The SVG a page may hold inline: exactly what golib's chart writer emits
-// (gui/svgcanvas.go: a chart's shapes, its clips and gradients, its labels),
-// and the plain shapes beside them. No script, foreignObject, use, image, a,
+// The SVG a page may hold inline: exactly what golib's chart writers emit
+// (gui/svgcanvas.go: a chart's shapes, its clips and gradients, its labels;
+// chart/vegalite/svg.go, the renderer's: its labels placed by text-anchor and
+// a central baseline), and the plain shapes beside them. No script, foreignObject, use, image, a,
 // animation, style or title (an integration point back into HTML).
 var (
 	svgElements = map[string]bool{
@@ -385,6 +386,7 @@ var (
 		"fill": true, "fill-opacity": true, "stroke": true, "stroke-width": true, "stroke-opacity": true,
 		"stop-color": true, "stop-opacity": true,
 		"font-family": true, "font-size": true, "font-weight": true, "font-style": true,
+		"text-anchor": true, "dominant-baseline": true,
 		"class": true, "role": true, "aria-label": true,
 	}
 	svgFragmentURL = regexp.MustCompile(`^url\(#[A-Za-z0-9_-]+\)$`)

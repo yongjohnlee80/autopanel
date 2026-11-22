@@ -7,7 +7,8 @@ toolchain go1.27.4
 require (
 	github.com/caddyserver/certmagic v0.25.6
 	github.com/libdns/cloudflare v0.2.2
-	github.com/yongjohnlee80/golib v0.8.60
+	github.com/yongjohnlee80/autodoc v0.3.18-0.20261120194437-ebdf15be2025
+	github.com/yongjohnlee80/golib v0.8.65
 	go.yaml.in/yaml/v3 v3.0.4
 	golang.org/x/crypto v0.58.0
 	golang.org/x/net v0.62.0
@@ -16,6 +17,7 @@ require (
 )
 
 require (
+	github.com/BurntSushi/toml v1.6.0 // indirect
 	github.com/caddyserver/zerossl v0.1.6 // indirect
 	github.com/dustin/go-humanize v1.1.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
