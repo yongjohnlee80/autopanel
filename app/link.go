@@ -115,6 +115,7 @@ func (m *linkModule) routes(ctx context.Context, p hostgate.After) (hostgate.Rou
 	out := hostgate.Routes{Rev: rev, Routes: make([]gate.RouteView, 0, len(rs))}
 	if m.api != nil {
 		out.API = m.api.forGate()
+		out.Apps = m.api.forApps()
 	}
 	for _, r := range rs {
 		out.Routes = append(out.Routes, gate.RouteView{ID: int64(r.ID), Host: r.Host, PathPrefix: r.PathPrefix, Upstream: r.Upstream})

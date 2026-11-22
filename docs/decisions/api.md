@@ -98,6 +98,20 @@ other six).
 
 **In the code:** `app/api_test.go` (`TestThePublicVerbsAreExactlyThese`), `app/api.go` (`serve`).
 
+## Three kinds of host, two credentials
+
+**Decided** with the browser sign-in ([Browser sessions](auth.md#browser-sessions)):
+
+- The API's host takes only `Bearer` tokens. The app host and the admin host take only the session
+  cookie, each its own. A token sent to either is `401`; a cookie is never read on the API's host.
+- **Two public sets.** A token reaches the verbs a contract marks `Public`, by the rules above. A
+  session reaches those marked `Session`: a second list with its own test
+  (`TestTheSessionVerbsAreExactlyThese`). The self-service `auth` verbs are in it and no token
+  reaches them.
+- **The client's address decides something** on the admin host: its source ranges, checked at the
+  gate. Against the internet that is a real limit; against a gate that has been broken into it is
+  not, and the sign-in and the role remain the control.
+
 ## Limits
 
 | Limit | Value |

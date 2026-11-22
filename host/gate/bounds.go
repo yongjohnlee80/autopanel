@@ -105,6 +105,7 @@ const (
 	costTunnelStream = 448 << 10
 	costTunnelHeap   = 384 << 10
 	costAPI          = 21 << 20 // the API's calls in flight, each at its largest: all heap
+	costRates        = 1 << 20  // the API's rate table and the sign-ins', each full
 
 	// A forwarded TCP connection: its two sockets, and its goroutines.
 	forwardedConns  = 200 // core/forward's Connections and mail's share together
@@ -140,7 +141,7 @@ func worstKernelBytes() int {
 // exceed.
 func WorstHeapBytes() int {
 	return costBase + (httpsConns+plainConns)*costConnHeap + proxyInFlight*costProxiedHeap + tunnelStreamsTotal*costTunnelHeap +
-		forwardedConns*costForwardHeap + udpPairings*costPairingHeap + costAPI
+		forwardedConns*costForwardHeap + udpPairings*costPairingHeap + costAPI + costRates
 }
 
 // WorstBytes is the most the gate may hold when every part is full at once:

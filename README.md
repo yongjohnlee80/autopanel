@@ -667,8 +667,7 @@ sudo autopanel --call auth.totp.disable '{"name": "ana"}'
 
 **Users → API tokens…** makes a token for a script: a name, a role (viewer unless you ask for
 more, and never above your own) and how many days it lasts (90 by default, 365 at most), then your
-passphrase again. It is
-shown once; put it in a file only root can read and pass the file:
+passphrase again. It is shown once; put it in a file only root can read and pass the file:
 
 ```sh
 sudo install -m 0600 /dev/null /root/backup.token   # then paste the token into it
@@ -682,6 +681,23 @@ demoted owner's tokens are demoted, a removed owner's stop), and is named on the
 
 **Sessions.** The panel asks for the login again after 30 minutes without a key, and the daemon
 ends any login after 12 hours.
+
+### Signing in from a browser: the application hosts
+
+The browser applications (mail and drive, and later the admin application) are served on host
+names of their own, off until you name them. The applications themselves are still to come; what is
+there now is the sign-in they will use, at `/v1/session` on those hosts.
+
+```sh
+sudo autopanel --call sys.app.set '{"host": "web.example.com"}'
+# the admin application only from addresses you name: with none, from nowhere
+sudo autopanel --call sys.app.set '{"host": "web.example.com", "admin_host": "admin.example.com", "admin_allow": ["203.0.113.0/24"]}'
+sudo autopanel --call sys.app.get
+```
+
+A browser sign-in never opens the vault, is limited to 5 a minute from an address, and counts its
+failures apart from the console's, so nobody on the internet can lock you out at the host.
+`auth.session.list` shows your browser sessions and `auth.session.end` ends any of them.
 
 ### Calling AutoPanel from another machine: the HTTPS API
 
