@@ -118,7 +118,7 @@ func (m *Module) Errors() []module.PublicError {
 		{Err: ErrLastAdmin, Code: -32168, Name: "auth.last_admin", Message: "that would leave no admin"},
 		{Err: ErrRootUser, Code: -32169, Name: "auth.root", Message: "root is never removed, demoted or disabled"},
 		{Err: ErrBadName, Code: -32120, Name: "auth.bad_name", Message: "a user's name is a lower-case letter, then letters, digits, . _ -, 32 at most"},
-		{Err: ErrBadRole, Code: -32121, Name: "auth.bad_role", Message: "a role is admin, operator, mail or viewer"},
+		{Err: ErrBadRole, Code: -32121, Name: "auth.bad_role", Message: "a role is admin, operator, mail, viewer or member"},
 		{Err: ErrWeak, Code: -32122, Name: "auth.weak_passphrase", Message: "a passphrase is 12 characters at least, holds no user name, and is no common password"},
 		{Err: ErrBadCode, Code: -32123, Name: "auth.bad_code", Message: "that code is not right"},
 		{Err: ErrNoTOTP, Code: -32124, Name: "auth.no_totp", Message: "two-factor is not enrolled"},

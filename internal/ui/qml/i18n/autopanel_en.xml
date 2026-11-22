@@ -1268,8 +1268,8 @@
         <translation>A new passphrase for %1 (they change it at their next login)</translation>
     </message>
     <message id="autopanel.label.prompt.userRole">
-        <source>Role: admin, operator, mail or viewer</source>
-        <translation>Role: admin, operator, mail or viewer</translation>
+        <source>Role: admin, operator, mail, viewer or member</source>
+        <translation>Role: admin, operator, mail, viewer or member</translation>
     </message>
     <message id="autopanel.label.review.capAdd">
         <source>Capabilities added</source>
@@ -1744,8 +1744,8 @@
         <translation>a name is a lower-case letter, then letters, digits, . _ -, 32 at most</translation>
     </message>
     <message id="autopanel.notice.account.badRole">
-        <source>a role is admin, operator, mail or viewer</source>
-        <translation>a role is admin, operator, mail or viewer</translation>
+        <source>a role is admin, operator, mail, viewer or member</source>
+        <translation>a role is admin, operator, mail, viewer or member</translation>
     </message>
     <message id="autopanel.notice.account.disabled">
         <source>%1 disabled</source>

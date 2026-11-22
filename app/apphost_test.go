@@ -148,7 +148,7 @@ func newAppCore(t *testing.T) *appFixture {
 		}
 		f.ids[p.name] = u.ID
 	}
-	settings := &fakeSettings{m: map[string]string{appHostSetting: webHost, adminHostSetting: adminHost, adminAllowSetting: "198.51.100.0/24"}}
+	settings := &fakeSettings{m: map[string]string{appHostSetting: webHost, adminHostSetting: adminHost, adminAllowSetting: "198.51.100.0/24 203.0.113.0/24"}}
 	f.m = &apiModule{st: settings, auth: f.users, logins: f.users, sessions: auth.NewSessions(st.Sessions()), aud: f.aud,
 		log:     slog.New(slog.NewTextHandler(io.Discard, nil)),
 		covered: func(_ context.Context, h string) (bool, error) { return gate.Under(h, "example.com"), nil },
@@ -371,6 +371,34 @@ func TestTheAdminHostIsTheAdminsAndOperators(t *testing.T) {
 	}
 	if a := f.session(t, hostgate.SessionAsk{Op: hostgate.SessionGet, Host: hostgate.HostAdmin, Session: op, Method: "GET"}); a.Error == nil {
 		t.Fatal("a demoted operator keeps the admin host")
+	}
+}
+
+// TestTheCoreChecksTheAdminHostsSourcesAgain: the gate's word for the
+// address, the core's own check of it.
+func TestTheCoreChecksTheAdminHostsSourcesAgain(t *testing.T) {
+	f := newAppCore(t)
+	op, csrf := f.signIn(t, hostgate.HostAdmin, "ada")
+	ask := hostgate.SessionAsk{Op: hostgate.SessionGet, Host: hostgate.HostAdmin, Session: op, Method: "GET", Client: "192.0.2.1"}
+	if a, _ := f.m.session(context.Background(), ask); a.Error == nil || a.Error.Name != "app.not_allowed" {
+		t.Fatalf("the admin host from outside its sources: %+v", a.Error)
+	}
+	call := hostgate.APIAsk{Verb: "sys.s.admin", Host: hostgate.HostAdmin, Authority: adminHost, Session: op, CSRF: csrf, Origin: "https://" + adminHost, Client: "192.0.2.1"}
+	if a, _ := f.m.call(context.Background(), call); kindOf(a) != hostgate.APIForbidden || a.Error.Name != "app.not_allowed" {
+		t.Fatalf("a call from outside: %+v", a.Error)
+	}
+	call.Client = "203.0.113.200"
+	if a, _ := f.m.call(context.Background(), call); a.Error != nil {
+		t.Fatalf("a call from inside: %+v", a.Error)
+	}
+	f.m.mu.Lock()
+	f.m.app.AdminAllow = nil
+	f.m.mu.Unlock()
+	if a, _ := f.m.call(context.Background(), call); kindOf(a) != hostgate.APIForbidden {
+		t.Fatalf("with no sources at all: %+v", a.Error)
+	}
+	if a := f.session(t, hostgate.SessionAsk{Op: hostgate.SessionGet, Host: hostgate.HostApp, Method: "GET"}); a.Error.Name == "app.not_allowed" {
+		t.Fatal("the app host's empty list keeps people out")
 	}
 }
 

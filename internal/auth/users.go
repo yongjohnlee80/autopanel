@@ -17,10 +17,11 @@ const (
 	RoleOperator Role = "operator" // runs the server: stacks, routes, mail; not users, not the host's administration
 	RoleMail     Role = "mail"     // mailboxes and their records, and its own account
 	RoleViewer   Role = "viewer"   // reads what is not sensitive, and its own account
+	RoleMember   Role = "member"   // its own mailbox and drive in the browser applications, and its own account
 )
 
 // Roles are the roles, from the most to the least.
-var Roles = []Role{RoleAdmin, RoleOperator, RoleMail, RoleViewer}
+var Roles = []Role{RoleAdmin, RoleOperator, RoleMail, RoleViewer, RoleMember}
 
 // Valid reports whether r is a role.
 func (r Role) Valid() bool {

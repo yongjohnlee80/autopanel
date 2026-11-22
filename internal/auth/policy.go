@@ -24,6 +24,9 @@ var policy = map[Role]map[string]access{
 	RoleOperator: {"sys": all, "sys.admin": none, "gate": all, "certs": read, "services": all, "mail": all, "mail.admin": all, "auth": own, "site": all, "site.admin": none},
 	RoleMail:     {"sys": read, "sys.admin": none, "gate": read, "certs": none, "services": none, "mail": all, "mail.admin": none, "auth": own, "site": none, "site.admin": none},
 	RoleViewer:   {"sys": read, "sys.admin": none, "gate": read, "certs": read, "services": read, "mail": read, "mail.admin": none, "auth": own, "site": none, "site.admin": none},
+	// A member reaches nothing of the server: its own account, and (with the
+	// applications) its own mailbox and drive, which are checked by owner.
+	RoleMember: {"sys": none, "sys.admin": none, "gate": none, "certs": none, "services": none, "mail": none, "mail.admin": none, "auth": own, "site": none, "site.admin": none},
 }
 
 // ownVerbs are the auth verbs every role may call on its own account.
@@ -64,6 +67,8 @@ func (r Role) holds(t Role) bool {
 		return true
 	case RoleOperator:
 		return t != RoleAdmin
+	case RoleMember: // a member makes no tokens: a token reaches no mailbox or drive yet
+		return false
 	default:
 		return t == r || t == RoleViewer
 	}

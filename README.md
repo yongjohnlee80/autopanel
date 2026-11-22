@@ -638,6 +638,7 @@ second factor, and make tokens for scripts.
 | operator | run routes, stacks and mail, read their logs and the host's files; not users, certificates' settings or the gate's settings |
 | mail | manage mail domains and accounts; read routes, domains and the server's status; not stacks or certificates |
 | viewer | read what the screen shows, change nothing; never logs, files or who logged in |
+| member | nothing of the server: their own account, and their own mailbox and drive once the browser applications come |
 
 Everyone may change their own passphrase, two-factor and tokens. Menus a role cannot use are greyed
 out, and the daemon refuses them regardless. Only admins hold a copy of the master key. The
