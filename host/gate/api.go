@@ -63,16 +63,18 @@ type apiServer struct {
 	trusted func() Trusted
 	up      func() bool // the link answered last time it was asked
 
-	conf  atomic.Pointer[apiState]
-	slots chan struct{} // every call in flight
-	large chan struct{} // those with a larger body
-	rate  *rateTable
+	conf   atomic.Pointer[apiState]
+	apps   atomic.Pointer[map[string]appHost] // the applications' hosts (apps.go); nil when both are off
+	slots  chan struct{}                      // every call in flight, on every host
+	large  chan struct{}                      // those with a larger body
+	rate   *rateTable
+	logins *rateTable // sign-ins on the applications' hosts
 }
 
 func newAPIServer(l apiCaller, log *slog.Logger, trusted func() Trusted, up func() bool) *apiServer {
 	return &apiServer{link: l, log: log, trusted: trusted, up: up,
 		slots: make(chan struct{}, apiInFlight), large: make(chan struct{}, apiLargeInFlight),
-		rate: newRateTable(apiPerMinute, apiBurst, apiClients, time.Now)}
+		rate: newRateTable(apiPerMinute, apiBurst, apiClients, time.Now), logins: newLoginRate(time.Now)}
 }
 
 // set takes the core's settings; nil turns the API off.
@@ -96,20 +98,29 @@ func (a *apiServer) set(c *API) error {
 	return nil
 }
 
-// isHost reports whether name is the API's host.
+// isHost reports whether name is the API's host or an application's: each
+// has a certificate, though no route names it.
 func (a *apiServer) isHost(name string) bool {
 	st := a.conf.Load()
-	return st != nil && st.host == name
+	if st != nil && st.host == name {
+		return true
+	}
+	_, ok := a.appOf(name)
+	return ok
 }
 
-// or serves the API's host itself and passes every other request to next: a
-// request for the API's host never reaches the routing table.
+// or serves the API's host and the applications' itself and passes every
+// other request to next: a request for one of them never reaches the
+// routing table.
 func (a *apiServer) or(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		st := a.conf.Load()
-		if st != nil {
-			if host, err := core.CanonicalHost(r.Host); err == nil && host == st.host {
+		if host, err := core.CanonicalHost(r.Host); err == nil {
+			if st := a.conf.Load(); st != nil && host == st.host {
 				a.serve(w, r, st)
+				return
+			}
+			if app, ok := a.appOf(host); ok {
+				a.serveApp(w, r, app)
 				return
 			}
 		}
@@ -118,10 +129,12 @@ func (a *apiServer) or(next http.Handler) http.Handler {
 }
 
 // notPlain refuses the API's host on the plain listener: a client that sent
-// its token without TLS is not sent on to HTTPS to do it again.
+// its token without TLS is not sent on to HTTPS to do it again. An
+// application's host is sent on, as a site is: its cookie is never sent
+// without TLS.
 func (a *apiServer) notPlain(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if host, err := core.CanonicalHost(r.Host); err == nil && a.isHost(host) {
+		if host, err := core.CanonicalHost(r.Host); err == nil && a.conf.Load() != nil && a.conf.Load().host == host {
 			apiError(w, http.StatusBadRequest, 0, "api.https_only", "the API is served over HTTPS only")
 			return
 		}
@@ -194,30 +207,15 @@ func (a *apiServer) serve(w http.ResponseWriter, r *http.Request, st *apiState) 
 	defer release()
 	var body []byte
 	if r.Method == http.MethodPost {
-		b, err := io.ReadAll(http.MaxBytesReader(w, r.Body, int64(limit)))
-		var tooLarge *http.MaxBytesError
-		switch {
-		case errors.As(err, &tooLarge):
-			apiError(w, http.StatusRequestEntityTooLarge, 0, "api.too_large", "the body is larger than this verb takes")
-			return
-		case err != nil:
-			apiError(w, http.StatusBadRequest, 0, "api.bad_request", "the body could not be read")
+		if body, ok = readJSON(w, r, limit); !ok {
 			return
 		}
-		if len(b) > 0 && !isJSON(r.Header.Get("Content-Type")) {
-			apiError(w, http.StatusUnsupportedMediaType, 0, "api.not_json", "a body must be application/json")
-			return
-		}
-		body = b
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), apiCallTime)
 	defer cancel()
 	var ans APIAnswer
 	if err := a.link.call(ctx, VerbAPI, APIAsk{Verb: verb, Param: body, Token: token, Client: client.String(), RequestID: id}, &ans); err != nil {
-		if r.Context().Err() == nil {
-			a.log.Warn("gate: an API call did not reach the core", "request", id, "err", err)
-		}
-		apiError(w, http.StatusServiceUnavailable, 0, "api.unavailable", "AutoPanel's core does not answer; try again")
+		a.unreachable(w, r, id, err)
 		return
 	}
 	if e := ans.Error; e != nil {
@@ -236,11 +234,7 @@ func (a *apiServer) serve(w http.ResponseWriter, r *http.Request, st *apiState) 
 		apiError(w, http.StatusInternalServerError, 0, "api.internal", "internal error")
 		return
 	}
-	h.Set("Content-Type", "application/json")
-	if len(ans.Result) == 0 {
-		ans.Result = []byte("null")
-	}
-	_, _ = w.Write(ans.Result)
+	writeResult(w, ans.Result)
 }
 
 // health says whether the gate reaches the core, from what the gate already
@@ -398,6 +392,8 @@ func apiStatus(kind string) int {
 		return http.StatusBadRequest
 	case APIFailed:
 		return http.StatusUnprocessableEntity
+	case APIBusy:
+		return http.StatusServiceUnavailable
 	}
 	return http.StatusInternalServerError
 }

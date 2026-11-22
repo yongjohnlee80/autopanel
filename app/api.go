@@ -73,10 +73,16 @@ type apiModule struct {
 	mu    sync.RWMutex
 	host  string
 	allow []string
+	app   AppSettings // the applications' hosts (apphost.go)
 
-	public map[string]module.Verb
-	errs   []module.PublicError
-	names  map[int64]string // a declared error's name by its code
+	logins   appLogins      // the browser sign-in
+	sessions *auth.Sessions // the browser sessions
+
+	public       map[string]module.Verb
+	sessionVerbs map[string]module.Verb // the verbs a session may call (the admin host's)
+	appVerbSet   map[string]module.Verb // those an app host's session may call: none of the admin host's
+	errs         []module.PublicError
+	names        map[int64]string // a declared error's name by its code
 }
 
 func (m *apiModule) Name() string { return "api" }
@@ -85,6 +91,8 @@ func (m *apiModule) Errors() []module.PublicError {
 	return []module.PublicError{
 		{Err: errAPIHostTaken, Code: -32240, Name: "sys.api.host_taken", Message: "a route or the mail server uses that host; the API needs one of its own"},
 		{Err: errAPIAllow, Code: -32241, Name: "sys.api.bad_allow", Message: "an allowed source must be an address prefix, such as 203.0.113.0/24"},
+		{Err: errAppHostTaken, Code: -32242, Name: "sys.app.host_taken", Message: "a route, a site, the mail server or the API uses that host; each application needs one of its own"},
+		{Err: errAppSameHost, Code: -32243, Name: "sys.app.same_host", Message: "the app host and the admin host must be two names"},
 	}
 }
 
@@ -95,12 +103,12 @@ type APISettings struct {
 }
 
 func (m *apiModule) Verbs() []module.Verb {
-	return []module.Verb{
+	return append([]module.Verb{
 		module.Handle(module.Contract{Verb: "sys.api.get", Area: "sys.admin", Discloses: module.Plain, Since: 8, Result: "{host, allow}",
 			Doc: "The HTTPS API's host and the source ranges that may call it. An empty host means the API is off."}, m.get),
 		module.Handle(module.Contract{Verb: "sys.api.set", Area: "sys.admin", Mutates: true, Privileged: true, Since: 8, Param: "{host, allow?}", Result: "{host, allow}",
 			Doc: "Serves the HTTPS API on a host of its own, under a registered domain, to API tokens; an empty host turns it off. allow limits the callers to source prefixes."}, m.set),
-	}
+	}, m.appVerbs()...)
 }
 
 // load reads the settings at the core's start.
@@ -116,7 +124,7 @@ func (m *apiModule) load(ctx context.Context) error {
 	m.mu.Lock()
 	m.host, m.allow = host, strings.Fields(allow)
 	m.mu.Unlock()
-	return nil
+	return m.loadApps(ctx)
 }
 
 func (m *apiModule) get(context.Context, struct{}) (APISettings, error) {
@@ -138,7 +146,7 @@ func (m *apiModule) set(ctx context.Context, p APISettings) (APISettings, error)
 			return APISettings{}, err
 		case !ok:
 			return APISettings{}, gate.ErrNoDomain
-		case m.taken(h):
+		case m.taken(h) || h == m.appHostOf(hostgate.HostApp) || h == m.appHostOf(hostgate.HostAdmin):
 			return APISettings{}, errAPIHostTaken
 		}
 		host = h
@@ -182,19 +190,27 @@ func (m *apiModule) Host() string {
 	return m.host
 }
 
-// IsHost reports whether name is the API's host: the certificate manager
-// admits it, though no route names it.
+// IsHost reports whether name is the API's host or an application's: the
+// certificate manager admits it, though no route names it.
 func (m *apiModule) IsHost(name string) bool {
-	h := m.Host()
-	return h != "" && h == name
+	if name == "" {
+		return false
+	}
+	for _, h := range m.hosts() {
+		if h == name {
+			return true
+		}
+	}
+	return false
 }
 
-// hosts is the API's host as a list, for whoever reserves it.
+// hosts is the API's host and the applications', for whoever reserves them.
 func (m *apiModule) hosts() []string {
+	out := m.appHosts()
 	if h := m.Host(); h != "" {
-		return []string{h}
+		out = append([]string{h}, out...)
 	}
-	return nil
+	return out
 }
 
 // forGate is what the gate is sent: nil while the API is off.
@@ -214,11 +230,13 @@ func (m *apiModule) forGate() *hostgate.API {
 	return out
 }
 
-// serve takes the public verbs out of the control socket's modules. A verb
-// that is open or a login can never be public, and only a public verb may
-// declare a larger body: a mistake in a contract stops the core at its start.
+// serve takes the public verbs out of the control socket's modules: a
+// token's (Public) and a session's (Session). A verb that is open or a login
+// can never be either, and only a token's may declare a larger body: a
+// mistake in a contract stops the core at its start.
 func (m *apiModule) serve(mods ...module.Module) error {
 	m.public, m.names = map[string]module.Verb{}, map[int64]string{}
+	m.sessionVerbs, m.appVerbSet = map[string]module.Verb{}, map[string]module.Verb{}
 	for _, mod := range mods {
 		for _, e := range mod.Errors() {
 			m.errs = append(m.errs, e)
@@ -230,10 +248,17 @@ func (m *apiModule) serve(mods ...module.Module) error {
 				return fmt.Errorf("api: %s declares a body limit and is not public", v.Verb)
 			case v.MaxBody < 0 || v.MaxBody > MaxAPIBody:
 				return fmt.Errorf("api: %s declares a body limit outside 0 to %d", v.Verb, MaxAPIBody)
-			case v.Public && (v.Open || v.Login):
+			case (v.Public || v.Session) && (v.Open || v.Login):
 				return fmt.Errorf("api: %s is open or a login, and cannot be public", v.Verb)
-			case v.Public:
+			}
+			if v.Public {
 				m.public[v.Verb] = v
+			}
+			if v.Session {
+				m.sessionVerbs[v.Verb] = v
+				if !adminVerb(v.Contract) {
+					m.appVerbSet[v.Verb] = v
+				}
 			}
 		}
 	}
@@ -252,6 +277,12 @@ func (m *apiModule) call(ctx context.Context, ask hostgate.APIAsk) (ans hostgate
 			ans = refusal(hostgate.APIInternal, rpc.CodeInternal, "", "internal error")
 		}
 	}()
+	if ask.Host != "" { // an application's host: a session, never a token
+		return m.sessionCall(ctx, ask), nil
+	}
+	if ask.Session != "" {
+		return refusal(hostgate.APIToken, rpc.CodeAccessDenied, "api.unauthorized", "no valid API token"), nil
+	}
 	client := printable(ask.Client, 64)
 	// The token first (R13): without a good one every verb answers alike, so
 	// neither catalog is disclosed.
@@ -260,29 +291,39 @@ func (m *apiModule) call(ctx context.Context, ask hostgate.APIAsk) (ans hostgate
 		return m.noToken(), nil
 	}
 	if ask.Verb == apiContracts {
-		return m.contracts(ctx, principal), nil
+		return m.listContracts(ctx, principal, m.public, m.noToken()), nil
 	}
 	v, ok := m.public[ask.Verb]
 	if !ok {
 		return refusal(hostgate.APINotFound, rpc.CodeMethodNotFound, "api.not_found", "no such verb"), nil
 	}
+	return m.run(ctx, v, principal, func(name string) string {
+		return name + " (api " + client + ", " + strings.Replace(principal, "token:", "token #", 1) + ", request " + printable(ask.RequestID, 64) + ")"
+	}, ask.Param, m.noToken()), nil
+}
+
+// run is one call of a verb for principal, by either credential: the role
+// checked before the body is read, the body checked again, the verb run by
+// the control socket's chain. expired is the answer when the principal is no
+// longer anyone.
+func (m *apiModule) run(ctx context.Context, v module.Verb, principal string, actorOf func(name string) string, param []byte, expired hostgate.APIAnswer) hostgate.APIAnswer {
 	name, err := m.auth.Authorize(ctx, principal, time.Time{}, v.Contract)
-	actor := name + " (api " + client + ", " + strings.Replace(principal, "token:", "token #", 1) + ", request " + printable(ask.RequestID, 64) + ")"
+	actor := actorOf(name)
 	// Who may, before what was sent: a caller the role refuses learns nothing
 	// from its body, and the refusal is on record whatever the body was.
 	switch {
 	case errors.Is(err, auth.ErrExpired): // revoked or expired between the two reads
-		return m.noToken(), nil
+		return expired
 	case err != nil:
 		var named []any // what the call names, for the entry: only from a small body that is JSON
-		if len(ask.Param) <= apiBodyDefault {
+		if len(param) <= apiBodyDefault {
 			var p any
-			if json.Unmarshal(ask.Param, &p) == nil && p != nil {
+			if json.Unmarshal(param, &p) == nil && p != nil {
 				named = []any{p}
 			}
 		}
 		hostcontrol.Refused(ctx, m.aud, actor, v, named, err, m.errs)
-		return m.declared(hostgate.APIForbidden, err), nil
+		return m.declared(hostgate.APIForbidden, err)
 	}
 	// The gate holds a body to the verb's limit. The core checks it again: it
 	// takes the gate's word for nothing it can measure itself.
@@ -290,14 +331,14 @@ func (m *apiModule) call(ctx context.Context, ask hostgate.APIAsk) (ans hostgate
 	if limit == 0 {
 		limit = apiBodyDefault
 	}
-	if len(ask.Param) > limit {
-		return refusal(hostgate.APIBadParam, rpc.CodeInvalidParams, "", "the body is larger than this verb takes"), nil
+	if len(param) > limit {
+		return refusal(hostgate.APIBadParam, rpc.CodeInvalidParams, "", "the body is larger than this verb takes")
 	}
 	var params []any
-	if len(ask.Param) > 0 {
+	if len(param) > 0 {
 		var p any
-		if jerr := json.Unmarshal(ask.Param, &p); jerr != nil {
-			return refusal(hostgate.APIBadParam, rpc.CodeInvalidParams, "", "the body is not JSON"), nil
+		if jerr := json.Unmarshal(param, &p); jerr != nil {
+			return refusal(hostgate.APIBadParam, rpc.CodeInvalidParams, "", "the body is not JSON")
 		}
 		if p != nil {
 			params = []any{p}
@@ -308,27 +349,27 @@ func (m *apiModule) call(ctx context.Context, ask hostgate.APIAsk) (ans hostgate
 		var re *rpc.Error
 		switch {
 		case errors.As(err, &re) && re.Code == rpc.CodeInvalidParams:
-			return refusal(hostgate.APIBadParam, re.Code, "", re.Message), nil
+			return refusal(hostgate.APIBadParam, re.Code, "", re.Message)
 		case errors.As(err, &re) && re.Code != rpc.CodeInternal:
-			return refusal(hostgate.APIFailed, re.Code, m.names[re.Code], re.Message), nil
+			return refusal(hostgate.APIFailed, re.Code, m.names[re.Code], re.Message)
 		}
-		return refusal(hostgate.APIInternal, rpc.CodeInternal, "", "internal error"), nil
+		return refusal(hostgate.APIInternal, rpc.CodeInternal, "", "internal error")
 	}
 	b, err := json.Marshal(res)
 	if err != nil {
-		m.log.Error("api: a result that is not JSON", "verb", ask.Verb, "err", err)
-		return refusal(hostgate.APIInternal, rpc.CodeInternal, "", "internal error"), nil
+		m.log.Error("api: a result that is not JSON", "verb", v.Verb, "err", err)
+		return refusal(hostgate.APIInternal, rpc.CodeInternal, "", "internal error")
 	}
-	return hostgate.APIAnswer{Result: b}, nil
+	return hostgate.APIAnswer{Result: b}
 }
 
-// contracts answers the public contracts principal's role may call.
-func (m *apiModule) contracts(ctx context.Context, principal string) hostgate.APIAnswer {
+// listContracts answers the contracts of set principal's role may call.
+func (m *apiModule) listContracts(ctx context.Context, principal string, set map[string]module.Verb, expired hostgate.APIAnswer) hostgate.APIAnswer {
 	out := []module.Contract{}
-	for _, v := range m.public {
+	for _, v := range set {
 		_, err := m.auth.Authorize(ctx, principal, time.Time{}, v.Contract)
 		if errors.Is(err, auth.ErrExpired) {
-			return m.noToken()
+			return expired
 		}
 		if err == nil {
 			out = append(out, v.Contract)
@@ -385,7 +426,9 @@ func (apiLink) Errors() []module.PublicError { return nil }
 
 func (l apiLink) Verbs() []module.Verb {
 	return []module.Verb{
-		module.Handle(module.Contract{Verb: hostgate.VerbAPI, Since: 8, Open: true, Param: "{verb, param, token, client, request_id}", Result: "{result?, error?: {kind, code, name, message}}",
-			Doc: "One call of the HTTPS API, passed on by the gate: the token is resolved, the verb looked up among the public ones, the role checked, and the verb run. Link socket only."}, l.m.call),
+		module.Handle(module.Contract{Verb: hostgate.VerbAPI, Since: 8, Open: true, Param: "{verb, param, token, client, request_id, host?, authority?, session?, csrf?, origin?, fetch_site?, method?}", Result: "{result?, error?: {kind, code, name, message}}",
+			Doc: "One call of the HTTPS API, passed on by the gate: the token or, on an application's host, the session is resolved, the verb looked up among the public ones, the role checked, and the verb run. Link socket only."}, l.m.call),
+		module.Handle(module.Contract{Verb: hostgate.VerbSession, Since: 11, Open: true, Param: "{op, param?, host, authority, session?, csrf?, origin?, fetch_site?, method, client, agent?, request_id}", Result: "{result?, error?, cookie?, clear?}",
+			Doc: "A browser's sign-in, its session's state, its second token again, or its sign-out, on an application's host, passed on by the gate. Link socket only."}, l.m.session),
 	}
 }

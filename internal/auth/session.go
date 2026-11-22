@@ -195,6 +195,16 @@ func (ss *Sessions) CSRF(s Session, cookie, token string) bool {
 	return token != "" && subtle.ConstantTimeCompare([]byte(want), []byte(token)) == 1
 }
 
+// ExpiresAt is when s's life ends, Unix seconds, whatever its idle limit.
+func (ss *Sessions) ExpiresAt(s Session) int64 {
+	l, _ := limitsOf(s.Host)
+	return s.CreatedAt + int64(l.Life/time.Second)
+}
+
+// ShortID is a session's name in the audit log and in a user's list: the
+// first bytes of its id's hash, never the id.
+func ShortID(s Session) string { return viewID(s.IDHash) }
+
 // Token is the second token of a live session again: for a page that was
 // reloaded, or a second tab. Nothing is written.
 func (ss *Sessions) Token(s Session, cookie string) string { return csrfToken(s.CSRFKey, cookie) }

@@ -283,12 +283,8 @@ func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateContr
 	mailMod.SetProxyProbe(counts.unproxied) // what the gate's probe of mail's ports found
 	// The HTTPS API: off until sys.api.set names its host. The gate serves it;
 	// its calls come back over the link.
-	apiMod := &apiModule{st: st, aud: st, log: log, covered: gm.Covered, changed: rev.bump,
-		taken: func(h string) bool { return table.Holds(h) || mailMod.IsHost(h) }}
-	if err := apiMod.load(ctx); err != nil {
-		return err
-	}
-	// The API's hosts and the sites' are AutoPanel's own: no route may hold one.
+	// The API's hosts, the applications' and the sites' are AutoPanel's own:
+	// no route may hold one, and no two of them the same name.
 	siteHosts := func() []string {
 		ss, err := st.Sites().Sites(context.Background())
 		if err != nil {
@@ -302,6 +298,19 @@ func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateContr
 			}
 		}
 		return out
+	}
+	isSite := func(h string) bool {
+		for _, s := range siteHosts() {
+			if s == h {
+				return true
+			}
+		}
+		return false
+	}
+	apiMod := &apiModule{st: st, aud: st, log: log, covered: gm.Covered, changed: rev.bump,
+		taken: func(h string) bool { return table.Holds(h) || mailMod.IsHost(h) || isSite(h) }}
+	if err := apiMod.load(ctx); err != nil {
+		return err
 	}
 	gm.SetReserved(func() []string { return append(apiMod.hosts(), siteHosts()...) })
 	// The mail host and the API's host have certificates, though no route names them.
@@ -330,6 +339,11 @@ func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateContr
 	// The control socket: this user's processes only, so root's under the unit.
 	// A privileged verb's entry goes to the store's audit log before it runs.
 	apiMod.auth = am
+	// The browser sessions: the applications' hosts make them, and the users'
+	// module ends them when a user changes.
+	apiMod.logins = am
+	apiMod.sessions = auth.NewSessions(st.Sessions())
+	am.SetSessions(apiMod.sessions)
 	// Port forwards: the gate carries them beside mail's ports.
 	fm := forward.NewModule(st.Forwards(), forwardHost{fw: firewallHost()}, forwardReserved(cfg), nil)
 	sendForwards := forwardStreams(fm, streams)

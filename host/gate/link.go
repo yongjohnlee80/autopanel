@@ -17,6 +17,7 @@ const (
 	VerbReport    = "link.report"
 	VerbStreams   = "link.streams"
 	VerbAPI       = "link.api"
+	VerbSession   = "link.session"
 	VerbAgents    = "link.agents"
 	VerbEnrol     = "link.enrol"
 )
@@ -109,7 +110,25 @@ type After struct {
 type Routes struct {
 	Rev    int64            `json:"rev"`
 	Routes []core.RouteView `json:"routes"`
-	API    *API             `json:"api,omitempty"` // nil: the API is off
+	API    *API             `json:"api,omitempty"`  // nil: the API is off
+	Apps   *Apps            `json:"apps,omitempty"` // nil: both application hosts are off
+}
+
+// The kinds of host the applications are served on; a session belongs to the
+// one it was made on (internal/auth).
+const (
+	HostApp   = "app"   // mail and drive
+	HostAdmin = "admin" // the admin application
+)
+
+// Apps is what the gate needs to serve the browser applications' hosts: each
+// name ("" when it is off) and who may reach it. An empty Allow lets anyone
+// reach the app host; an empty AdminAllow lets nobody reach the admin host.
+type Apps struct {
+	Host       string   `json:"host"`
+	Allow      []string `json:"allow"`
+	AdminHost  string   `json:"admin_host"`
+	AdminAllow []string `json:"admin_allow"`
 }
 
 // API is what the gate needs to serve the HTTPS API: the one host it is
@@ -135,6 +154,52 @@ type APIAsk struct {
 	Token     string `json:"token"`      // as the client sent it: the gate never reads it
 	Client    string `json:"client"`     // the address the gate saw, for the audit log
 	RequestID string `json:"request_id"` // validated or made by the gate
+	// On an application's host, in place of a token: the host's kind, the
+	// session cookie's value, and what the request says of where it came
+	// from. The gate passes them as sent and decides nothing with them.
+	Host      string `json:"host,omitempty"`       // HostApp, HostAdmin; "" for the API's host
+	Authority string `json:"authority,omitempty"`  // the Host header, its port with it, which Origin must name
+	Session   string `json:"session,omitempty"`    // the cookie's value
+	CSRF      string `json:"csrf,omitempty"`       // the X-AP-CSRF header
+	Origin    string `json:"origin,omitempty"`     // the Origin header
+	FetchSite string `json:"fetch_site,omitempty"` // the Sec-Fetch-Site header
+	Method    string `json:"method,omitempty"`
+}
+
+// SessionAsk is link.session's param: signing in, asking about, renewing the
+// second token of, or signing out of a browser session on an application's
+// host. Param is the sign-in's body ({name, passphrase, code}).
+type SessionAsk struct {
+	Op        string `json:"op"` // SessionOpen, SessionGet, SessionCSRF, SessionEnd
+	Param     []byte `json:"param,omitempty"`
+	Host      string `json:"host"`
+	Authority string `json:"authority"`
+	Session   string `json:"session,omitempty"`
+	CSRF      string `json:"csrf,omitempty"`
+	Origin    string `json:"origin,omitempty"`
+	FetchSite string `json:"fetch_site,omitempty"`
+	Method    string `json:"method"`
+	Client    string `json:"client"`
+	Agent     string `json:"agent,omitempty"` // the User-Agent header, cut short
+	RequestID string `json:"request_id"`
+}
+
+// The operations of link.session.
+const (
+	SessionOpen = "open" // POST /v1/session
+	SessionGet  = "get"  // GET /v1/session
+	SessionCSRF = "csrf" // POST /v1/session/csrf
+	SessionEnd  = "end"  // DELETE /v1/session
+)
+
+// SessionAnswer is link.session's answer: a body or a refusal, and what to do
+// with the cookie: set it to Cookie, or clear it. Neither a body nor an error
+// is 204.
+type SessionAnswer struct {
+	Result []byte    `json:"result,omitempty"`
+	Error  *APIError `json:"error,omitempty"`
+	Cookie string    `json:"cookie,omitempty"`
+	Clear  bool      `json:"clear,omitempty"`
 }
 
 // APIAnswer is link.api's answer: the verb's result as JSON, or why not.
@@ -151,6 +216,7 @@ const (
 	APIBadParam  = "bad_param" // the body is not what the verb takes: 400
 	APIFailed    = "failed"    // the verb refused, with a declared error: 422
 	APIInternal  = "internal"  // nothing a caller may read: 500
+	APIBusy      = "busy"      // too many waiting, try again: 503
 )
 
 // APIError is a refusal as the API's caller sees it.

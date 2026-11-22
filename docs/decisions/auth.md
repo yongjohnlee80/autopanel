@@ -175,5 +175,51 @@ browser holds only a random id, in a cookie its scripts cannot read.
   `auth.session.*`) are session verbs only: a token never reaches them. From the app host a person
   acts on their own account only, whatever their role: managing others is the admin host's.
 
+### The application hosts
+
+**Decided:** the browser applications are served on two host names of their own, each off until
+`sys.app.set` names it: the app host (mail and drive) and the admin host (the admin application).
+Each is under a registered domain, and no route, site, mail server or API may hold it, nor the two
+the same name. Every call a page makes is then same-origin, and no cross-origin rule is ever
+needed. A browser keeps one host's cookie from the other, so a flaw in webmail cannot ride an
+administrator's session.
+
+| Request | Answer |
+| --- | --- |
+| `POST /v1/session` `{name, passphrase, code}` | `200 {csrf, user: {name, role, must_change}, expires_at}` and the cookie; every failure the same `401` |
+| `GET /v1/session` | `200 {user, expires_at}` for a live session; `401` otherwise |
+| `POST /v1/session/csrf` | `200 {csrf}`: the second token again, for a reload or another tab; nothing is written |
+| `DELETE /v1/session` | `204`; the cookie is cleared |
+| `POST /v1/call/<verb>`, `GET /v1/contracts` | as on the API's host, with the session in place of a token |
+
+- **The cookie:** `__Host-ap_session=<id>; Path=/; Secure; HttpOnly; SameSite=Strict`, with no
+  `Domain` and no lifetime: it ends with the browser, and at the server's limits. The id is never
+  in a body or a URL. Signing out clears it with every attribute and `Max-Age=0`.
+- **A change needs three things:** the cookie, the second token in `X-AP-CSRF`, and a request the
+  browser marks as same-origin: `Origin` names the host the request was sent to, and
+  `Sec-Fetch-Site`, when the browser sends it, is `same-origin`. A request with no `Origin` is not.
+  Every verb a token cannot call is held to the same rule, reads included. A sign-in from another
+  page is refused before it costs a derivation.
+- **The gate decides nothing with them.** It passes the cookie's value, the header, `Origin`,
+  `Sec-Fetch-Site`, the method and the `Host` header to the core, which checks them. No
+  `Access-Control-*` header is ever sent, and every answer is `Cache-Control: no-store`.
+- **One credential a host:** a token on an application's host is `401`, and a token with a cookie
+  is `400`. A session is refused on the host it was not made on.
+- **Who may reach a host at all:** `allow` names source ranges for the app host, and none means
+  anyone; `admin_allow` names them for the admin host, and **none means nobody**: the admin
+  application is off the internet until the administrator says where it may be used from. The gate
+  refuses any other address before it reads a body.
+- **The admin host is the admin's and the operator's:** another role's sign-in there fails like any
+  other, and a demoted user's session there ends at its next call. Only the admin host serves the
+  host's own areas (`sys`, `sys.admin`, `gate`, `certs`, `firewall`, `services`, `mail.admin`,
+  `site.admin`) and the management of users; a session of the app host never reaches them, whatever
+  its role.
+- **A user who must change the passphrase** may call only `auth.passphrase.change`.
+- **Sign-ins are limited before the core hears of them:** 5 a minute from an address (IPv6 by
+  /64), a burst of 5, then `429` with `Retry-After`.
+- The applications' own files are a later step: until then every other path on these hosts is
+  `404`.
+
 **In the code:** `internal/auth/session.go` (`Sessions`), `internal/auth/browser.go`
-(`BrowserLogin`), `internal/auth/selfservice.go` (`confirm`, the session verbs), `store/sessions.go`.
+(`BrowserLogin`), `internal/auth/selfservice.go` (`confirm`, the session verbs), `store/sessions.go`,
+`app/apphost.go` (`sys.app.*`, `link.session`, `sessionCall`), `host/gate/apps.go`.

@@ -256,6 +256,9 @@ func (g *process) sync(ctx context.Context) error {
 	if err := g.api.set(r.API); err != nil {
 		g.log.Error("gate: API settings the gate cannot use; the old ones stay", "err", err)
 	}
+	if err := g.api.setApps(r.Apps); err != nil {
+		g.log.Error("gate: the applications' settings the gate cannot use; the old ones stay", "err", err)
+	}
 	snap, err := Build(routes, g.trusted, g.tunnels.dial)
 	if err != nil {
 		g.log.Error("gate: a routing table the gate cannot build; the old one stays", "err", err)
