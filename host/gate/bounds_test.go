@@ -1022,3 +1022,94 @@ func TestAConnectionsFramesFitItsAllowance(t *testing.T) {
 		t.Fatalf("%d connections part way through a frame hold %d bytes; they are counted for %d", conns, grew, conns*costConnHeap)
 	}
 }
+
+// TestAFrameOverItsAllowanceEndsTheConnection: the gate itself, not a copy of
+// its settings, answers a frame declared one byte larger than h2FrameBytes
+// with GOAWAY FRAME_SIZE_ERROR before it reads the frame, and a frame of the
+// largest size is taken.
+func TestAFrameOverItsAllowanceEndsTheConnection(t *testing.T) {
+	up := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	defer up.Close()
+	f := newFakeCore(t, freeAddr(t), freeAddr(t))
+	f.hold("app.example.com")
+	f.setRoutes(core.RouteView{ID: 1, Host: "app.example.com", PathPrefix: "/", Upstream: up.URL})
+	startGate(t, f)
+	f.mu.Lock()
+	addr, pool := f.hello.HTTPS, f.pool
+	f.mu.Unlock()
+	dial := func() *tls.Conn {
+		t.Helper()
+		var err error
+		for range 50 { // the route and its certificate reach the gate a moment after its start
+			var c *tls.Conn
+			if c, err = tls.Dial("tcp", addr, &tls.Config{RootCAs: pool, ServerName: "app.example.com", NextProtos: []string{"h2"}}); err == nil {
+				return c
+			}
+			time.Sleep(50 * time.Millisecond)
+		}
+		t.Fatal(err)
+		return nil
+	}
+	goaway := func(size int) (code uint32, got bool) {
+		t.Helper()
+		c := dial()
+		defer c.Close()
+		if c.ConnectionState().NegotiatedProtocol != "h2" {
+			t.Fatal("the gate did not speak HTTP/2")
+		}
+		_, _ = io.WriteString(c, "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n")
+		_ = h2Frame(c, 4, 0, 0, nil) // SETTINGS
+		// a PING frame (stream 0) of the size asked: a ping is 8 bytes, so the
+		// size is checked first, and anything past it is the ping's error
+		head := []byte{byte(size >> 16), byte(size >> 8), byte(size), 6, 0, 0, 0, 0, 0}
+		if _, err := c.Write(head); err != nil {
+			t.Fatal(err)
+		}
+		_ = c.SetReadDeadline(time.Now().Add(5 * time.Second))
+		for {
+			var h [9]byte
+			if _, err := io.ReadFull(c, h[:]); err != nil {
+				return 0, false
+			}
+			n := int(h[0])<<16 | int(h[1])<<8 | int(h[2])
+			payload := make([]byte, n)
+			if _, err := io.ReadFull(c, payload); err != nil {
+				return 0, false
+			}
+			if h[3] == 7 && n >= 8 { // GOAWAY: last stream id, then the error code
+				return uint32(payload[4])<<24 | uint32(payload[5])<<16 | uint32(payload[6])<<8 | uint32(payload[7]), true
+			}
+		}
+	}
+	const frameSizeError = 6
+	if code, ok := goaway(h2FrameBytes + 1); !ok || code != frameSizeError {
+		t.Fatalf("a frame one byte over the allowance: GOAWAY %v, code %d; want FRAME_SIZE_ERROR", ok, code)
+	}
+	// A frame of exactly the allowance is read (an unknown type, which a peer
+	// must ignore), and the connection goes on: a ping after it is answered.
+	c := dial()
+	defer c.Close()
+	_, _ = io.WriteString(c, "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n")
+	_ = h2Frame(c, 4, 0, 0, nil)
+	if err := h2Frame(c, 0xa, 0, 0, make([]byte, h2FrameBytes)); err != nil {
+		t.Fatal(err)
+	}
+	_ = h2Frame(c, 6, 0, 0, []byte("pingpong"))
+	_ = c.SetReadDeadline(time.Now().Add(5 * time.Second))
+	for {
+		var h [9]byte
+		if _, err := io.ReadFull(c, h[:]); err != nil {
+			t.Fatalf("a frame of the largest size ended the connection: %v", err)
+		}
+		payload := make([]byte, int(h[0])<<16|int(h[1])<<8|int(h[2]))
+		if _, err := io.ReadFull(c, payload); err != nil {
+			t.Fatal(err)
+		}
+		switch {
+		case h[3] == 7:
+			t.Fatalf("a frame of the largest size: GOAWAY, code %d", payload[7])
+		case h[3] == 6 && h[4]&1 == 1 && string(payload) == "pingpong":
+			return
+		}
+	}
+}
