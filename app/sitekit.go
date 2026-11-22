@@ -3,13 +3,20 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html"
+	"image/color"
 	"io"
 	"io/fs"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+
+	"github.com/yongjohnlee80/autodoc/core/export"
+	"github.com/yongjohnlee80/golib/chart/vegalite"
 
 	coresite "github.com/yongjohnlee80/autopanel/core/site"
 	"github.com/yongjohnlee80/autopanel/internal/hostcmd"
@@ -40,8 +47,19 @@ func defaultKitPaths() kitPaths {
 	}
 }
 
-// maxFragment is the most a rendered body may hold (the site record's bound).
-const maxFragment = 4 << 20
+// The render's bounds that are AutoPanel's to keep (Fragment keeps a table's
+// and an embed's; docs/decisions/site.md): the rendered body, the diagrams
+// and charts one document may ask for, one Mermaid diagram's source, and one
+// chart's spec.
+const (
+	maxFragment      = 4 << 20
+	maxDiagrams      = 50
+	maxDiagramSource = 64 << 10
+	maxChartSpec     = 256 << 10
+	chartWidth       = 640
+	// renderTheme is the palette a chart is drawn in: the kit's pages are light.
+	renderTheme = "light"
+)
 
 // siteBuild is autopanel --site-build.
 func siteBuild(stdout, stderr io.Writer) int {
@@ -73,10 +91,11 @@ func siteBuild(stdout, stderr io.Writer) int {
 }
 
 // renderFragments writes each document's body, rendered, where the kit reads
-// it: <fragments>/<path>.html.
-//
-// Interim: until AutoDoc's Fragment is imported (AutoDoc v0.3.18), a body is
-// its source, escaped, in a <pre>. Nothing of it is markup.
+// it: <fragments>/<path>.html. A Markdown document (md, xmd) is rendered by
+// AutoDoc's Fragment: no page, no inline script, no stylesheet, every URL
+// through siteLink, its embeds read from its own files alone. An HTML
+// document is, for now, its source escaped in a <pre>: nothing of it is
+// markup.
 func renderFragments(p kitPaths) error {
 	raw, err := os.ReadFile(filepath.Join(p.Content, "build.json"))
 	if err != nil {
@@ -100,7 +119,16 @@ func renderFragments(p kitPaths) error {
 		if err != nil {
 			return fmt.Errorf("%s: %w", d.Path, err)
 		}
-		body := renderInterim(src)
+		var embeds string
+		if d.Dir != "" {
+			if info, err := root.Stat(d.Dir); err == nil && info.IsDir() {
+				embeds = filepath.Join(p.Content, filepath.FromSlash(d.Dir))
+			}
+		}
+		body, err := renderBody(d.Format, src, embeds)
+		if err != nil {
+			return fmt.Errorf("%s: %w", d.Path, err)
+		}
 		if len(body) > maxFragment {
 			return fmt.Errorf("%s: its body is larger than %d bytes", d.Path, maxFragment)
 		}
@@ -167,6 +195,75 @@ func copyImages(p kitPaths) error {
 		}
 	}
 	return nil
+}
+
+// renderBody is one document's body, rendered.
+func renderBody(format string, src []byte, embeds string) (string, error) {
+	switch format {
+	case coresite.Markdown, coresite.XMD:
+	default:
+		return renderInterim(src), nil
+	}
+	b, _, err := export.Fragment(src, export.FragmentOptions{Theme: renderTheme, Chart: chartSVG, Embeds: embeds, Link: siteLink,
+		MaxDiagrams: maxDiagrams, MaxDiagramSource: maxDiagramSource})
+	switch {
+	case errors.Is(err, export.ErrTooManyDiagrams):
+		return "", fmt.Errorf("it asks for more than %d diagrams and charts", maxDiagrams)
+	case errors.Is(err, export.ErrDiagramTooLarge):
+		return "", fmt.Errorf("a diagram's source is over %d bytes", maxDiagramSource)
+	case err != nil:
+		return "", err
+	}
+	return string(b), nil
+}
+
+// chartSVG draws a Vega-Lite spec as inline SVG with golib's chart/vegalite,
+// in the render's palette: no fonts are loaded in the container, so labels
+// are measured by an approximation of a sans-serif. A spec it cannot lay out
+// stays its source, captioned with why.
+func chartSVG(spec []byte, theme string) (string, error) {
+	if len(spec) > maxChartSpec {
+		return "", fmt.Errorf("the chart's spec is over %d bytes", maxChartSpec)
+	}
+	bg, fg, muted, border := export.Colors(theme)
+	laid, err := vegalite.Lay(context.Background(), string(spec), chartWidth, vegalite.Theme{
+		Background: nrgba(bg), Text: nrgba(fg), Axis: nrgba(muted), Grid: nrgba(border),
+	}, nil)
+	if err != nil {
+		return "", err
+	}
+	return string(laid.SVG()), nil
+}
+
+// nrgba is a #rrggbb colour.
+func nrgba(hex string) color.NRGBA {
+	v, err := strconv.ParseUint(strings.TrimPrefix(hex, "#"), 16, 32)
+	if err != nil || len(hex) != 7 {
+		return color.NRGBA{A: 0xff}
+	}
+	return color.NRGBA{R: uint8(v >> 16), G: uint8(v >> 8), B: uint8(v), A: 0xff}
+}
+
+// siteLink is the rule for every URL a body holds: a fragment of the page, a
+// path on the site (its own files beside it, another page), or an http,
+// https or mailto address elsewhere. Anything else (javascript:, data:, a
+// protocol-relative //host, a backslash or a control character) is dropped:
+// a link keeps its text, an image its alt.
+func siteLink(href string) (string, bool) {
+	if href == "" || strings.ContainsAny(href, "\\\x00\t\n\r") || strings.HasPrefix(href, "//") {
+		return "", false
+	}
+	u, err := url.Parse(href)
+	if err != nil {
+		return "", false
+	}
+	switch strings.ToLower(u.Scheme) {
+	case "":
+		return href, u.Host == ""
+	case "http", "https", "mailto":
+		return href, true
+	}
+	return "", false
 }
 
 // renderInterim is a body as its source, escaped.

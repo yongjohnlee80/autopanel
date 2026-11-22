@@ -159,10 +159,11 @@ the whole build.
     build made it. The copy may have its own styles.
   - An active document is shown from the content host, in a frame allowed scripts and nothing
     more.
-- **Inline SVG is what the chart writer draws:** its shapes, clips, gradients and labels, with
-  `url()` only to a fragment of the same drawing. There is no script, `foreignObject`, `use`,
-  `image`, link, animation or style. The test fixtures are charts made by golib's own writer
-  (`core/site/testdata/charts`).
+- **Inline SVG is what the chart writers draw:** its shapes, clips, gradients and labels (placed
+  by `text-anchor` and a central baseline), with `url()` only to a fragment of the same drawing.
+  There is no script, `foreignObject`, `use`, `image`, link, animation or style. The test fixtures
+  are charts made by golib's own writers (`core/site/testdata/charts`, and each fixture spec drawn
+  by `chart/vegalite`, the renderer's).
 - **A stylesheet is read as CSS reads it:** comments skipped, and escapes and strings decoded. An
   `@import`, a `url()` that is not a path of the site, and the functions that load without
   `url()` are refused.
@@ -310,8 +311,20 @@ the builder's container, from an image pinned by digest (`site/Containerfile`).
   document's source and files. The input is mounted outside the project, so Astro never reads it
   as content of its own.
 - **`autopanel --site-build` is the container's entrypoint.** It renders each body into a fragment
-  on the scratch, then runs Astro. Until AutoDoc's `Fragment` is imported, a body is shown as its
-  escaped source.
+  on the scratch, then runs Astro.
+- **A Markdown body (md, xmd) is rendered by AutoDoc's `Fragment`** (`core/export`): the body
+  alone, with no page, no inline script and no stylesheet. Raw HTML in the Markdown is escaped.
+  - **Its embeds** (a diagram, a chart, a table, an image) are read from the document's own files
+    and nowhere else.
+  - **Every URL goes through the site's rule:** a fragment, a path on the site, or an `http`,
+    `https` or `mailto` address; anything else (`javascript:`, `data:`, `//host`, a backslash or
+    a control character) is dropped, a link keeping its text and an image its alt.
+  - **A chart is inline SVG** drawn by golib's `chart/vegalite` (no GUI, no cgo, no fonts: labels
+    are measured by an approximation of a sans-serif); one it cannot draw stays its source.
+  - **The bounds that are AutoPanel's:** 50 diagrams and charts a document, 64 KiB a Mermaid
+    diagram's source, 256 KiB a chart's spec, 4 MiB a rendered body; past any, the build fails and
+    names the document. A table's (1,000 rows shown) and an embed's (1 MiB) are `Fragment`'s.
+  - An HTML document is shown as its escaped source for now: nothing of it is markup.
 - **What it makes:**
   - the home page, a page at each document's and each folder's address, and a folder's page
     listing its public children;

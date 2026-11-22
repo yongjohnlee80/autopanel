@@ -106,7 +106,9 @@ func TestTheKitBuildsASite(t *testing.T) {
 	kitCall(t, m, "user:root", "site.set", coresite.SiteSet{Host: "blog.example.com", Config: &[]string{"title: " + title + "\nlook: {accent: '#aa3300', font: sans}\n"}[0]})
 	kitCall(t, m, "user:ann", "site.folder.add", coresite.FolderAsk{Site: "blog.example.com", Path: "guides", Visibility: "public", Title: &[]string{"Guides"}[0]})
 	kitCall(t, m, "user:ann", "site.doc.put", coresite.Put{Site: "blog.example.com", Folder: "guides", Slug: "install", Format: "md",
-		Body: "# Install\n\nRun it. <script>alert(1)</script> is text.\n", Visibility: "public", Meta: []byte(`{"title":"Install","date":"2026-11-21"}`)})
+		Body: "# Install\n\nRun it. <script>alert(1)</script> is text.\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n![the flow](img/flow.png)\n\n" +
+			"```vega-lite\n{\"data\":{\"values\":[{\"a\":\"x\",\"b\":1},{\"a\":\"y\",\"b\":3}]},\"mark\":\"bar\",\"encoding\":{\"x\":{\"field\":\"a\",\"type\":\"nominal\"},\"y\":{\"field\":\"b\",\"type\":\"quantitative\"}}}\n```\n",
+		Visibility: "public", Meta: []byte(`{"title":"Install","date":"2026-11-21"}`)})
 	kitCall(t, m, "user:ann", "site.doc.put", coresite.Put{Site: "blog.example.com", Slug: "diary", Format: "md", Body: "# the held text\n", Visibility: "private"})
 	png := base64.StdEncoding.EncodeToString([]byte("\x89PNG\r\n\x1a\nthe picture"))
 	kitCall(t, m, "user:ann", "site.asset.put", coresite.AssetAsk{Site: "blog.example.com", Folder: "guides", Slug: "install", Name: "img/flow.png", Data: png})
@@ -134,6 +136,11 @@ func TestTheKitBuildsASite(t *testing.T) {
 	code, body, csp := get("/guides/install/")
 	if code != 200 || !strings.Contains(body, "&lt;script&gt;alert(1)&lt;/script&gt; is text.") || !strings.HasPrefix(csp, "default-src 'none'") {
 		t.Fatalf("the document's page: %d %q %q", code, body, csp)
+	}
+	for _, want := range []string{"<table", "<svg", `src="img/flow.png"`} { // rendered by Fragment, not escaped
+		if !strings.Contains(body, want) {
+			t.Fatalf("the document's page lacks %s: %q", want, body)
+		}
 	}
 	if code, body, _ := get("/"); code != 200 || !strings.Contains(body, "Notes &lt;and&gt; things") {
 		t.Fatalf("the home page: %d %q", code, body)
