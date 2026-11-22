@@ -6,6 +6,8 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"os/exec"
 	"strings"
 	"sync"
 	"testing"
@@ -212,7 +214,7 @@ func TestTheRecoveryAdministratorResetsTheAdministrator(t *testing.T) {
 	s, env := newKeysStalwart(t)
 	ctx := context.Background()
 	s.admins["admin@example.net"] = "lost"
-	rec, err := Product{}.RecoveryCredential()
+	rec, err := (Product{}).RecoveryCredential()
 	if err != nil || !strings.HasPrefix(string(rec), recoveryName+":") || len(rec) < len(recoveryName)+40 {
 		t.Fatalf("the recovery credential: %v", err)
 	}
@@ -267,5 +269,127 @@ func TestTheRecoveryDefinition(t *testing.T) {
 		if ourKey(d) != want {
 			t.Errorf("ourKey(%q) = %v", d, !want)
 		}
+	}
+}
+
+// TestRepairAgainstStalwart repairs a real, throwaway Stalwart on the test VM
+// (the record's tests 2 and 3): AUTOPANEL_TEST_STALWART_REPAIR names a
+// rootless Podman container this test may remove and make again, with two
+// volumes of the same name and -etc, -data; AUTOPANEL_TEST_STALWART is its
+// management URL. Never a server that matters: the test destroys it.
+func TestRepairAgainstStalwart(t *testing.T) {
+	name, url := os.Getenv("AUTOPANEL_TEST_STALWART_REPAIR"), os.Getenv("AUTOPANEL_TEST_STALWART")
+	if name == "" || url == "" {
+		t.Skip("needs a throwaway Stalwart: AUTOPANEL_TEST_STALWART_REPAIR and AUTOPANEL_TEST_STALWART")
+	}
+	port := url[strings.LastIndex(url, ":")+1:]
+	run := func(recovery string, fresh bool) {
+		t.Helper()
+		_ = exec.Command("podman", "rm", "-f", name).Run()
+		if fresh {
+			_ = exec.Command("podman", "volume", "rm", "-f", name+"-etc", name+"-data").Run()
+		}
+		args := []string{"run", "-d", "--name", name, "-p", "127.0.0.1:" + port + ":8080",
+			"-v", name + "-etc:/etc/stalwart", "-v", name + "-data:/var/lib/stalwart"}
+		if recovery != "" {
+			args = append(args, "-e", recoveryVariable+"="+recovery)
+		}
+		if out, err := exec.Command("podman", append(args, Image)...).CombinedOutput(); err != nil {
+			t.Fatalf("podman run: %v: %s", err, out)
+		}
+		for range 60 {
+			if resp, err := http.Get(url + "/"); err == nil {
+				resp.Body.Close()
+				time.Sleep(2 * time.Second)
+				return
+			}
+			time.Sleep(time.Second)
+		}
+		t.Fatal("Stalwart did not start")
+	}
+	t.Cleanup(func() {
+		_ = exec.Command("podman", "rm", "-f", name).Run()
+		_ = exec.Command("podman", "volume", "rm", "-f", name+"-etc", name+"-data").Run()
+	})
+	run("", true)
+	env := &podmanEnv{t: t, name: name, base: url, sealed: map[string][]byte{}}
+	ctx := context.Background()
+	if err := (Product{}).Bootstrap(ctx, env); err != nil {
+		t.Fatal(err)
+	}
+	oldKey := string(env.sealed[provider.SealedAPIKey])
+	keyClient := func(k string) *Client {
+		return NewClient(url, Bearer(func(context.Context) (string, error) { return k, nil }))
+	}
+	a, err := sealedAdminOf(ctx, env)
+	if err != nil {
+		t.Fatal(err)
+	}
+	admin := NewClient(url, Basic(a.Username, a.Secret))
+	for _, d := range []string{"autopanel core 2026-01-01T00:00Z", "monitoring", "autopanel corehelper"} {
+		if _, _, err := admin.CreateAPIKey(ctx, d); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// key_lost: the administrator makes a new key; AutoPanel's older ones go.
+	kr, err := (Product{}).NewAPIKey(ctx, env, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if kr.Destroyed != 2 || len(kr.Kept) != 2 {
+		t.Fatalf("a new key: %+v", kr)
+	}
+	if _, err := keyClient(oldKey).Domains(ctx); !errors.Is(err, ErrUnauthorized) {
+		t.Fatalf("the bootstrap's key after the repair: %v", err)
+	}
+	if _, err := keyClient(string(env.sealed[provider.SealedAPIKey])).Domains(ctx); err != nil {
+		t.Fatalf("the new key: %v", err)
+	}
+
+	// admin_lost: the administrator's secret changed behind AutoPanel's back.
+	accounts, err := admin.Accounts(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var adminID string
+	for _, acc := range accounts {
+		if acc.Admin {
+			adminID = acc.ID
+		}
+	}
+	unknown, _ := lockedSecret()
+	if err := admin.SetSecret(ctx, adminID, unknown); err != nil {
+		t.Fatal(err)
+	}
+	if err := (Product{}).AdminSignsIn(ctx, env); !errors.Is(err, provider.ErrUnauthorized) {
+		t.Fatalf("a lost administrator: %v", err)
+	}
+	rec, err := (Product{}).RecoveryCredential()
+	if err != nil {
+		t.Fatal(err)
+	}
+	run(string(rec), false)
+	if err := (Product{}).RecoverySignsIn(ctx, url, rec); err != nil {
+		t.Fatalf("the recovery administrator: %v", err)
+	}
+	if err := (Product{}).ResetAdmin(ctx, env, rec); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := (Product{}).NewAPIKey(ctx, env, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	run("", false)
+	if err := (Product{}).RecoverySignsIn(ctx, url, rec); !errors.Is(err, provider.ErrUnauthorized) {
+		t.Fatalf("the recovery administrator after a start without it: %v", err)
+	}
+	if err := (Product{}).AdminSignsIn(ctx, env); err != nil {
+		t.Fatalf("the administrator after the repair: %v", err)
+	}
+	if _, err := keyClient(string(env.sealed[provider.SealedAPIKey])).Domains(ctx); err != nil {
+		t.Fatalf("the key after the repair: %v", err)
+	}
+	if accs, err := admin.Accounts(ctx); err == nil {
+		t.Fatalf("the administrator's lost secret still signs in (%d accounts)", len(accs))
 	}
 }
