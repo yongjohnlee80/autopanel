@@ -116,3 +116,36 @@ jobs:
       - uses: golang/govulncheck-action@032d45514ae346b1db93c04b0c90b841c370344f # v1.1.0
         with:
           go-version-file: go.mod
+
+  # The site kit (site/): its sources hold no script, its image builds as the
+  # release builds it, and the packages its lock file pins are audited. A
+  # site's pages run no script but the kit's own, which the core's output
+  # check matches by integrity (docs/decisions/site.md).
+  site-kit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: no script in the kit's sources
+        run: |
+          # No <script>, no island (client:*), no inline script, no event
+          # handler attribute; raw HTML only where a rendered body is placed.
+          bad=$(grep -rnE '<script|client:[a-z]|is:inline|[[:space:]]on[a-z]+=' site/src || true)
+          raw=$(grep -rn 'set:html' site/src | grep -vE 'set:html=\{fragment\((named|doc)\)\}' || true)
+          if [ -n "$bad$raw" ]; then
+            printf '%s\n%s\n' "$bad" "$raw"
+            echo "the kit's sources hold a script, or raw HTML other than a rendered body"
+            exit 1
+          fi
+      - name: build the kit's image
+        run: docker build -f site/Containerfile -t autopanel-site-kit:ci .
+      - name: audit the kit's packages
+        run: |
+          docker build -f site/Containerfile --target kit -t autopanel-site-kit:deps .
+          docker run --rm --entrypoint npm autopanel-site-kit:deps audit --omit=dev --audit-level=high
+      - name: the image fetches and installs nothing
+        run: |
+          for tool in npm npx corepack yarn; do
+            if docker run --rm --entrypoint sh autopanel-site-kit:ci -c "command -v $tool"; then
+              echo "the kit's image holds $tool"; exit 1
+            fi
+          done
