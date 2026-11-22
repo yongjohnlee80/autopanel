@@ -1268,8 +1268,8 @@
         <translation>%1 の新しいパスフレーズ (次回ログインで変更します)</translation>
     </message>
     <message id="autopanel.label.prompt.userRole">
-        <source>Role: admin, operator, mail or viewer</source>
-        <translation>ロール: admin、operator、mail、viewer のいずれか</translation>
+        <source>Role: admin, operator, mail, viewer or member</source>
+        <translation>ロール: admin、operator、mail、viewer、member のいずれか</translation>
     </message>
     <message id="autopanel.label.review.capAdd">
         <source>Capabilities added</source>
@@ -1744,8 +1744,8 @@
         <translation>名前は小文字で始め、英字・数字・. _ - で 32 文字までです</translation>
     </message>
     <message id="autopanel.notice.account.badRole">
-        <source>a role is admin, operator, mail or viewer</source>
-        <translation>ロールは admin、operator、mail、viewer のいずれかです</translation>
+        <source>a role is admin, operator, mail, viewer or member</source>
+        <translation>ロールは admin、operator、mail、viewer、member のいずれかです</translation>
     </message>
     <message id="autopanel.notice.account.disabled">
         <source>%1 disabled</source>

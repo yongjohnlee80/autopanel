@@ -226,7 +226,7 @@ func TestTheUsersPanel(t *testing.T) {
 	}
 	s.Keys(t, decltest.Type("bo")...)
 	s.Keys(t, enter)
-	s.WaitForText(t, "Role: admin, operator, mail or viewer")
+	s.WaitForText(t, "Role: admin, operator, mail, viewer or member")
 	s.Keys(t, enter) // viewer, as offered
 	s.WaitForText(t, "A first passphrase for bo")
 	const pw = "a first passphrase for bo"
@@ -414,7 +414,7 @@ func TestAnAPITokenIsShownOnce(t *testing.T) {
 	s.WaitForText(t, "A name for the token")
 	s.Keys(t, decltest.Type("backup")...)
 	s.Keys(t, enter)
-	s.WaitForText(t, "Role: admin, operator, mail or viewer")
+	s.WaitForText(t, "Role: admin, operator, mail, viewer or member")
 	s.Keys(t, enter)
 	s.WaitForText(t, "Days it lasts")
 	for range 2 {

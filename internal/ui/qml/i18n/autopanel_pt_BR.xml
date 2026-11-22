@@ -1268,8 +1268,8 @@
         <translation>Uma nova frase para %1 (troca no próximo acesso)</translation>
     </message>
     <message id="autopanel.label.prompt.userRole">
-        <source>Role: admin, operator, mail or viewer</source>
-        <translation>Papel: admin, operator, mail ou viewer</translation>
+        <source>Role: admin, operator, mail, viewer or member</source>
+        <translation>Papel: admin, operator, mail, viewer ou member</translation>
     </message>
     <message id="autopanel.label.review.capAdd">
         <source>Capabilities added</source>
@@ -1744,8 +1744,8 @@
         <translation>um nome começa com minúscula, depois letras, dígitos, . _ -, 32 no máximo</translation>
     </message>
     <message id="autopanel.notice.account.badRole">
-        <source>a role is admin, operator, mail or viewer</source>
-        <translation>um papel é admin, operator, mail ou viewer</translation>
+        <source>a role is admin, operator, mail, viewer or member</source>
+        <translation>um papel é admin, operator, mail, viewer ou member</translation>
     </message>
     <message id="autopanel.notice.account.disabled">
         <source>%1 disabled</source>

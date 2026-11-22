@@ -1268,8 +1268,8 @@
         <translation>%1 的新口令（下次登录时更改）</translation>
     </message>
     <message id="autopanel.label.prompt.userRole">
-        <source>Role: admin, operator, mail or viewer</source>
-        <translation>角色：admin、operator、mail 或 viewer</translation>
+        <source>Role: admin, operator, mail, viewer or member</source>
+        <translation>角色：admin、operator、mail、viewer 或 member</translation>
     </message>
     <message id="autopanel.label.review.capAdd">
         <source>Capabilities added</source>
@@ -1744,8 +1744,8 @@
         <translation>名称以小写字母开头，其后为字母、数字、. _ -，最多 32 个字符</translation>
     </message>
     <message id="autopanel.notice.account.badRole">
-        <source>a role is admin, operator, mail or viewer</source>
-        <translation>角色为 admin、operator、mail 或 viewer</translation>
+        <source>a role is admin, operator, mail, viewer or member</source>
+        <translation>角色为 admin、operator、mail、viewer 或 member</translation>
     </message>
     <message id="autopanel.notice.account.disabled">
         <source>%1 disabled</source>

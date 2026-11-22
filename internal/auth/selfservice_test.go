@@ -274,3 +274,42 @@ func TestSessionVerbs(t *testing.T) {
 		}
 	}
 }
+
+// TestAMemberReachesNothingOfTheServer: its own account only, and no API
+// token: a token reaches no mailbox or drive yet.
+func TestAMemberReachesNothingOfTheServer(t *testing.T) {
+	for _, c := range []module.Contract{
+		{Verb: "sys.status", Discloses: module.Plain}, {Verb: "gate.route.list", Discloses: module.Plain},
+		{Verb: "mail.account.list", Discloses: module.Plain}, {Verb: "certs.list", Discloses: module.Plain},
+		{Verb: "services.list", Discloses: module.Plain}, {Verb: "site.status", Discloses: module.Plain},
+		{Verb: "auth.user.list"},
+	} {
+		if auth.Allows(auth.RoleMember, c) {
+			t.Errorf("a member may call %s", c.Verb)
+		}
+	}
+	for _, v := range []string{"auth.whoami", "auth.passphrase.change", "auth.token.create", "auth.session.list", "sys.prefs.get"} {
+		if !auth.Allows(auth.RoleMember, module.Contract{Verb: v, Mutates: true}) {
+			t.Errorf("a member may not call %s", v)
+		}
+	}
+	f := newFixture(t)
+	if _, err := f.login(t, "root", rootPass, ""); err != nil {
+		t.Fatal(err)
+	}
+	pass := "a member's first passphrase"
+	if err := f.call(t, "user:1", "auth.user.add", auth.UserAsk{Name: "mo", Role: auth.RoleMember, Passphrase: pass}, nil); err != nil {
+		t.Fatal(err)
+	}
+	u, _ := f.store.User(context.Background(), "mo")
+	mo := "user:" + strconv.FormatInt(u.ID, 10)
+	if err := f.call(t, mo, "auth.token.create", auth.TokenAsk{Name: "x", Role: auth.RoleViewer, Passphrase: pass}, nil); !errors.Is(err, auth.ErrBadTokenAsk) {
+		t.Fatalf("a member's viewer token: %v", err)
+	}
+	if err := f.call(t, mo, "auth.token.create", auth.TokenAsk{Name: "x", Passphrase: pass}, nil); !errors.Is(err, auth.ErrBadTokenAsk) {
+		t.Fatalf("a member's token: %v", err)
+	}
+	if auth.Effective(auth.RoleMember, auth.RoleViewer) != auth.RoleMember {
+		t.Fatal("a viewer's token of a demoted owner's is more than a member")
+	}
+}

@@ -3,22 +3,22 @@
 Who may log in to AutoPanel, what each person may do, and how scripts call it. What is here is
 what the code relies on.
 
-## Users have one of four roles
+## Users have one of five roles
 
-**Decided:** every panel user has a role, `admin`, `operator`, `mail` or `viewer`. Each verb is
+**Decided:** every panel user has a role, `admin`, `operator`, `mail`, `viewer` or `member`. Each verb is
 allowed to a role by its contract: its **area** (`sys`, `sys.admin`, `gate`, `certs`, `services`,
 `mail`, `mail.admin`, `auth`), whether it **mutates**, and whether its answer is **sensitive**.
 
-| Area | admin | operator | mail | viewer |
-|---|---|---|---|---|
-| sys (status, metrics, ports, one's own preferences) | all | all | read | read |
-| sys.admin (the gate's settings; the firewall when it lands) | all | none | none | none |
-| gate (routes, domains) | all | all | read | read |
-| certs | all | read | none | read |
-| services (stacks) | all | all | none | read |
-| mail (domains, accounts, records) | all | all | all | read |
-| mail.admin (setting mail up, repairing it) | all | all | none | none |
-| auth (users, tokens) | all | own account | own account | own account |
+| Area | admin | operator | mail | viewer | member |
+|---|---|---|---|---|---|
+| sys (status, metrics, ports, one's own preferences) | all | all | read | read | own preferences |
+| sys.admin (the gate's settings; the firewall when it lands) | all | none | none | none | none |
+| gate (routes, domains) | all | all | read | read | none |
+| certs | all | read | none | read | none |
+| services (stacks) | all | all | none | read | none |
+| mail (domains, accounts, records) | all | all | all | read | none |
+| mail.admin (setting mail up, repairing it) | all | all | none | none | none |
+| auth (users, tokens) | all | own account | own account | own account | own account |
 
 - **Read** means a verb that changes nothing and is not sensitive.
 - **Sensitive** is the default: a verb nobody marked is kept from the read-only roles, so a new
@@ -28,8 +28,12 @@ allowed to a role by its contract: its **area** (`sys`, `sys.admin`, `gate`, `ce
 - **Own account** is `auth.whoami`, changing one's own passphrase, one's own two-factor, and one's
   own API tokens.
 
-**Why four:** a mail manager should reach Mail and nothing else, a viewer should change nothing,
-and an operator runs the services without administering the host. Composed permissions were set
+**Why five:** a mail manager should reach Mail and nothing else, a viewer should change nothing,
+an operator runs the services without administering the host, and a member is a person with a
+mailbox and a drive who reaches nothing of the server. A member makes no API tokens: a token
+reaches no mailbox or drive yet, and one of a demoted owner's falls to a member's, which reaches
+nothing. A member's own mailbox and drive come with the browser applications, and are checked by
+owner, not by area. Composed permissions were set
 aside until a job fits none of these.
 
 **How it is checked:** the control socket asks the auth module on every call. The session holds

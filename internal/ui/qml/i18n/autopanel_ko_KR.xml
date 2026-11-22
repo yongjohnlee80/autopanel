@@ -1268,8 +1268,8 @@
         <translation>%1의 새 암호 문구 (다음 로그인 때 바꿉니다)</translation>
     </message>
     <message id="autopanel.label.prompt.userRole">
-        <source>Role: admin, operator, mail or viewer</source>
-        <translation>역할: admin, operator, mail, viewer 중 하나</translation>
+        <source>Role: admin, operator, mail, viewer or member</source>
+        <translation>역할: admin, operator, mail, viewer, member 중 하나</translation>
     </message>
     <message id="autopanel.label.review.capAdd">
         <source>Capabilities added</source>
@@ -1744,8 +1744,8 @@
         <translation>이름은 소문자로 시작하고 문자·숫자·. _ -로 최대 32자입니다</translation>
     </message>
     <message id="autopanel.notice.account.badRole">
-        <source>a role is admin, operator, mail or viewer</source>
-        <translation>역할은 admin, operator, mail, viewer 중 하나입니다</translation>
+        <source>a role is admin, operator, mail, viewer or member</source>
+        <translation>역할은 admin, operator, mail, viewer, member 중 하나입니다</translation>
     </message>
     <message id="autopanel.notice.account.disabled">
         <source>%1 disabled</source>

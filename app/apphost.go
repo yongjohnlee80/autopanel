@@ -259,6 +259,32 @@ func (m *apiModule) resolve(ctx context.Context, cookie, kind string) (auth.Sess
 	return s, u, nil
 }
 
+// reachable reports whether client may use a kind of host. The gate refuses
+// any other address before it reads a body; the core checks again, taking
+// the gate's word only for the address itself. An empty list lets anyone
+// reach the app host and nobody the admin host.
+func (m *apiModule) reachable(kind, client string) bool {
+	m.mu.RLock()
+	allow := m.app.Allow
+	if kind == hostgate.HostAdmin {
+		allow = m.app.AdminAllow
+	}
+	m.mu.RUnlock()
+	if len(allow) == 0 {
+		return kind == hostgate.HostApp
+	}
+	ip, err := netip.ParseAddr(client)
+	if err != nil {
+		return false
+	}
+	for _, a := range allow {
+		if p, err := netip.ParsePrefix(a); err == nil && p.Contains(ip.Unmap()) {
+			return true
+		}
+	}
+	return false
+}
+
 // admits reports whether a role may sign in on a kind of host: the admin
 // application is the admin's and the operator's.
 func admits(kind string, role auth.Role) bool {
@@ -313,6 +339,9 @@ func (m *apiModule) session(ctx context.Context, ask hostgate.SessionAsk) (ans h
 	}()
 	if m.appHostOf(ask.Host) == "" || m.sessions == nil {
 		return sessionRefusal(hostgate.APINotFound, rpc.CodeMethodNotFound, "app.not_found", "not found"), nil
+	}
+	if !m.reachable(ask.Host, ask.Client) {
+		return sessionRefusal(hostgate.APIForbidden, rpc.CodeAccessDenied, "app.not_allowed", "this address may not use this host"), nil
 	}
 	client := printable(ask.Client, 64)
 	same := m.sameOrigin(ask.Host, ask.Authority, ask.Origin, ask.FetchSite)
@@ -428,6 +457,9 @@ func (m *apiModule) sessionCall(ctx context.Context, ask hostgate.APIAsk) hostga
 	}
 	if m.appHostOf(ask.Host) == "" || m.sessions == nil {
 		return refusal(hostgate.APINotFound, rpc.CodeMethodNotFound, "api.not_found", "no such verb")
+	}
+	if !m.reachable(ask.Host, ask.Client) {
+		return refusal(hostgate.APIForbidden, rpc.CodeAccessDenied, "app.not_allowed", "this address may not use this host")
 	}
 	s, u, err := m.resolve(ctx, ask.Session, ask.Host)
 	switch {
