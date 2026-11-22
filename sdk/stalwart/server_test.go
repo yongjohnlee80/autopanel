@@ -684,3 +684,94 @@ func TestTheKeyIsAskedForAtEveryRequest(t *testing.T) {
 		t.Fatal("a request went out after the key could no longer be had")
 	}
 }
+
+// permsStalwart keeps one account's own permissions and its aliases, as
+// Stalwart's Account/get and Account/set show them.
+type permsStalwart struct {
+	perms   map[string]any
+	aliases map[string]any
+	gone    bool
+}
+
+func (p *permsStalwart) answer(m string, args map[string]any) (string, any) {
+	switch m {
+	case "x:Account/get":
+		if p.gone {
+			return m, map[string]any{"list": []any{}}
+		}
+		return m, map[string]any{"list": []any{map[string]any{"id": "c", "permissions": p.perms}}}
+	case "x:Account/set":
+		upd := args["update"].(map[string]any)["c"].(map[string]any)
+		if v, ok := upd["permissions"]; ok {
+			p.perms = v.(map[string]any)
+		}
+		if v, ok := upd["aliases"]; ok {
+			p.aliases = v.(map[string]any)
+		}
+		return m, map[string]any{"updated": map[string]any{"c": nil}}
+	}
+	return "error", map[string]any{"type": "unknownMethod"}
+}
+
+// TestDisablingTakesAuthenticateAndKeepsTheRest: a disabled account's own
+// permissions lose authenticate and keep what else they held; enabled again,
+// a list left empty goes back to inheriting.
+func TestDisablingTakesAuthenticateAndKeepsTheRest(t *testing.T) {
+	ctx := context.Background()
+	p := &permsStalwart{perms: map[string]any{"@type": "Inherit"}}
+	s := newServer(t, &fakeStalwart{t: t, answer: p.answer})
+
+	if err := s.SetDisabled(ctx, "c", true); err != nil {
+		t.Fatal(err)
+	}
+	if off := p.perms["disabledPermissions"].(map[string]any); p.perms["@type"] != "Merge" || off[permAuthenticate] != true {
+		t.Fatalf("disabled: %v", p.perms)
+	}
+	if err := s.SetDisabled(ctx, "c", false); err != nil {
+		t.Fatal(err)
+	}
+	if p.perms["@type"] != "Inherit" || len(p.perms) != 1 {
+		t.Fatalf("enabled again, with nothing else of its own: %v", p.perms)
+	}
+
+	p.perms = map[string]any{"@type": "Merge", "enabledPermissions": map[string]any{"sieveScriptSet": true},
+		"disabledPermissions": map[string]any{permAuthenticate: true, "emailSend": true}}
+	if err := s.SetDisabled(ctx, "c", false); err != nil {
+		t.Fatal(err)
+	}
+	on, off := p.perms["enabledPermissions"].(map[string]any), p.perms["disabledPermissions"].(map[string]any)
+	if p.perms["@type"] != "Merge" || on["sieveScriptSet"] != true || off["emailSend"] != true || len(off) != 1 {
+		t.Fatalf("enabled again, its other permissions kept: %v", p.perms)
+	}
+
+	p.gone = true
+	if err := s.SetDisabled(ctx, "c", true); err == nil {
+		t.Fatal("an account Stalwart does not have was disabled")
+	}
+}
+
+// TestAliasesAreReplacedWhole: every alias given is sent enabled, and no
+// other; none given empties the list.
+func TestAliasesAreReplacedWhole(t *testing.T) {
+	ctx := context.Background()
+	p := &permsStalwart{}
+	s := newServer(t, &fakeStalwart{t: t, answer: p.answer})
+	if err := s.SetAliases(ctx, "c", []provider.Alias{{Local: "sales", DomainID: "b"}, {Local: "info", DomainID: "d"}}); err != nil {
+		t.Fatal(err)
+	}
+	first, second := p.aliases["0"].(map[string]any), p.aliases["1"].(map[string]any)
+	if len(p.aliases) != 2 || first["name"] != "sales" || first["domainId"] != "b" || first["enable"] != true || second["name"] != "info" || second["domainId"] != "d" {
+		t.Fatalf("aliases sent: %v", p.aliases)
+	}
+	if err := s.SetAliases(ctx, "c", nil); err != nil || len(p.aliases) != 0 {
+		t.Fatalf("no aliases: %v, %v", p.aliases, err)
+	}
+
+	refuses := newServer(t, &fakeStalwart{t: t, answer: func(m string, _ map[string]any) (string, any) {
+		return m, map[string]any{"notUpdated": map[string]any{"c": map[string]any{"type": "invalidProperties", "description": "the alias is taken"}}}
+	}})
+	var why *provider.Refusal
+	if err := refuses.SetAliases(ctx, "c", []provider.Alias{{Local: "sales", DomainID: "b"}}); !errors.As(err, &why) {
+		t.Fatalf("a refused alias: %v", err)
+	}
+}
