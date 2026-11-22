@@ -1,10 +1,12 @@
 package hostcmd
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"go/parser"
 	"go/token"
+	"io"
 	"io/fs"
 	"path/filepath"
 	"strings"
@@ -66,5 +68,36 @@ func TestThisIsTheOnlyPackageThatRunsCommands(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+// TestStreamWritesAsItRuns runs a tool whose output goes to the writers
+// given, in the directory and with the environment given beside the fixed
+// PATH and locale; a tool that is not named, or not there, is ErrNoTool, and
+// a failing one is its own error.
+func TestStreamWritesAsItRuns(t *testing.T) {
+	ctx := context.Background()
+	if err := Stream(ctx, Tool{}, "", nil, io.Discard, io.Discard); !errors.Is(err, ErrNoTool) {
+		t.Errorf("no tool: %v", err)
+	}
+	if err := Stream(ctx, Tool{"/nonexistent/autopanel-test-tool"}, "", nil, io.Discard, io.Discard); !errors.Is(err, ErrNoTool) {
+		t.Errorf("a tool that is not there: %v", err)
+	}
+	dir := t.TempDir()
+	var out, errOut bytes.Buffer
+	if err := Stream(ctx, Tool{"/usr/bin/env"}, dir, []string{"AUTOPANEL_TEST=here"}, &out, &errOut); err != nil {
+		t.Fatalf("Stream: %v (%s)", err, errOut.String())
+	}
+	for _, want := range []string{"AUTOPANEL_TEST=here\n", "LANG=C\n", "PATH=/usr/sbin:/usr/bin:/sbin:/bin\n"} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("the environment lacks %q:\n%s", want, out.String())
+		}
+	}
+	out.Reset()
+	if err := Stream(ctx, Tool{"/usr/bin/env"}, dir, nil, &out, &errOut, "pwd"); err != nil || strings.TrimSpace(out.String()) != dir {
+		t.Errorf("the directory = %q, %v; want %s", out.String(), err, dir)
+	}
+	if err := Stream(ctx, Tool{"/usr/bin/env"}, dir, nil, io.Discard, &errOut, "false"); err == nil || errors.Is(err, ErrNoTool) {
+		t.Errorf("a failing tool: %v", err)
 	}
 }
