@@ -295,35 +295,41 @@ func (h *host) changePassphrase() error {
 
 // --- two-factor ---------------------------------------------------------------
 
-// openTwoFactor enrols two-factor (the seed shown once, then a code from the
-// app, then the recovery codes shown once), or drops it with a code.
+// openTwoFactor enrols two-factor (the passphrase asked again, the seed shown
+// once, then a code from the app, then the recovery codes shown once), or
+// drops it with the passphrase and a code.
 func (h *host) openTwoFactor() error {
 	if h.me.TOTP {
-		return h.prompt("autopanel.title.prompt.totpOff", "autopanel.label.prompt.totpOff", "", func(code string) error {
-			h.background(func(ctx context.Context) error { return h.client.TOTPDisable(ctx, strings.TrimSpace(code)) }, func(err error) {
-				if err != nil {
-					h.promptRefused(h.trf("autopanel.notice.app.error", err.Error()))
-					return
-				}
-				h.promptDone()
-				h.me.TOTP = false
-				h.say(h.tr("autopanel.notice.account.totpOff"))
+		return h.askSecret(h.tr("autopanel.title.prompt.totpOff"), h.tr("autopanel.label.prompt.passphraseOld"), func(pass string) {
+			h.busy = false
+			h.secreted = nil
+			_ = h.p.Call("secretDialog", "close")
+			_ = h.prompt("autopanel.title.prompt.totpOff", "autopanel.label.prompt.totpOff", "", func(code string) error {
+				h.background(func(ctx context.Context) error { return h.client.TOTPDisable(ctx, pass, strings.TrimSpace(code)) }, func(err error) {
+					if err != nil {
+						h.promptRefused(h.trf("autopanel.notice.app.error", err.Error()))
+						return
+					}
+					h.promptDone()
+					h.me.TOTP = false
+					h.say(h.tr("autopanel.notice.account.totpOff"))
+				})
+				return nil
 			})
-			return nil
 		})
 	}
-	var e auth.Enrol
-	h.background(func(ctx context.Context) (err error) { e, err = h.client.TOTPBegin(ctx); return err }, func(err error) {
-		if err != nil {
-			h.failed(err)
-			return
-		}
-		text := h.tr("autopanel.label.account.totpSecret") + "\n\n  " + e.Secret + "\n\n" + h.tr("autopanel.label.account.totpURI") + "\n\n  " + e.URI
-		_ = h.fill(map[string]any{"App.totpCode": ""})
-		_ = h.p.SetMany(map[string]any{"App.totpText": text, "App.totpError": "", "App.totpErrorShown": false})
-		_ = h.p.Call("totpDialog", "open")
+	return h.askSecret(h.tr("autopanel.title.dialog.totp"), h.tr("autopanel.label.prompt.passphraseOld"), func(pass string) {
+		var e auth.Enrol
+		h.background(func(ctx context.Context) (err error) { e, err = h.client.TOTPBegin(ctx, pass); return err }, func(err error) {
+			h.busy = false
+			h.secretAnswered(accountErr(err), func() {
+				text := h.tr("autopanel.label.account.totpSecret") + "\n\n  " + e.Secret + "\n\n" + h.tr("autopanel.label.account.totpURI") + "\n\n  " + e.URI
+				_ = h.fill(map[string]any{"App.totpCode": ""})
+				_ = h.p.SetMany(map[string]any{"App.totpText": text, "App.totpError": "", "App.totpErrorShown": false})
+				_ = h.p.Call("totpDialog", "open")
+			})
+		})
 	})
-	return nil
 }
 
 // totpConfirmed is the code typed in the enrolment dialog.
@@ -433,18 +439,20 @@ func (h *host) tokenCreate() error {
 					h.promptRefused(h.tr("autopanel.notice.account.badDays"))
 					return nil
 				}
-				var nt auth.NewToken
-				h.background(func(ctx context.Context) (err error) {
-					nt, err = h.client.TokenCreate(ctx, name, string(role), days)
-					return err
-				}, func(err error) {
-					if err != nil {
-						h.promptRefused(h.trf("autopanel.notice.app.error", err.Error()))
-						return
-					}
-					h.promptDone()
-					h.loadTokens()
-					h.showOnce(h.tr("autopanel.title.dialog.token"), h.trf("autopanel.label.account.token", name, day(nt.ExpiresAt))+"\n\n  "+nt.Token)
+				h.promptDone()
+				// the passphrase again: a token is a credential of its own
+				_ = h.askSecret(h.tr("autopanel.title.prompt.tokenName"), h.tr("autopanel.label.prompt.passphraseOld"), func(pass string) {
+					var nt auth.NewToken
+					h.background(func(ctx context.Context) (err error) {
+						nt, err = h.client.TokenCreate(ctx, name, string(role), days, pass)
+						return err
+					}, func(err error) {
+						h.busy = false
+						h.secretAnswered(accountErr(err), func() {
+							h.loadTokens()
+							h.showOnce(h.tr("autopanel.title.dialog.token"), h.trf("autopanel.label.account.token", name, day(nt.ExpiresAt))+"\n\n  "+nt.Token)
+						})
+					})
 				})
 				return nil
 			})

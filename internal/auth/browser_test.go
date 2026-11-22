@@ -63,7 +63,7 @@ func TestABrowsersSecondFactorNeedsTheHostsVault(t *testing.T) {
 		t.Fatal(err)
 	}
 	var e auth.Enrol
-	if err := f.call(t, "user:1", "auth.totp.begin", nil, &e); err != nil {
+	if err := f.call(t, "user:1", "auth.totp.begin", auth.PassAsk{Passphrase: rootPass}, &e); err != nil {
 		t.Fatal(err)
 	}
 	seed, err := totp.Decode(strings.ReplaceAll(e.Secret, " ", ""))

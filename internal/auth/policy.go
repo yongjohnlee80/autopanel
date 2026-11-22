@@ -31,6 +31,7 @@ var ownVerbs = map[string]bool{
 	"auth.whoami": true, "auth.passphrase.change": true,
 	"auth.totp.begin": true, "auth.totp.confirm": true, "auth.totp.disable": true,
 	"auth.token.list": true, "auth.token.create": true, "auth.token.revoke": true,
+	"auth.session.list": true, "auth.session.end": true,
 }
 
 // everyone are the verbs any logged-in role may call: its own preferences.

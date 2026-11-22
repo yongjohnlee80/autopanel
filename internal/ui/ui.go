@@ -177,11 +177,11 @@ type Client interface {
 	UserUnlock(ctx context.Context, name string) error
 	UserRemove(ctx context.Context, name string) error
 	PassphraseChange(ctx context.Context, old, new string) error
-	TOTPBegin(ctx context.Context) (auth.Enrol, error)
+	TOTPBegin(ctx context.Context, passphrase string) (auth.Enrol, error)
 	TOTPConfirm(ctx context.Context, code string) (auth.Recovery, error)
-	TOTPDisable(ctx context.Context, code string) error
+	TOTPDisable(ctx context.Context, passphrase, code string) error
 	Tokens(ctx context.Context) ([]auth.TokenView, error)
-	TokenCreate(ctx context.Context, name, role string, days int) (auth.NewToken, error)
+	TokenCreate(ctx context.Context, name, role string, days int, passphrase string) (auth.NewToken, error)
 	TokenRevoke(ctx context.Context, id int64) error
 
 	Routes(ctx context.Context) ([]gate.RouteView, error)

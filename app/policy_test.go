@@ -27,7 +27,7 @@ func TestEveryVerbHasADecision(t *testing.T) {
 		"auth.user.disable": {"auth", true, false}, "auth.user.unlock": {"auth", true, false}, "auth.user.remove": {"auth", true, false},
 		"auth.passphrase.change": {"auth", true, false}, "auth.totp.begin": {"auth", true, false}, "auth.totp.confirm": {"auth", true, false},
 		"auth.totp.disable": {"auth", true, false}, "auth.token.list": {"auth", false, true}, "auth.token.create": {"auth", true, false},
-		"auth.token.revoke": {"auth", true, false},
+		"auth.token.revoke": {"auth", true, false}, "auth.session.list": {"auth", false, true}, "auth.session.end": {"auth", true, false},
 
 		"gate.route.list": {"gate", false, true}, "gate.route.add": {"gate", true, false}, "gate.route.update": {"gate", true, false},
 		"gate.route.remove": {"gate", true, false}, "gate.domain.list": {"gate", false, true}, "gate.domain.add": {"gate", true, false},

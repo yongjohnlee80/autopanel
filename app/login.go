@@ -85,3 +85,37 @@ func tokenLogin(ctx context.Context, c *hostcontrol.Client, path string) (auth.L
 	err = c.Call(ctx, "auth.token.login", auth.TokenLogin{Token: strings.TrimSpace(string(b))}, &in)
 	return in, err
 }
+
+// asksAgain are the verbs that make or change a credential and so take the
+// caller's passphrase again (docs/decisions/auth.md#browser-sessions).
+var asksAgain = map[string]bool{"auth.token.create": true, "auth.totp.begin": true, "auth.totp.disable": true}
+
+// passphraseAgain asks for the passphrase on the terminal and puts it into
+// param, which must be a JSON object or nothing: a passphrase is never read
+// from the command line, where process listings and shell history keep it.
+func passphraseAgain(verb string, param any) (any, error) {
+	obj, ok := param.(map[string]any)
+	switch {
+	case param == nil:
+		obj = map[string]any{}
+	case !ok:
+		return nil, fmt.Errorf("%s takes a JSON object", verb)
+	}
+	if _, given := obj["passphrase"]; given {
+		return nil, errors.New("a passphrase is never given on the command line: leave it out, and it is asked for")
+	}
+	tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
+	if err != nil {
+		return nil, errors.New(verb + " asks for your passphrase again, which needs a terminal")
+	}
+	defer tty.Close()
+	fmt.Fprintf(tty, "Your passphrase again, for %s: ", verb)
+	pass, err := term.ReadPassword(int(tty.Fd()))
+	fmt.Fprintln(tty)
+	if err != nil {
+		return nil, err
+	}
+	obj["passphrase"] = string(pass)
+	clear(pass)
+	return obj, nil
+}
