@@ -56,7 +56,14 @@ services:
   stalwart:
     image: ` + Image + `
     user: "2000:2000"
-    volumes:
+`)
+	if st.Recovery != "" {
+		// a repair's one start: the recovery administrator, by reference
+		b.WriteString(`    environment:
+      ` + recoveryVariable + `: "` + st.Recovery + `"
+`)
+	}
+	b.WriteString(`    volumes:
       - ./etc:/etc/stalwart
       - ./data:/var/lib/stalwart
       - ./log:/var/log/stalwart
@@ -174,7 +181,7 @@ func (Product) Bootstrap(ctx context.Context, env provider.Env) error {
 		return fmt.Errorf("the listeners: %w", err)
 	}
 	if _, err := env.Sealed(ctx, provider.SealedAPIKey); errors.Is(err, provider.ErrNoSecret) {
-		_, key, err := c.CreateAPIKey(ctx, "autopanel core")
+		_, key, err := c.CreateAPIKey(ctx, keyDescription)
 		if err != nil {
 			return fmt.Errorf("the API key: %w", err)
 		}

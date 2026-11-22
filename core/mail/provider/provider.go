@@ -121,6 +121,38 @@ type Product interface {
 // in with.
 const SealedAPIKey = "apikey"
 
+// Repairer is a Product that can give AutoPanel its way back into the server
+// when the API key, or the administrator too, no longer signs in
+// (docs/decisions/mail.md#repairing-access). Nothing of mail's data is
+// touched: no account, domain or message.
+type Repairer interface {
+	// AdminSignsIn is nil when the administrator Bootstrap sealed signs in;
+	// ErrUnauthorized when the server refuses it, ErrNoSecret when none is
+	// sealed, and any other error when the server cannot be asked.
+	AdminSignsIn(ctx context.Context, env Env) error
+	// NewAPIKey makes a new API key with the sealed administrator, seals it
+	// as SealedAPIKey, checks that it signs in, and only then destroys the
+	// older keys AutoPanel made. Keys someone else made are kept, and named.
+	NewAPIKey(ctx context.Context, env Env, at time.Time) (KeyRepair, error)
+	// RecoveryCredential is a new recovery administrator's value, for the
+	// sealed reference Stack.Recovery names.
+	RecoveryCredential() ([]byte, error)
+	// ResetAdmin signs in as the recovery administrator (the value
+	// RecoveryCredential made, which the server now runs with), finds the
+	// server's one administrator, gives it a new secret and seals it. None,
+	// or more than one, is refused.
+	ResetAdmin(ctx context.Context, env Env, recovery []byte) error
+	// RecoverySignsIn is nil while the recovery administrator still signs in,
+	// and ErrUnauthorized once the server no longer has it.
+	RecoverySignsIn(ctx context.Context, base string, recovery []byte) error
+}
+
+// KeyRepair is what a new API key replaced.
+type KeyRepair struct {
+	Destroyed int      // older keys AutoPanel made
+	Kept      []string // keys someone else made, by their description
+}
+
 // Env is what a Bootstrap may use of AutoPanel.
 type Env interface {
 	// Base is the management API's URL.
@@ -154,6 +186,11 @@ type Stack struct {
 	Name   string
 	Ports  []PortMap
 	Manage int
+	// Recovery, when set, is a sealed reference ("${sealed:stack/mail/recovery}")
+	// to give the server as its recovery administrator, for the one start a
+	// repair needs (Repairer). The definition holds the reference, never the
+	// value.
+	Recovery string
 }
 
 // PortMap is one of mail's ports: its name (smtp, submissions, submission,

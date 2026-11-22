@@ -81,6 +81,9 @@ type Stacks interface {
 	Check(ctx context.Context, name string) (services.Review, error)
 	// RemoveOwned removes the stack, for mail.remove.
 	RemoveOwned(ctx context.Context, name string, purge bool) error
+	// Apply applies the registered stack's definition as it is written, given
+	// its review's sha256: a repair's change to it.
+	Apply(ctx context.Context, name, accept string) error
 }
 
 // Firewall is the core's firewall as mail, an owner of rules, uses it: the
@@ -253,6 +256,11 @@ type Module struct {
 	// AutoPanel's own definition before mail is recorded. Read without
 	// pendMu, since the guard is called from inside both verbs.
 	setupOpen atomic.Bool
+	// repairOpen is true while a repair reviews or applies the definition
+	// with the recovery administrator.
+	repairOpen atomic.Bool
+	repairs    repairState
+	audit      Auditor // nil: the steps of a repair are not audited
 }
 
 // pendingSetup is mail.setup's answers, until mail.setup.apply.
@@ -329,6 +337,9 @@ func (m *Module) Errors() []module.PublicError {
 		{Err: ErrNoAppPassword, Code: -32177, Name: "mail.no_app_password", Message: "the account has no such app password"},
 		{Err: ErrBadDescription, Code: -32178, Name: "mail.bad_description", Message: "an app password's device name is 1 to 64 characters, with no control characters"},
 		{Err: ErrAdminAccount, Code: -32145, Name: "mail.admin_account", Message: "that address is the mail server's administrator, which AutoPanel manages it with; it is not a mailbox"},
+		{Err: ErrUnreachable, Code: -32221, Name: "mail.unreachable", Message: "the mail server does not answer; a repair would not help: see the stack's state and the host checks"},
+		{Err: ErrNoRepair, Code: -32222, Name: "mail.no_repair", Message: "this mail server cannot be repaired by AutoPanel"},
+		{Err: ErrRepairFails, Code: -32223, Name: "mail.repair_failed", Message: "the repair did not finish; the recovery administrator, if one was given, was taken away again"},
 	}
 }
 
@@ -380,6 +391,13 @@ func (m *Module) Verbs() []module.Verb {
 			Doc: "The records a mail domain (or the mail host) needs, and each one's state as the last pass found it: ok, publishing, different (a record AutoPanel did not write holds its place), manual (no DNS token), failed."}, m.records),
 		module.Handle(change("mail.records.takeover", "{domain, name, type}",
 			"Replaces the records AutoPanel did not write that hold a needed record's place, after the panel showed them: an SPF record is merged, any other is deleted. The next pass publishes the record."), m.recordsTakeover),
+		module.Handle(module.Contract{Verb: "mail.repair.check", Area: "mail.admin", Discloses: module.Plain, Since: 11, Result: "{case, says, detail?, review?, plan}",
+			Doc: "Tells why AutoPanel cannot manage the mail server, by trying, and changes nothing: ok, unreachable, not_set_up, recovery_leftover, key_lost or admin_lost; with what mail.repair would do, and for admin_lost the review of the mail stack with the recovery administrator."}, m.repairCheck),
+		module.Handle(func() module.Contract {
+			c := adminChange("mail.repair", "{accept?}", "Repairs AutoPanel's access to the mail server, as mail.repair.check says: a new API key made by the administrator; or, with accept (the review's sha256), the recovery administrator for one start to give the administrator a new secret, then a new key, then the recovery administrator taken away. Nothing of mail's data is touched.")
+			c.Since = 11
+			return c
+		}(), m.repair),
 		module.Handle(change("mail.sync", "", "Starts the DNS, DKIM and certificate pass now, in the background, and answers the last one's result: mail.records and mail.status show the new one when it ends."), m.syncNow),
 	}
 }
@@ -411,11 +429,24 @@ func (m *Module) Review(ctx context.Context, name string, compose []byte) []serv
 		return []services.Finding{{ID: "mail-one-service", Severity: services.Refused,
 			Detail: "the mail stack runs the mail server alone: it trusts its network, so any other service belongs in a stack of its own"}}
 	}
+	if m.isRecovery(compose) {
+		return []services.Finding{{ID: "mail-recovery", Severity: services.Warning,
+			Detail: "the mail server's recovery administrator, for one start: Mail → Repair access takes it away again"}}
+	}
 	if string(compose) != string(m.compose()) {
 		return []services.Finding{{ID: "not-autopanels", Severity: services.Warning,
 			Detail: "the mail stack's definition is not the one AutoPanel wrote; Mail may not manage it"}}
 	}
 	return nil
+}
+
+// Sealed: the mail stack may reference one sealed value, the recovery
+// administrator a repair gives it for one start.
+func (m *Module) Sealed(name string) []string {
+	if name != Stack {
+		return nil
+	}
+	return []string{recoveryKey}
 }
 
 // Reserved: the loopback ports the mail stack publishes are its alone.
@@ -759,7 +790,7 @@ func (m *Module) Run(ctx context.Context) error {
 			} else {
 				m.note("ready", m.progressError("ready"))
 				m.streams(true)
-				if time.Since(lastSync) >= syncEvery || kicked {
+				if (time.Since(lastSync) >= syncEvery || kicked) && !m.repairs.running.Load() {
 					if _, err := m.vault.Get(ctx, sealedKey); err == nil { // the pass needs the vault open
 						m.syncAll(ctx, st)
 						lastSync = time.Now()

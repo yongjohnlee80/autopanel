@@ -190,15 +190,54 @@ type fakeStacks struct {
 	absent   bool     // the stack was never added: Up answers services.ErrNotFound
 	added    []string // the sha256 each Add was given
 	addErr   error    // what the next Add answers
+	// A repair's: the definition written (the host's), what an apply does
+	// besides restarting, and each apply's sha256.
+	def      func() []byte
+	onApply  func(compose []byte) error
+	applies  []string
+	applyErr error
+}
+
+// reviewOf is a definition's review as the fake gives it: a recovery
+// administrator's reference is shown by name.
+func reviewOf(compose []byte) services.Review {
+	if strings.Contains(string(compose), "${sealed:") {
+		return services.Review{SHA256: "reviewed-recovery", Findings: []services.Finding{{ID: "sealed-reference", Severity: services.Warning, Detail: "RECOVERY ← stack/mail/recovery"}}}
+	}
+	return services.Review{SHA256: "reviewed-compose", Findings: []services.Finding{}}
 }
 
 func (s *fakeStacks) CheckDraft(_ context.Context, _ string, compose []byte) (services.Review, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if !s.absent {
+	if !s.absent && !strings.Contains(string(compose), "${sealed:") { // a registered stack's next definition: its owner's repair
 		return services.Review{}, services.ErrDuplicate
 	}
-	return services.Review{SHA256: "reviewed-compose", Findings: []services.Finding{}}, nil
+	return reviewOf(compose), nil
+}
+
+func (s *fakeStacks) Apply(_ context.Context, _ string, accept string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := s.applyErr; err != nil {
+		s.applyErr = nil
+		return err
+	}
+	var compose []byte
+	if s.def != nil {
+		compose = s.def()
+	}
+	if accept != reviewOf(compose).SHA256 {
+		return services.ErrChanged
+	}
+	s.applies = append(s.applies, accept)
+	if s.onApply != nil {
+		if err := s.onApply(compose); err != nil {
+			return err
+		}
+	}
+	s.since = time.Now().Unix() + 1
+	return nil
 }
 func (s *fakeStacks) Add(_ context.Context, _ string, accept string) error {
 	s.mu.Lock()
@@ -220,6 +259,9 @@ func (s *fakeStacks) Check(context.Context, string) (services.Review, error) {
 	defer s.mu.Unlock()
 	if s.absent {
 		return services.Review{}, services.ErrNotFound
+	}
+	if s.def != nil {
+		return reviewOf(s.def()), nil
 	}
 	return services.Review{SHA256: "reviewed-compose", Findings: []services.Finding{}}, nil
 }

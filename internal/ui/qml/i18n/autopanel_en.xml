@@ -3807,5 +3807,53 @@
         <source>&amp;Enable</source>
         <translation>&amp;Enable</translation>
     </message>
+    <message id="autopanel.button.mail.repair">
+        <source>Repair &amp;access…</source>
+        <translation>Repair &amp;access…</translation>
+    </message>
+    <message id="autopanel.tip.mail.repair">
+        <source>Find out why AutoPanel cannot manage the mail server, and repair it: nothing of mail's data is touched</source>
+        <translation>Find out why AutoPanel cannot manage the mail server, and repair it: nothing of mail's data is touched</translation>
+    </message>
+    <message id="autopanel.title.confirm.mailRepair">
+        <source>Repair access to the mail server</source>
+        <translation>Repair access to the mail server</translation>
+    </message>
+    <message id="autopanel.notice.mail.nothingToRepair">
+        <source>The mail server's API key signs in: nothing to repair</source>
+        <translation>The mail server's API key signs in: nothing to repair</translation>
+    </message>
+    <message id="autopanel.notice.mail.unreachable">
+        <source>The mail server does not answer, and a repair would not help: %1</source>
+        <translation>The mail server does not answer, and a repair would not help: %1</translation>
+    </message>
+    <message id="autopanel.notice.mail.repairChanged">
+        <source>The mail server changed since it was checked: repair access again</source>
+        <translation>The mail server changed since it was checked: repair access again</translation>
+    </message>
+    <message id="autopanel.notice.mail.repaired">
+        <source>Repaired: %1</source>
+        <translation>Repaired: %1</translation>
+    </message>
+    <message id="autopanel.value.mail.keys">
+        <source>%1 older key(s) of AutoPanel's destroyed; kept: %2</source>
+        <translation>%1 older key(s) of AutoPanel's destroyed; kept: %2</translation>
+    </message>
+    <message id="autopanel.value.check.mailAccess">
+        <source>AutoPanel's API key no longer signs in to the mail server</source>
+        <translation>AutoPanel's API key no longer signs in to the mail server</translation>
+    </message>
+    <message id="autopanel.notice.check.mailAccess">
+        <source>Mail keeps flowing, but AutoPanel cannot add accounts, domains, app passwords or certificates. Mail › Server › Repair access finds out why, and repairs it.</source>
+        <translation>Mail keeps flowing, but AutoPanel cannot add accounts, domains, app passwords or certificates. Mail › Server › Repair access finds out why, and repairs it.</translation>
+    </message>
+    <message id="autopanel.value.check.mailRecoveryActive">
+        <source>The mail server's recovery administrator is still in place: %1</source>
+        <translation>The mail server's recovery administrator is still in place: %1</translation>
+    </message>
+    <message id="autopanel.notice.check.mailRecoveryActive">
+        <source>A repair stopped half way and left it. Mail › Server › Repair access takes it away first.</source>
+        <translation>A repair stopped half way and left it. Mail › Server › Repair access takes it away first.</translation>
+    </message>
 </context>
 </TS>

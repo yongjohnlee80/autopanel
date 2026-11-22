@@ -279,6 +279,10 @@ type Client interface {
 	MailSetupApply(ctx context.Context, accept string, open []int) error
 	// MailPortsOpen opens mail's public ports in the firewall, as mail's.
 	MailPortsOpen(ctx context.Context, ports []int) error
+	// MailRepairCheck tells why AutoPanel cannot manage the mail server, and
+	// changes nothing; MailRepair repairs it (accept: admin_lost's review).
+	MailRepairCheck(ctx context.Context) (mail.Diagnosis, error)
+	MailRepair(ctx context.Context, accept string) (mail.Repaired, error)
 	MailAddDomain(ctx context.Context, name string) error
 	MailRemoveDomain(ctx context.Context, name string) error
 	MailRecords(ctx context.Context, domain string) (mail.RecordsAnswer, error)

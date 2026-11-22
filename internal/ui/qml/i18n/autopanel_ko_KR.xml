@@ -3807,5 +3807,53 @@
         <source>&amp;Enable</source>
         <translation>활성(&amp;E)</translation>
     </message>
+    <message id="autopanel.button.mail.repair">
+        <source>Repair &amp;access…</source>
+        <translation>접근 복구(&amp;a)…</translation>
+    </message>
+    <message id="autopanel.tip.mail.repair">
+        <source>Find out why AutoPanel cannot manage the mail server, and repair it: nothing of mail's data is touched</source>
+        <translation>AutoPanel이 메일 서버를 관리하지 못하는 이유를 찾아 복구합니다. 메일 데이터는 건드리지 않습니다</translation>
+    </message>
+    <message id="autopanel.title.confirm.mailRepair">
+        <source>Repair access to the mail server</source>
+        <translation>메일 서버 접근 복구</translation>
+    </message>
+    <message id="autopanel.notice.mail.nothingToRepair">
+        <source>The mail server's API key signs in: nothing to repair</source>
+        <translation>메일 서버의 API 키로 로그인됩니다. 복구할 것이 없습니다</translation>
+    </message>
+    <message id="autopanel.notice.mail.unreachable">
+        <source>The mail server does not answer, and a repair would not help: %1</source>
+        <translation>메일 서버가 응답하지 않으며, 복구로는 해결되지 않습니다: %1</translation>
+    </message>
+    <message id="autopanel.notice.mail.repairChanged">
+        <source>The mail server changed since it was checked: repair access again</source>
+        <translation>확인한 뒤 메일 서버가 바뀌었습니다. 접근 복구를 다시 하십시오</translation>
+    </message>
+    <message id="autopanel.notice.mail.repaired">
+        <source>Repaired: %1</source>
+        <translation>복구했습니다: %1</translation>
+    </message>
+    <message id="autopanel.value.mail.keys">
+        <source>%1 older key(s) of AutoPanel's destroyed; kept: %2</source>
+        <translation>AutoPanel의 이전 키 %1개 폐기, 남긴 키: %2</translation>
+    </message>
+    <message id="autopanel.value.check.mailAccess">
+        <source>AutoPanel's API key no longer signs in to the mail server</source>
+        <translation>AutoPanel의 API 키로 더 이상 메일 서버에 로그인할 수 없습니다</translation>
+    </message>
+    <message id="autopanel.notice.check.mailAccess">
+        <source>Mail keeps flowing, but AutoPanel cannot add accounts, domains, app passwords or certificates. Mail › Server › Repair access finds out why, and repairs it.</source>
+        <translation>메일은 계속 오가지만, AutoPanel은 계정, 도메인, 앱 비밀번호, 인증서를 추가할 수 없습니다. 메일 › 서버 › 접근 복구에서 원인을 찾아 복구합니다.</translation>
+    </message>
+    <message id="autopanel.value.check.mailRecoveryActive">
+        <source>The mail server's recovery administrator is still in place: %1</source>
+        <translation>메일 서버의 복구 관리자가 아직 남아 있습니다: %1</translation>
+    </message>
+    <message id="autopanel.notice.check.mailRecoveryActive">
+        <source>A repair stopped half way and left it. Mail › Server › Repair access takes it away first.</source>
+        <translation>복구가 중간에 멈춰 이것이 남았습니다. 메일 › 서버 › 접근 복구가 먼저 이를 제거합니다.</translation>
+    </message>
 </context>
 </TS>

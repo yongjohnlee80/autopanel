@@ -151,19 +151,28 @@ func TestAnOpeningThatFailsLeavesTheApplyToFinish(t *testing.T) {
 }
 
 // ownedBy is a guard that owns one stack.
-type ownedBy struct{ name string }
+type ownedBy struct {
+	name   string
+	sealed []string
+}
 
 func (g ownedBy) Owns(name string) bool                          { return name == g.name }
 func (ownedBy) Review(context.Context, string, []byte) []Finding { return nil }
 func (ownedBy) Reserved() []Claim                                { return nil }
 func (ownedBy) Mask(_ string, lines []string) []string           { return lines }
+func (g ownedBy) Sealed(name string) []string {
+	if name == g.name {
+		return g.sealed
+	}
+	return nil
+}
 
 // TestAnOwnedStackIsRemovedOnlyByItsOwner (T2): services.remove refuses it;
 // its owner's RemoveOwned removes it.
 func TestAnOwnedStackIsRemovedOnlyByItsOwner(t *testing.T) {
 	f := setup(t)
 	f.add("shop")
-	f.m.SetGuard(ownedBy{"shop"})
+	f.m.SetGuard(ownedBy{name: "shop"})
 	ctx := context.Background()
 	if _, err := f.m.remove(ctx, Remove{Name: "shop"}); !errors.Is(err, ErrReserved) || len(f.s.all) != 1 {
 		t.Fatalf("services.remove of an owned stack = %v, rows %d", err, len(f.s.all))

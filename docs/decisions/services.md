@@ -53,8 +53,26 @@ definition folder is root's (0700), so writing a stack's definition already take
 **`${KEY}` is filled from the folder's `.env` only,** never from the core's own environment. A
 variable `.env` does not have is refused.
 
-**In the code:** `core/services/compose.go` (`Parse`, `ParseEnv`, `interpolate`);
-`TestWhatTheSubsetDoesNotTakeIsRefusedByName`, `TestVariablesAreFilledFromEnvAlone`.
+**`${sealed:stack/<stack>/<key>}` is a value AutoPanel keeps sealed,** for a stack AutoPanel owns
+(mail's recovery administrator, for one start of a repair). It is how a secret of AutoPanel's reaches
+a container without being in a file an administrator wrote. Its rules:
+
+- it is an environment variable's whole value, in the mapping form; the name is of `[a-z0-9/_-]`,
+  beginning with a letter or a digit. Anything else that could be read as one, or as a variable
+  named `sealed` (`${sealed:-…}`, `${sealed:?…}`, `$sealed`, one inside a longer value or a
+  command), is refused;
+- the name must be `stack/<this stack's name>/<key>`, the key one the stack's owner made for it
+  (for mail: `recovery` only). A stack nobody owns may reference none, and AutoPanel's own values
+  (`mail/apikey`, the Cloudflare token) are outside `stack/` and can never be;
+- the review shows it by its name, never its value; the apply reads the value from the vault and
+  writes it into the service's generated environment file (0400). A changed value is a changed
+  file, and restarts the service; a value the vault does not hold, or a locked vault, stops the
+  apply before anything is written.
+
+**In the code:** `core/services/compose.go` (`Parse`, `ParseEnv`, `interpolate`, `sealedRE`),
+`core/services/apply.go` (`sealedFindings`, `resolveSealed`);
+`TestWhatTheSubsetDoesNotTakeIsRefusedByName`, `TestVariablesAreFilledFromEnvAlone`,
+`TestASealedReferenceIsReadExactly`, `TestTheApplyReadsTheValueIntoTheGeneratedFile`.
 
 ## What a stack may not do, and what it is warned of
 
