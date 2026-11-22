@@ -94,7 +94,7 @@ func TestTheSitesLinkRule(t *testing.T) {
 	for href, want := range map[string]bool{
 		"#top": true, "img/a.png": true, "../guide/": true, "/blog/": true, "https://example.org/": true, "http://example.org": true,
 		"mailto:a@example.org": true, "javascript:alert(1)": false, "JavaScript:alert(1)": false, "data:image/png;base64,x": false,
-		"//evil.example.net/x": false, "vbscript:x": false, "file:///etc/passwd": false, "a\\b": false, "": false, "a\x00b": false,
+		"//evil.example.net/x": false, "vbscript:x": false, "file:///etc/passwd": false, "a\\b": false, "": false, "a\x00b": false, " javascript:x": false, "java\tscript:x": false, "a b": false, "\x7f": false,
 	} {
 		if _, ok := siteLink(href); ok != want {
 			t.Errorf("siteLink(%q) = %v", href, ok)
@@ -108,5 +108,58 @@ func TestAnHTMLDocumentStaysItsSource(t *testing.T) {
 	b, err := renderBody(coresite.HTML, []byte("<p onclick=x>hi</p>"), "")
 	if err != nil || strings.Contains(b, "<p>") || strings.Contains(b, "<p ") || !strings.Contains(b, "&lt;p onclick=x&gt;") {
 		t.Fatalf("%q, %v", b, err)
+	}
+}
+
+// TestTheKitsScriptsAreTheBinarys: what --site-build writes is what the core
+// checks a build against, and a page that loads them, as the core read it to
+// draw a diagram, passes; on any other page they are refused.
+func TestTheKitsScriptsAreTheBinarys(t *testing.T) {
+	base := t.TempDir()
+	p := kitPaths{Fragments: filepath.Join(base, "fragments"), Out: filepath.Join(base, "out")}
+	if err := os.MkdirAll(p.Out, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeKitIndex(p); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeKitScripts(p); err != nil {
+		t.Fatal(err)
+	}
+	var idx struct {
+		Scripts []struct{ Path, Integrity string }
+		MermaidTheme string
+	}
+	raw, _ := os.ReadFile(filepath.Join(p.Fragments, "_kit.json"))
+	if err := json.Unmarshal(raw, &idx); err != nil || len(idx.Scripts) != 2 || idx.MermaidTheme != "default" {
+		t.Fatalf("the index: %s %v", raw, err)
+	}
+	tags := ""
+	for i, k := range KitScripts() {
+		if idx.Scripts[i].Path != k.Path || idx.Scripts[i].Integrity != k.Integrity {
+			t.Fatalf("the index and the core disagree: %+v %+v", idx.Scripts[i], k)
+		}
+		body, err := os.ReadFile(filepath.Join(p.Out, filepath.FromSlash(strings.TrimPrefix(k.Path, "/"))))
+		if err != nil || sri(string(body)) != k.Integrity {
+			t.Fatalf("%s: written %d bytes, %v", k.Path, len(body), err)
+		}
+		tags += `<script src="` + k.Path + `" integrity="` + k.Integrity + `" defer></script>`
+	}
+	if !strings.HasPrefix(KitScripts()[0].Path, "/_kit/mermaid.") {
+		t.Fatalf("the first script: %s", KitScripts()[0].Path)
+	}
+	page := "<!DOCTYPE html>\n<html lang=\"en\" data-mermaid=\"default\"><head><meta charset=\"utf-8\"><title>D</title>" + tags +
+		"</head><body><pre class=\"mermaid\">graph TD; A--&gt;B</pre></body></html>\n"
+	if err := os.MkdirAll(filepath.Join(p.Out, "d"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	_ = os.WriteFile(filepath.Join(p.Out, "d", "index.html"), []byte(page), 0o644)
+	opts := coresite.CheckOptions{MaxBytes: 64 << 20, KitScripts: KitScripts(), Mermaid: func(pg string) bool { return pg == "d/index.html" }}
+	if _, err := coresite.CheckOutput(p.Out, opts); err != nil {
+		t.Fatalf("a page that draws a diagram: %v", err)
+	}
+	opts.Mermaid = func(string) bool { return false }
+	if _, err := coresite.CheckOutput(p.Out, opts); err == nil {
+		t.Fatal("the scripts on a page the core did not read as drawing a diagram")
 	}
 }

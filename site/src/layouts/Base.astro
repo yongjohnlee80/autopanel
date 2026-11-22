@@ -3,14 +3,17 @@
 // script and no style of the page's own: one stylesheet for the kit, one for
 // the configuration's look.
 import '../styles/site.css';
-import { config, absolute } from '../lib/input';
+import { config, absolute, kit } from '../lib/input';
 
-interface Props { title: string; description?: string; path: string; type?: 'website' | 'article' }
-const { title, description, path, type = 'website' } = Astro.props;
+// mermaid: the page draws a diagram, as the core read the document. Only then
+// does it load the kit's two scripts, by their integrity; the output check
+// refuses them on any other page.
+interface Props { title: string; description?: string; path: string; type?: 'website' | 'article'; mermaid?: boolean }
+const { title, description, path, type = 'website', mermaid = false } = Astro.props;
 const full = title === config.title ? title : `${title} · ${config.title}`;
 ---
 <!doctype html>
-<html lang={config.language}>
+<html lang={config.language} data-mermaid={mermaid ? kit.mermaidTheme : undefined}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -23,6 +26,7 @@ const full = title === config.title ? title : `${title} · ${config.title}`;
     <meta property="og:type" content={type} />
     <meta property="og:url" content={absolute(path)} />
     {description && <meta property="og:description" content={description} />}
+    {mermaid && kit.scripts.map((s) => <script is:inline src={s.path} integrity={s.integrity} defer></script>)}
   </head>
   <body class={`theme-${config.theme}`}>
     <header class="site-header">

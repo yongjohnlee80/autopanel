@@ -20,7 +20,7 @@ const date = typeof meta.date === 'string' ? meta.date : undefined;
 const crumbs = (doc?.path ?? folder?.path ?? '').split('/').slice(0, -1);
 ---
 {doc && (
-  <Base title={docTitle(doc)} description={summary} path={doc.path} type="article">
+  <Base title={docTitle(doc)} description={summary} path={doc.path} type="article" mermaid={doc.mermaid === true}>
     {crumbs.length > 0 && (
       <nav class="crumbs">
         {crumbs.map((c, i) => <a href={href(crumbs.slice(0, i + 1).join('/'))}>{c}</a>)}

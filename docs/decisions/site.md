@@ -154,7 +154,11 @@ the whole build.
     decoded, and `//host` or a backslash taken as another host.
 - **The exceptions are exact.**
   - A page the renderer says has a Mermaid diagram may load the kit's two scripts: their own
-    paths, with their integrity values, deferred, each once.
+    paths, with their integrity values, deferred, each once. The two are in the binary (Mermaid
+    12.1.0 as AutoDoc's export vendors it, pinned by its tarball's integrity, and the start that
+    draws a page's diagrams): `--site-build` writes them into the output at `/_kit/`, and the core
+    takes their integrity from its own copy. A core and a kit image of different releases fail
+    closed: the check does not know the other's scripts.
   - A document's inert copy (`_doc.html`) is shown in a frame with `sandbox=""`, and only if the
     build made it. The copy may have its own styles.
   - An active document is shown from the content host, in a frame allowed scripts and nothing

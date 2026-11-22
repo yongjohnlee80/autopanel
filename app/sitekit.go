@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,6 +18,7 @@ import (
 	"strings"
 
 	"github.com/yongjohnlee80/autodoc/core/export"
+	"github.com/yongjohnlee80/autodoc/core/export/mermaid"
 	"github.com/yongjohnlee80/golib/chart/vegalite"
 
 	coresite "github.com/yongjohnlee80/autopanel/core/site"
@@ -68,6 +71,10 @@ func siteBuild(stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "autopanel --site-build: rendering:", err)
 		return 1
 	}
+	if err := writeKitIndex(p); err != nil {
+		fmt.Fprintln(stderr, "autopanel --site-build: the kit's scripts:", err)
+		return 1
+	}
 	// NAPI_RS_FORCE_WASI: Astro's compiler as WebAssembly; its native build
 	// needs AVX2, which older servers lack (see the Containerfile).
 	env := []string{"HOME=/tmp", "NODE_ENV=production", "ASTRO_TELEMETRY_DISABLED=1", "NAPI_RS_FORCE_WASI=1",
@@ -79,6 +86,10 @@ func siteBuild(stdout, stderr io.Writer) int {
 	}
 	if err := copyImages(p); err != nil {
 		fmt.Fprintln(stderr, "autopanel --site-build: a document's images:", err)
+		return 1
+	}
+	if err := writeKitScripts(p); err != nil {
+		fmt.Fprintln(stderr, "autopanel --site-build: the kit's scripts:", err)
 		return 1
 	}
 	// What Astro keeps beside the pages while it builds is not a page: the
@@ -197,6 +208,80 @@ func copyImages(p kitPaths) error {
 	return nil
 }
 
+// The kit's two scripts: Mermaid (vendored in AutoDoc's export, pinned by
+// its tarball's integrity) and the start that draws a page's diagrams. They
+// are in the binary, so the core that checks a build and the container that
+// makes it hold the same bytes: a core and a kit image of different releases
+// fail closed, as a script the check does not know.
+type kitScript struct {
+	coresite.KitScript
+	body string
+}
+
+func kitScriptFiles() []kitScript {
+	return []kitScript{
+		{KitScript: coresite.KitScript{Path: "/_kit/mermaid." + mermaid.Version + ".js", Integrity: sri(mermaid.Script())}, body: mermaid.Script()},
+		{KitScript: coresite.KitScript{Path: "/_kit/mermaid-start.js", Integrity: sri(export.MermaidStart())}, body: export.MermaidStart()},
+	}
+}
+
+// KitScripts are the kit's scripts as the output check knows them.
+func KitScripts() []coresite.KitScript {
+	var out []coresite.KitScript
+	for _, k := range kitScriptFiles() {
+		out = append(out, k.KitScript)
+	}
+	return out
+}
+
+// sri is a script's integrity: sha256-<base64>.
+func sri(body string) string {
+	sum := sha256.Sum256([]byte(body))
+	return "sha256-" + base64.StdEncoding.EncodeToString(sum[:])
+}
+
+// writeKitIndex tells the kit's layout the scripts' paths and integrity, and
+// Mermaid's theme: _kit.json beside the fragments.
+func writeKitIndex(p kitPaths) error {
+	if err := os.MkdirAll(p.Fragments, 0o755); err != nil {
+		return err
+	}
+	type script struct {
+		Path      string `json:"path"`
+		Integrity string `json:"integrity"`
+	}
+	idx := struct {
+		Scripts      []script `json:"scripts"`
+		MermaidTheme string   `json:"mermaidTheme"`
+	}{MermaidTheme: "default"}
+	for _, k := range kitScriptFiles() {
+		idx.Scripts = append(idx.Scripts, script{Path: k.Path, Integrity: k.Integrity})
+	}
+	b, err := json.Marshal(idx)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(p.Fragments, "_kit.json"), b, 0o644)
+}
+
+// writeKitScripts puts the scripts in the output, at their paths.
+func writeKitScripts(p kitPaths) error {
+	dst, err := os.OpenRoot(p.Out)
+	if err != nil {
+		return err
+	}
+	defer dst.Close()
+	if err := dst.MkdirAll("_kit", 0o755); err != nil {
+		return err
+	}
+	for _, k := range kitScriptFiles() {
+		if err := dst.WriteFile(strings.TrimPrefix(k.Path, "/"), []byte(k.body), 0o644); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // renderBody is one document's body, rendered.
 func renderBody(format string, src []byte, embeds string) (string, error) {
 	switch format {
@@ -247,11 +332,16 @@ func nrgba(hex string) color.NRGBA {
 // siteLink is the rule for every URL a body holds: a fragment of the page, a
 // path on the site (its own files beside it, another page), or an http,
 // https or mailto address elsewhere. Anything else (javascript:, data:, a
-// protocol-relative //host, a backslash or a control character) is dropped:
+// protocol-relative //host, a backslash, a space or a control character) is dropped:
 // a link keeps its text, an image its alt.
 func siteLink(href string) (string, bool) {
-	if href == "" || strings.ContainsAny(href, "\\\x00\t\n\r") || strings.HasPrefix(href, "//") {
+	if href == "" || strings.ContainsRune(href, '\\') || strings.HasPrefix(href, "//") {
 		return "", false
+	}
+	for _, r := range href { // a space or a control character anywhere: a browser may strip it, and read another URL
+		if r <= 0x20 || r == 0x7f {
+			return "", false
+		}
 	}
 	u, err := url.Parse(href)
 	if err != nil {

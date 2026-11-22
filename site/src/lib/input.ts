@@ -71,6 +71,14 @@ export function latest(n: number): Entry[] {
 
 // fragment is a document's body as the renderer made it; the output check
 // reads the page it ends up in.
+// The kit's scripts, which the binary writes into the output, and Mermaid's
+// theme: loaded only on a page the core says draws a diagram.
+export interface KitIndex { scripts: { path: string; integrity: string }[]; mermaidTheme: string }
+const kitFile = join(fragmentsDir, '_kit.json');
+export const kit: KitIndex = existsSync(kitFile)
+  ? (JSON.parse(readFileSync(kitFile, 'utf8')) as KitIndex)
+  : { scripts: [], mermaidTheme: 'default' };
+
 export function fragment(d: InputDoc): string {
   const f = join(fragmentsDir, d.path + '.html');
   return existsSync(f) ? readFileSync(f, 'utf8') : '';
