@@ -894,6 +894,7 @@ Window {
         Shortcut { sequence: "r"; onActivated: App.mailReload() }
         Shortcut { sequence: "s"; onActivated: App.mailSync() }
         Shortcut { sequence: "p"; onActivated: App.mailOpenPorts() }
+        Shortcut { sequence: "a"; onActivated: App.mailRepair() }
         Flex {
             direction: Tui.Vertical
             Frame {
@@ -916,6 +917,8 @@ Window {
                 Button { text: qsTrId("autopanel.button.mail.sync"); toolTipText: App.tipMailSync; onClicked: App.mailSync() }
                 Text { text: " "; visible: App.mailCanOpenPorts }
                 Button { text: qsTrId("autopanel.button.mail.openPorts"); toolTipText: App.tipMailOpenPorts; visible: App.mailCanOpenPorts; onClicked: App.mailOpenPorts() }
+                Text { text: " " }
+                Button { text: qsTrId("autopanel.button.mail.repair"); toolTipText: App.tipMailRepair; onClicked: App.mailRepair() }
                 Text { text: " " }
                 Button { text: qsTrId("autopanel.button.panel.close"); toolTipText: App.tipPanelClose; onClicked: App.closePanel("mailServer") }
                 Text { text: " "; Layout.fillWidth: true }

@@ -162,6 +162,7 @@ var (
 	ErrIncomplete   = errors.New("services: the apply did not finish")
 	ErrReserved     = errors.New("services: the name is AutoPanel's own")
 	ErrNotOwnPort   = errors.New("services: a port to open is not one the stack publishes on a public address")
+	ErrSealed       = errors.New("services: a sealed value the definition names cannot be read")
 )
 
 // Guard is a module that owns a stack: mail owns the stack named mail, whose
@@ -177,6 +178,10 @@ type Guard interface {
 	// Mask hides what an owned stack's log lines must not show (a credential
 	// its service prints), before services.logs answers them.
 	Mask(name string, lines []string) []string
+	// Sealed are the keys name's definition may reference as
+	// ${sealed:stack/<name>/<key>}: the ones its owner made for it. None for
+	// a stack it does not own.
+	Sealed(name string) []string
 }
 
 // detailed is a declared error that names what it is about.
@@ -206,6 +211,7 @@ type Module struct {
 	// firewall opens and closes the ports a stack chose to open; nil when
 	// this core drives no firewall.
 	firewall Firewall
+	sealed   func(ctx context.Context, name string) ([]byte, error) // nil: no definition may reference one
 }
 
 // Firewall is the core's firewall as an owner of rules uses it.
@@ -220,6 +226,12 @@ type Firewall interface {
 // SetFirewall gives the module the firewall. It is set once, before the
 // verbs are served.
 func (m *Module) SetFirewall(f Firewall) { m.firewall = f }
+
+// SetSealed gives the apply the vault's sealed values, by name, for the
+// definitions that reference them. Set once, before the verbs are served.
+func (m *Module) SetSealed(read func(ctx context.Context, name string) ([]byte, error)) {
+	m.sealed = read
+}
 
 // SetGuard names the module that owns stacks of its own. It is set once,
 // before the verbs are served.
@@ -255,6 +267,7 @@ func (m *Module) Errors() []module.PublicError {
 		{Err: ErrOldPodman, Code: -32197, Name: "services.old_podman", Message: "the host's Podman is older than 4.9, which running a stack needs"},
 		{Err: ErrStoppedNeed, Code: -32198, Name: "services.stopped_dependency", Message: "a service it depends on is stopped; start that one first"},
 		{Err: ErrBusy, Code: -32199, Name: "services.busy", Message: "the stack is being removed"},
+		{Err: ErrSealed, Code: -32220, Name: "services.sealed", Message: "a sealed value the definition names cannot be read: the vault is locked, or it holds no such value"},
 	}
 }
 

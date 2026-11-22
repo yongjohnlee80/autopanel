@@ -14,6 +14,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -281,6 +282,15 @@ func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateContr
 	mailMod.SetDNS(mailDNS{st: st, vault: vault})
 	mailMod.SetCerts(mailCerts{sw: sw})
 	mailMod.SetProxyProbe(counts.unproxied) // what the gate's probe of mail's ports found
+	mailMod.SetAudit(st)                    // a repair's steps, each before it acts
+	// A stack's sealed references read the vault under stack/ alone: AutoPanel's
+	// own values (mail/apikey, the Cloudflare token) are outside it.
+	svcs.SetSealed(func(ctx context.Context, name string) ([]byte, error) {
+		if !strings.HasPrefix(name, "stack/") {
+			return nil, mail.ErrNoSecret
+		}
+		return mailVault{st: st, vault: vault}.Get(ctx, name)
+	})
 	// The HTTPS API: off until sys.api.set names its host. The gate serves it;
 	// its calls come back over the link.
 	// The API's hosts, the applications' and the sites' are AutoPanel's own:

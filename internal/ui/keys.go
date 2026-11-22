@@ -140,6 +140,7 @@ var tips = map[string]string{
 	"App.tipMonitorReload":      "autopanel.tip.panel.reload",
 	"App.tipFirewallAllow":      "autopanel.tip.firewall.allow",
 	"App.tipMailOpenPorts":      "autopanel.tip.mail.openPorts",
+	"App.tipMailRepair":         "autopanel.tip.mail.repair",
 	"App.tipFirewallRevoke":     "autopanel.tip.firewall.revoke",
 	"App.tipFirewallOn":         "autopanel.tip.firewall.on",
 	"App.tipFirewallConfirm":    "autopanel.tip.firewall.confirm",

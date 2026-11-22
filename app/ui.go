@@ -386,6 +386,16 @@ func (u uiClient) MailPortsOpen(ctx context.Context, ports []int) error {
 	return u.call(ctx, "mail.ports.open", mail.PortsAsk{Ports: ports}, nil)
 }
 
+func (u uiClient) MailRepairCheck(ctx context.Context) (mail.Diagnosis, error) {
+	var d mail.Diagnosis
+	return d, u.call(ctx, "mail.repair.check", nil, &d)
+}
+
+func (u uiClient) MailRepair(ctx context.Context, accept string) (mail.Repaired, error) {
+	var r mail.Repaired
+	return r, u.call(ctx, "mail.repair", mail.RepairAsk{Accept: accept}, &r)
+}
+
 func (u uiClient) MailSetupApply(ctx context.Context, accept string, open []int) error {
 	return u.call(ctx, "mail.setup.apply", mail.Accept{Accept: accept, Open: open}, nil)
 }

@@ -68,6 +68,10 @@ type EnvVar struct {
 	// FromEnv marks a value filled from .env: it goes to the container through
 	// a file, never through a command line.
 	FromEnv bool
+	// Sealed names a value AutoPanel keeps sealed, written
+	// ${sealed:stack/<stack>/<key>}: Value is empty until the apply reads it
+	// from the vault, and it reaches the container as a value from .env does.
+	Sealed string
 }
 
 // Publish is one "ports" entry.
@@ -241,6 +245,13 @@ func (p *parser) str(n *yaml.Node, service, where string) (string, bool) {
 		p.refuse("bad-value", service, where+": a value is expected")
 		return "", false
 	}
+	if sealedAnyRE.MatchString(n.Value) {
+		// A sealed reference is an environment variable's whole value, in a
+		// mapping: anything else that looks like one is refused rather than
+		// read as a variable named sealed.
+		p.refuse("bad-sealed", service, where)
+		return "", false
+	}
 	s, used, missing := interpolate(n.Value, p.env)
 	if missing != "" {
 		p.refuse("unset-variable", service, where+": ${"+missing+"} is not in .env")
@@ -276,6 +287,15 @@ func (p *parser) list(n *yaml.Node, service, where string) []string {
 }
 
 var varRE = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*`)
+
+// sealedRE is a sealed reference, exactly: ${sealed:<name>}, the name of
+// [a-z0-9/_-], starting with a letter or a digit (so ${sealed:-…} is no
+// reference). sealedAnyRE is anything that may be read as one, or as a
+// variable named sealed: ${sealed:-…}, ${sealed?…}, $sealed.
+var (
+	sealedRE    = regexp.MustCompile(`^\$\{sealed:([a-z0-9][a-z0-9/_-]{0,127})\}$`)
+	sealedAnyRE = regexp.MustCompile(`\$\{?sealed([^A-Za-z0-9_]|$)`)
+)
 
 // named is what a variable that could not be read is called in a finding: its
 // own text, or "?" when it has none.
@@ -664,6 +684,14 @@ func (p *parser) environment(n *yaml.Node, service, where string) []EnvVar {
 				// Compose would pass the variable through from its own
 				// environment; the core's is never a stack's.
 				p.refuse("env-no-value", service, where+"."+k)
+				return
+			}
+			if m := sealedRE.FindStringSubmatch(v.Value); v.Kind == yaml.ScalarNode && m != nil {
+				if !envKeyRE.MatchString(k) {
+					p.refuse("bad-value", service, where+": a variable's name")
+					return
+				}
+				out = append(out, EnvVar{Key: k, Sealed: m[1]})
 				return
 			}
 			if s, ok := p.str(v, service, where+"."+k); ok {

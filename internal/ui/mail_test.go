@@ -15,18 +15,20 @@ import (
 	corefw "github.com/yongjohnlee80/autopanel/core/firewall"
 	"github.com/yongjohnlee80/autopanel/core/gate"
 	"github.com/yongjohnlee80/autopanel/core/mail"
+	"github.com/yongjohnlee80/autopanel/core/services"
 )
 
 // fakeMail is the Mail menu's daemon, in memory.
 type fakeMail struct {
-	status   mail.Status
-	records  map[string]mail.RecordsAnswer
-	accounts []mail.AccountView
-	setups   []string                          // "host domain"
-	pending  string                            // the setup the daemon holds until it is applied: "host domain"
-	asks     []string                          // "add-domain x", "takeover d TXT n", "sync"
-	apps     map[string][]mail.AppPasswordView // by address
-	appSeq   int
+	status    mail.Status
+	records   map[string]mail.RecordsAnswer
+	accounts  []mail.AccountView
+	setups    []string                          // "host domain"
+	pending   string                            // the setup the daemon holds until it is applied: "host domain"
+	asks      []string                          // "add-domain x", "takeover d TXT n", "sync"
+	apps      map[string][]mail.AppPasswordView // by address
+	appSeq    int
+	diagnosis mail.Diagnosis // what mail.repair.check answers
 }
 
 // appSecret is the secret the fake daemon answers for its n-th app password.
@@ -534,4 +536,44 @@ func TestAnAccountIsDisabledAndItsAliasesSet(t *testing.T) {
 	s.Keys(t, enter)
 	waitMailAsked(t, s, f, "set-aliases ana@example.com ")
 	s.WaitForText(t, "ana@example.com has 0 aliases")
+}
+
+func (f *fakeClient) MailRepairCheck(context.Context) (mail.Diagnosis, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.mail.asks = append(f.mail.asks, "repair check")
+	return f.mail.diagnosis, nil
+}
+
+func (f *fakeClient) MailRepair(_ context.Context, accept string) (mail.Repaired, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.mail.asks = append(f.mail.asks, "repair "+accept)
+	return mail.Repaired{Case: f.mail.diagnosis.Case, Done: []string{"a new API key was made and sealed"}, Destroyed: 1, Kept: []string{"monitoring"}}, nil
+}
+
+// TestRepairAccess: Mail › Server › Repair access says what is wrong and what
+// will be done, asks, and repairs; with nothing wrong it says so and asks
+// nothing.
+func TestRepairAccess(t *testing.T) {
+	f := newFakeClient()
+	f.mail.diagnosis = mail.Diagnosis{Case: mail.CaseOK}
+	h, s := startHost(t, f)
+	s.WaitForText(t, "CA LE staging")
+	run(t, h, h.mailRepair)
+	s.WaitForText(t, "nothing to repair")
+	f.mu.Lock()
+	f.mail.diagnosis = mail.Diagnosis{Case: mail.CaseAdminLost, Says: "neither the API key nor the administrator signs in",
+		Plan: []string{"add the recovery administrator", "remove it"}, Review: &services.Review{SHA256: "the-review", Findings: []services.Finding{{ID: "sealed-reference", Detail: "STALWART_RECOVERY_ADMIN ← stack/mail/recovery"}}}}
+	f.mu.Unlock()
+	run(t, h, h.mailRepair)
+	s.WaitForText(t, "neither the API key nor the administrator")
+	s.WaitForText(t, "stack/mail/recovery")
+	s.Keys(t, decltest.Rune('y'))
+	s.WaitFor(t, "the repair", func(string) bool {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		return slices.Contains(f.mail.asks, "repair the-review")
+	})
+	s.WaitForText(t, "1 older key")
 }

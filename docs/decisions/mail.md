@@ -369,6 +369,54 @@ firewall rules behind.
 **In the code:** `core/mail/module.go` (`remove`), `core/services/module.go` (`RemoveOwned`),
 `store/mail.go` (`Drop`); `TestMailIsRemovedWholeAndOnlyByMail`.
 
+## Repairing access
+
+**Decided:** when the API key AutoPanel signs in to Stalwart with no longer signs in (revoked in
+Stalwart's own UI, or a backup of either side restored from before it), `mail.repair.check`
+(`mail.admin`, a read) says which case it is, by trying, and changes nothing; `mail.repair` repairs
+it with the least power that works. Mail keeps flowing meanwhile, and nothing of mail's data is
+touched: no account, domain or message.
+
+| Case | What tells it | The repair |
+| --- | --- | --- |
+| `ok` | the key signs in | nothing |
+| `unreachable` | anything but a refusal (a refused connection, a timeout, a 5xx) | none: the stack's state and the host checks say why |
+| `not_set_up` | the bootstrap never finished | a restart (a new one-time password), and the bootstrap again |
+| `recovery_leftover` | a recovery value in the vault, or the definition still referencing it | finished first (the end below), then diagnosed again |
+| `key_lost` | the key is refused or gone, the sealed administrator signs in | the administrator makes a new key, sealed; once it signs in, the older keys AutoPanel made (described exactly `autopanel core`, or `autopanel core ` and more) are destroyed; others are kept and named. No restart |
+| `admin_lost` | neither signs in | the recovery administrator, for one start (below) |
+
+**A lost administrator** is given a new secret by Stalwart's recovery administrator
+(`STALWART_RECOVERY_ADMIN`), which the server reads at start:
+
+1. a fresh `name:secret` is sealed as `stack/mail/recovery`, and the stack's definition gains
+   `STALWART_RECOVERY_ADMIN: "${sealed:stack/mail/recovery}"`, applied ([sealed
+   references](services.md#a-stack-is-a-compose-file-and-the-core-reads-it-itself)): a restart;
+2. as the recovery administrator, the core finds the server's one administrator by its role (none,
+   or more than one, is refused), gives it a new secret, and seals it;
+3. that administrator makes a new key, as for `key_lost` (the recovery administrator cannot: a key
+   belongs to an account, and it is none);
+4. the definition without the reference is applied: a restart; the recovery administrator must no
+   longer sign in, and only then is its value deleted from the vault. Deleted first, a failed apply
+   would leave a stack that cannot start.
+
+**One acceptance covers the whole run.** `mail.repair.check` answers the review of the definition
+with the reference, and the plan; `mail.repair` runs only with that review's sha256. Step 4 runs on
+that acceptance, on success as on failure: a repair never leaves the recovery administrator in
+place. Recovery mode (`STALWART_RECOVERY_MODE`) is never used: it stops mail from being served.
+
+**One repair at a time:** it holds the setup lock, so two repairs, or a repair and a bootstrap,
+never interleave. While it runs the background sync waits, and the stack's restarts raise no alert.
+Each step is on the audit log before it acts, never with a secret. Mail is down for two restarts of a
+few seconds each; senders queue and retry.
+
+**Host checks:** `mail-access` (an alert) when the last sync's key was refused; `mail-recovery-active`
+(an alert) while a recovery value is left. In the panel: **Mail › Server › Repair access…**
+
+**In the code:** `core/mail/repair.go`, `core/mail/provider/provider.go` (`Repairer`),
+`sdk/stalwart/repair.go`, `sdk/stalwart/jmap.go` (`APIKeys`, `DestroyAPIKey`, `SetSecret`),
+`core/services/apply.go` (`Apply`, the sealed reference).
+
 ## Mail's rules name no mail server
 
 **Decided:** mail's business logic (`core/mail`: the verbs, the setup transaction, DNS ownership,

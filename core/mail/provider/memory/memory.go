@@ -535,6 +535,18 @@ type Product struct {
 	Key string
 	// Bootstraps counts Bootstrap's runs.
 	Bootstraps int
+
+	// The repair's side (Repairer): the administrator the server takes, the
+	// recovery administrator it started with (Start), how many
+	// administrators it has, keys someone else made, and a failure a test
+	// puts in a step's way.
+	Admin      string
+	Recovery   []byte
+	Admins     int
+	OtherKeys  []string
+	RepairFail func(step string) error
+	ours       int // the keys AutoPanel made that still exist
+	keys       int
 }
 
 var _ provider.Product = (*Product)(nil)
@@ -554,6 +566,9 @@ func (p *Product) Compose(st provider.Stack) []byte {
 		fmt.Fprintf(&b, "      - \"127.0.0.1:%d:%d\"\n", pm.Loopback, 3000+i)
 	}
 	fmt.Fprintf(&b, "      - \"127.0.0.1:%d:8080\"\n    read_only: true\n    cap_drop:\n      - ALL\n    restart: unless-stopped\n", manage)
+	if st.Recovery != "" {
+		fmt.Fprintf(&b, "    environment:\n      RECOVERY: \"%s\"\n", st.Recovery)
+	}
 	return []byte(b.String())
 }
 
@@ -580,7 +595,7 @@ func (p *Product) Mask(lines []string) []string {
 // when the sealed value it leaves is there.
 func (p *Product) Bootstrap(ctx context.Context, env provider.Env) error {
 	p.Bootstraps++
-	if _, err := env.Sealed(ctx, "admin"); errors.Is(err, provider.ErrNoSecret) {
+	if had, err := env.Sealed(ctx, "admin"); errors.Is(err, provider.ErrNoSecret) {
 		once, err := env.FirstCredential(ctx)
 		if err != nil {
 			return err
@@ -588,11 +603,14 @@ func (p *Product) Bootstrap(ctx context.Context, env provider.Env) error {
 		if err := env.Seal(ctx, "admin", []byte("admin:"+once)); err != nil {
 			return err
 		}
+		p.Admin = "admin:" + once
 		if err := env.Restart(ctx); err != nil {
 			return err
 		}
 	} else if err != nil {
 		return err
+	} else if p.Admin == "" {
+		p.Admin = string(had)
 	}
 	if _, err := env.Forwarder(ctx); err != nil {
 		return err
@@ -601,6 +619,7 @@ func (p *Product) Bootstrap(ctx context.Context, env provider.Env) error {
 		if err := env.Seal(ctx, provider.SealedAPIKey, []byte(p.Key)); err != nil {
 			return err
 		}
+		p.ours = 1
 	} else if err != nil {
 		return err
 	}
@@ -757,4 +776,79 @@ func (k keyed) ServeCertificate(ctx context.Context, id, c, key string) (bool, e
 		return false, err
 	}
 	return k.s.ServeCertificate(ctx, id, c, key)
+}
+
+// --- repairing access ------------------------------------------------------------
+
+var _ provider.Repairer = (*Product)(nil)
+
+func (p *Product) fail(step string) error {
+	if p.RepairFail != nil {
+		return p.RepairFail(step)
+	}
+	return nil
+}
+
+// Start is the server started with a definition: with recovery, the value
+// its sealed reference resolved to; nil for none.
+func (p *Product) Start(recovery []byte) { p.Recovery = slices.Clone(recovery) }
+
+func (p *Product) AdminSignsIn(ctx context.Context, env provider.Env) error {
+	if err := p.fail("admin"); err != nil {
+		return err
+	}
+	a, err := env.Sealed(ctx, "admin")
+	if err != nil {
+		return err
+	}
+	if string(a) != p.Admin {
+		return provider.ErrUnauthorized
+	}
+	return nil
+}
+
+func (p *Product) NewAPIKey(ctx context.Context, env provider.Env, _ time.Time) (provider.KeyRepair, error) {
+	if err := p.AdminSignsIn(ctx, env); err != nil {
+		return provider.KeyRepair{}, err
+	}
+	if err := p.fail("key"); err != nil {
+		return provider.KeyRepair{}, err
+	}
+	p.keys++
+	key := fmt.Sprintf("repaired-key-%d", p.keys)
+	if err := env.Seal(ctx, provider.SealedAPIKey, []byte(key)); err != nil {
+		return provider.KeyRepair{}, err
+	}
+	p.Key = key
+	out := provider.KeyRepair{Destroyed: p.ours, Kept: append([]string{}, p.OtherKeys...)}
+	p.ours = 1
+	return out, nil
+}
+
+func (p *Product) RecoveryCredential() ([]byte, error) {
+	b := make([]byte, 16)
+	_, _ = rand.Read(b)
+	return []byte(fmt.Sprintf("recovery:%x", b)), nil
+}
+
+func (p *Product) ResetAdmin(ctx context.Context, env provider.Env, recovery []byte) error {
+	if p.Recovery == nil || string(p.Recovery) != string(recovery) {
+		return provider.ErrUnauthorized
+	}
+	if err := p.fail("reset"); err != nil {
+		return err
+	}
+	if n := p.Admins; n != 0 && n != 1 {
+		return fmt.Errorf("the server has %d administrators", n)
+	}
+	p.keys++
+	p.Admin = fmt.Sprintf("admin:reset-%d", p.keys)
+	return env.Seal(ctx, "admin", []byte(p.Admin))
+}
+
+func (p *Product) RecoverySignsIn(_ context.Context, _ string, recovery []byte) error {
+	if p.Recovery != nil && string(p.Recovery) == string(recovery) {
+		return nil
+	}
+	return provider.ErrUnauthorized
 }

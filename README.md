@@ -584,6 +584,13 @@ record resolves to this server: **Mail → Server** shows it (`ok until …`), a
 again after you have entered the record. A certificate from Let's Encrypt's staging service works
 but mail apps warn about it; switch to production (below) once mail runs.
 
+**If AutoPanel loses its way into the mail server** (its API key revoked in Stalwart's own UI, or a
+backup restored on one side), mail keeps flowing but nothing can be added, and the host check
+`mail-access` says so. **Mail → Server → Repair access…** finds out why without changing anything,
+says what it will do, and on your yes does it: a new key made by Stalwart's administrator; or, when
+the administrator is lost too, Stalwart's recovery administrator for one restart to give it a new
+secret, taken away again whatever happens. No account, domain or message is touched.
+
 #### The panels
 
 **Domains** lists the domains that receive mail; the right side shows each record the selected one

@@ -60,6 +60,7 @@ func TestEveryVerbHasADecision(t *testing.T) {
 		"mail.status": {"mail", false, true}, "mail.records": {"mail", false, true}, "mail.domain.list": {"mail", false, true},
 		"mail.account.list": {"mail", false, true}, "mail.setup": {"mail.admin", true, false}, "mail.setup.apply": {"mail.admin", true, false}, "mail.ports.open": {"mail.admin", true, false}, "mail.remove": {"mail.admin", true, false},
 		"mail.domain.add": {"mail", true, false}, "mail.domain.remove": {"mail", true, false}, "mail.records.takeover": {"mail", true, false},
+		"mail.repair.check": {"mail.admin", false, true}, "mail.repair": {"mail.admin", true, false},
 		"mail.sync": {"mail", true, false}, "mail.account.add": {"mail", true, false}, "mail.account.lock": {"mail", true, false},
 		"mail.apppassword.list": {"mail", false, true}, "mail.apppassword.add": {"mail", true, false},
 		"mail.apppassword.keep": {"mail", true, false}, "mail.apppassword.revoke": {"mail", true, false},

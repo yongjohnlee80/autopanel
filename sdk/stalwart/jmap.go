@@ -322,6 +322,31 @@ func (c *Client) CreateAPIKey(ctx context.Context, description string) (id, secr
 	return k.ID, k.Secret, nil
 }
 
+// APIKey is one of the administrator's API keys: never its secret.
+type APIKey struct {
+	ID          string `json:"id"`
+	Description string `json:"description"`
+}
+
+// APIKeys are the signed-in administrator's own API keys. Only their ids and
+// descriptions are asked for: Stalwart would answer each key's secret too.
+func (c *Client) APIKeys(ctx context.Context) ([]APIKey, error) {
+	var got struct {
+		List []APIKey `json:"list"`
+	}
+	if err := c.call(ctx, "x:ApiKey/get", map[string]any{"ids": nil, "properties": []string{"description"}}, &got); err != nil {
+		return nil, err
+	}
+	sort.Slice(got.List, func(i, j int) bool { return got.List[i].ID < got.List[j].ID })
+	return got.List, nil
+}
+
+// DestroyAPIKey destroys one of the administrator's API keys.
+func (c *Client) DestroyAPIKey(ctx context.Context, id string) error {
+	_, err := c.set(ctx, "ApiKey", map[string]any{"destroy": []string{id}})
+	return err
+}
+
 // --- domains -----------------------------------------------------------------
 
 // Domain is one of Stalwart's mail domains.

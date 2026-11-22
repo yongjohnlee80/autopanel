@@ -86,6 +86,7 @@ func (m *Module) syncAll(ctx context.Context, st State) Sync {
 		fail("the domains", err)
 	}
 	theirs, err := c.Domains(ctx)
+	m.noteAccess(err)
 	if err != nil {
 		fail("the mail server's domains", err)
 	}
@@ -273,6 +274,9 @@ type Finding struct {
 //   - mail-port-25: no connection out to port 25 gets through.
 //   - mail-proxy-trust: the mail server greets the gate without waiting for
 //     the header that names the client, so it no longer knows who connects.
+//   - mail-access: the API key no longer signs in (Mail → Repair access).
+//   - mail-recovery-active: a repair left the recovery administrator in
+//     place (Mail → Repair access takes it away).
 //
 // Decision: docs/decisions/mail.md#what-autopanel-cannot-set
 func (m *Module) Findings(ctx context.Context) []Finding {
@@ -311,7 +315,7 @@ func (m *Module) Findings(ctx context.Context) []Finding {
 			out = append(out, Finding{ID: "mail-proxy-trust", Alert: true, Detail: oneLine(strings.Join(ports, ", "))})
 		}
 	}
-	return out
+	return append(out, m.accessFindings(ctx)...)
 }
 
 // namesHost reports whether one of an address's reverse names is host.

@@ -341,6 +341,61 @@ func (h *host) mailOpenPorts() error {
 	return nil
 }
 
+// mailRepair is Repair access on Mail › Server: the diagnosis first, which
+// changes nothing; then, if there is something to repair, what will be done,
+// asked; then the repair. For a lost administrator the question shows the
+// whole run, and its Yes is the one acceptance.
+func (h *host) mailRepair() error {
+	if h.busy {
+		h.say(h.tr("autopanel.notice.app.busy"))
+		return nil
+	}
+	var d mail.Diagnosis
+	h.busy = true
+	h.background(func(ctx context.Context) (err error) { d, err = h.client.MailRepairCheck(ctx); return err }, func(err error) {
+		h.busy = false
+		switch {
+		case err != nil:
+			h.failed(err)
+			return
+		case d.Case == mail.CaseOK:
+			h.say(h.tr("autopanel.notice.mail.nothingToRepair"))
+			return
+		case d.Case == mail.CaseUnreachable:
+			h.say(h.trf("autopanel.notice.mail.unreachable", d.Detail))
+			return
+		}
+		question := d.Says + "\n"
+		for i, step := range d.Plan {
+			question += "\n" + strconv.Itoa(i+1) + ". " + step
+		}
+		accept := ""
+		if d.Review != nil {
+			accept = d.Review.SHA256
+			for _, f := range d.Review.Findings {
+				question += "\n· " + f.ID + ": " + f.Detail
+			}
+		}
+		_ = h.ask("autopanel.title.confirm.mailRepair", question, func() error {
+			var r mail.Repaired
+			h.change(func(ctx context.Context) (err error) { r, err = h.client.MailRepair(ctx, accept); return err }, func() {
+				if r.NeedsAccept {
+					h.say(h.tr("autopanel.notice.mail.repairChanged"))
+					return
+				}
+				text := strings.Join(r.Done, "; ")
+				if r.Destroyed > 0 || len(r.Kept) > 0 {
+					text += " · " + h.trf("autopanel.value.mail.keys", strconv.Itoa(r.Destroyed), orDash(strings.Join(r.Kept, ", ")))
+				}
+				h.say(h.trf("autopanel.notice.mail.repaired", text))
+				h.loadMail()
+			})
+			return nil
+		})
+	})
+	return nil
+}
+
 // --- opening ------------------------------------------------------------------
 
 func (h *host) openMailDomains() error {

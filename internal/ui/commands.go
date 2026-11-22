@@ -62,6 +62,7 @@ func (h *host) commandTable() map[string]decl.HandlerFunc {
 		"App.openChecks":      none(h.openChecks),
 		"App.setAPI":          none(h.setAPI),
 		"App.mailOpenPorts":   none(h.mailOpenPorts),
+		"App.mailRepair":      none(h.mailRepair),
 		"App.reloadChecks":    none(h.reloadChecks),
 		"App.checksMoved":     oneRow("App.checksMoved", h.checksMoved),
 		"App.reloadMonitor":   oneString("App.reloadMonitor", h.reloadMonitor),

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -125,6 +126,7 @@ func (m *Module) review(ctx context.Context, name string, svc Service, draft []b
 		}
 		findings = append(findings, m.guard.Review(ctx, name, compose)...)
 	}
+	findings = append(findings, m.sealedFindings(name, st)...)
 	findings = append(findings, check(st, facts)...)
 	sort.SliceStable(findings, func(i, j int) bool { return findings[i].Severity < findings[j].Severity })
 	return reviewed{stack: st, manifest: NewManifest(files), findings: findings}, nil
@@ -180,7 +182,9 @@ func (m *Module) Check(ctx context.Context, name string) (Review, error) {
 // it takes effect: a stack AutoPanel makes (mail) is reviewed from memory,
 // and its definition is written only when the administrator applies it. The
 // review's sha256 is the one an add of the same bytes, written, answers.
-// Refused with ErrDuplicate while a stack of that name is registered.
+// Refused with ErrDuplicate while a stack of that name is registered, unless
+// its owner asks: the next definition of a stack AutoPanel writes is
+// reviewed before it is written, and Apply then applies it.
 func (m *Module) CheckDraft(ctx context.Context, name string, compose []byte) (Review, error) {
 	if compose == nil {
 		compose = []byte{}
@@ -191,6 +195,18 @@ func (m *Module) CheckDraft(ctx context.Context, name string, compose []byte) (R
 // Add is services.add for another module: it registers and applies name.
 func (m *Module) Add(ctx context.Context, name, accept string) error {
 	_, err := m.add(ctx, Accept{Name: name, Accept: accept})
+	return err
+}
+
+// Apply is services.apply for another module: it applies the registered
+// stack name's definition as it is written, given its review's sha256, with
+// the ports it opened before still open.
+func (m *Module) Apply(ctx context.Context, name, accept string) error {
+	svc, err := m.store.Get(ctx, name)
+	if err != nil {
+		return err
+	}
+	_, err = m.applyVerb(ctx, Accept{Name: name, Accept: accept, Open: svc.Applied.Open})
 	return err
 }
 
@@ -205,7 +221,7 @@ func (m *Module) checkDraft(ctx context.Context, name string, draft []byte) (Rev
 		svc = Service{Name: name}
 	case err != nil:
 		return Review{}, err
-	case draft != nil:
+	case draft != nil && (m.guard == nil || !m.guard.Owns(name)):
 		return Review{}, ErrDuplicate
 	case svc.Legacy:
 		return Review{}, ErrLegacy
@@ -347,6 +363,9 @@ func (m *Module) run(ctx context.Context, p Accept, first, prepareOnly bool) (Vi
 				break
 			}
 		}
+	}
+	if err == nil {
+		err = m.resolveSealed(ctx, rev.stack)
 	}
 	if err != nil {
 		m.ports.Unlock()
@@ -610,4 +629,58 @@ func (m *Module) pull(ctx context.Context, r Ref) (View, error) {
 		}
 	}
 	return m.view(ctx, svc), nil
+}
+
+// sealedFindings checks each sealed reference of name's definition: it must
+// be stack/<name>/<key>, the key one its owner made for it. A good one is
+// shown in the review by its name, never its value.
+func (m *Module) sealedFindings(name string, st Stack) []Finding {
+	var allowed []string
+	if m.guard != nil && m.guard.Owns(name) {
+		allowed = m.guard.Sealed(name)
+	}
+	var out []Finding
+	for _, s := range st.Services {
+		for _, e := range s.Environment {
+			if e.Sealed == "" {
+				continue
+			}
+			key, ok := strings.CutPrefix(e.Sealed, "stack/"+name+"/")
+			if !ok || key == "" || strings.Contains(key, "/") || !slices.Contains(allowed, key) {
+				out = append(out, Finding{ID: "sealed-not-allowed", Severity: Refused, Service: s.Name, Detail: short(e.Key + ": " + e.Sealed)})
+				continue
+			}
+			out = append(out, Finding{ID: "sealed-reference", Severity: Warning, Service: s.Name, Detail: short(e.Key + " ← " + e.Sealed)})
+		}
+	}
+	return out
+}
+
+// resolveSealed reads each sealed reference of a reviewed stack from the
+// vault into its variable, which then reaches the container through the
+// service's generated environment file (0400), as a value from .env does.
+// The value is in no review, record or log.
+func (m *Module) resolveSealed(ctx context.Context, st Stack) error {
+	for i := range st.Services {
+		env := st.Services[i].Environment
+		for j := range env {
+			if env[j].Sealed == "" {
+				continue
+			}
+			if m.sealed == nil {
+				return with(ErrSealed, env[j].Sealed)
+			}
+			v, err := m.sealed(ctx, env[j].Sealed)
+			if err != nil {
+				return with(ErrSealed, env[j].Sealed)
+			}
+			if len(v) == 0 || strings.ContainsAny(string(v), "\n\r\x00") {
+				clear(v)
+				return with(ErrSealed, env[j].Sealed+": not a value one line can hold")
+			}
+			env[j].Value, env[j].FromEnv = string(v), true
+			clear(v)
+		}
+	}
+	return nil
 }
