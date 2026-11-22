@@ -97,7 +97,7 @@ func TestTheKitBuildsASite(t *testing.T) {
 	}
 	files := hostsite.Files{Dir: filepath.Join(base, "site"), Owner: hostsite.Owner{UID: 0, GID: 0}}
 	pipe := &sitePipeline{files: files, builder: hostsite.Builder{Host: hostservices.New("/var/lib/autopanel-services", t.TempDir()), Image: img}}
-	builds := coresite.NewBuilds(st.Sites(), pipe, coresite.Kit{}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	builds := coresite.NewBuilds(st.Sites(), pipe, coresite.Kit{Scripts: KitScripts()}, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	m := coresite.NewModule(st.Sites(), kitPeople{"user:ann": {ID: ann.ID, Name: "ann"}, "user:root": {ID: ann.ID, Name: "root", Admin: true}})
 	m.SetBuilds(builds)
 
@@ -109,6 +109,8 @@ func TestTheKitBuildsASite(t *testing.T) {
 		Body: "# Install\n\nRun it. <script>alert(1)</script> is text.\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n![the flow](img/flow.png)\n\n" +
 			"```vega-lite\n{\"data\":{\"values\":[{\"a\":\"x\",\"b\":1},{\"a\":\"y\",\"b\":3}]},\"mark\":\"bar\",\"encoding\":{\"x\":{\"field\":\"a\",\"type\":\"nominal\"},\"y\":{\"field\":\"b\",\"type\":\"quantitative\"}}}\n```\n",
 		Visibility: "public", Meta: []byte(`{"title":"Install","date":"2026-11-21"}`)})
+	kitCall(t, m, "user:ann", "site.doc.put", coresite.Put{Site: "blog.example.com", Folder: "guides", Slug: "flow", Format: "md",
+		Body: "# Flow\n\n```mermaid\ngraph TD; A-->B\n```\n", Visibility: "public"})
 	kitCall(t, m, "user:ann", "site.doc.put", coresite.Put{Site: "blog.example.com", Slug: "diary", Format: "md", Body: "# the held text\n", Visibility: "private"})
 	png := base64.StdEncoding.EncodeToString([]byte("\x89PNG\r\n\x1a\nthe picture"))
 	kitCall(t, m, "user:ann", "site.asset.put", coresite.AssetAsk{Site: "blog.example.com", Folder: "guides", Slug: "install", Name: "img/flow.png", Data: png})
@@ -140,6 +142,23 @@ func TestTheKitBuildsASite(t *testing.T) {
 	for _, want := range []string{"<table", "<svg", `src="img/flow.png"`} { // rendered by Fragment, not escaped
 		if !strings.Contains(body, want) {
 			t.Fatalf("the document's page lacks %s: %q", want, body)
+		}
+	}
+	if _, folderPage, _ := get("/guides/"); strings.Contains(folderPage, "<script") {
+		t.Fatal("a page with no diagram loads a script")
+	}
+	code, body, csp = get("/guides/flow/")
+	if code != 200 || !strings.Contains(body, `data-mermaid="default"`) || strings.Count(body, "<script ") != 2 || !strings.Contains(body, `<pre class="mermaid">`) ||
+		!strings.Contains(csp, "script-src 'sha256-") {
+		t.Fatalf("a page that draws a diagram: %d %q %q", code, body, csp)
+	}
+	for _, k := range KitScripts() {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", k.Path, nil)
+		req.Host = "blog.example.com"
+		srv.ServeHTTP(rec, req)
+		if rec.Code != 200 || !strings.HasPrefix(rec.Header().Get("Content-Type"), "text/javascript") || sri(rec.Body.String()) != k.Integrity {
+			t.Fatalf("%s: %d %s", k.Path, rec.Code, rec.Header().Get("Content-Type"))
 		}
 	}
 	if code, body, _ := get("/"); code != 200 || !strings.Contains(body, "Notes &lt;and&gt; things") {

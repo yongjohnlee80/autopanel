@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/user"
 	"strconv"
-	"strings"
 	"sync"
 
 	"github.com/yongjohnlee80/autopanel/core/services"
@@ -86,26 +85,15 @@ func (p *sitePipeline) TakeDown(host string) error { return p.files.TakeDown(hos
 func (p *sitePipeline) Remove(host string) error   { return p.files.Remove(host) }
 
 // siteBuilds is the site's builds, or nil when this core builds nothing: it
-// does not run as root, or no kit image is named. The kit's image and its
-// scripts are named by AUTOPANEL_SITE_KIT (name@sha256:…) and
-// AUTOPANEL_SITE_KIT_SCRIPTS (path=sha256-…, comma separated) until the
-// release names them in the binary.
+// does not run as root, or no kit image is named. The kit's image is named by
+// AUTOPANEL_SITE_KIT (name@sha256:…) until the release names it in the
+// binary; its scripts are the binary's own (KitScripts).
 func siteBuilds(cfg Config, st coresite.Store, log *slog.Logger) (*coresite.Builds, error) {
 	image := env("AUTOPANEL_SITE_KIT", "")
 	if os.Getuid() != 0 || image == "" {
 		return nil, nil
 	}
-	var kit coresite.Kit
-	for _, s := range strings.Split(env("AUTOPANEL_SITE_KIT_SCRIPTS", ""), ",") {
-		if s = strings.TrimSpace(s); s == "" {
-			continue
-		}
-		path, integrity, ok := strings.Cut(s, "=")
-		if !ok || !strings.HasPrefix(path, "/_kit/") || !strings.HasPrefix(integrity, "sha256-") {
-			return nil, fmt.Errorf("AUTOPANEL_SITE_KIT_SCRIPTS: %q is not /_kit/<file>=sha256-<hash>", s)
-		}
-		kit.Scripts = append(kit.Scripts, coresite.KitScript{Path: path, Integrity: integrity})
-	}
+	kit := coresite.Kit{Scripts: KitScripts()}
 	p := &sitePipeline{
 		files:   hostsite.Files{Dir: SiteDir(), Owner: Owner{UID: 0, GID: 0}},
 		builder: hostsite.Builder{Host: hostservices.New(cfg.Services, cfg.Stacks), Image: image},
