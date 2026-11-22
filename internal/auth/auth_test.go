@@ -3,6 +3,7 @@ package auth_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -344,5 +345,41 @@ func fromMap(t *testing.T, res any, out any) {
 	t.Helper()
 	if err := module.Decode(res, out); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// TestTheCallerAndAUserByNameOrID covers what another module asks of this
+// one: who a verb runs for, read from the store now, and a user by name or id.
+func TestTheCallerAndAUserByNameOrID(t *testing.T) {
+	f := newFixture(t)
+	if _, err := f.login(t, "root", rootPass, ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.call(t, "user:1", "auth.user.add", auth.UserAsk{Name: "ada", Role: auth.RoleViewer, Passphrase: "a reset passphrase here"}, nil); err != nil {
+		t.Fatal(err)
+	}
+	ada, err := f.m.UserNamed(context.Background(), "ada")
+	if err != nil || ada.Name != "ada" {
+		t.Fatalf("UserNamed = %+v, %v", ada, err)
+	}
+	if u, err := f.m.UserByID(context.Background(), ada.ID); err != nil || u.Name != "ada" {
+		t.Fatalf("UserByID = %+v, %v", u, err)
+	}
+	if _, err := f.m.UserNamed(context.Background(), "nobody"); !errors.Is(err, auth.ErrNoUser) {
+		t.Fatalf("a name no user has: %v", err)
+	}
+
+	as := module.WithPrincipal(context.Background(), fmt.Sprintf("user:%d", ada.ID))
+	if u, err := f.m.Caller(as); err != nil || u.Name != "ada" {
+		t.Fatalf("Caller = %+v, %v", u, err)
+	}
+	if _, err := f.m.Caller(context.Background()); err == nil {
+		t.Fatal("a call with no principal has a caller")
+	}
+	if err := f.call(t, "user:1", "auth.user.disable", auth.UserAsk{Name: "ada", Disabled: true}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.m.Caller(as); !errors.Is(err, auth.ErrExpired) {
+		t.Fatalf("a disabled user as the caller: %v", err)
 	}
 }

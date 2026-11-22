@@ -104,6 +104,7 @@ jobs:
             --maximum-total-regression 1 \
             --maximum-file-regression 1 \
             --require-changed-files \
+            --exclude '/testdata/' \
             --format markdown > "$RUNNER_TEMP/coverage-report.md"
           status=$?
           cat "$RUNNER_TEMP/coverage-report.md" >> "$GITHUB_STEP_SUMMARY"
