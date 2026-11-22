@@ -309,14 +309,27 @@ func until(t *testing.T, what string, ok func() bool) {
 	}
 }
 
-// startGate runs the gate against f until the test ends, and waits for its
+// startGate runs the gate against f until the test ends and it has stopped, and waits for its
 // TLS listener.
 func startGate(t *testing.T, f *fakeCore) (done chan error, cancel context.CancelFunc) {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
 	done = make(chan error, 1)
-	go func() { done <- Run(ctx, f.dial, slog.New(slog.NewTextHandler(io.Discard, nil))) }()
+	stopped := make(chan struct{})
+	go func() {
+		defer close(stopped)
+		done <- Run(ctx, f.dial, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	}()
+	// The gate is gone before the next test starts: a test may set what a
+	// gate reads (ReportEvery), and one still running would read it meanwhile.
+	t.Cleanup(func() {
+		cancel()
+		select {
+		case <-stopped:
+		case <-time.After(10 * time.Second):
+			t.Error("the gate did not stop")
+		}
+	})
 	until(t, "the gate never listened", func() bool {
 		c, err := net.Dial("tcp", f.hello.HTTPS)
 		if err != nil {
