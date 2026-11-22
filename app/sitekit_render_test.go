@@ -127,7 +127,7 @@ func TestTheKitsScriptsAreTheBinarys(t *testing.T) {
 		t.Fatal(err)
 	}
 	var idx struct {
-		Scripts []struct{ Path, Integrity string }
+		Scripts      []struct{ Path, Integrity string }
 		MermaidTheme string
 	}
 	raw, _ := os.ReadFile(filepath.Join(p.Fragments, "_kit.json"))
