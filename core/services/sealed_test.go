@@ -70,8 +70,10 @@ func TestOnlyItsOwnersKeysMayBeReferenced(t *testing.T) {
 // in no unit, review or record; a missing one stops the apply first.
 func TestTheApplyReadsTheValueIntoTheGeneratedFile(t *testing.T) {
 	f := setup(t)
-	f.h.defs["site"]["compose.yaml"] = strings.Replace(site, `environment: {TOKEN: "${TOKEN}"}`, `environment: {TOKEN: "${TOKEN}", R: "${sealed:stack/site/recovery}"}`, 1)
-	f.m.SetGuard(ownedBy{name: "site", sealed: []string{"recovery"}})
+	// a stack of this test's own, whatever the fixture's is named
+	f.h.defs["vaulted"] = map[string]string{"compose.yaml": site, ".env": "TOKEN=t0ken\n", "web.conf": "listen 8080\n"}
+	f.h.defs["vaulted"]["compose.yaml"] = strings.Replace(site, `environment: {TOKEN: "${TOKEN}"}`, `environment: {TOKEN: "${TOKEN}", R: "${sealed:stack/vaulted/recovery}"}`, 1)
+	f.m.SetGuard(ownedBy{name: "vaulted", sealed: []string{"recovery"}})
 	vault := map[string]string{}
 	f.m.SetSealed(func(_ context.Context, name string) ([]byte, error) {
 		v, ok := vault[name]
@@ -80,22 +82,22 @@ func TestTheApplyReadsTheValueIntoTheGeneratedFile(t *testing.T) {
 		}
 		return []byte(v), nil
 	})
-	r, err := f.m.check(context.Background(), Ref{Name: "site"})
+	r, err := f.m.check(context.Background(), Ref{Name: "vaulted"})
 	if err != nil || refused(r.Findings) {
 		t.Fatalf("the review: %+v, %v", r.Findings, err)
 	}
-	if _, err := f.m.add(context.Background(), Accept{Name: "site", Accept: r.SHA256}); !errors.Is(err, ErrSealed) || len(f.s.all) != 0 {
+	if _, err := f.m.add(context.Background(), Accept{Name: "vaulted", Accept: r.SHA256}); !errors.Is(err, ErrSealed) || len(f.s.all) != 0 {
 		t.Fatalf("an apply with no value in the vault: %v; rows %d", err, len(f.s.all))
 	}
-	vault["stack/site/recovery"] = "recovery:s3cret"
-	if _, err := f.m.add(context.Background(), Accept{Name: "site", Accept: r.SHA256}); err != nil {
+	vault["stack/vaulted/recovery"] = "recovery:s3cret"
+	if _, err := f.m.add(context.Background(), Accept{Name: "vaulted", Accept: r.SHA256}); err != nil {
 		t.Fatal(err)
 	}
-	env := f.h.folder["site"][Generated+"/web.env"]
+	env := f.h.folder["vaulted"][Generated+"/web.env"]
 	if !strings.Contains(env, "R=recovery:s3cret\n") || !strings.Contains(env, "TOKEN=t0ken\n") {
 		t.Fatalf("the generated file: %q", env)
 	}
-	for p, u := range f.h.units["site"] {
+	for p, u := range f.h.units["vaulted"] {
 		if strings.Contains(u, "s3cret") {
 			t.Fatalf("the value is in %s", p)
 		}
@@ -106,26 +108,26 @@ func TestTheApplyReadsTheValueIntoTheGeneratedFile(t *testing.T) {
 		}
 	}
 	// a changed value is a changed file: web restarts
-	vault["stack/site/recovery"] = "recovery:another"
+	vault["stack/vaulted/recovery"] = "recovery:another"
 	f.h.calls("")
-	if _, err := f.apply("site"); err != nil {
+	if _, err := f.apply("vaulted"); err != nil {
 		t.Fatal(err)
 	}
-	if got := f.h.calls("restart"); len(got) != 1 || !strings.Contains(got[0], "site-web.service") {
+	if got := f.h.calls("restart"); len(got) != 1 || !strings.Contains(got[0], "vaulted-web.service") {
 		t.Fatalf("after the value changed, restarted %v", got)
 	}
 	// without the reference the file holds it no more
-	f.h.defs["site"]["compose.yaml"] = site
-	if _, err := f.apply("site"); err != nil {
+	f.h.defs["vaulted"]["compose.yaml"] = site
+	if _, err := f.apply("vaulted"); err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(f.h.folder["site"][Generated+"/web.env"], "recovery:") {
+	if strings.Contains(f.h.folder["vaulted"][Generated+"/web.env"], "recovery:") {
 		t.Fatal("the value outlived its reference")
 	}
 	// a value no line can hold
-	f.h.defs["site"]["compose.yaml"] = strings.Replace(site, `environment: {TOKEN: "${TOKEN}"}`, `environment: {R: "${sealed:stack/site/recovery}"}`, 1)
-	vault["stack/site/recovery"] = "two\nlines"
-	if _, err := f.apply("site"); !errors.Is(err, ErrSealed) {
+	f.h.defs["vaulted"]["compose.yaml"] = strings.Replace(site, `environment: {TOKEN: "${TOKEN}"}`, `environment: {R: "${sealed:stack/vaulted/recovery}"}`, 1)
+	vault["stack/vaulted/recovery"] = "two\nlines"
+	if _, err := f.apply("vaulted"); !errors.Is(err, ErrSealed) {
 		t.Fatalf("a value with a line break: %v", err)
 	}
 }
