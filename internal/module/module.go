@@ -27,6 +27,11 @@ type Contract struct {
 	// Public marks a verb the HTTPS API may serve to an API token. The default
 	// is private: reachable only on the control socket.
 	Public bool `json:"public,omitempty"`
+	// Session marks a verb a browser session may call on the app host
+	// (docs/decisions/auth.md#browser-sessions). Public and Session are the
+	// two public sets: a verb may be in either, or both. A verb in Session
+	// alone is session-only: a token never reaches it.
+	Session bool `json:"session,omitempty"`
 	// MaxBody is the largest request body, in bytes, the API takes for the
 	// verb; 0 is the API's default. Only a Public verb may set it.
 	MaxBody int `json:"max_body,omitempty"`

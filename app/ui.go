@@ -99,9 +99,9 @@ func (u uiClient) PassphraseChange(ctx context.Context, old, new string) error {
 	return u.call(ctx, "auth.passphrase.change", auth.PassphraseAsk{Old: old, New: new}, nil)
 }
 
-func (u uiClient) TOTPBegin(ctx context.Context) (auth.Enrol, error) {
+func (u uiClient) TOTPBegin(ctx context.Context, passphrase string) (auth.Enrol, error) {
 	var e auth.Enrol
-	return e, u.call(ctx, "auth.totp.begin", nil, &e)
+	return e, u.call(ctx, "auth.totp.begin", auth.PassAsk{Passphrase: passphrase}, &e)
 }
 
 func (u uiClient) TOTPConfirm(ctx context.Context, code string) (auth.Recovery, error) {
@@ -109,8 +109,8 @@ func (u uiClient) TOTPConfirm(ctx context.Context, code string) (auth.Recovery, 
 	return r, u.call(ctx, "auth.totp.confirm", auth.CodeAsk{Code: code}, &r)
 }
 
-func (u uiClient) TOTPDisable(ctx context.Context, code string) error {
-	return u.call(ctx, "auth.totp.disable", auth.CodeAsk{Code: code}, nil)
+func (u uiClient) TOTPDisable(ctx context.Context, passphrase, code string) error {
+	return u.call(ctx, "auth.totp.disable", auth.CodeAsk{Code: code, Passphrase: passphrase}, nil)
 }
 
 func (u uiClient) Tokens(ctx context.Context) ([]auth.TokenView, error) {
@@ -118,9 +118,9 @@ func (u uiClient) Tokens(ctx context.Context) ([]auth.TokenView, error) {
 	return ts, u.call(ctx, "auth.token.list", nil, &ts)
 }
 
-func (u uiClient) TokenCreate(ctx context.Context, name, role string, days int) (auth.NewToken, error) {
+func (u uiClient) TokenCreate(ctx context.Context, name, role string, days int, passphrase string) (auth.NewToken, error) {
 	var t auth.NewToken
-	return t, u.call(ctx, "auth.token.create", auth.TokenAsk{Name: name, Role: auth.Role(role), Days: days}, &t)
+	return t, u.call(ctx, "auth.token.create", auth.TokenAsk{Name: name, Role: auth.Role(role), Days: days, Passphrase: passphrase}, &t)
 }
 
 func (u uiClient) TokenRevoke(ctx context.Context, id int64) error {

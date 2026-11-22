@@ -124,7 +124,10 @@ func (f *fakeClient) PassphraseChange(_ context.Context, old, pass string) error
 	return nil
 }
 
-func (f *fakeClient) TOTPBegin(context.Context) (auth.Enrol, error) {
+func (f *fakeClient) TOTPBegin(_ context.Context, pass string) (auth.Enrol, error) {
+	if pass != passphrase {
+		return auth.Enrol{}, auth.ErrBadLogin
+	}
 	f.ask("totp begin")
 	return auth.Enrol{Secret: "JBSW Y3DP EHPK 3PXP", URI: "otpauth://totp/AutoPanel:root?secret=JBSWY3DPEHPK3PXP&issuer=AutoPanel"}, nil
 }
@@ -137,7 +140,10 @@ func (f *fakeClient) TOTPConfirm(_ context.Context, code string) (auth.Recovery,
 	return auth.Recovery{Recovery: []string{recoveryCode, "w3nf-8hzc-r4ty"}}, nil
 }
 
-func (f *fakeClient) TOTPDisable(_ context.Context, code string) error {
+func (f *fakeClient) TOTPDisable(_ context.Context, pass, code string) error {
+	if pass != passphrase {
+		return auth.ErrBadLogin
+	}
 	if code != totpCode {
 		return auth.ErrBadCode
 	}
@@ -151,7 +157,10 @@ func (f *fakeClient) Tokens(context.Context) ([]auth.TokenView, error) {
 	return append([]auth.TokenView(nil), f.acct.tokens...), nil
 }
 
-func (f *fakeClient) TokenCreate(_ context.Context, name, role string, days int) (auth.NewToken, error) {
+func (f *fakeClient) TokenCreate(_ context.Context, name, role string, days int, pass string) (auth.NewToken, error) {
+	if pass != passphrase {
+		return auth.NewToken{}, auth.ErrBadLogin
+	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.acct.asks = append(f.acct.asks, "token "+name+" "+role)
@@ -316,6 +325,15 @@ func TestTwoFactorEnrolment(t *testing.T) {
 	s.WaitForText(t, "CA LE staging")
 	run(t, h, h.openTwoFactor)
 	s.WaitForText(t, "Turn on two-factor")
+	s.WaitForText(t, "Your passphrase now")
+	s.Keys(t, decltest.Type("not the passphrase")...)
+	s.Keys(t, enter)
+	s.WaitForText(t, "wrong user, passphrase or code")
+	for range len("not the passphrase") {
+		s.Keys(t, backspace)
+	}
+	s.Keys(t, decltest.Type(passphrase)...)
+	s.Keys(t, enter)
 	s.WaitForText(t, "JBSW Y3DP EHPK 3PXP")
 	s.Keys(t, decltest.Type("000000")...)
 	s.Keys(t, enter)
@@ -335,8 +353,12 @@ func TestTwoFactorEnrolment(t *testing.T) {
 	s.Keys(t, escape)
 	s.WaitFor(t, "the codes to leave the screen", func(sc string) bool { return !strings.Contains(sc, recoveryCode) })
 
-	run(t, h, h.openTwoFactor) // on now: it asks a code to turn it off
+	run(t, h, h.openTwoFactor) // on now: it asks the passphrase and a code to turn it off
 	s.WaitForText(t, "Turn off two-factor")
+	s.WaitForText(t, "Your passphrase now")
+	s.Keys(t, decltest.Type(passphrase)...)
+	s.Keys(t, enter)
+	s.WaitForText(t, "A code from the app")
 	s.Keys(t, decltest.Type(totpCode)...)
 	s.Keys(t, enter)
 	waitAsked(t, s, f, "totp off")
@@ -406,6 +428,9 @@ func TestAnAPITokenIsShownOnce(t *testing.T) {
 	}
 	s.Keys(t, decltest.Type("30")...)
 	s.Keys(t, enter)
+	s.WaitForText(t, "Your passphrase now")
+	s.Keys(t, decltest.Type(passphrase)...)
+	s.Keys(t, enter)
 	s.WaitForText(t, "New API token")
 	s.WaitForText(t, tokenSecret)
 	waitAsked(t, s, f, "token backup viewer")
@@ -427,6 +452,9 @@ func TestIdleSignsOut(t *testing.T) {
 	h, s := startHost(t, f)
 	s.WaitForText(t, "CA LE staging")
 	run(t, h, h.openTwoFactor)
+	s.WaitForText(t, "Your passphrase now")
+	s.Keys(t, decltest.Type(passphrase)...)
+	s.Keys(t, enter)
 	s.WaitForText(t, "JBSW Y3DP EHPK 3PXP")
 	onLoop(h, func() bool { h.lastAction = time.Now().Add(-time.Hour); h.checkIdle(); return true })
 	s.WaitForText(t, "Sign in to AutoPanel")

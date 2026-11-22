@@ -138,3 +138,42 @@ only its SHA-256 is stored, and it is shown once.
 
 **In the code:** `internal/auth/verbs.go` (the `auth.token.*` verbs), `app/login.go`
 (`tokenLogin`), `app/main.go` (`--token-file`).
+
+## Browser sessions
+
+**Decided:** a person signs in to the browser applications with the login that exists (name,
+passphrase, second factor, one answer for every failure) and gets a session the store keeps. The
+browser holds only a random id, in a cookie its scripts cannot read.
+
+- **A session** is found by the SHA-256 of its id; the id itself is never stored. A second token,
+  which a page sends with every change, is an HMAC of the id under a key the store keeps: the same in
+  every tab, never stored, and not computable from the store alone.
+- **A new id at every login.** An id that came with the login request is ended first, whoever's it
+  was: nothing set before a login survives it.
+- **A session belongs to the host it was made on,** the app host or the admin host, and is refused
+  on the other. On the app host it lasts 12 hours at most and 30 minutes idle; on the admin host 8
+  hours and 15 minutes. Its last call is written at most once a minute. A user holds ten at most;
+  the oldest goes for an eleventh.
+- **What ends sessions:** signing out ends that one; disabling a user, changing its role, resetting
+  its passphrase or removing its second factor end all of that user's; changing the passphrase ends
+  all the user's others, and the one that made the change stays. A lockout does not end a session
+  that is open. A user lists their sessions and ends any (`auth.session.list`, `auth.session.end`).
+- **The browser login never opens the vault.** An admin's passphrase is checked by opening its key
+  slot, and the master key that yields is cleared before the check returns. The second factor's
+  seed is read through the vault the host's keyfile opened, so with the vault locked a user with a
+  second factor cannot sign in from a browser, and the answer is the same failure.
+- **Its failures are counted apart from the console's.** Ten bad browser logins lock a name for
+  browser logins only, root included: nobody on the internet can lock an administrator out of the
+  panel at the host. One browser login is verified at a time and four may wait; a sixth is refused
+  at once, so a console login waits for at most one browser derivation.
+- **A credential is never made without the passphrase.** Making a token, starting two-factor and
+  removing it ask for the caller's passphrase again, on the console as from a browser. From a
+  browser a wrong one counts as a failed browser login, so a session cannot guess faster than the
+  login allows.
+- **A session verb** is one a contract marks `Session`; a token's are marked `Public`. The
+  self-service verbs (`auth.whoami`, `auth.passphrase.change`, `auth.totp.*`, `auth.token.*`,
+  `auth.session.*`) are session verbs only: a token never reaches them. From the app host a person
+  acts on their own account only, whatever their role: managing others is the admin host's.
+
+**In the code:** `internal/auth/session.go` (`Sessions`), `internal/auth/browser.go`
+(`BrowserLogin`), `internal/auth/selfservice.go` (`confirm`, the session verbs), `store/sessions.go`.

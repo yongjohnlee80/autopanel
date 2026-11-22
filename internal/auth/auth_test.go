@@ -147,7 +147,7 @@ func TestTheSecondFactor(t *testing.T) {
 		t.Fatal(err)
 	}
 	var e auth.Enrol
-	if err := f.call(t, "user:1", "auth.totp.begin", nil, &e); err != nil {
+	if err := f.call(t, "user:1", "auth.totp.begin", auth.PassAsk{Passphrase: rootPass}, &e); err != nil {
 		t.Fatal(err)
 	}
 	seed, err := totp.Decode(strings.ReplaceAll(e.Secret, " ", ""))
@@ -309,7 +309,7 @@ func TestTokens(t *testing.T) {
 		t.Fatal(err)
 	}
 	var nt auth.NewToken
-	if err := f.call(t, "user:1", "auth.token.create", auth.TokenAsk{Name: "backup"}, &nt); err != nil {
+	if err := f.call(t, "user:1", "auth.token.create", auth.TokenAsk{Name: "backup", Passphrase: rootPass}, &nt); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.HasPrefix(nt.Token, "apt_1_") || nt.ExpiresAt != f.clock.Add(90*24*time.Hour).Unix() {

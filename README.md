@@ -657,15 +657,17 @@ of the 10,000 most common passwords.
 **Users → Two-factor…** shows a secret and an `otpauth://` link for any authenticator app (Aegis,
 Google Authenticator, 1Password and the like), then asks a code from it, then shows ten recovery
 codes once: each signs you in once in place of a code if you lose the app. From then on, type the
-code in the sign-in dialog's second field. Turning it off takes a code. If someone loses both their
-phone and their codes, an admin turns it off for them:
+code in the sign-in dialog's second field. Turning it on or off asks for your passphrase again, and
+turning it off takes a code. If someone loses both their phone and their codes, an admin turns it off
+for them (the admin's passphrase is asked again):
 
 ```sh
 sudo autopanel --call auth.totp.disable '{"name": "ana"}'
 ```
 
 **Users → API tokens…** makes a token for a script: a name, a role (viewer unless you ask for
-more, and never above your own) and how many days it lasts (90 by default, 365 at most). It is
+more, and never above your own) and how many days it lasts (90 by default, 365 at most), then your
+passphrase again. It is
 shown once; put it in a file only root can read and pass the file:
 
 ```sh

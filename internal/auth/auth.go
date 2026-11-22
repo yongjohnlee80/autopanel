@@ -64,6 +64,7 @@ type Module struct {
 	sem      chan struct{}
 	now      func() time.Time
 	browser  *browserGate // one browser login verified at a time, a few waiting
+	sessions *Sessions    // the browser sessions, ended when a user changes; nil in a test without them
 
 	mu       sync.Mutex
 	fails    map[string]failure // per name, known or not: the doubling wait, and an unknown name's lock
@@ -125,6 +126,8 @@ func (m *Module) Errors() []module.PublicError {
 		{Err: ErrNoToken, Code: -32126, Name: "auth.no_token", Message: "no such token"},
 		{Err: ErrNotOwn, Code: -32127, Name: "auth.not_own", Message: "that is another user's"},
 		{Err: ErrBadTokenAsk, Code: -32128, Name: "auth.bad_token", Message: "a token's role is no higher than its owner's, and it lasts a year at most"},
+		{Err: ErrNoSuchSession, Code: -32129, Name: "auth.no_session", Message: "no such session of yours"},
+		{Err: ErrBusy, Code: -32119, Name: "auth.busy", Message: "too many logins are waiting; try again shortly"},
 	}
 }
 

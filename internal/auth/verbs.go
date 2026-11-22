@@ -21,6 +21,10 @@ func (m *Module) Verbs() []module.Verb {
 		return module.Contract{Verb: verb, Since: 6, Param: param, Result: result, Doc: doc, Mutates: true}
 	}
 	admin := own // the policy keeps auth.user.* the admin's: the contract is the same shape
+	// mine is a verb a browser session may call too: a person's own account
+	// (docs/decisions/auth.md#browser-sessions).
+	mine := func(c module.Contract) module.Contract { c.Session = true; return c }
+	since11 := func(c module.Contract) module.Contract { c.Since = 11; return c }
 	return []module.Verb{
 		module.Handle(plain(module.Contract{Verb: "auth.login", Since: 1, Param: "{user, passphrase, code?}", Result: "{user, principal, role, unlocked, must_change}",
 			Doc: "Logs this connection in, replacing any login it had. The code is the two-factor code (or a recovery code), empty without two-factor. Every failure is the same auth.bad_login. An admin's login unlocks a locked vault.", Open: true, Login: true}), m.login),
@@ -28,8 +32,8 @@ func (m *Module) Verbs() []module.Verb {
 			Doc: "Logs this connection in with an API token (apt_<id>_<secret>), replacing any login it had.", Open: true, Login: true}), m.tokenLogin),
 		module.Handle(plain(module.Contract{Verb: "auth.status", Since: 6, Result: "{vault_locked}",
 			Doc: "Whether the vault is locked, before anyone logs in: then only an admin's login works for a user with two-factor.", Open: true}), m.status),
-		module.Handle(plain(module.Contract{Verb: "auth.whoami", Since: 6, Result: "{user, role, by, totp, must_change, vault_locked, root}",
-			Doc: "Who this connection is logged in as."}), m.whoami),
+		module.Handle(mine(plain(module.Contract{Verb: "auth.whoami", Since: 6, Result: "{user, role, by, totp, must_change, vault_locked, root}",
+			Doc: "Who this connection is logged in as."})), m.whoami),
 		module.Handle(module.Contract{Verb: "auth.user.list", Since: 6, Result: "[{name, role, root, totp, disabled, locked_until, last_login_at, must_change}]",
 			Doc: "The panel's users. Admins only."}, m.userList),
 		module.Handle(admin("auth.user.add", "{name, role, passphrase}", "{name, role}", "Makes a user, who must change the passphrase at the first login. An admin needs the vault open."), m.userAdd),
@@ -38,14 +42,17 @@ func (m *Module) Verbs() []module.Verb {
 		module.Handle(admin("auth.user.disable", "{name, disabled}", "", "Disables a user (its tokens stop too), or enables it."), m.userDisable),
 		module.Handle(admin("auth.user.unlock", "{name}", "", "Lifts a lockout after failed logins."), m.userUnlock),
 		module.Handle(admin("auth.user.remove", "{name}", "", "Removes a user, its key slot, its two-factor and its tokens."), m.userRemove),
-		module.Handle(own("auth.passphrase.change", "{old, new}", "", "Changes your own passphrase."), m.passphraseChange),
-		module.Handle(own("auth.totp.begin", "", "{secret, uri}", "Starts two-factor enrolment: the secret is shown once, for an authenticator app."), m.totpBegin),
-		module.Handle(own("auth.totp.confirm", "{code}", "{recovery}", "Enrols two-factor once a code from the app verifies; answers ten recovery codes, shown once."), m.totpConfirm),
-		module.Handle(own("auth.totp.disable", "{code?, name?}", "", "Drops your two-factor (with a code), or an admin drops another user's."), m.totpDisable),
-		module.Handle(plain(module.Contract{Verb: "auth.token.list", Since: 6, Result: "[{id, name, role, owner, created_at, expires_at, last_used_at, revoked}]",
-			Doc: "Your API tokens; an admin's: every user's."}), m.tokenList),
-		module.Handle(own("auth.token.create", "{name, role?, days?}", "{id, token, expires_at}", "Makes an API token, shown once: viewer unless asked, no higher than your role, 90 days unless asked, a year at most."), m.tokenCreate),
-		module.Handle(own("auth.token.revoke", "{id}", "", "Revokes an API token: your own, or an admin's any."), m.tokenRevoke),
+		module.Handle(mine(own("auth.passphrase.change", "{old, new}", "", "Changes your own passphrase. Your browser sessions end, but the one this is called from.")), m.passphraseChange),
+		module.Handle(mine(own("auth.totp.begin", "{passphrase}", "{secret, uri}", "Starts two-factor enrolment, with your passphrase asked again: the secret is shown once, for an authenticator app.")), m.totpBegin),
+		module.Handle(mine(own("auth.totp.confirm", "{code}", "{recovery}", "Enrols two-factor once a code from the app verifies; answers ten recovery codes, shown once.")), m.totpConfirm),
+		module.Handle(mine(own("auth.totp.disable", "{passphrase, code?, name?}", "", "Drops your two-factor (with your passphrase and a code), or an admin drops another user's (with the admin's passphrase). That user's browser sessions end.")), m.totpDisable),
+		module.Handle(mine(plain(module.Contract{Verb: "auth.token.list", Since: 6, Result: "[{id, name, role, owner, created_at, expires_at, last_used_at, revoked}]",
+			Doc: "Your API tokens; an admin's: every user's, except from the app host."})), m.tokenList),
+		module.Handle(mine(own("auth.token.create", "{passphrase, name, role?, days?}", "{id, token, expires_at}", "Makes an API token, shown once, with your passphrase asked again: viewer unless asked, no higher than your role, 90 days unless asked, a year at most.")), m.tokenCreate),
+		module.Handle(mine(own("auth.token.revoke", "{id}", "", "Revokes an API token: your own, or an admin's any, except from the app host.")), m.tokenRevoke),
+		module.Handle(mine(plain(module.Contract{Verb: "auth.session.list", Since: 11, Result: "[{id, host, created_at, seen_at, client, agent, current}]",
+			Doc: "Your browser sessions, live ones only; current is the one this is called from."})), m.sessionList),
+		module.Handle(mine(since11(own("auth.session.end", "{id}", "", "Ends one of your browser sessions, by the id auth.session.list shows."))), m.sessionEnd),
 	}
 }
 
@@ -433,7 +440,11 @@ func (m *Module) userRole(ctx context.Context, p UserAsk) (struct{}, error) {
 	if err != nil {
 		return struct{}{}, err
 	}
-	return struct{}{}, m.store.SetLogin(ctx, u.ID, p.Role, slot, ver, true)
+	if err := m.store.SetLogin(ctx, u.ID, p.Role, slot, ver, true); err != nil {
+		return struct{}{}, err
+	}
+	m.endSessions(ctx, u, "the role changed")
+	return struct{}{}, nil
 }
 
 func (m *Module) userReset(ctx context.Context, p UserAsk) (struct{}, error) {
@@ -448,7 +459,11 @@ func (m *Module) userReset(ctx context.Context, p UserAsk) (struct{}, error) {
 	if err != nil {
 		return struct{}{}, err
 	}
-	return struct{}{}, m.store.SetLogin(ctx, u.ID, u.Role, slot, ver, true)
+	if err := m.store.SetLogin(ctx, u.ID, u.Role, slot, ver, true); err != nil {
+		return struct{}{}, err
+	}
+	m.endSessions(ctx, u, "the passphrase was reset")
+	return struct{}{}, nil
 }
 
 func (m *Module) userDisable(ctx context.Context, p UserAsk) (struct{}, error) {
@@ -456,7 +471,13 @@ func (m *Module) userDisable(ctx context.Context, p UserAsk) (struct{}, error) {
 	if err != nil {
 		return struct{}{}, err
 	}
-	return struct{}{}, m.store.SetDisabled(ctx, u.ID, p.Disabled)
+	if err := m.store.SetDisabled(ctx, u.ID, p.Disabled); err != nil {
+		return struct{}{}, err
+	}
+	if p.Disabled {
+		m.endSessions(ctx, u, "the user was disabled")
+	}
+	return struct{}{}, nil
 }
 
 func (m *Module) userUnlock(ctx context.Context, p UserAsk) (struct{}, error) {
@@ -493,12 +514,19 @@ func (m *Module) passphraseChange(ctx context.Context, p PassphraseAsk) (struct{
 	if t != nil {
 		return struct{}{}, ErrForbidden
 	}
+	sc, browser := SessionOf(ctx)
+	if browser && m.browserWaiting(u.Name) {
+		return struct{}{}, ErrThrottled
+	}
 	mk, ok, err := m.checkPassphrase(ctx, u, p.Old)
 	defer clear(mk)
 	if err != nil {
 		return struct{}{}, err
 	}
 	if !ok {
+		if browser { // a session guessing counts as a browser login guessing
+			m.browserFailed(u.Name)
+		}
 		return struct{}{}, ErrBadLogin
 	}
 	if m.weak(u.Name, p.New) || p.New == p.Old {
@@ -512,13 +540,29 @@ func (m *Module) passphraseChange(ctx context.Context, p PassphraseAsk) (struct{
 		if err != nil {
 			return struct{}{}, err
 		}
-		return struct{}{}, m.store.SetLogin(ctx, u.ID, u.Role, &slot, "", false)
+		err = m.store.SetLogin(ctx, u.ID, u.Role, &slot, "", false)
+	} else {
+		ver, herr := m.hasher.Hash(p.New)
+		if herr != nil {
+			return struct{}{}, herr
+		}
+		err = m.store.SetLogin(ctx, u.ID, u.Role, nil, ver, false)
 	}
-	ver, err := m.hasher.Hash(p.New)
 	if err != nil {
 		return struct{}{}, err
 	}
-	return struct{}{}, m.store.SetLogin(ctx, u.ID, u.Role, nil, ver, false)
+	// Every other browser session ends; the one that made the change stays,
+	// so a person made to change their first passphrase is not thrown out by
+	// doing it.
+	if m.sessions != nil {
+		keep := ""
+		if browser {
+			keep = sc.Cookie
+		}
+		n, eerr := m.sessions.EndOthers(ctx, u.ID, keep)
+		m.noteEnded(ctx, u, n, eerr, "the passphrase changed")
+	}
+	return struct{}{}, nil
 }
 
 // --- the second factor ------------------------------------------------------------
@@ -532,7 +576,7 @@ type Enrol struct {
 	URI    string `json:"uri"`    // otpauth://totp/…
 }
 
-func (m *Module) totpBegin(ctx context.Context, _ struct{}) (Enrol, error) {
+func (m *Module) totpBegin(ctx context.Context, p PassAsk) (Enrol, error) {
 	u, t, err := m.caller(ctx)
 	if err != nil {
 		return Enrol{}, err
@@ -542,6 +586,9 @@ func (m *Module) totpBegin(ctx context.Context, _ struct{}) (Enrol, error) {
 	}
 	if u.TOTP {
 		return Enrol{}, ErrTOTPAlready
+	}
+	if err := m.confirm(ctx, u, p.Passphrase); err != nil {
+		return Enrol{}, err
 	}
 	seed, err := totpNewSeed()
 	if err != nil {
@@ -568,10 +615,12 @@ func groups(s string) string {
 	return b.String()
 }
 
-// CodeAsk carries a two-factor code.
+// CodeAsk carries a two-factor code, and for auth.totp.disable the
+// caller's passphrase, asked again.
 type CodeAsk struct {
-	Code string `json:"code"`
-	Name string `json:"name"`
+	Code       string `json:"code"`
+	Name       string `json:"name"`
+	Passphrase string `json:"passphrase,omitempty"`
 }
 
 // Recovery is auth.totp.confirm's answer: the codes, shown once.
@@ -626,13 +675,19 @@ func (m *Module) totpDisable(ctx context.Context, p CodeAsk) (struct{}, error) {
 	}
 	target := u
 	if p.Name != "" && p.Name != u.Name { // an admin, for another user (after a reset)
-		if u.Role != RoleAdmin {
+		if u.Role != RoleAdmin || onAppHost(ctx) {
 			return struct{}{}, ErrForbidden
 		}
 		if target, err = m.named(ctx, p.Name); err != nil {
 			return struct{}{}, err
 		}
+		if err := m.confirm(ctx, u, p.Passphrase); err != nil {
+			return struct{}{}, err
+		}
 	} else {
+		if err := m.confirm(ctx, u, p.Passphrase); err != nil {
+			return struct{}{}, err
+		}
 		if !u.TOTP {
 			return struct{}{}, ErrNoTOTP
 		}
@@ -654,6 +709,7 @@ func (m *Module) totpDisable(ctx context.Context, p CodeAsk) (struct{}, error) {
 		return struct{}{}, err
 	}
 	_ = m.secrets.DeleteSecret(ctx, totpSecret(target.ID))
+	m.endSessions(ctx, target, "the second factor was removed")
 	return struct{}{}, nil
 }
 
@@ -677,7 +733,7 @@ func (m *Module) tokenList(ctx context.Context, _ struct{}) ([]TokenView, error)
 		return nil, err
 	}
 	of := u.ID
-	if u.Role == RoleAdmin {
+	if u.Role == RoleAdmin && !onAppHost(ctx) {
 		of = 0
 	}
 	ts, err := m.store.Tokens(ctx, of)
@@ -692,12 +748,14 @@ func (m *Module) tokenList(ctx context.Context, _ struct{}) ([]TokenView, error)
 	return out, nil
 }
 
-// TokenAsk is auth.token.create's param, and revoke's.
+// TokenAsk is auth.token.create's param, and revoke's. Making one asks for
+// the caller's passphrase again.
 type TokenAsk struct {
-	ID   int64  `json:"id"`
-	Name string `json:"name"`
-	Role Role   `json:"role"`
-	Days int    `json:"days"`
+	ID         int64  `json:"id"`
+	Name       string `json:"name"`
+	Role       Role   `json:"role"`
+	Days       int    `json:"days"`
+	Passphrase string `json:"passphrase,omitempty"`
 }
 
 // NewToken is a token, shown once.
@@ -743,6 +801,9 @@ func (m *Module) tokenCreate(ctx context.Context, p TokenAsk) (NewToken, error) 
 	if !role.Valid() || !u.Role.holds(role) || days < 1 || days > 365 || name == "" || len(name) > 64 {
 		return NewToken{}, ErrBadTokenAsk
 	}
+	if err := m.confirm(ctx, u, p.Passphrase); err != nil {
+		return NewToken{}, err
+	}
 	secret, err := newSecret()
 	if err != nil {
 		return NewToken{}, err
@@ -765,7 +826,7 @@ func (m *Module) tokenRevoke(ctx context.Context, p TokenAsk) (struct{}, error) 
 	if err != nil {
 		return struct{}{}, err
 	}
-	if t.UserID != u.ID && u.Role != RoleAdmin {
+	if t.UserID != u.ID && (u.Role != RoleAdmin || onAppHost(ctx)) {
 		return struct{}{}, ErrNotOwn
 	}
 	return struct{}{}, m.store.RevokeToken(ctx, t.ID)

@@ -23,7 +23,7 @@ func TestAnAPITokenIsCheckedAtEveryCall(t *testing.T) {
 		t.Fatal(err)
 	}
 	var nt auth.NewToken
-	if err := f.call(t, "user:1", "auth.token.create", auth.TokenAsk{Name: "monitor"}, &nt); err != nil {
+	if err := f.call(t, "user:1", "auth.token.create", auth.TokenAsk{Name: "monitor", Passphrase: rootPass}, &nt); err != nil {
 		t.Fatal(err)
 	}
 	before := len(f.aud.entries)
@@ -100,7 +100,7 @@ func TestATokenOfADisabledOrResetOwner(t *testing.T) {
 		t.Fatal(err)
 	}
 	var nt auth.NewToken
-	if err := f.call(t, op, "auth.token.create", auth.TokenAsk{Name: "ci"}, &nt); err != nil {
+	if err := f.call(t, op, "auth.token.create", auth.TokenAsk{Name: "ci", Passphrase: "another long passphrase, number 2"}, &nt); err != nil {
 		t.Fatal(err)
 	}
 	read := module.Contract{Verb: "gate.route.list", Discloses: module.Plain}

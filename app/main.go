@@ -206,6 +206,12 @@ func call(verb string, rest []string, tokenFile string, stdout, stderr io.Writer
 		fmt.Fprintln(stderr, "login:", err)
 		return 1
 	}
+	if asksAgain[verb] {
+		if param, err = passphraseAgain(verb, param); err != nil {
+			fmt.Fprintln(stderr, err)
+			return 1
+		}
+	}
 	var out any
 	if err := c.Call(ctx, verb, param, &out); err != nil {
 		fmt.Fprintln(stderr, err)

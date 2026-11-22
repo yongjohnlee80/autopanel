@@ -17,3 +17,10 @@ func HoldDerive(m *Module) (release func()) {
 
 // BrowserQueued is how many browser logins are inside or waiting.
 func BrowserQueued(m *Module) int { return len(m.browser.queue) }
+
+// MemSessions is browser sessions kept in memory, on the given clock.
+func MemSessions(now func() time.Time) *Sessions {
+	ss := NewSessions(&memSessions{rows: map[[32]byte]Session{}})
+	ss.now = now
+	return ss
+}
