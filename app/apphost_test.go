@@ -459,6 +459,7 @@ func TestACallNeedsTheSessionTheOriginAndTheToken(t *testing.T) {
 		"no origin":            func(a *hostgate.APIAsk) { a.Origin = "" },
 		"cross-site":           func(a *hostgate.APIAsk) { a.FetchSite = "cross-site" },
 		"a read, cross-origin": func(a *hostgate.APIAsk) { a.Verb, a.Origin = "mail.s.read", "https://evil.example.net" },
+		"a token's read too":   func(a *hostgate.APIAsk) { a.Verb, a.CSRF = "mail.s.both", "" },
 	} {
 		ask := good
 		mod(&ask)

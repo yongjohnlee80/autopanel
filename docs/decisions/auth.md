@@ -202,7 +202,7 @@ administrator's session.
 - **A change needs three things:** the cookie, the second token in `X-AP-CSRF`, and a request the
   browser marks as same-origin: `Origin` names the host the request was sent to, and
   `Sec-Fetch-Site`, when the browser sends it, is `same-origin`. A request with no `Origin` is not.
-  Every verb a token cannot call is held to the same rule, reads included. A sign-in from another
+  Every call a session makes is held to the same rule, reads included. A sign-in from another
   page is refused before it costs a derivation.
 - **The gate decides nothing with them.** It passes the cookie's value, the header, `Origin`,
   `Sec-Fetch-Site`, the method and the `Host` header to the core, which checks them. No

@@ -124,6 +124,7 @@ type Opened struct {
 	Cookie    string // the session id, for the cookie; never in a body or a URL
 	CSRF      string // the second token, for the page's memory
 	ExpiresAt int64  // when its life ends, Unix seconds
+	ShortID   string // its name in the audit log and the user's list
 }
 
 // New makes a session for userID on host. A session id that came with the
@@ -156,7 +157,7 @@ func (ss *Sessions) New(ctx context.Context, userID int64, host, client, agent, 
 	if err := ss.store.PutSession(ctx, s, MaxSessions, func(o Session) bool { return expired(o, now) }); err != nil {
 		return Opened{}, err
 	}
-	return Opened{Cookie: cookie, CSRF: csrfToken(key, cookie), ExpiresAt: s.CreatedAt + int64(l.Life/time.Second)}, nil
+	return Opened{Cookie: cookie, CSRF: csrfToken(key, cookie), ExpiresAt: s.CreatedAt + int64(l.Life/time.Second), ShortID: viewID(s.IDHash)}, nil
 }
 
 // Resolve finds the live session a cookie names on host: not ended, not past

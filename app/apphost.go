@@ -375,11 +375,7 @@ func (m *apiModule) session(ctx context.Context, ask hostgate.SessionAsk) (ans h
 			m.log.Error("app: a session could not be made", "err", err)
 			return sessionGone, nil
 		}
-		s, err := m.sessions.Resolve(ctx, o.Cookie, ask.Host)
-		if err != nil {
-			return sessionGone, nil
-		}
-		m.note(ctx, u.Name+" (browser "+client+")", "auth.session.open", ask.Host, "session "+auth.ShortID(s))
+		m.note(ctx, u.Name+" (browser "+client+")", "auth.session.open", ask.Host, "session "+o.ShortID)
 		b, _ := json.Marshal(SessionOpened{CSRF: o.CSRF, User: SessionUser{Name: u.Name, Role: u.Role, MustChange: u.MustChange}, ExpiresAt: o.ExpiresAt})
 		return hostgate.SessionAnswer{Result: b, Cookie: o.Cookie}, nil
 	case hostgate.SessionGet:
@@ -480,9 +476,10 @@ func (m *apiModule) sessionCall(ctx context.Context, ask hostgate.APIAsk) hostga
 	if !ok {
 		return refusal(hostgate.APINotFound, rpc.CodeMethodNotFound, "api.not_found", "no such verb")
 	}
-	// The cookie alone is not enough for a change, nor for any verb a token
-	// cannot call: the page's own origin, and the second token it holds.
-	if (v.Mutates || !v.Public) && (!m.sameOrigin(ask.Host, ask.Authority, ask.Origin, ask.FetchSite) || !m.sessions.CSRF(s, ask.Session, ask.CSRF)) {
+	// The cookie alone runs nothing: every call is a POST, and each needs the
+	// page's own origin and the second token it holds, reads included, so no
+	// verb a session may call is ever reached from another site's page.
+	if !m.sameOrigin(ask.Host, ask.Authority, ask.Origin, ask.FetchSite) || !m.sessions.CSRF(s, ask.Session, ask.CSRF) {
 		return refusal(hostgate.APIForbidden, rpc.CodeAccessDenied, "app.cross_origin", "a change must come from this host's own page, with its token")
 	}
 	if u.MustChange && v.Verb != "auth.passphrase.change" {
