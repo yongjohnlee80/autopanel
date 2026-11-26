@@ -115,6 +115,8 @@ func TestTheKitBuildsASite(t *testing.T) {
 	kitCall(t, m, "user:ann", "site.doc.put", coresite.Put{Site: "blog.example.com", Folder: "guides", Slug: "flow", Format: "md",
 		Body: "# Flow\n\n```mermaid\ngraph TD; A-->B\n```\n", Visibility: "public"})
 	kitCall(t, m, "user:ann", "site.doc.put", coresite.Put{Site: "blog.example.com", Slug: "diary", Format: "md", Body: "# the held text\n\n![held](held.png)\n\n```mermaid\ngraph TD; A-->B\n```\n", Visibility: "private"})
+	kitCall(t, m, "user:ann", "site.doc.put", coresite.Put{Site: "blog.example.com", Slug: "offer", Format: "md", Body: "# the protected offer\n", Visibility: "protected"})
+	kitCall(t, m, "user:ann", "site.node.protect", coresite.ProtectAsk{Site: "blog.example.com", Path: "offer", Passphrase: "a passphrase for readers"})
 	kitCall(t, m, "user:ann", "site.doc.put", coresite.Put{Site: "blog.example.com", Slug: "memo", Format: "html", Body: `<html><head><title>Memo</title></head><body><h1 onclick="x()">the held memo</h1></body></html>`, Visibility: "internal"})
 	kitCall(t, m, "user:root", "site.set", coresite.SiteSet{Host: "blog.example.com", ContentHost: &[]string{"content.example.com"}[0]})
 	const activeSrc = `<html><head><title>Calc</title></head><body><script>document.body.textContent = 1 + 1</script></body></html>`
@@ -250,7 +252,7 @@ func TestTheKitBuildsASite(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = l.Close() })
-	go func() { _ = hostsite.ServeAuth(l, m.MayReadPath) }()
+	go func() { _ = hostsite.ServeAuth(l, m) }()
 	bob, err := st.Users().AddUser(ctx, "bob", auth.RoleMember, nil, "v", false)
 	if err != nil {
 		t.Fatal(err)
@@ -323,6 +325,60 @@ func TestTheKitBuildsASite(t *testing.T) {
 	}
 	if code, body, hdr := app(memo+"/_doc.html", "bob"); code != 200 || !strings.Contains(body, "<h1>the held memo</h1>") || !strings.HasPrefix(hdr.Get("Content-Security-Policy"), "sandbox;") {
 		t.Fatalf("its inert copy: %d %q", code, body)
+	}
+	// A protected document, on the site's own host: its address answers the
+	// unlock form; the passphrase, posted from the form, gives a grant's
+	// cookie; with it the page is read.
+	site := func(method, path, form string, cookies ...string) (int, string, http.Header) {
+		rec := httptest.NewRecorder()
+		var body io.Reader
+		if form != "" {
+			body = strings.NewReader(form)
+		}
+		req := httptest.NewRequest(method, path, body)
+		req.Host = "blog.example.com"
+		if form != "" {
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			req.Header.Set("Origin", "https://blog.example.com")
+			req.Header.Set("Sec-Fetch-Site", "same-origin")
+			req.Header.Set("X-Forwarded-For", "203.0.113.9")
+		}
+		if len(cookies) > 0 {
+			req.Header.Set("Cookie", strings.Join(cookies, "; "))
+		}
+		held.ServeHTTP(rec, req)
+		return rec.Code, rec.Body.String(), rec.Header()
+	}
+	code, body, hdr = site("GET", "/offer/", "")
+	if code != http.StatusUnauthorized || strings.Contains(body, "protected offer") || !strings.Contains(hdr.Get("Content-Security-Policy"), "form-action 'self'") {
+		t.Fatalf("a protected address, no grant: %d %q", code, body)
+	}
+	action := regexp.MustCompile(`action="(/_unlock/\d+)"`).FindStringSubmatch(body)
+	token := regexp.MustCompile(`name="token" value="([^"]+)"`).FindStringSubmatch(body)
+	formCookie, _, _ := strings.Cut(hdr.Get("Set-Cookie"), ";")
+	if action == nil || token == nil || !strings.HasPrefix(formCookie, coresite.UnlockCookie+"=") {
+		t.Fatalf("the unlock form: %q, cookie %q", body, hdr.Get("Set-Cookie"))
+	}
+	if code, body, _ := site("POST", action[1], "passphrase=not+the+passphrase&token="+token[1]+"&next=%2Foffer%2F", formCookie); code != http.StatusForbidden || !strings.Contains(body, "did not open") {
+		t.Fatalf("a wrong passphrase: %d %q", code, body)
+	}
+	code, _, hdr = site("POST", action[1], "passphrase=a+passphrase+for+readers&token="+token[1]+"&next=%2Foffer%2F", formCookie)
+	grant, _, _ := strings.Cut(hdr.Get("Set-Cookie"), ";")
+	if code != http.StatusSeeOther || hdr.Get("Location") != "/offer/" || !strings.HasPrefix(grant, coresite.GrantCookie+"0=") {
+		t.Fatalf("the right passphrase: %d %v", code, hdr)
+	}
+	code, body, hdr = site("GET", "/offer/", "", grant)
+	if code != 200 || !strings.Contains(body, "the protected offer") || hdr.Get("Cache-Control") != "private, no-store" || !strings.Contains(body, `href="/offer/look.css"`) {
+		t.Fatalf("the protected page with its grant: %d %q", code, body)
+	}
+	if code, _, _ := site("GET", "/offer/look.css", "", grant); code != 200 {
+		t.Fatalf("its look with the grant: %d", code)
+	}
+	if code, _, _ := site("GET", "/offer/look.css", ""); code != 404 {
+		t.Fatalf("its look without the grant: %d", code)
+	}
+	if code, _, _ := app("/s/blog.example.com/offer/", "ann"); code != 404 {
+		t.Fatalf("a protected document on the app host: %d", code)
 	}
 	// What is kept of a held build is the expected files alone.
 	if feeds, _ := filepath.Glob(filepath.Join(files.HeldRoot(), "blog.example.com", "*", "*", "feed.xml")); len(feeds) != 0 {

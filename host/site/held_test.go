@@ -6,6 +6,7 @@ import (
 	"context"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -131,9 +132,22 @@ type fakeCore struct {
 	mu     sync.Mutex
 	asks   []coresite.ReadAsk
 	answer func(coresite.ReadAsk) coresite.ReadAnswer
+
+	unlocks []coresite.UnlockAsk
+	unlock  func(coresite.UnlockAsk) coresite.UnlockAnswer
 }
 
-func (c *fakeCore) decide(_ context.Context, ask coresite.ReadAsk) coresite.ReadAnswer {
+func (c *fakeCore) Unlock(_ context.Context, ask coresite.UnlockAsk) coresite.UnlockAnswer {
+	c.mu.Lock()
+	c.unlocks = append(c.unlocks, ask)
+	c.mu.Unlock()
+	if c.unlock == nil {
+		return coresite.UnlockAnswer{Status: coresite.UnlockGone}
+	}
+	return c.unlock(ask)
+}
+
+func (c *fakeCore) MayReadPath(_ context.Context, ask coresite.ReadAsk) coresite.ReadAnswer {
 	c.mu.Lock()
 	c.asks = append(c.asks, ask)
 	c.mu.Unlock()
@@ -160,7 +174,7 @@ func heldServer(t *testing.T, core *fakeCore) (Server, Files, func()) {
 		t.Fatal(err)
 	}
 	done := make(chan struct{})
-	go func() { _ = ServeAuth(l, core.decide); close(done) }()
+	go func() { _ = ServeAuth(l, core); close(done) }()
 	stop := func() { _ = l.Close(); <-done }
 	t.Cleanup(stop)
 	return NewServer(pub.Dir, sock), f, stop
@@ -320,15 +334,14 @@ func TestTheAuthSocketAnswersOneBoundedQuestion(t *testing.T) {
 	}
 	release := make(chan struct{})
 	entered := make(chan struct{}, AuthInFlight+1)
-	go func() {
-		_ = ServeAuth(l, func(_ context.Context, a coresite.ReadAsk) coresite.ReadAnswer {
-			if a.Path == "/wait" {
-				entered <- struct{}{}
-				<-release
-			}
-			return coresite.ReadAnswer{Status: coresite.ReadMissing}
-		})
-	}()
+	waiter := &fakeCore{answer: func(a coresite.ReadAsk) coresite.ReadAnswer {
+		if a.Path == "/wait" {
+			entered <- struct{}{}
+			<-release
+		}
+		return coresite.ReadAnswer{Status: coresite.ReadMissing}
+	}}
+	go func() { _ = ServeAuth(l, waiter) }()
 	t.Cleanup(func() { _ = l.Close() })
 	ctx := context.Background()
 	if ans, err := askCore(ctx, sock, coresite.ReadAsk{Path: "/x"}); err != nil || ans.Status != coresite.ReadMissing {
@@ -360,4 +373,117 @@ func TestTheAuthSocketAnswersOneBoundedQuestion(t *testing.T) {
 	}
 	close(release)
 	wg.Wait()
+}
+
+func post(s Server, host, target, form string, hdr ...string) *http.Response {
+	r := httptest.NewRequest("POST", target, strings.NewReader(form))
+	r.Host = host
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	for i := 0; i+1 < len(hdr); i += 2 {
+		r.Header.Set(hdr[i], hdr[i+1])
+	}
+	rec := httptest.NewRecorder()
+	s.ServeHTTP(rec, r)
+	return rec.Result()
+}
+
+// TestTheUnlockFormAndItsPost: a protected address answers the core's form
+// under a policy that lets it post to its own host; the post goes to the core
+// with what it needs to judge it, and the answer is the core's: a grant's
+// cookie and the way back, the form again, or a wait.
+func TestTheUnlockFormAndItsPost(t *testing.T) {
+	const blog = "blog.example.com"
+	core := &fakeCore{}
+	s, _, _ := heldServer(t, core)
+	core.answer = func(a coresite.ReadAsk) coresite.ReadAnswer {
+		if a.Path == "/locked/" {
+			return coresite.ReadAnswer{Status: coresite.ReadUnlock, Form: "<form>the form</form>", Protected: true,
+				SetCookie: coresite.UnlockCookie + "=u1; Path=/; Secure; HttpOnly; SameSite=Strict"}
+		}
+		if a.Path == "/bad/" {
+			return coresite.ReadAnswer{Status: coresite.ReadUnlock, Form: "<form>x</form>", SetCookie: "session=stolen", Protected: true}
+		}
+		return coresite.ReadAnswer{Status: coresite.ReadMissing, Protected: true}
+	}
+	res := get(s, "GET", blog, "/locked/", "Cookie", coresite.UnlockCookie+"=u0")
+	csp := res.Header.Get("Content-Security-Policy")
+	if res.StatusCode != http.StatusUnauthorized || body(t, res) != "<form>the form</form>" || !strings.Contains(csp, "form-action 'self'") || strings.Contains(csp, "script-src") ||
+		!strings.HasPrefix(res.Header.Get("Set-Cookie"), coresite.UnlockCookie+"=u1") || res.Header.Get("Cache-Control") != "private, no-store" {
+		t.Fatalf("the form: %d %v", res.StatusCode, res.Header)
+	}
+	if q := core.asks[len(core.asks)-1]; q.Unlock != "u0" {
+		t.Fatalf("the form's cookie did not reach the core: %+v", q)
+	}
+	if res := get(s, "GET", blog, "/bad/"); res.StatusCode != http.StatusUnauthorized || res.Header.Get("Set-Cookie") != "" {
+		t.Fatalf("a cookie that is not the form's was set: %v", res.Header)
+	}
+
+	core.unlock = func(a coresite.UnlockAsk) coresite.UnlockAnswer {
+		switch a.Passphrase {
+		case "right":
+			return coresite.UnlockAnswer{Status: coresite.UnlockGranted, Location: a.Next, SetCookie: coresite.GrantCookie + "2=g; Path=/; Secure; HttpOnly; SameSite=Lax"}
+		case "wrong":
+			return coresite.UnlockAnswer{Status: coresite.UnlockRefused, Form: "<form>again</form>"}
+		case "slow":
+			return coresite.UnlockAnswer{Status: coresite.UnlockBusy, Wait: 40}
+		case "elsewhere":
+			return coresite.UnlockAnswer{Status: coresite.UnlockGranted, Location: "//evil.example/", SetCookie: coresite.GrantCookie + "0=g"}
+		case "other-cookie":
+			return coresite.UnlockAnswer{Status: coresite.UnlockGranted, Location: "/", SetCookie: "__Host-ap_session=stolen"}
+		}
+		return coresite.UnlockAnswer{Status: coresite.UnlockGone}
+	}
+	res = post(s, blog, "/_unlock/7", "passphrase=right&token=tok&next=%2Flocked%2F", "Origin", "https://"+blog, "Sec-Fetch-Site", "same-origin",
+		"X-Forwarded-For", "203.0.113.9", "Cookie", coresite.UnlockCookie+"=u1; "+coresite.GrantCookie+"1=old; __Host-ap_session=mine")
+	if res.StatusCode != http.StatusSeeOther || res.Header.Get("Location") != "/locked/" || !strings.HasPrefix(res.Header.Get("Set-Cookie"), coresite.GrantCookie+"2=g") ||
+		res.Header.Get("Cache-Control") != "private, no-store" {
+		t.Fatalf("a granted unlock: %d %v", res.StatusCode, res.Header)
+	}
+	q := core.unlocks[len(core.unlocks)-1]
+	if q.Host != blog || q.Node != 7 || q.Passphrase != "right" || q.Token != "tok" || q.Next != "/locked/" || q.Cookie != "u1" || q.Origin != "https://"+blog ||
+		q.FetchSite != "same-origin" || q.Client != "203.0.113.9" || len(q.Slots) != 8 || q.Slots[1] != "old" || q.Slots[0] != "" {
+		t.Fatalf("the question: %+v", q)
+	}
+	if res := post(s, blog, "/_unlock/7", "passphrase=wrong"); res.StatusCode != http.StatusForbidden || body(t, res) != "<form>again</form>" || res.Header.Get("Set-Cookie") != "" {
+		t.Errorf("a refused unlock: %d", res.StatusCode)
+	}
+	if res := post(s, blog, "/_unlock/7", "passphrase=slow"); res.StatusCode != http.StatusServiceUnavailable || res.Header.Get("Retry-After") != "40" {
+		t.Errorf("a slowed unlock: %d %q", res.StatusCode, res.Header.Get("Retry-After"))
+	}
+	asked := len(core.unlocks)
+	for what, r := range map[string]*http.Response{
+		"a grant that leads off the host": post(s, blog, "/_unlock/7", "passphrase=elsewhere"),
+		"a cookie that is no grant":       post(s, blog, "/_unlock/7", "passphrase=other-cookie"),
+		"nothing to unlock":               post(s, blog, "/_unlock/7", "passphrase=none"),
+	} {
+		if r.StatusCode != http.StatusNotFound || r.Header.Get("Set-Cookie") != "" || r.Header.Get("Location") != "" {
+			t.Errorf("%s: %d %v", what, r.StatusCode, r.Header)
+		}
+	}
+	asked = len(core.unlocks)
+	// What never reaches the core.
+	big := "passphrase=" + strings.Repeat("a", unlockBody)
+	json := httptest.NewRequest("POST", "/_unlock/7", strings.NewReader(`{"passphrase":"right"}`))
+	json.Host = blog
+	json.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	s.ServeHTTP(rec, json)
+	for what, code := range map[string]int{
+		"a body over the limit":  post(s, blog, "/_unlock/7", big).StatusCode,
+		"no node":                post(s, blog, "/_unlock/", "passphrase=right").StatusCode,
+		"a node that is none":    post(s, blog, "/_unlock/x7", "passphrase=right").StatusCode,
+		"a node below one":       post(s, blog, "/_unlock/0", "passphrase=right").StatusCode,
+		"a body that is no form": rec.Code,
+		"a POST anywhere else":   post(s, blog, "/a/", "passphrase=right").StatusCode,
+	} {
+		if code == http.StatusSeeOther || code == http.StatusOK {
+			t.Errorf("%s: %d", what, code)
+		}
+	}
+	if len(core.unlocks) != asked {
+		t.Errorf("%d unlocks reached the core that should not have", len(core.unlocks)-asked)
+	}
+	if res := post(s, blog, "/a/", "x=1"); res.StatusCode != http.StatusMethodNotAllowed {
+		t.Errorf("a POST to a page: %d", res.StatusCode)
+	}
 }

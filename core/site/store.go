@@ -55,6 +55,16 @@ type Snapshot struct {
 	HeldBuilt   map[int64]HeldBuild
 }
 
+// Grant is a reader who gave a protected node's passphrase: the core's
+// record of a cookie it issued, by the cookie's hash.
+type Grant struct {
+	IDHash     [32]byte
+	Site, Node int64
+	Generation int64 // the protection's generation it was issued at
+	Issued     int64
+	Expires    int64
+}
+
 // HeldBuild is what is built of one held node: the files of build Build,
 // made from an input of that fingerprint.
 type HeldBuild struct {
@@ -117,6 +127,22 @@ type Store interface {
 	SetHeldBuilt(ctx context.Context, h HeldBuild) error
 	DropHeld(ctx context.Context, node int64) error
 	HeldOf(ctx context.Context, node int64) (HeldBuild, error)
+	// SetProtect sets a protected node's passphrase (its verifier) with its
+	// audit entry; the protection's generation rises and the node's grants
+	// end. ClearProtect removes it and ends its grants. ProtectOf answers the
+	// verifier and the generation, ErrNotFound when none is set.
+	SetProtect(ctx context.Context, node int64, verifier string) (generation int64, err error)
+	ClearProtect(ctx context.Context, node int64) error
+	ProtectOf(ctx context.Context, node int64) (verifier string, generation int64, err error)
+	// AddGrant keeps a grant. The site's expired grants go first, and when it
+	// would hold more than max, its oldest. GrantsOf answers the grants of
+	// those hashes that have not expired at now. EndGrants ends a node's.
+	// NoteUnlock writes the audit entry of an attempt to unlock a node, from
+	// an address: before the passphrase is tried.
+	AddGrant(ctx context.Context, g Grant, max int, now int64) error
+	GrantsOf(ctx context.Context, hashes [][32]byte, now int64) ([]Grant, error)
+	EndGrants(ctx context.Context, node int64) error
+	NoteUnlock(ctx context.Context, d Doc, client string) error
 	// HasProtected reports whether the site has a protected node.
 	HasProtected(ctx context.Context, site int64) (bool, error)
 	// TakeDown records that the live pages were taken down.

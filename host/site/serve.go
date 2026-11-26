@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -156,6 +157,10 @@ func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h := w.Header()
 	h.Set("X-Content-Type-Options", "nosniff")
 	h.Set("Referrer-Policy", "no-referrer")
+	if r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, coresite.UnlockPath) {
+		s.unlock(w, r) // the one thing a reader sends: a protected node's passphrase
+		return
+	}
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		h.Set("Allow", "GET, HEAD")
 		s.refuse(w, http.StatusMethodNotAllowed)
@@ -328,14 +333,101 @@ func (s Server) miss(w http.ResponseWriter, r *http.Request, host string) {
 		s.refuse(w, http.StatusNotFound)
 		return
 	}
-	ask := coresite.ReadAsk{Surface: coresite.SurfaceSite}
-	for i := 0; i < grantCookies; i++ {
-		if v := cookieValue(r, grantCookiePrefix+string(rune('0'+i))); v != "" {
+	ask := coresite.ReadAsk{Surface: coresite.SurfaceSite, Unlock: cookieValue(r, coresite.UnlockCookie)}
+	for _, v := range grantSlots(r) {
+		if v != "" {
 			ask.Grants = append(ask.Grants, v)
 		}
 	}
 	if ans, ok := s.held(w, r, ask); ok {
 		s.quiet.set(host, !ans.Protected, now)
+	}
+}
+
+// grantSlots are the grant cookies a request carries, by slot: "" where
+// there is none.
+func grantSlots(r *http.Request) []string {
+	slots := make([]string, grantCookies)
+	for i := range slots {
+		slots[i] = cookieValue(r, grantCookiePrefix+string(rune('0'+i)))
+	}
+	return slots
+}
+
+// unlockPolicy is the unlock form's: a page's, and it may post to its own
+// host.
+const unlockPolicy = "default-src 'none'; style-src 'self'; img-src 'self' data:; font-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+
+// form answers the core's unlock form, with the form's cookie when the core
+// made one. The page is the core's own text: nothing of a build is in it.
+func (s Server) form(w http.ResponseWriter, page, cookie string, status int) {
+	h := w.Header()
+	if page == "" {
+		s.refuse(w, http.StatusNotFound)
+		return
+	}
+	if strings.HasPrefix(cookie, "__Host-ap_") && !strings.ContainsAny(cookie, "\r\n") {
+		h.Set("Set-Cookie", cookie)
+	}
+	h.Set("Content-Security-Policy", unlockPolicy)
+	h.Set("Content-Type", "text/html; charset=utf-8")
+	h.Set("Cache-Control", "private, no-store")
+	w.WriteHeader(status)
+	_, _ = io.WriteString(w, page)
+}
+
+// unlockBody is the most an unlock's form may hold.
+const unlockBody = 4 << 10
+
+// unlock passes a passphrase given at the unlock form to the core, with what
+// it needs to judge the post (its origin, the form's cookie and token, the
+// reader's address as the gate wrote it, the grant cookies the browser has)
+// and answers as the core says: a grant's cookie and the way back, the form
+// again, or a wait.
+func (s Server) unlock(w http.ResponseWriter, r *http.Request) {
+	h := w.Header()
+	node, err := strconv.ParseInt(strings.TrimPrefix(r.URL.Path, coresite.UnlockPath), 10, 64)
+	if s.Auth == "" || err != nil || node <= 0 || !strings.HasPrefix(r.Header.Get("Content-Type"), "application/x-www-form-urlencoded") {
+		s.refuse(w, http.StatusNotFound)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, unlockBody)
+	if err := r.ParseForm(); err != nil {
+		s.refuse(w, http.StatusBadRequest)
+		return
+	}
+	host := strings.ToLower(r.Host)
+	if hst, _, err := net.SplitHostPort(host); err == nil {
+		host = hst
+	}
+	ans, err := askUnlock(r.Context(), s.Auth, coresite.UnlockAsk{
+		Host: host, Node: node, Passphrase: r.PostForm.Get("passphrase"), Token: r.PostForm.Get("token"), Next: r.PostForm.Get("next"),
+		Cookie: cookieValue(r, coresite.UnlockCookie), Origin: r.Header.Get("Origin"), FetchSite: r.Header.Get("Sec-Fetch-Site"),
+		Client: r.Header.Get("X-Forwarded-For"), Slots: grantSlots(r),
+	})
+	if err != nil {
+		h.Set("Retry-After", "5")
+		s.refuse(w, http.StatusServiceUnavailable)
+		return
+	}
+	switch ans.Status {
+	case coresite.UnlockGranted:
+		if !strings.HasPrefix(ans.SetCookie, coresite.GrantCookie) || strings.ContainsAny(ans.SetCookie, "\r\n") ||
+			!strings.HasPrefix(ans.Location, "/") || strings.HasPrefix(ans.Location, "//") {
+			s.refuse(w, http.StatusNotFound)
+			return
+		}
+		h.Set("Set-Cookie", ans.SetCookie)
+		h.Set("Content-Security-Policy", pagePolicy(Manifest{}, false))
+		h.Set("Cache-Control", "private, no-store")
+		http.Redirect(w, r, ans.Location, http.StatusSeeOther)
+	case coresite.UnlockRefused:
+		s.form(w, ans.Form, "", http.StatusForbidden)
+	case coresite.UnlockBusy:
+		h.Set("Retry-After", strconv.Itoa(max(ans.Wait, 1)))
+		s.refuse(w, http.StatusServiceUnavailable)
+	default:
+		s.refuse(w, http.StatusNotFound)
 	}
 }
 
@@ -369,6 +461,9 @@ func (s Server) held(w http.ResponseWriter, r *http.Request, ask coresite.ReadAs
 		h.Set("Content-Security-Policy", pagePolicy(Manifest{}, false))
 		h.Set("Cache-Control", "private, no-store")
 		http.Redirect(w, r, ans.Location, http.StatusMovedPermanently)
+		return ans, true
+	case coresite.ReadUnlock:
+		s.form(w, ans.Form, ans.SetCookie, http.StatusUnauthorized)
 		return ans, true
 	case coresite.ReadFile:
 	default:

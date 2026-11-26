@@ -71,6 +71,10 @@ type Module struct {
 	// (read.go); nil: no held document is read there.
 	sessions  Sessions
 	isAppHost func(host string) bool
+	// prot is what unlocking protected nodes needs (protect.go); weak the
+	// rule a passphrase must pass beside its length, nil for none.
+	prot *protection
+	weak func(pass string) bool
 }
 
 // SetHosts has the module keep the gate's table in step with the sites,
@@ -104,7 +108,7 @@ func (m *Module) changed(ctx context.Context, s Site, withdrawn bool) (int64, er
 
 // NewModule is the site's verbs over store.
 func NewModule(store Store, people People) *Module {
-	return &Module{store: store, people: people, now: time.Now}
+	return &Module{store: store, people: people, now: time.Now, prot: newProtection()}
 }
 
 func (m *Module) Name() string { return "site" }
@@ -145,6 +149,9 @@ func (m *Module) Errors() []module.PublicError {
 		{Err: ErrBadPath, Code: -32330, Name: "site.bad_path", Message: "a path is slugs joined by /, with no empty part"},
 		{Err: ErrNoContentHost, Code: -32332, Name: "site.no_content_host", Message: "an html document runs its scripts only from the site's content host: set one (site.set content_host), or keep it while a document needs it"},
 		{Err: ErrMixedLevels, Code: -32333, Name: "site.mixed_levels", Message: "a protected folder or document cannot be above or below an internal or private one: a reader proves a passphrase on the site, and membership on the app host, never both at once"},
+		{Err: ErrWeakPassphrase, Code: -32334, Name: "site.weak_passphrase", Message: "a passphrase is at least 12 characters, and none of the common ones"},
+		{Err: ErrNotProtected, Code: -32335, Name: "site.not_protected", Message: "only a protected folder or document has a passphrase: set its level to protected first"},
+		{Err: ErrBusy, Code: -32336, Name: "site.busy", Message: "too many passphrases are being checked; try again shortly"},
 		{Err: ErrRoot, Code: -32331, Name: "site.root", Message: "the site's root folder is not changed, moved or removed"},
 	}
 }
@@ -177,9 +184,13 @@ func (m *Module) Verbs() []module.Verb {
 			Doc: "The folders and documents in a folder (the root when path is empty) that the caller may see listed."}), m.nodeList),
 		module.Handle(site(module.Contract{Verb: "site.node.move", Mutates: true, Param: "{site, path, to}", Result: "{path, kind, title, visibility, owner, order, build}",
 			Doc: "Moves a folder or a document of yours into the folder to, one you may put things into. Its address changes, and its contents'."}), m.nodeMove),
+		module.Handle(site(module.Contract{Verb: "site.node.protect", Mutates: true, Param: "{site, path, passphrase}",
+			Doc: "Sets the passphrase of a protected folder or document of yours (an administrator may set anyone's). Whoever gives it on the site reads the node, and what a protected folder holds that is public. A new passphrase ends every grant of the one before. At least 12 characters, and none of the common ones."}), m.protect),
+		module.Handle(site(module.Contract{Verb: "site.node.unprotect", Mutates: true, Param: "{site, path}",
+			Doc: "Removes a protected node's passphrase and ends its grants: nobody is let in until one is set again."}), m.unprotect),
 		module.Handle(site(module.Contract{Verb: "site.doc.put", Mutates: true, Param: "{site, folder?, parents?, slug, format, body, meta?, visibility?, share?: [name], order?, active?}",
 			Result: "{slug, visibility, version, generation, served}",
-			Doc:    "Publishes a document, or a new version of one of yours. A first publish that names no level is private; an update that names none keeps its level. A public document is on the site's host once its build is live; an internal or private one is read by members at /s/<site>/<address>/ on the app host; a protected one is stored and not yet readable. served says whether it is public."}), m.put),
+			Doc:    "Publishes a document, or a new version of one of yours. A first publish that names no level is private; an update that names none keeps its level. A public document is on the site's host once its build is live; an internal or private one is read by members at /s/<site>/<address>/ on the app host; a protected one is read on the site's host by whoever gives its passphrase (site.node.protect). served says whether it is public."}), m.put),
 		module.Handle(site(module.Contract{Verb: "site.doc.get", Param: "{site, slug}", Result: "{slug, format, visibility, share, meta, body, version}",
 			Doc: "A document as it was published: its owner's, and an administrator's, who answers for what the site holds; an administrator's read of a document not theirs is audited."}), m.get),
 		module.Handle(site(module.Contract{Verb: "site.doc.remove", Mutates: true, Param: "{site, slug}",
@@ -602,6 +613,11 @@ func (m *Module) put(ctx context.Context, p Put) (Published, error) {
 	})
 	if err != nil {
 		return Published{}, err
+	}
+	if old.Visibility == Protected && d.Visibility != Protected {
+		if err := m.store.EndGrants(ctx, d.ID); err != nil { // it left protected: what its passphrase gave ends
+			return Published{}, err
+		}
 	}
 	return m.published(ctx, s, folder, d, PublicAt(oldChain) && !PublicAt(append(append([]Doc{}, folder...), d)) && lowered)
 }
