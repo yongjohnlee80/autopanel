@@ -131,9 +131,19 @@ func (f Files) WriteContent(w Work, name string, data []byte) error {
 		return err
 	}
 	defer root.Close()
+	// The modes are set, not asked for: the core's unit runs with a umask
+	// that would leave the input readable by root alone, and the builder,
+	// another user, must read it.
 	if dir := path.Dir(name); dir != "." {
 		if err := root.MkdirAll(dir, 0o755); err != nil {
 			return err
+		}
+		made := ""
+		for _, part := range strings.Split(dir, "/") {
+			made = path.Join(made, part)
+			if err := root.Chmod(made, 0o755); err != nil {
+				return err
+			}
 		}
 	}
 	file, err := root.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|unix.O_NOFOLLOW, 0o644)
@@ -141,6 +151,10 @@ func (f Files) WriteContent(w Work, name string, data []byte) error {
 		return err
 	}
 	if _, err := file.Write(data); err != nil {
+		file.Close()
+		return err
+	}
+	if err := file.Chmod(0o644); err != nil {
 		file.Close()
 		return err
 	}
