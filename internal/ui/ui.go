@@ -273,6 +273,9 @@ type Client interface {
 
 	// The Mail menu. Each is a verb of the daemon's (mail.*).
 	MailStatus(ctx context.Context) (mail.Status, error)
+	// MailQueue is what waits to leave the mail server. allowed is false,
+	// with no error, when the user's role may not read it.
+	MailQueue(ctx context.Context) (q mail.QueueView, allowed bool, err error)
 	// MailSetup answers the review of the mail setup and writes nothing;
 	// MailSetupApply makes it, given that review's sha256.
 	MailSetup(ctx context.Context, host, domain string) (mail.Setup, error)

@@ -29,6 +29,11 @@ type fakeMail struct {
 	apps      map[string][]mail.AppPasswordView // by address
 	appSeq    int
 	diagnosis mail.Diagnosis // what mail.repair.check answers
+	// The queue mail.queue answers; an error instead; or that the role may
+	// not read it.
+	queue       mail.QueueView
+	queueErr    error
+	queueDenied bool
 }
 
 // appSecret is the secret the fake daemon answers for its n-th app password.
@@ -196,6 +201,16 @@ func (f *fakeClient) MailSetAccount(_ context.Context, address string, disabled 
 		return *a, nil
 	}
 	return mail.AccountView{}, errors.New("no such account")
+}
+
+func (f *fakeClient) MailQueue(context.Context) (mail.QueueView, bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.mail.asks = append(f.mail.asks, "queue")
+	if f.mail.queueErr != nil {
+		return mail.QueueView{}, false, f.mail.queueErr
+	}
+	return f.mail.queue, !f.mail.queueDenied, nil
 }
 
 func (f *fakeClient) MailSetForward(_ context.Context, address string, to []string, keep bool) (mail.AccountView, error) {
