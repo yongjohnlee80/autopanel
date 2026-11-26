@@ -84,8 +84,10 @@ func pagePolicy(m Manifest, mermaid bool) string {
 
 // activePolicy is the content host's, on a direct load as in a frame: the
 // document is sandboxed with scripts and without an origin, loads nothing
-// from anywhere, and sends no form.
-const activePolicy = "sandbox allow-scripts; default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; form-action 'none'; base-uri 'none'"
+// from anywhere, sends no form, and is framed by its site alone.
+func activePolicy(m Manifest) string {
+	return "sandbox allow-scripts; default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; form-action 'none'; base-uri 'none'; frame-ancestors https://" + m.Host
+}
 
 const inertPolicy = "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'self'; base-uri 'none'; form-action 'none'"
 
@@ -225,11 +227,11 @@ func (s Server) serveActive(w http.ResponseWriter, r *http.Request, root *os.Roo
 		return
 	}
 	if p != clean+"/" {
-		h.Set("Content-Security-Policy", activePolicy)
+		h.Set("Content-Security-Policy", activePolicy(m))
 		http.Redirect(w, r, clean+"/", http.StatusMovedPermanently)
 		return
 	}
-	h.Set("Content-Security-Policy", activePolicy)
+	h.Set("Content-Security-Policy", activePolicy(m))
 	h.Set("Content-Type", "text/html; charset=utf-8")
 	h.Set("Cache-Control", "public, max-age=300")
 	h.Set("ETag", fmt.Sprintf(`"%x-%x-%x"`, m.Build, info.Size(), info.ModTime().UnixNano()))
