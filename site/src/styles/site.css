@@ -31,3 +31,27 @@ a { color: var(--accent); }
    cannot size itself to what it holds without a script, so it takes most of
    the window. */
 .doc .doc-frame { display: block; width: 100%; height: 80vh; border: 1px solid rgba(0, 0, 0, 0.15); background: #fff; }
+
+/* What the renderer writes in a document's body (AutoDoc's Fragment): its
+   classes are styled here, since a page carries no style of its own. */
+.doc h1, .doc h2, .doc h3, .doc h4 { line-height: 1.25; margin: 1.75rem 0 0.75rem; }
+.doc code { font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; font-size: 0.9em; }
+.doc :not(pre) > code { background: rgba(0, 0, 0, 0.05); padding: 0.1em 0.3em; border-radius: 3px; }
+.doc pre code { font-size: 0.85rem; }
+.doc blockquote { margin: 1rem 0; padding: 0 1rem; border-left: 3px solid var(--accent); opacity: 0.9; }
+.doc hr { border: 0; border-top: 1px solid rgba(0, 0, 0, 0.15); margin: 2rem 0; }
+.doc table { display: block; max-width: 100%; overflow-x: auto; }
+.doc th { text-align: left; background: rgba(0, 0, 0, 0.04); }
+.doc tr.table-cut td { text-align: center; font-style: italic; opacity: 0.7; }
+.doc li > input[type="checkbox"] { margin-right: 0.4rem; }
+.doc a.wikilink { text-decoration-style: dotted; }
+/* A chart, drawn at build time; one that could not be drawn stays its
+   source, with the reason above it. */
+.doc .chart { margin: 1rem 0; overflow-x: auto; }
+.doc .chart-error { margin: 1rem 0 0; padding: 0.25rem 0.75rem; border-left: 3px solid #b3261e; color: #b3261e; font-size: 0.9rem; }
+.doc pre.vega-lite { border-left: 3px solid rgba(0, 0, 0, 0.2); }
+/* A diagram: its source until the kit's script draws it in place. */
+.doc pre.mermaid { background: none; padding: 0; text-align: center; }
+/* An embedded file of the document's own (a table, a diagram, a chart). */
+.doc .embed { margin: 1rem 0; }
+.doc .output { margin: 0.5rem 0 1rem; padding: 0.5rem 0.75rem; border-left: 3px solid rgba(0, 0, 0, 0.15); font-size: 0.9rem; overflow-x: auto; }
