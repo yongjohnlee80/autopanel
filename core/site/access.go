@@ -73,7 +73,9 @@ func May(who Reader, act string, doc Doc) bool {
 		case Public:
 			return true
 		case Protected:
-			return who.Granted != nil && who.Granted(doc)
+			// Its owner set the passphrase: they need none to reach their own
+			// node (and what they keep under it) through the verbs.
+			return owner || (who.Granted != nil && who.Granted(doc))
 		case Internal:
 			return u != nil
 		case Private:

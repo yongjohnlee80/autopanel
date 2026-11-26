@@ -29,9 +29,19 @@ type pipe struct {
 	runs      int
 	theme     func(content, out string) error // the builder's work; nil: the kit's
 	onRun     func()                          // called while the build runs
-	inputs    map[string]string               // the last build's inputs
+	inputs    map[string]string               // the last job's inputs
+	public    map[string]string               // the last public job's inputs
+	jobs      []map[string]string             // every job's inputs, in order
 	published []site.Manifest
 	downs     []string
+	held      map[int64]heldFiles // what PublishHeld was last given, by node
+	kept      map[int64]int64     // what SweepHeld was last told to keep
+}
+
+type heldFiles struct {
+	build int64
+	files []string
+	page  string // the page's text
 }
 
 func (p *pipe) Prepare(host string) (site.Job, error) {
@@ -46,6 +56,7 @@ func (p *pipe) Prepare(host string) (site.Job, error) {
 	}
 	p.mu.Lock()
 	p.inputs = map[string]string{}
+	p.jobs = append(p.jobs, p.inputs)
 	p.mu.Unlock()
 	return site.Job{Host: host, Ref: dir}, nil
 }
@@ -53,6 +64,9 @@ func (p *pipe) Prepare(host string) (site.Job, error) {
 func (p *pipe) Input(j site.Job, name string, data []byte) error {
 	p.mu.Lock()
 	p.inputs[name] = string(data)
+	if name == "build.json" && !strings.Contains(string(data), `"held":true`) {
+		p.public = p.inputs
+	}
 	p.mu.Unlock()
 	f := filepath.Join(j.Ref.(string), "content", name)
 	if err := os.MkdirAll(filepath.Dir(f), 0o755); err != nil {
@@ -95,10 +109,36 @@ func kit(content, out string) error {
 	if err := write("index.html", "<!doctype html><title>home</title><h1>home</h1>"); err != nil {
 		return err
 	}
+	if in.Held {
+		// a held document's build: its page at the root, its look beside it,
+		// and (as a theme might) a feed naming it, which the core must not keep
+		if err := write("look.css", ":root{}"); err != nil {
+			return err
+		}
+		if err := write("feed.xml", `<?xml version="1.0"?><rss version="2.0"><channel><title>`+in.Docs[0].Slug+`</title><link>https://example.org/</link><description>d</description></channel></rss>`); err != nil {
+			return err
+		}
+		// its images beside the page, and an .html document's inert copy
+		d := in.Docs[0]
+		dir := filepath.Join(content, filepath.FromSlash(d.Dir))
+		_ = filepath.WalkDir(dir, func(p string, e os.DirEntry, err error) error {
+			if err != nil || e.IsDir() || !strings.HasSuffix(p, ".png") {
+				return nil
+			}
+			data, _ := os.ReadFile(p)
+			rel, _ := filepath.Rel(dir, p)
+			return write(filepath.ToSlash(rel), string(data))
+		})
+		if d.Format == site.HTML {
+			if err := write(site.InertPage, "<!doctype html><p>inert</p>"); err != nil {
+				return err
+			}
+		}
+	}
 	for _, d := range in.Docs {
 		body := "<!doctype html><title>" + d.Slug + "</title><article>" + d.Slug + "</article>"
 		if d.Mermaid {
-			body += `<script src="/_kit/m.js" integrity="sha256-M" defer></script><script src="/_kit/s.js" integrity="sha256-S" defer></script>`
+			body += `<script src="` + in.Base + `/_kit/m.js" integrity="sha256-M" defer></script><script src="` + in.Base + `/_kit/s.js" integrity="sha256-S" defer></script>`
 		}
 		if err := write(d.Page, body); err != nil {
 			return err
@@ -121,6 +161,35 @@ func (p *pipe) TakeDown(host string) error {
 	return nil
 }
 func (p *pipe) Remove(string) error { return nil }
+
+func (p *pipe) PublishHeld(j site.Job, node, build int64, files, _ []string) error {
+	out := filepath.Join(j.Ref.(string), "out")
+	for _, f := range files {
+		if _, err := os.Stat(filepath.Join(out, f)); err != nil {
+			return err
+		}
+	}
+	page, _ := os.ReadFile(filepath.Join(out, site.HeldPage))
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.held == nil {
+		p.held = map[int64]heldFiles{}
+	}
+	p.held[node] = heldFiles{build: build, files: files, page: string(page)}
+	return nil
+}
+
+func (p *pipe) SweepHeld(_ string, keep map[int64]int64) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.kept = keep
+	for node := range p.held {
+		if _, ok := keep[node]; !ok {
+			delete(p.held, node)
+		}
+	}
+	return nil
+}
 
 type buildFixture struct {
 	m    *site.Module
@@ -177,41 +246,173 @@ func (f *buildFixture) status(t *testing.T) site.Status {
 }
 
 // A public document is built with what the core chose: its page's path, the
-// diagram pages; a held document is in no build's input at all.
-func TestAPublicDocumentIsBuiltAndAHeldOneIsNot(t *testing.T) {
+// diagram pages. A held document is in no public job's input; it is built in
+// a job of its own, which sees nothing else.
+func TestAPublicDocumentAndAHeldOneAreBuiltApart(t *testing.T) {
 	f := buildSetup(t)
 	held := f.put(t, "diary", "private", "# Diary\nthe held text")
-	if held.Build != 0 || held.Served {
-		t.Fatalf("a private document asked for a build: %+v", held)
+	if held.Build != 1 || held.Served {
+		t.Fatalf("a private publish: %+v", held)
 	}
 	pub := f.put(t, "hello", "public", "# Hello\n\n```mermaid\ngraph TD; A-->B\n```\n")
-	if pub.Build != 1 || !pub.Served {
+	if pub.Build != 2 || !pub.Served {
 		t.Fatalf("a public publish: %+v", pub)
 	}
-	if s := f.status(t); s.State != site.BuildWaiting || s.Build != 1 || s.LiveBuild != 0 {
+	if s := f.status(t); s.State != site.BuildWaiting || s.Build != 2 || s.LiveBuild != 0 {
 		t.Fatalf("before the build: %+v", s)
 	}
 	if err := f.b.BuildOnce(f.ctx, f.blog.ID); err != nil {
 		t.Fatal(err)
 	}
-	if s := f.status(t); s.State != site.BuildLive || s.LiveBuild != 1 || s.Error != "" {
+	if s := f.status(t); s.State != site.BuildLive || s.LiveBuild != 2 || s.Error != "" {
 		t.Fatalf("after the build: %+v", s)
 	}
-	for name, data := range f.pipe.inputs {
+	if len(f.pipe.jobs) != 2 {
+		t.Fatalf("%d jobs; want the public one and the held document's", len(f.pipe.jobs))
+	}
+	public, alone := f.pipe.jobs[0], f.pipe.jobs[1]
+	for name, data := range public {
 		if strings.Contains(data, "held text") || strings.Contains(name, "diary") {
-			t.Fatalf("a held document is in the build's input: %s", name)
+			t.Fatalf("a held document is in the public job's input: %s", name)
 		}
 	}
-	if !strings.Contains(f.pipe.inputs["docs/hello/index.md"], "# Hello") {
-		t.Fatalf("the public document's source: %v", f.pipe.inputs)
+	if !strings.Contains(public["docs/hello/index.md"], "# Hello") {
+		t.Fatalf("the public document's source: %v", public)
+	}
+	for name, data := range alone {
+		if strings.Contains(data, "Hello") || strings.Contains(name, "hello") {
+			t.Fatalf("a held job's input holds another document: %s", name)
+		}
+	}
+	var in site.BuildInput
+	if err := json.Unmarshal([]byte(alone["build.json"]), &in); err != nil || !in.Held || in.Base != "/s/blog.example.com/diary" || len(in.Docs) != 1 || in.Docs[0].Page != "index.html" {
+		t.Fatalf("the held job's index: %+v, %v", in, err)
 	}
 	m := f.pipe.published[len(f.pipe.published)-1]
-	if m.Build != 1 || len(m.Mermaid) != 1 || m.Mermaid[0] != "hello/index.html" || len(m.ScriptHashes) != 2 {
+	if m.Build != 2 || len(m.Mermaid) != 1 || m.Mermaid[0] != "hello/index.html" || len(m.ScriptHashes) != 2 {
 		t.Fatalf("the manifest: %+v", m)
+	}
+	// What the core kept of the held job: the page and the look, not the feed
+	// the job also wrote.
+	d, err := f.st.Sites().Child(f.ctx, mustRoot(t, f).ID, "diary")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := f.pipe.held[d.ID]
+	if got.build != 2 || strings.Join(got.files, " ") != "index.html look.css" || !strings.Contains(got.page, "diary") {
+		t.Fatalf("the held files: %+v", got)
+	}
+	if h, err := f.st.Sites().HeldOf(f.ctx, d.ID); err != nil || h.Build != 2 || h.Mermaid {
+		t.Fatalf("the store's record: %+v, %v", h, err)
 	}
 	// Nothing owed: no second build.
 	if err := f.b.BuildOnce(f.ctx, f.blog.ID); !errors.Is(err, site.ErrNoBuild) {
 		t.Fatalf("a build with nothing owed: %v", err)
+	}
+}
+
+func mustRoot(t *testing.T, f *buildFixture) site.Doc {
+	t.Helper()
+	r, err := f.st.Sites().Root(f.ctx, f.blog.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return r
+}
+
+// Only what changed is built again: a held document's change runs its own
+// job and not the public one, and the reverse; a held document that is
+// removed, or made public, has its files swept.
+func TestOnlyWhatChangedIsBuiltAgain(t *testing.T) {
+	f := buildSetup(t)
+	f.put(t, "hello", "public", "# Hello")
+	f.put(t, "diary", "private", "# Diary")
+	f.put(t, "plans", "internal", "# Plans")
+	build := func() {
+		t.Helper()
+		if err := f.b.BuildOnce(f.ctx, f.blog.ID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	build()
+	if len(f.pipe.jobs) != 3 || len(f.pipe.held) != 2 {
+		t.Fatalf("the first build: %d jobs, %d held", len(f.pipe.jobs), len(f.pipe.held))
+	}
+	root := mustRoot(t, f)
+	diary, _ := f.st.Sites().Child(f.ctx, root.ID, "diary")
+	plans, _ := f.st.Sites().Child(f.ctx, root.ID, "plans")
+
+	f.put(t, "diary", "private", "# Diary, more")
+	build()
+	if len(f.pipe.jobs) != 4 || f.pipe.jobs[3]["docs/diary/index.md"] != "# Diary, more" {
+		t.Fatalf("after a held change: %d jobs", len(f.pipe.jobs))
+	}
+	if f.pipe.held[diary.ID].build != 4 || f.pipe.held[plans.ID].build != 3 || f.pipe.kept[plans.ID] != 3 {
+		t.Fatalf("the held builds: %+v, kept %v", f.pipe.held, f.pipe.kept)
+	}
+
+	f.put(t, "hello", "public", "# Hello again")
+	build()
+	if len(f.pipe.jobs) != 5 || f.pipe.jobs[4]["docs/hello/index.md"] != "# Hello again" {
+		t.Fatalf("after a public change: %d jobs", len(f.pipe.jobs))
+	}
+
+	// internal → private: the same surface, the same page: nothing is built.
+	f.put(t, "plans", "private", "# Plans")
+	build()
+	if len(f.pipe.jobs) != 5 {
+		t.Fatalf("a level change between members' levels built something: %d jobs", len(f.pipe.jobs))
+	}
+
+	// Made public: its held files go; it is in the public pages now.
+	f.put(t, "plans", "public", "# Plans")
+	build()
+	if _, still := f.pipe.held[plans.ID]; still || len(f.pipe.jobs) != 6 {
+		t.Fatalf("after going public: held %v, %d jobs", f.pipe.held, len(f.pipe.jobs))
+	}
+	if _, err := f.st.Sites().HeldOf(f.ctx, plans.ID); !errors.Is(err, site.ErrNotFound) {
+		t.Fatalf("the store still holds a build of a public document: %v", err)
+	}
+
+	if _, err := call[struct{}](t, f.m, "user:ann", "site.doc.remove", site.DocAsk{Site: "blog.example.com", Slug: "diary"}); err != nil {
+		t.Fatal(err)
+	}
+	build()
+	if len(f.pipe.held) != 0 || len(f.pipe.jobs) != 6 {
+		t.Fatalf("after a held document's removal: held %v, %d jobs", f.pipe.held, len(f.pipe.jobs))
+	}
+}
+
+// A held document whose build fails keeps what it had; the others are still
+// built; the site's status names the node and nothing of its text.
+func TestAHeldBuildThatFailsKeepsWhatItHad(t *testing.T) {
+	f := buildSetup(t)
+	f.put(t, "diary", "private", "# Diary")
+	f.put(t, "plans", "private", "# Plans")
+	if err := f.b.BuildOnce(f.ctx, f.blog.ID); err != nil {
+		t.Fatal(err)
+	}
+	root := mustRoot(t, f)
+	diary, _ := f.st.Sites().Child(f.ctx, root.ID, "diary")
+	plans, _ := f.st.Sites().Child(f.ctx, root.ID, "plans")
+	f.pipe.theme = func(content, out string) error {
+		if _, err := os.Stat(filepath.Join(content, "docs", "diary")); err == nil {
+			return os.WriteFile(filepath.Join(out, "index.html"), []byte("<script>the secret plan</script>"), 0o644)
+		}
+		return kit(content, out)
+	}
+	f.put(t, "diary", "private", "# Diary: the secret plan")
+	f.put(t, "plans", "private", "# Plans, more")
+	err := f.b.BuildOnce(f.ctx, f.blog.ID)
+	if err == nil || strings.Contains(err.Error(), "secret") {
+		t.Fatalf("a failing held build: %v", err)
+	}
+	s := f.status(t)
+	if s.State != site.BuildFailed || strings.Contains(s.Error, "secret") || !strings.Contains(s.Error, "held document") {
+		t.Fatalf("the status: %+v", s)
+	}
+	if f.pipe.held[diary.ID].build != 2 || f.pipe.held[plans.ID].build != 4 {
+		t.Fatalf("the held builds: %+v", f.pipe.held)
 	}
 }
 
@@ -285,7 +486,7 @@ func TestWithdrawingSomethingPublicTakesThePagesDown(t *testing.T) {
 	if s := f.status(t); s.State != site.BuildLive {
 		t.Fatalf("up again: %+v", s)
 	}
-	if strings.Contains(f.pipe.inputs["build.json"], "notes") {
+	if strings.Contains(f.pipe.public["build.json"], "notes") {
 		t.Fatal("the withdrawn document is in the next build")
 	}
 	// Removing a public document takes them down too.
@@ -316,8 +517,8 @@ func TestABuildThatRanAcrossAWithdrawalIsDiscarded(t *testing.T) {
 	if err := f.b.BuildOnce(f.ctx, f.blog.ID); err != nil {
 		t.Fatal(err)
 	}
-	if len(f.pipe.published) != 1 || strings.Contains(f.pipe.inputs["build.json"], "notes") {
-		t.Fatalf("the next build: %d published, %s", len(f.pipe.published), f.pipe.inputs["build.json"])
+	if len(f.pipe.published) != 1 || strings.Contains(f.pipe.public["build.json"], "notes") {
+		t.Fatalf("the next build: %d published, %s", len(f.pipe.published), f.pipe.public["build.json"])
 	}
 }
 
@@ -345,7 +546,7 @@ func TestChangesTogetherAreOneBuild(t *testing.T) {
 		t.Fatalf("%d builds for three changes", f.pipe.runs)
 	}
 	var in site.BuildInput
-	if err := json.Unmarshal([]byte(f.pipe.inputs["build.json"]), &in); err != nil || len(in.Docs) != 3 {
+	if err := json.Unmarshal([]byte(f.pipe.public["build.json"]), &in); err != nil || len(in.Docs) != 3 {
 		t.Fatalf("the build's documents: %+v, %v", in, err)
 	}
 }
@@ -376,7 +577,7 @@ func TestABuildTakesWhatIsPublicAlongItsPath(t *testing.T) {
 		t.Fatal(err)
 	}
 	var in site.BuildInput
-	if err := json.Unmarshal([]byte(f.pipe.inputs["build.json"]), &in); err != nil {
+	if err := json.Unmarshal([]byte(f.pipe.public["build.json"]), &in); err != nil {
 		t.Fatal(err)
 	}
 	if len(in.Docs) != 1 || in.Docs[0].Path != "guides/install/linux" || in.Docs[0].Folder != "guides/install" || in.Docs[0].Page != "guides/install/linux/index.html" {
@@ -385,12 +586,12 @@ func TestABuildTakesWhatIsPublicAlongItsPath(t *testing.T) {
 	if len(in.Folders) != 2 || in.Folders[0].Path != "guides" || in.Folders[0].Title != "Guides" || in.Folders[1].Page != "guides/install/index.html" {
 		t.Fatalf("the folders: %+v", in.Folders)
 	}
-	for name, data := range f.pipe.inputs {
+	for name, data := range f.pipe.public {
 		if strings.Contains(name, "drafts") || strings.Contains(name, "secret") || strings.Contains(data, "held text") || strings.Contains(data, "drafts") {
 			t.Fatalf("something of a private folder is in the build's input: %s", name)
 		}
 	}
-	if _, err := os.Stat(filepath.Join(f.pipe.dir, "blog.example.com", "content", "docs", "guides", "install", "linux", "index.md")); err != nil {
-		t.Fatalf("the source at its path: %v", err)
+	if _, ok := f.pipe.public["docs/guides/install/linux/index.md"]; !ok {
+		t.Fatal("the source is not at its path in the public job's input")
 	}
 }

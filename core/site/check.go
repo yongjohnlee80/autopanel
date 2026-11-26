@@ -43,6 +43,9 @@ type CheckOptions struct {
 	// document's address → its source's SHA-256, in hex. Each must be in the
 	// output under ActiveDir, byte for byte; nothing else may be there.
 	Active map[string]string
+	// Base is the path a held document's build writes every address under
+	// ("" for the public pages): the kit's scripts are loaded from under it.
+	Base string
 }
 
 // ActiveDir is where a build puts the active .html documents: each as
