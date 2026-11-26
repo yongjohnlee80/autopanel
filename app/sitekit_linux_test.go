@@ -112,6 +112,9 @@ func TestTheKitBuildsASite(t *testing.T) {
 	kitCall(t, m, "user:ann", "site.doc.put", coresite.Put{Site: "blog.example.com", Folder: "guides", Slug: "flow", Format: "md",
 		Body: "# Flow\n\n```mermaid\ngraph TD; A-->B\n```\n", Visibility: "public"})
 	kitCall(t, m, "user:ann", "site.doc.put", coresite.Put{Site: "blog.example.com", Slug: "diary", Format: "md", Body: "# the held text\n", Visibility: "private"})
+	kitCall(t, m, "user:ann", "site.doc.put", coresite.Put{Site: "blog.example.com", Folder: "guides", Slug: "report", Format: "html",
+		Body:       `<html><head><title>The report</title><style>h1{color:teal}</style><script>alert(1)</script></head><body><h1 onclick="alert(2)">Report</h1><form><input name="q"></form></body></html>`,
+		Visibility: "public"})
 	png := base64.StdEncoding.EncodeToString([]byte("\x89PNG\r\n\x1a\nthe picture"))
 	kitCall(t, m, "user:ann", "site.asset.put", coresite.AssetAsk{Site: "blog.example.com", Folder: "guides", Slug: "install", Name: "img/flow.png", Data: png})
 	kitCall(t, m, "user:ann", "site.asset.put", coresite.AssetAsk{Site: "blog.example.com", Folder: "guides", Slug: "install", Name: "flow.mmd", Data: base64.StdEncoding.EncodeToString([]byte("graph TD; A-->B"))})
@@ -151,6 +154,21 @@ func TestTheKitBuildsASite(t *testing.T) {
 	if code != 200 || !strings.Contains(body, `data-mermaid="default"`) || strings.Count(body, "<script ") != 2 || !strings.Contains(body, `<pre class="mermaid">`) ||
 		!strings.Contains(csp, "script-src 'sha256-") {
 		t.Fatalf("a page that draws a diagram: %d %q %q", code, body, csp)
+	}
+	// An .html document: a frame that allows nothing, and beside the page its
+	// inert copy, under the policy that sandboxes it again.
+	code, body, _ = get("/guides/report/")
+	if code != 200 || !strings.Contains(body, `<iframe class="doc-frame" src="_doc.html" sandbox="" title="The report" loading="lazy">`) || strings.Contains(body, "alert") {
+		t.Fatalf("an html document's page: %d %q", code, body)
+	}
+	code, body, csp = get("/guides/report/_doc.html")
+	if code != 200 || !strings.Contains(body, "<h1>Report</h1>") || !strings.Contains(body, "h1{color:teal}") || !strings.HasPrefix(csp, "sandbox;") {
+		t.Fatalf("an html document's copy: %d %q %q", code, body, csp)
+	}
+	for _, gone := range []string{"script", "alert", "onclick", "<form", "<input"} {
+		if strings.Contains(body, gone) {
+			t.Fatalf("an html document's copy holds %q: %q", gone, body)
+		}
 	}
 	for _, k := range KitScripts() {
 		rec := httptest.NewRecorder()

@@ -13,6 +13,7 @@ import (
 	"io/fs"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -88,6 +89,10 @@ func siteBuild(stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "autopanel --site-build: a document's images:", err)
 		return 1
 	}
+	if err := copyInert(p); err != nil {
+		fmt.Fprintln(stderr, "autopanel --site-build: an html document's copy:", err)
+		return 1
+	}
 	if err := writeKitScripts(p); err != nil {
 		fmt.Fprintln(stderr, "autopanel --site-build: the kit's scripts:", err)
 		return 1
@@ -105,8 +110,9 @@ func siteBuild(stdout, stderr io.Writer) int {
 // it: <fragments>/<path>.html. A Markdown document (md, xmd) is rendered by
 // AutoDoc's Fragment: no page, no inline script, no stylesheet, every URL
 // through siteLink, its embeds read from its own files alone. An HTML
-// document is, for now, its source escaped in a <pre>: nothing of it is
-// markup.
+// document's body is a frame that allows nothing, showing its inert copy
+// (renderInert). An active HTML document is, for now, its source escaped in a
+// <pre>: nothing of it is markup.
 func renderFragments(p kitPaths) error {
 	raw, err := os.ReadFile(filepath.Join(p.Content, "build.json"))
 	if err != nil {
@@ -136,7 +142,12 @@ func renderFragments(p kitPaths) error {
 				embeds = filepath.Join(p.Content, filepath.FromSlash(d.Dir))
 			}
 		}
-		body, err := renderBody(d.Format, src, embeds)
+		var body string
+		if d.Format == coresite.HTML && !d.Active {
+			body, err = renderInert(p, d.Path, src)
+		} else {
+			body, err = renderBody(d.Format, src, embeds)
+		}
 		if err != nil {
 			return fmt.Errorf("%s: %w", d.Path, err)
 		}
@@ -354,6 +365,67 @@ func siteLink(href string) (string, bool) {
 		return href, true
 	}
 	return "", false
+}
+
+// inertDir is where, under the fragments, a build keeps the inert copies it
+// made until Astro has written the pages they go beside.
+const inertDir = "_inert"
+
+// renderInert cleans an .html document (core/site.CleanHTML), keeps the copy
+// for copyInert, and answers the document's body: a frame of that copy with
+// sandbox="", so nothing in it runs, sends or goes anywhere, whatever the
+// cleaning missed.
+func renderInert(p kitPaths, docPath string, src []byte) (string, error) {
+	page, title, err := coresite.CleanHTML(src)
+	if err != nil {
+		return "", err
+	}
+	if len(page) > maxFragment {
+		return "", fmt.Errorf("its body is larger than %d bytes", maxFragment)
+	}
+	out := filepath.Join(p.Fragments, inertDir, filepath.FromSlash(docPath)+".html")
+	if err := os.MkdirAll(filepath.Dir(out), 0o755); err != nil {
+		return "", err
+	}
+	if err := os.WriteFile(out, page, 0o644); err != nil {
+		return "", err
+	}
+	if title == "" {
+		title = path.Base(docPath)
+	}
+	return `<iframe class="doc-frame" src="` + coresite.InertPage + `" sandbox="" title="` + html.EscapeString(title) + `" loading="lazy"></iframe>` + "\n", nil
+}
+
+// copyInert puts each inert copy beside its document's page, as _doc.html.
+func copyInert(p kitPaths) error {
+	from := filepath.Join(p.Fragments, inertDir)
+	src, err := os.OpenRoot(from)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil // no .html document
+	}
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+	dst, err := os.OpenRoot(p.Out)
+	if err != nil {
+		return err
+	}
+	defer dst.Close()
+	return fs.WalkDir(src.FS(), ".", func(name string, e fs.DirEntry, err error) error {
+		if err != nil || e.IsDir() || !e.Type().IsRegular() {
+			return err
+		}
+		data, err := src.ReadFile(name)
+		if err != nil {
+			return err
+		}
+		to := strings.TrimSuffix(filepath.ToSlash(name), ".html") + "/" + coresite.InertPage
+		if err := dst.MkdirAll(filepath.Dir(to), 0o755); err != nil {
+			return err
+		}
+		return dst.WriteFile(to, data, 0o644)
+	})
 }
 
 // renderInterim is a body as its source, escaped.
