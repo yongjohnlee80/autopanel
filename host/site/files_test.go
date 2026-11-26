@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -294,5 +295,70 @@ func TestASwapOntoSomethingElseIsRefused(t *testing.T) {
 	}
 	if _, err := f.Swap(w); err == nil {
 		t.Fatal("swapped onto a link")
+	}
+}
+
+// TestTheCoresUmaskDoesNotCloseABuild: the core's unit runs with a umask of
+// 0077. What a build reads (the builder is another user) and what the serving
+// process reads (another again) must be open to them all the same: the work
+// directories, the input and its directories, the pages, the manifest and the
+// marker of a site taken down.
+func TestTheCoresUmaskDoesNotCloseABuild(t *testing.T) {
+	old := syscall.Umask(0o077)
+	defer syscall.Umask(old)
+	f := files(t)
+	w, err := f.Fresh("blog.example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"build.json", "docs/guides/install/index.md", "docs/guides/install/img/flow.png"} {
+		if err := f.WriteContent(w, name, []byte("x")); err != nil {
+			t.Fatal(err)
+		}
+	}
+	want := map[string]fs.FileMode{
+		f.Dir: 0o755, w.Dir: 0o755, w.Content: 0o755, w.Out: 0o755,
+		filepath.Join(w.Content, "build.json"):                       0o644,
+		filepath.Join(w.Content, "docs"):                             0o755,
+		filepath.Join(w.Content, "docs/guides"):                      0o755,
+		filepath.Join(w.Content, "docs/guides/install"):              0o755,
+		filepath.Join(w.Content, "docs/guides/install/index.md"):     0o644,
+		filepath.Join(w.Content, "docs/guides/install/img"):          0o755,
+		filepath.Join(w.Content, "docs/guides/install/img/flow.png"): 0o644,
+	}
+	for p, m := range want {
+		if got := mode(t, p).Perm(); got != m {
+			t.Errorf("%s: mode %v; want %v", p, got, m)
+		}
+	}
+	// The builder's part: a page, written under a umask of its own.
+	if err := os.WriteFile(filepath.Join(w.Out, "index.html"), []byte("<h1>x</h1>"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.TakeAway(w); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Normalize(w); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.WriteManifest(w, Manifest{Build: 1}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.Swap(w); err != nil {
+		t.Fatal(err)
+	}
+	live := filepath.Join(f.Dir, "blog.example.com")
+	for p, m := range map[string]fs.FileMode{live: 0o755, filepath.Join(live, "index.html"): 0o644, filepath.Join(live, ManifestName): 0o644} {
+		if got := mode(t, p).Perm(); got != m {
+			t.Errorf("%s: mode %v; want %v", p, got, m)
+		}
+	}
+	if err := f.TakeDown("blog.example.com"); err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range []string{filepath.Join(f.Dir, downDir), filepath.Join(f.Dir, downDir, "blog.example.com")} {
+		if got := mode(t, p).Perm(); got != 0o755 {
+			t.Errorf("%s: mode %v; want 0755", p, got)
+		}
 	}
 }
