@@ -40,22 +40,10 @@ func (f Files) WriteManifest(w Work, m Manifest) error {
 		return err
 	}
 	defer root.Close()
-	file, err := root.OpenFile(ManifestName, os.O_WRONLY|os.O_CREATE|os.O_EXCL|unix.O_NOFOLLOW, 0o644)
-	if err != nil {
-		return err
-	}
-	if _, err := file.Write(data); err != nil {
-		file.Close()
-		return err
-	}
-	// Set, not asked for: under the core's umask the serving process,
-	// another user, could not read it, and would serve every page without
-	// what the manifest allows it.
-	if err := file.Chmod(0o644); err != nil {
-		file.Close()
-		return err
-	}
-	if err := file.Close(); err != nil {
+	// Its mode is set, not asked for: under the core's umask the serving
+	// process, another user, could not read it, and would serve every page
+	// without what the manifest allows it.
+	if err := writeFile(root, ManifestName, data, os.O_WRONLY|os.O_CREATE|os.O_EXCL|unix.O_NOFOLLOW); err != nil {
 		return err
 	}
 	return root.Lchown(ManifestName, f.Owner.UID, f.Owner.GID)
