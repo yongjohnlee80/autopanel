@@ -246,7 +246,7 @@ func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateContr
 			return err
 		}
 		for _, s := range sites {
-			rs = append(rs, gate.SiteRoute(s.ID, s.Host))
+			rs = append(rs, gate.SiteRoutes(s.ID, s.Host, s.ContentHost)...)
 		}
 		snap, err := hostgate.Build(rs, cfg.Trusted, nil) // the core's copy says which names are held; it carries nothing
 		if err != nil {

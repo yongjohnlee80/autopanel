@@ -522,6 +522,9 @@ func (m *Module) put(ctx context.Context, p Put) (Published, error) {
 	if err := probe.Check(); err != nil {
 		return Published{}, err
 	}
+	if p.Active && p.Format != HTML {
+		return Published{}, ErrActiveHeld // before any folder is made on the way (tifa, N1)
+	}
 	if p.Active && s.ContentHost == "" {
 		return Published{}, ErrNoContentHost
 	}
