@@ -93,6 +93,10 @@ func siteBuild(stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "autopanel --site-build: an html document's copy:", err)
 		return 1
 	}
+	if err := copyActive(p); err != nil {
+		fmt.Fprintln(stderr, "autopanel --site-build: an active html document:", err)
+		return 1
+	}
 	if err := writeKitScripts(p); err != nil {
 		fmt.Fprintln(stderr, "autopanel --site-build: the kit's scripts:", err)
 		return 1
@@ -110,9 +114,9 @@ func siteBuild(stdout, stderr io.Writer) int {
 // it: <fragments>/<path>.html. A Markdown document (md, xmd) is rendered by
 // AutoDoc's Fragment: no page, no inline script, no stylesheet, every URL
 // through siteLink, its embeds read from its own files alone. An HTML
-// document's body is a frame that allows nothing, showing its inert copy
-// (renderInert). An active HTML document is, for now, its source escaped in a
-// <pre>: nothing of it is markup.
+// document's body is a frame: of its inert copy, allowing nothing
+// (renderInert), or, when it is active, of the document itself on the
+// content host, allowing scripts and nothing else (renderActive).
 func renderFragments(p kitPaths) error {
 	raw, err := os.ReadFile(filepath.Join(p.Content, "build.json"))
 	if err != nil {
@@ -143,9 +147,12 @@ func renderFragments(p kitPaths) error {
 			}
 		}
 		var body string
-		if d.Format == coresite.HTML && !d.Active {
+		switch {
+		case d.Format == coresite.HTML && d.Active:
+			body, err = renderActive(in.ContentHost, d.Path, src)
+		case d.Format == coresite.HTML:
 			body, err = renderInert(p, d.Path, src)
-		} else {
+		default:
 			body, err = renderBody(d.Format, src, embeds)
 		}
 		if err != nil {
@@ -394,6 +401,64 @@ func renderInert(p kitPaths, docPath string, src []byte) (string, error) {
 		title = path.Base(docPath)
 	}
 	return `<iframe class="doc-frame" src="` + coresite.InertPage + `" sandbox="" title="` + html.EscapeString(title) + `" loading="lazy"></iframe>` + "\n", nil
+}
+
+// renderActive answers an active .html document's body: a frame of the
+// document on the site's content host, where copyActive's file is served
+// from. The frame allows scripts and not the site's origin: the document
+// reads no page, cookie or storage of the site's, and the content host has
+// none of its own.
+func renderActive(contentHost, docPath string, src []byte) (string, error) {
+	if contentHost == "" {
+		return "", errors.New("it runs its scripts, and the site has no content host")
+	}
+	title := path.Base(docPath)
+	if _, t, err := coresite.CleanHTML(src); err == nil && t != "" {
+		title = t
+	}
+	u := url.URL{Scheme: "https", Host: contentHost, Path: "/" + docPath + "/"}
+	return `<iframe class="doc-frame" src="` + html.EscapeString(u.String()) + `" sandbox="allow-scripts" title="` + html.EscapeString(title) + `" loading="lazy"></iframe>` + "\n", nil
+}
+
+// copyActive puts each active .html document where the content host serves
+// it: <ActiveDir>/<address>/index.html, its source byte for byte. The core's
+// output check compares each with what was published.
+func copyActive(p kitPaths) error {
+	raw, err := os.ReadFile(filepath.Join(p.Content, "build.json"))
+	if err != nil {
+		return err
+	}
+	var in coresite.BuildInput
+	if err := json.Unmarshal(raw, &in); err != nil {
+		return err
+	}
+	src, err := os.OpenRoot(p.Content)
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+	dst, err := os.OpenRoot(p.Out)
+	if err != nil {
+		return err
+	}
+	defer dst.Close()
+	for _, d := range in.Docs {
+		if d.Format != coresite.HTML || !d.Active {
+			continue
+		}
+		data, err := src.ReadFile(d.Source)
+		if err != nil {
+			return fmt.Errorf("%s: %w", d.Path, err)
+		}
+		to := coresite.ActiveDir + "/" + d.Path
+		if err := dst.MkdirAll(to, 0o755); err != nil {
+			return err
+		}
+		if err := dst.WriteFile(to+"/index.html", data, 0o644); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // copyInert puts each inert copy beside its document's page, as _doc.html.

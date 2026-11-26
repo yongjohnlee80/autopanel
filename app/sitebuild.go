@@ -77,8 +77,10 @@ func (p *sitePipeline) Publish(j coresite.Job, m coresite.Manifest) error {
 	if err := p.files.WriteManifest(w, m); err != nil {
 		return err
 	}
-	_, err := p.files.Swap(w)
-	return err
+	if _, err := p.files.Swap(w); err != nil {
+		return err
+	}
+	return p.files.LinkContent(w.Host, m.ContentHost)
 }
 
 func (p *sitePipeline) TakeDown(host string) error { return p.files.TakeDown(host) }

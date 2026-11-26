@@ -1,6 +1,8 @@
 package app
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -102,12 +104,62 @@ func TestTheSitesLinkRule(t *testing.T) {
 	}
 }
 
-// TestAnActiveHTMLDocumentStaysItsSource: no markup of an active HTML
-// document reaches the page yet.
-func TestAnActiveHTMLDocumentStaysItsSource(t *testing.T) {
-	b, err := renderBody(coresite.HTML, []byte("<p onclick=x>hi</p>"), "")
-	if err != nil || strings.Contains(b, "<p>") || strings.Contains(b, "<p ") || !strings.Contains(b, "&lt;p onclick=x&gt;") {
-		t.Fatalf("%q, %v", b, err)
+// TestAnActiveHTMLDocumentIsAFrameOnTheContentHost: its body is a frame of
+// the content host that allows scripts and not the site's origin; its source
+// is put under the active directory byte for byte; and without a content
+// host it is refused.
+func TestAnActiveHTMLDocumentIsAFrameOnTheContentHost(t *testing.T) {
+	base := t.TempDir()
+	p := kitPaths{Content: filepath.Join(base, "input"), Fragments: filepath.Join(base, "fragments"), Out: filepath.Join(base, "out")}
+	dir := filepath.Join(p.Content, "docs", "1")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	const src = `<html><head><title>Calc</title></head><body><script>document.body.textContent = 1 + 1</script></body></html>`
+	if err := os.WriteFile(filepath.Join(dir, "index.html"), []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	in := coresite.BuildInput{Build: 1, Host: "blog.example.com", ContentHost: "content.example.com", Docs: []coresite.InputDoc{{Slug: "calc", Path: "tools/calc", Folder: "tools",
+		Format: coresite.HTML, Active: true, Source: "docs/1/index.html", Dir: "docs/1", Page: "tools/calc/index.html"}}}
+	write := func() {
+		raw, _ := json.Marshal(in)
+		if err := os.WriteFile(filepath.Join(p.Content, "build.json"), raw, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write()
+	if err := renderFragments(p); err != nil {
+		t.Fatal(err)
+	}
+	frag, err := os.ReadFile(filepath.Join(p.Fragments, "tools", "calc.html"))
+	const want = `<iframe class="doc-frame" src="https://content.example.com/tools/calc/" sandbox="allow-scripts" title="Calc" loading="lazy"></iframe>` + "\n"
+	if err != nil || string(frag) != want {
+		t.Fatalf("the body: %q, %v", frag, err)
+	}
+	page := filepath.Join(p.Out, "tools", "calc", "index.html")
+	if err := os.MkdirAll(filepath.Dir(page), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(page, []byte(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>T</title></head><body>`+string(frag)+`</body></html>`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := copyActive(p); err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(filepath.Join(p.Out, coresite.ActiveDir, "tools", "calc", "index.html"))
+	if err != nil || string(got) != src {
+		t.Fatalf("the active document: %q, %v", got, err)
+	}
+	sum := sha256.Sum256([]byte(src))
+	opt := coresite.CheckOptions{ContentHost: "content.example.com", Active: map[string]string{"tools/calc": hex.EncodeToString(sum[:])}}
+	if _, err := coresite.CheckOutput(p.Out, opt); err != nil {
+		t.Fatalf("the output check: %v", err)
+	}
+
+	in.ContentHost = ""
+	write()
+	if err := renderFragments(p); err == nil || !strings.Contains(err.Error(), "content host") {
+		t.Fatalf("an active document with no content host: %v", err)
 	}
 }
 

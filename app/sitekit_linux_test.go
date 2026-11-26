@@ -112,6 +112,9 @@ func TestTheKitBuildsASite(t *testing.T) {
 	kitCall(t, m, "user:ann", "site.doc.put", coresite.Put{Site: "blog.example.com", Folder: "guides", Slug: "flow", Format: "md",
 		Body: "# Flow\n\n```mermaid\ngraph TD; A-->B\n```\n", Visibility: "public"})
 	kitCall(t, m, "user:ann", "site.doc.put", coresite.Put{Site: "blog.example.com", Slug: "diary", Format: "md", Body: "# the held text\n", Visibility: "private"})
+	kitCall(t, m, "user:root", "site.set", coresite.SiteSet{Host: "blog.example.com", ContentHost: &[]string{"content.example.com"}[0]})
+	const activeSrc = `<html><head><title>Calc</title></head><body><script>document.body.textContent = 1 + 1</script></body></html>`
+	kitCall(t, m, "user:ann", "site.doc.put", coresite.Put{Site: "blog.example.com", Folder: "guides", Slug: "calc", Format: "html", Body: activeSrc, Visibility: "public", Active: true})
 	kitCall(t, m, "user:ann", "site.doc.put", coresite.Put{Site: "blog.example.com", Folder: "guides", Slug: "report", Format: "html",
 		Body:       `<html><head><title>The report</title><style>h1{color:teal}</style><script>alert(1)</script></head><body><h1 onclick="alert(2)">Report</h1><form><input name="q"></form></body></html>`,
 		Visibility: "public"})
@@ -168,6 +171,24 @@ func TestTheKitBuildsASite(t *testing.T) {
 	for _, gone := range []string{"script", "alert", "onclick", "<form", "<input"} {
 		if strings.Contains(body, gone) {
 			t.Fatalf("an html document's copy holds %q: %q", gone, body)
+		}
+	}
+	// An active .html document: a frame of the content host on the site, and
+	// on the content host the document itself, sandboxed with scripts.
+	code, body, _ = get("/guides/calc/")
+	if code != 200 || !strings.Contains(body, `src="https://content.example.com/guides/calc/" sandbox="allow-scripts"`) || strings.Contains(body, "textContent") {
+		t.Fatalf("an active document's page: %d %q", code, body)
+	}
+	if code, _, _ := get("/_active/guides/calc/"); code != 404 {
+		t.Fatalf("the site's host serves the active directory: %d", code)
+	}
+	{
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/guides/calc/", nil)
+		req.Host = "content.example.com"
+		srv.ServeHTTP(rec, req)
+		if rec.Code != 200 || rec.Body.String() != activeSrc || !strings.HasPrefix(rec.Header().Get("Content-Security-Policy"), "sandbox allow-scripts;") {
+			t.Fatalf("the content host: %d %q %q", rec.Code, rec.Body.String(), rec.Header().Get("Content-Security-Policy"))
 		}
 	}
 	for _, k := range KitScripts() {

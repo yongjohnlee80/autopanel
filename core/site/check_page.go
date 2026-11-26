@@ -289,6 +289,10 @@ func (p *pageCheck) iframe(n *html.Node) error {
 			if sandbox != "allow-scripts" {
 				return fmt.Errorf("an active document's frame allows %q", sandbox)
 			}
+			doc := strings.Trim(u.Path, "/")
+			if _, ok := p.c.opt.Active[doc]; !ok || u.Path != "/"+doc+"/" || u.RawQuery != "" || u.Fragment != "" {
+				return fmt.Errorf("a frame of %q, which is no active document of the site", src)
+			}
 			return nil
 		}
 	}
