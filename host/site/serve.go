@@ -12,6 +12,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/sys/unix"
@@ -95,6 +96,56 @@ const inertPolicy = "sandbox; default-src 'none'; style-src 'unsafe-inline'; img
 // decides nothing but which file a request names. It holds no secret.
 type Server struct {
 	Dir string // Files.Dir
+	// Auth is the socket the core answers on for held documents (auth.go);
+	// "": none is served, and what the public pages do not hold is missing.
+	Auth string
+	// quiet remembers, for a short while, the sites the core said have
+	// nothing protected: a miss on one of them is answered without asking.
+	quiet *quietSites
+}
+
+// NewServer serves the pages under dir, asking the core at auth for what is
+// held.
+func NewServer(dir, auth string) Server {
+	return Server{Dir: dir, Auth: auth, quiet: &quietSites{until: map[string]time.Time{}}}
+}
+
+// quietFor is how long a site with nothing protected is not asked about.
+const quietFor = 30 * time.Second
+
+type quietSites struct {
+	mu    sync.Mutex
+	until map[string]time.Time
+}
+
+func (q *quietSites) is(host string, now time.Time) bool {
+	if q == nil {
+		return false
+	}
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	t, ok := q.until[host]
+	if ok && !now.Before(t) {
+		delete(q.until, host)
+		return false
+	}
+	return ok
+}
+
+func (q *quietSites) set(host string, quiet bool, now time.Time) {
+	if q == nil {
+		return
+	}
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	if !quiet {
+		delete(q.until, host)
+		return
+	}
+	if len(q.until) >= 1024 { // more sites than a host has: forget, and ask again
+		clear(q.until)
+	}
+	q.until[host] = now.Add(quietFor)
 }
 
 // ServeHTTP answers GET and HEAD with a page of the site the request's host
@@ -137,6 +188,12 @@ func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			s.refuse(w, http.StatusServiceUnavailable)
 			return
 		}
+		if !content && strings.HasPrefix(r.URL.Path, coresite.AppPrefix) {
+			// No site of this name: the app host, where members read. The
+			// core says whether it is, and what the reader may have.
+			s.held(w, r, coresite.ReadAsk{Surface: coresite.SurfaceApp, Session: cookieValue(r, sessionCookieName)})
+			return
+		}
 		s.refuse(w, http.StatusNotFound)
 		return
 	}
@@ -155,7 +212,7 @@ func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		ok = false // the active documents are the content host's alone
 	}
 	if !ok {
-		s.refuse(w, http.StatusNotFound)
+		s.miss(w, r, host)
 		return
 	}
 	if redirect != "" {
@@ -171,18 +228,18 @@ func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		ctype, ok = "text/javascript; charset=utf-8", true
 	}
 	if !ok {
-		s.refuse(w, http.StatusNotFound)
+		s.miss(w, r, host)
 		return
 	}
 	f, err := root.OpenFile(name, os.O_RDONLY|unix.O_NOFOLLOW|unix.O_NONBLOCK, 0)
 	if err != nil {
-		s.refuse(w, http.StatusNotFound)
+		s.miss(w, r, host)
 		return
 	}
 	defer f.Close()
 	info, err := f.Stat()
 	if err != nil || !info.Mode().IsRegular() {
-		s.refuse(w, http.StatusNotFound)
+		s.miss(w, r, host)
 		return
 	}
 	switch {
@@ -236,6 +293,131 @@ func (s Server) serveActive(w http.ResponseWriter, r *http.Request, root *os.Roo
 	h.Set("Cache-Control", "public, max-age=300")
 	h.Set("ETag", fmt.Sprintf(`"%x-%x-%x"`, m.Build, info.Size(), info.ModTime().UnixNano()))
 	http.ServeContent(w, r, "", info.ModTime(), f)
+}
+
+// The cookies the serving process passes to the core, by name: the app
+// host's session, and the site's host's grants. Nothing else of a request's
+// cookies leaves it.
+const (
+	sessionCookieName = "__Host-ap_session"
+	grantCookiePrefix = "__Host-ap_g"
+	grantCookies      = 8
+)
+
+// cookieValue is the cookie of that name when it has a credential's shape:
+// short and of plain characters. Anything else is no cookie.
+func cookieValue(r *http.Request, name string) string {
+	c, err := r.Cookie(name)
+	if err != nil || len(c.Value) == 0 || len(c.Value) > 128 {
+		return ""
+	}
+	for _, ch := range c.Value {
+		if !(ch >= 'a' && ch <= 'z') && !(ch >= 'A' && ch <= 'Z') && !(ch >= '0' && ch <= '9') && ch != '-' && ch != '_' {
+			return ""
+		}
+	}
+	return c.Value
+}
+
+// miss answers a path the site's public pages do not hold. It may be a
+// protected document's, so the core is asked, unless it said a moment ago
+// that this site has nothing protected.
+func (s Server) miss(w http.ResponseWriter, r *http.Request, host string) {
+	now := time.Now()
+	if s.Auth == "" || s.quiet.is(host, now) {
+		s.refuse(w, http.StatusNotFound)
+		return
+	}
+	ask := coresite.ReadAsk{Surface: coresite.SurfaceSite}
+	for i := 0; i < grantCookies; i++ {
+		if v := cookieValue(r, grantCookiePrefix+string(rune('0'+i))); v != "" {
+			ask.Grants = append(ask.Grants, v)
+		}
+	}
+	if ans, ok := s.held(w, r, ask); ok {
+		s.quiet.set(host, !ans.Protected, now)
+	}
+}
+
+// held asks the core about a request and answers as it says: the file it
+// names, a redirect to the address with its slash, or the missing page. With
+// no answer the reader gets 503: no answer is never an allow. ok reports that
+// the core answered.
+func (s Server) held(w http.ResponseWriter, r *http.Request, ask coresite.ReadAsk) (ans coresite.ReadAnswer, ok bool) {
+	h := w.Header()
+	if s.Auth == "" {
+		s.refuse(w, http.StatusNotFound)
+		return ans, false
+	}
+	host := strings.ToLower(r.Host)
+	if hst, _, err := net.SplitHostPort(host); err == nil {
+		host = hst
+	}
+	ask.Host, ask.Path, ask.Method = host, r.URL.Path, r.Method
+	ans, err := askCore(r.Context(), s.Auth, ask)
+	if err != nil {
+		h.Set("Retry-After", "5")
+		s.refuse(w, http.StatusServiceUnavailable)
+		return ans, false
+	}
+	switch ans.Status {
+	case coresite.ReadRedirect:
+		if !strings.HasPrefix(ans.Location, "/") || strings.HasPrefix(ans.Location, "//") {
+			s.refuse(w, http.StatusNotFound)
+			return ans, true
+		}
+		h.Set("Content-Security-Policy", pagePolicy(Manifest{}, false))
+		h.Set("Cache-Control", "private, no-store")
+		http.Redirect(w, r, ans.Location, http.StatusMovedPermanently)
+		return ans, true
+	case coresite.ReadFile:
+	default:
+		s.refuse(w, http.StatusNotFound)
+		return ans, true
+	}
+	ext := strings.ToLower(path.Ext(ans.File))
+	ctype, known := contentTypes[ext]
+	if ext == ".js" && ans.Kind == coresite.KindAsset {
+		for _, script := range ans.Scripts {
+			if strings.HasSuffix(ans.File, "/"+script) {
+				ctype, known = "text/javascript; charset=utf-8", true
+			}
+		}
+	}
+	if !known {
+		s.refuse(w, http.StatusNotFound)
+		return ans, true
+	}
+	root, err := os.OpenRoot(path.Join(s.Dir, heldDir))
+	if err != nil {
+		s.refuse(w, http.StatusNotFound)
+		return ans, true
+	}
+	defer root.Close()
+	f, err := root.OpenFile(ans.File, os.O_RDONLY|unix.O_NOFOLLOW|unix.O_NONBLOCK, 0)
+	if err != nil {
+		s.refuse(w, http.StatusNotFound)
+		return ans, true
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil || !info.Mode().IsRegular() {
+		s.refuse(w, http.StatusNotFound)
+		return ans, true
+	}
+	switch ans.Kind {
+	case coresite.KindInert:
+		h.Set("Content-Security-Policy", inertPolicy)
+	case coresite.KindPage:
+		h.Set("Content-Security-Policy", pagePolicy(Manifest{ScriptHashes: ans.ScriptHashes}, ans.Mermaid))
+	default:
+		h.Set("Content-Security-Policy", pagePolicy(Manifest{}, false))
+	}
+	h.Set("Content-Type", ctype)
+	// Held: never kept by a cache, whoever's.
+	h.Set("Cache-Control", "private, no-store")
+	http.ServeContent(w, r, "", time.Time{}, f)
+	return ans, true
 }
 
 // pageName is the file a request's path names under the site, or a redirect

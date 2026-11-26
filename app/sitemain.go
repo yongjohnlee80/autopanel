@@ -33,5 +33,5 @@ func Site(log *slog.Logger) error {
 		return err
 	}
 	log.Info("autopanel site serving", "dir", SiteDir(), "socket", sock)
-	return hostsite.Server{Dir: SiteDir()}.Serve(l)
+	return hostsite.NewServer(SiteDir(), SiteAuthSocket()).Serve(l)
 }

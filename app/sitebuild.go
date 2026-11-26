@@ -28,6 +28,9 @@ type sitePipeline struct {
 	ready error
 }
 
+// siteUser is the serving process's user and group (deploy/autopanel-site.service).
+const siteUser = "autopanel-site"
+
 // Owner is a user by number, as host/site takes it.
 type Owner = hostsite.Owner
 
@@ -44,6 +47,12 @@ func (p *sitePipeline) prepare(ctx context.Context) error {
 		uid, _ := strconv.Atoi(u.Uid)
 		gid, _ := strconv.Atoi(u.Gid)
 		p.files.Builder = Owner{UID: uid, GID: gid}
+		// The held files are the serving process's group's to read; with no
+		// such group they stay root's alone, and held pages answer as missing.
+		if g, err := user.LookupGroup(siteUser); err == nil {
+			rg, _ := strconv.Atoi(g.Gid)
+			p.files.Reader = Owner{GID: rg}
+		}
 	})
 	return p.ready
 }
@@ -83,6 +92,14 @@ func (p *sitePipeline) Publish(j coresite.Job, m coresite.Manifest) error {
 	return p.files.LinkContent(w.Host, m.ContentHost)
 }
 
+func (p *sitePipeline) PublishHeld(j coresite.Job, node, build int64, files, dirs []string) error {
+	return p.files.PublishHeld(j.Ref.(hostsite.Work), node, build, files, dirs)
+}
+
+func (p *sitePipeline) SweepHeld(host string, keep map[int64]int64) error {
+	return p.files.SweepHeld(host, keep)
+}
+
 func (p *sitePipeline) TakeDown(host string) error { return p.files.TakeDown(host) }
 func (p *sitePipeline) Remove(host string) error   { return p.files.Remove(host) }
 
@@ -95,7 +112,7 @@ func siteBuilds(cfg Config, st coresite.Store, log *slog.Logger) (*coresite.Buil
 	if os.Getuid() != 0 || image == "" {
 		return nil, nil
 	}
-	kit := coresite.Kit{Scripts: KitScripts()}
+	kit := coresite.Kit{Image: image, Scripts: KitScripts()}
 	p := &sitePipeline{
 		files:   hostsite.Files{Dir: SiteDir(), Owner: Owner{UID: 0, GID: 0}},
 		builder: hostsite.Builder{Host: hostservices.New(cfg.Services, cfg.Stacks), Image: image},

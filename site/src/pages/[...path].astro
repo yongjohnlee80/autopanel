@@ -3,9 +3,10 @@
 // core chose. A document's body is its fragment, as the renderer made it; a
 // folder's page lists what it holds that is public.
 import Base from '../layouts/Base.astro';
-import { input, children, fragment, href, docTitle, entryOfFolder, type InputDoc, type InputFolder } from '../lib/input';
+import { input, held, children, fragment, href, docTitle, entryOfFolder, type InputDoc, type InputFolder } from '../lib/input';
 
 export function getStaticPaths() {
+  if (held) return []; // a held document's page is the output's root (index.astro)
   return [
     ...input.docs.map((d) => ({ params: { path: d.path }, props: { doc: d } })),
     ...input.folders.map((f) => ({ params: { path: f.path }, props: { folder: f } })),

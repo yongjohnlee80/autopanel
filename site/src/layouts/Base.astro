@@ -3,7 +3,7 @@
 // script and no style of the page's own: one stylesheet for the kit, one for
 // the configuration's look.
 import '../styles/site.css';
-import { config, absolute, kit } from '../lib/input';
+import { config, absolute, kit, held, own, href, siteLink } from '../lib/input';
 
 // mermaid: the page draws a diagram, as the core read the document. Only then
 // does it load the kit's two scripts, by their integrity; the output check
@@ -19,22 +19,23 @@ const full = title === config.title ? title : `${title} · ${config.title}`;
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{full}</title>
     {description && <meta name="description" content={description} />}
-    <link rel="canonical" href={absolute(path)} />
-    <link rel="alternate" type="application/rss+xml" title={config.title} href="/feed.xml" />
-    <link rel="stylesheet" href="/look.css" />
-    <meta property="og:title" content={title} />
-    <meta property="og:type" content={type} />
-    <meta property="og:url" content={absolute(path)} />
-    {description && <meta property="og:description" content={description} />}
-    {mermaid && kit.scripts.map((s) => <script is:inline src={s.path} integrity={s.integrity} defer></script>)}
+    {!held && <link rel="canonical" href={absolute(path)} />}
+    {!held && <link rel="alternate" type="application/rss+xml" title={config.title} href="/feed.xml" />}
+    <link rel="stylesheet" href={own('/look.css')} />
+    {!held && <meta property="og:title" content={title} />}
+    {!held && <meta property="og:type" content={type} />}
+    {!held && <meta property="og:url" content={absolute(path)} />}
+    {!held && description && <meta property="og:description" content={description} />}
+    {held && <meta name="robots" content="noindex" />}
+    {mermaid && kit.scripts.map((s) => <script is:inline src={own(s.path)} integrity={s.integrity} defer></script>)}
   </head>
   <body class={`theme-${config.theme}`}>
     <header class="site-header">
-      <a class="site-title" href="/">{config.title}</a>
+      <a class="site-title" href={href('')}>{config.title}</a>
       {config.tagline && <p class="site-tagline">{config.tagline}</p>}
       {config.nav && config.nav.length > 0 && (
         <nav class="site-nav">
-          {config.nav.map((n) => <a href={n.to}>{n.label}</a>)}
+          {config.nav.map((n) => <a href={siteLink(n.to)}>{n.label}</a>)}
         </nav>
       )}
     </header>

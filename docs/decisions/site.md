@@ -19,6 +19,13 @@ grows with the feature. So far the rules and the storage exist; nothing is built
 - **An update that names no level keeps the one it has.** Silence never changes who may read.
 - An unknown level is refused, never guessed.
 - Only a private document has a share list, of members, never including its owner.
+- **Where each level is read:**
+
+  | Level | Read at | With |
+  | --- | --- | --- |
+  | `public` | the site's own host | nothing |
+  | `internal`, `private` | `https://<app host>/s/<site host>/<address>/` | a member's session |
+  | `protected` | the site's own host | a passphrase (not built yet: a protected document is stored and built, and nobody reads it) |
 
 **In the code:** `core/site/doc.go` (`Level`, `Doc.Check`).
 
@@ -224,7 +231,8 @@ title, a body or front matter.
 ## The serving process reads files and decides nothing else
 
 **Decided:** `autopanel --site` serves every site's live pages on a unix socket for the gate. It
-holds no secret, and it decides nothing but which file a request names.
+holds no secret, and it decides nothing but which file a request names. A held document's file it
+serves only on the core's word ("Held documents", below).
 
 - **`GET` and `HEAD` only;** any other method is `405`. A hidden name, a path outside the site, a
   host with no site and a type outside the output check's list are all `404`.
@@ -250,8 +258,8 @@ holds no secret, and it decides nothing but which file a request names.
 on the host. A build starts two seconds after the last change, so an article and its ten images
 are one build.
 
-- **The input is a snapshot of public documents.** A held document's text, files and front
-  matter are in no build's input. The snapshot names each source and file by its digest. If one
+- **The public job's input is a snapshot of public documents.** A held document's text, files and
+  front matter are in no public job's input (it is built alone: "Held documents", below). The snapshot names each source and file by its digest. If one
   has changed by the time it is read, the build is superseded, never a mix, and the build
   already owed reads the change.
 - **The core chooses each page's path,** and gives it to the kit in `build.json`.
@@ -271,6 +279,69 @@ are one build.
   in build N is live once `live_build` is N or more.
 
 **In the code:** `core/site/build.go`, `app/sitebuild.go`; `core/site/build_test.go`.
+
+## Held documents are built alone, and served on the core's word
+
+**Decided:** a document that is not public in effect (itself, or a folder above it, is
+`protected`, `internal` or `private`) is built in a job of its own, kept apart from the public
+pages, and served only after the core has answered that the reader may have it.
+
+- **A chain needs one kind of proof.** A passphrase is proved on the site's host and a membership
+  on the app host, and no one request carries both. So a protected folder or document cannot be
+  above or below an internal or private one: a publish, a level's change or a move that would
+  make such a chain is refused (`site.mixed_levels`), checked over the whole subtree.
+- **A held document is built alone.** Its job's input is that document, its files, the site's
+  configuration and the kit: nothing of any other document. The workspace is fresh for each job.
+  - Its page is the kit's own layout with the site's look. It has no canonical address, no feed
+    link and is marked `noindex`; its links to the site go to the site's host by full address.
+  - Everything it loads is under its own address (its stylesheets, the kit's scripts), so a
+    held page needs nothing of the public pages.
+  - Of the job's output the core keeps the files it expects: the page, the look, an `.html`
+    document's inert copy, the document's images, the kit's own files. A feed or any other file
+    the job wrote is not kept.
+  - The output check reads a held job's output as it reads a public one.
+- **Only what changed is built.** The public job runs when the public pages' input changed; a
+  held document's job when its own did (its content, its address, the site's configuration, the
+  kit). A change from `internal` to `private` builds nothing: the page does not hold who may
+  read it.
+- **A held folder has no page.** Its address answers as a missing page; what a reader may open
+  in it is `site.node.list`'s answer.
+- **Where the files are:** `<site dir>/.held/<site host>/<node>/<build>/`, the core's, readable
+  by the serving process's group and nobody else (directories `0750`, files `0640`). No request's
+  path names a file there.
+- **The serving process asks the core** on a socket of its own
+  (`/run/autopanel-site-auth/auth.sock`): the socket is the serving process's user's alone
+  (`0600`), and the core checks the peer's user. One question and one answer a connection, 8 KiB
+  each, 2 seconds, 16 at once.
+  - The question: where the request arrived (the site's host or the app host), its host, path
+    and method, and one cookie by name (the app host's session). Nothing else of the request.
+  - **The core decides from its own records:** which node the address names, whose session it
+    is (found valid at that moment, for an enabled user), and whether the table lets them read
+    every folder above the node and the node. It answers the one file to serve.
+  - **Every refusal is the public missing page,** byte for byte: no such node, no session, not
+    allowed, not built yet, a held folder. The redirect to an address with its slash is said
+    only to a reader who may read it.
+  - A read that only an administrator's role allows is written to the audit log first; if it
+    cannot be written, the answer is the missing page.
+  - **With no answer the reader gets `503`.** No answer is never an allow, and none is
+    remembered. Public pages are served with the core away.
+- **A held answer is never cached:** `Cache-Control: private, no-store`, on the page and on every
+  file of it. The page's policy is a public page's.
+- **A miss on a site's own host** asks the core only while the site has a protected node. When
+  the core says it has none, the serving process answers misses itself for 30 seconds.
+- **On the app host,** `GET` and `HEAD` under `/s/` go from the gate to the serving process, as a
+  proxied request under the gate's limits; the app host's source ranges and its rate limit hold
+  first. The gate reads no cookie.
+- **What this changes for the serving process:** it can read every held file, and it carries a
+  reader's session cookie to the core. If it were taken over, held documents could be read and a
+  session replayed while that lasted. Its unit's confinement is unchanged; it gains this socket.
+- **A link from another site arrives without the session** (the cookie is `SameSite=Strict`), so
+  an internal document opened from an email shows the missing page until it is opened from the
+  app host itself, or reloaded.
+
+**In the code:** `core/site/surface.go`, `core/site/read.go`, `core/site/build.go` (`buildHeld`),
+`host/site/held.go`, `host/site/auth.go`, `host/site/serve.go` (`held`), `app/siteauth.go`,
+`host/gate/apps.go` (`serveSiteDoc`); migration 000012.
 
 ## The gate reaches a site through a route only the core makes
 

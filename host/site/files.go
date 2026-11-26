@@ -26,6 +26,7 @@ type Owner struct{ UID, GID int }
 //
 //	<Dir>/<host>/                the live pages of a site; the serving process reads them
 //	<Dir>/<content host>         a link to <host>: where its active .html documents are served from
+//	<Dir>/.held/<host>/…         the held documents' files (held.go)
 //	<Dir>/.work/<host>/content/  a build's input, the core's, read-only to the build
 //	<Dir>/.work/<host>/out/      a build's output, the builder's user's until TakeAway
 //
@@ -35,6 +36,7 @@ type Files struct {
 	Dir     string
 	Owner   Owner // who owns what is served: root
 	Builder Owner // the builder's user: ap-site
+	Reader  Owner // the serving process's user: its group reads the held files
 }
 
 // Work is one build's directories.
@@ -391,7 +393,7 @@ func (f Files) Remove(host string) error {
 	if err := hostName(host); err != nil {
 		return err
 	}
-	for _, p := range []string{path.Join(f.Dir, workDir, host), path.Join(f.Dir, downDir, host)} {
+	for _, p := range []string{path.Join(f.Dir, workDir, host), path.Join(f.Dir, downDir, host), path.Join(f.Dir, heldDir, host)} {
 		if err := os.RemoveAll(p); err != nil {
 			return err
 		}

@@ -384,6 +384,21 @@ func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateContr
 		keepSiteUnit(ctx, st.Sites().Sites, log)
 		return nil
 	}, func(h string) bool { return table.Holds(h) || mailMod.IsHost(h) || apiMod.IsHost(h) })
+	// Held documents: the serving process asks on a socket of its own; a
+	// member is known by the app host's session, found valid at each question.
+	siteMod.SetReaders(func(ctx context.Context, _ string, cookie string) *coresite.User {
+		if apiMod.sessions == nil {
+			return nil
+		}
+		_, u, err := apiMod.resolve(ctx, cookie, hostgate.HostApp)
+		if err != nil {
+			return nil
+		}
+		return &coresite.User{ID: u.ID, Admin: u.Role == auth.RoleAdmin}
+	}, func(h string) bool { return h != "" && h == apiMod.appHostOf(hostgate.HostApp) })
+	if err := serveSiteAuth(ctx, siteMod, log); err != nil {
+		return fmt.Errorf("the site's auth socket: %w", err)
+	}
 	keepSiteUnit(ctx, st.Sites().Sites, log)
 	mods := []module.Module{am, gm, fm, tm, &certsModule{sw: sw}, sys, firewallModule{fwm}, servicesModule{svcs}, mailMod, apiMod, siteMod}
 	if err := apiMod.serve(mods...); err != nil {

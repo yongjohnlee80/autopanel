@@ -148,6 +148,16 @@ func Run(ctx context.Context, dial Dialer, log *slog.Logger) error {
 	srvLog := stdlog.New(&serverLog{log: log}, "", 0)
 	g.inFlight = newInFlight(proxyInFlight, proxyPerClient)
 	routes := proxied(g.inFlight, trustedNow, requestStall, upgradedStall, Handler(table))
+	// A member's read of a site's document, on the app host: a proxied
+	// request like any site's, under the same cap and the same clock.
+	g.api.site = proxied(g.inFlight, trustedNow, requestStall, upgradedStall, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		p, err := NewProxy(core.SiteRoute(1, "site.local"), trustedNow(), nil)
+		if err != nil {
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
+		p.ServeHTTP(w, r)
+	}))
 	https := &http.Server{
 		Handler: g.tunnels.or(counted(&g.https, g.api.or(routes))), // no routes: every request is the gate's
 		TLSConfig: &tls.Config{

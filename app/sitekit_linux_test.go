@@ -7,9 +7,12 @@ import (
 	"encoding/base64"
 	"io"
 	"log/slog"
+	"net"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -111,7 +114,8 @@ func TestTheKitBuildsASite(t *testing.T) {
 		Visibility: "public", Meta: []byte(`{"title":"Install","date":"2026-11-21"}`)})
 	kitCall(t, m, "user:ann", "site.doc.put", coresite.Put{Site: "blog.example.com", Folder: "guides", Slug: "flow", Format: "md",
 		Body: "# Flow\n\n```mermaid\ngraph TD; A-->B\n```\n", Visibility: "public"})
-	kitCall(t, m, "user:ann", "site.doc.put", coresite.Put{Site: "blog.example.com", Slug: "diary", Format: "md", Body: "# the held text\n", Visibility: "private"})
+	kitCall(t, m, "user:ann", "site.doc.put", coresite.Put{Site: "blog.example.com", Slug: "diary", Format: "md", Body: "# the held text\n\n![held](held.png)\n\n```mermaid\ngraph TD; A-->B\n```\n", Visibility: "private"})
+	kitCall(t, m, "user:ann", "site.doc.put", coresite.Put{Site: "blog.example.com", Slug: "memo", Format: "html", Body: `<html><head><title>Memo</title></head><body><h1 onclick="x()">the held memo</h1></body></html>`, Visibility: "internal"})
 	kitCall(t, m, "user:root", "site.set", coresite.SiteSet{Host: "blog.example.com", ContentHost: &[]string{"content.example.com"}[0]})
 	const activeSrc = `<html><head><title>Calc</title></head><body><script>document.body.textContent = 1 + 1</script></body></html>`
 	kitCall(t, m, "user:ann", "site.doc.put", coresite.Put{Site: "blog.example.com", Folder: "guides", Slug: "calc", Format: "html", Body: activeSrc, Visibility: "public", Active: true})
@@ -232,9 +236,96 @@ func TestTheKitBuildsASite(t *testing.T) {
 			return err
 		}
 		data, _ := os.ReadFile(p)
-		if strings.Contains(string(data), "held text") || strings.Contains(string(data), "diary") {
-			t.Errorf("the held document is in %s", p)
+		if strings.Contains(string(data), "held text") || strings.Contains(string(data), "diary") || strings.Contains(string(data), "held memo") {
+			t.Errorf("a held document is in %s", p)
 		}
 		return nil
 	})
+
+	// The held documents: each built alone, and read on the app host by a
+	// session the core finds, through the auth socket.
+	sock := filepath.Join(base, "auth.sock")
+	l, err := net.Listen("unix", sock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = l.Close() })
+	go func() { _ = hostsite.ServeAuth(l, m.MayReadPath) }()
+	bob, err := st.Users().AddUser(ctx, "bob", auth.RoleMember, nil, "v", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m.SetReaders(func(_ context.Context, _ string, cookie string) *coresite.User {
+		switch cookie {
+		case "ann":
+			return &coresite.User{ID: ann.ID}
+		case "bob":
+			return &coresite.User{ID: bob.ID}
+		}
+		return nil
+	}, func(h string) bool { return h == "app.example.com" })
+	held := hostsite.NewServer(files.Dir, sock)
+	app := func(path, cookie string) (int, string, http.Header) {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", path, nil)
+		req.Host = "app.example.com"
+		if cookie != "" {
+			req.Header.Set("Cookie", "__Host-ap_session="+cookie)
+		}
+		held.ServeHTTP(rec, req)
+		return rec.Code, rec.Body.String(), rec.Header()
+	}
+	const diary = "/s/blog.example.com/diary"
+	code, body, hdr := app(diary+"/", "ann")
+	if code != 200 || !strings.Contains(body, "the held text") || hdr.Get("Cache-Control") != "private, no-store" ||
+		!strings.Contains(hdr.Get("Content-Security-Policy"), "script-src 'sha256-") {
+		t.Fatalf("the owner's read of a private page: %d %v %q", code, hdr, body)
+	}
+	for _, want := range []string{`href="` + diary + `/look.css"`, `href="` + diary + `/_astro/`, `src="held.png"`, `<pre class="mermaid">`,
+		`href="https://blog.example.com/"`, `content="noindex"`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the held page lacks %s: %q", want, body)
+		}
+	}
+	for _, gone := range []string{"canonical", "feed.xml", "og:url", `href="/"`, `src="/_kit/`} {
+		if strings.Contains(body, gone) {
+			t.Errorf("the held page holds %s: %q", gone, body)
+		}
+	}
+	if n := strings.Count(body, `<script src="`+diary+`/_kit/`); n != 2 {
+		t.Errorf("%d kit scripts under the page's base: %q", n, body)
+	}
+	css := regexp.MustCompile(`href="(` + regexp.QuoteMeta(diary) + `/_astro/[^"]+\.css)"`).FindStringSubmatch(body)
+	if css == nil {
+		t.Fatalf("no stylesheet of the build's own: %q", body)
+	}
+	for _, p := range []string{css[1], diary + "/look.css", diary + "/held.png"} {
+		if code, _, hdr := app(p, "ann"); code != 200 || hdr.Get("Cache-Control") != "private, no-store" {
+			t.Errorf("%s: %d", p, code)
+		}
+	}
+	for _, k := range KitScripts() {
+		if code, body, _ := app(diary+k.Path, "ann"); code != 200 || sri(body) != k.Integrity {
+			t.Errorf("%s under the page's base: %d", k.Path, code)
+		}
+	}
+	for what, r := range map[string][2]string{"no session": {diary + "/", ""}, "another member": {diary + "/", "bob"}, "its image, another member": {diary + "/held.png", "bob"},
+		"a diagram's source": {diary + "/flow.mmd", "ann"}, "the feed the job also wrote": {diary + "/feed.xml", "ann"}} {
+		if code, body, _ := app(r[0], r[1]); code != 404 || strings.Contains(body, "held") {
+			t.Errorf("%s: %d %q", what, code, body)
+		}
+	}
+	// An internal .html document: any member reads it; its inert copy is
+	// under the policy that sandboxes it.
+	const memo = "/s/blog.example.com/memo"
+	if code, body, _ := app(memo+"/", "bob"); code != 200 || !strings.Contains(body, `src="_doc.html" sandbox=""`) {
+		t.Fatalf("an internal page: %d %q", code, body)
+	}
+	if code, body, hdr := app(memo+"/_doc.html", "bob"); code != 200 || !strings.Contains(body, "<h1>the held memo</h1>") || !strings.HasPrefix(hdr.Get("Content-Security-Policy"), "sandbox;") {
+		t.Fatalf("its inert copy: %d %q", code, body)
+	}
+	// What is kept of a held build is the expected files alone.
+	if feeds, _ := filepath.Glob(filepath.Join(files.HeldRoot(), "blog.example.com", "*", "*", "feed.xml")); len(feeds) != 0 {
+		t.Errorf("a held build's feed was kept: %v", feeds)
+	}
 }

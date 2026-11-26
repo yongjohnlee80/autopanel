@@ -19,7 +19,7 @@ export interface InputDoc {
   slug: string; path: string; folder: string; format: 'md' | 'xmd' | 'html'; order?: number;
   active?: boolean; meta?: Record<string, unknown>; source: string; dir: string; page: string; mermaid?: boolean;
 }
-export interface BuildInput { build: number; host: string; folders: InputFolder[]; docs: InputDoc[] }
+export interface BuildInput { build: number; host: string; held?: boolean; base?: string; folders: InputFolder[]; docs: InputDoc[] }
 
 function readJSON<T>(name: string): T {
   return JSON.parse(readFileSync(join(contentDir, name), 'utf8')) as T;
@@ -84,8 +84,27 @@ export function fragment(d: InputDoc): string {
   return existsSync(f) ? readFileSync(f, 'utf8') : '';
 }
 
+// held: the build is one held document's, alone. Its page is the output's
+// root, everything it loads is under base, and a link to the site goes to
+// the site's own host by its full address: the page may be read on another.
+export const held: boolean = input.held === true;
+export const base: string = input.base ?? '';
+
+// own is the address of one of this build's own files (a stylesheet, a kit
+// script), under the base.
+export function own(path: string): string {
+	return base + path;
+}
+
 export function href(path: string): string {
-  return path === '' ? '/' : '/' + path + '/';
+  const to = path === '' ? '/' : '/' + path + '/';
+  return held ? 'https://' + input.host + to : to;
+}
+
+// siteLink is an address the configuration names (a navigation link): a path
+// of the site is the site's host's when the page is held.
+export function siteLink(to: string): string {
+  return held && to.startsWith('/') && !to.startsWith('//') ? 'https://' + input.host + to : to;
 }
 
 export function absolute(path: string): string {

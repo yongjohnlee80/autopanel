@@ -2,11 +2,25 @@
 // The home page: the newest documents (journal), what the root holds (docs),
 // or the page the configuration names.
 import Base from '../layouts/Base.astro';
-import { config, input, children, latest, fragment, href, docTitle } from '../lib/input';
+import { config, input, held, children, latest, fragment, href, docTitle } from '../lib/input';
 
-const named = config.home !== 'latest' ? input.docs.find((d) => d.path === config.home) : undefined;
+// A held build is one document, alone: its page is here, at the output's root.
+const only = held ? input.docs[0] : undefined;
+const onlyMeta = only?.meta ?? {};
+const onlyDate = typeof onlyMeta.date === 'string' ? onlyMeta.date : undefined;
+const onlySummary = typeof onlyMeta.summary === 'string' ? onlyMeta.summary : undefined;
+const named = !held && config.home !== 'latest' ? input.docs.find((d) => d.path === config.home) : undefined;
 const entries = config.theme === 'journal' ? latest(20) : children('');
 ---
+{only && (
+  <Base title={docTitle(only)} description={onlySummary} path={only.path} type="article" mermaid={only.mermaid === true}>
+    <article class="doc">
+      {onlyDate && <time datetime={onlyDate}>{onlyDate}</time>}
+      <Fragment set:html={fragment(only)} />
+    </article>
+  </Base>
+)}
+{!only && (
 <Base title={named ? docTitle(named) : config.title} description={config.tagline} path="">
   {named ? (
     <article class="doc" set:html={fragment(named)} />
@@ -22,3 +36,4 @@ const entries = config.theme === 'journal' ? latest(20) : children('');
     </ul>
   )}
 </Base>
+)}
