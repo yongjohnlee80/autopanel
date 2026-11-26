@@ -347,7 +347,7 @@ the builder's container, from an image pinned by digest (`site/Containerfile`).
       storage of the site's.
     - The content host serves the document as it was published, and nothing else of the site. It
       sets no cookie and answers with
-      `Content-Security-Policy: sandbox allow-scripts; default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; form-action 'none'; base-uri 'none'`,
+      `Content-Security-Policy: sandbox allow-scripts; default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; form-action 'none'; base-uri 'none'; frame-ancestors https://<site host>`,
       on a direct load as in a frame. So the document loads nothing from anywhere: its scripts,
       styles and images are its own, inline.
     - The build puts each active document under `_active/`, and the output check passes a file

@@ -247,7 +247,7 @@ func TestTheContentHostServesActiveDocumentsAlone(t *testing.T) {
 		res := get(s, "GET", content, target)
 		csp := res.Header.Get("Content-Security-Policy")
 		if res.StatusCode != 200 || !strings.Contains(body(t, res), "<script>") || !strings.HasPrefix(csp, "sandbox allow-scripts; default-src 'none'") ||
-			strings.Contains(csp, "allow-same-origin") || !strings.HasPrefix(res.Header.Get("Content-Type"), "text/html") {
+			strings.Contains(csp, "allow-same-origin") || !strings.HasSuffix(csp, "frame-ancestors https://blog.example.com") || !strings.HasPrefix(res.Header.Get("Content-Type"), "text/html") {
 			t.Fatalf("%s: %d %q", target, res.StatusCode, csp)
 		}
 		if res.Header.Get("Set-Cookie") != "" || res.Header.Get("Access-Control-Allow-Origin") != "" || res.Header.Get("X-Content-Type-Options") != "nosniff" {
