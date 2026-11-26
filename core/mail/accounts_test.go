@@ -287,4 +287,11 @@ func TestAnAccountsMailIsSentOn(t *testing.T) {
 	if _, err := m.accountSet(ctx, AccountSet{Address: "ana@example.net", Forward: &ForwardView{To: []string{"a@example.org"}}}); !errors.Is(err, ErrServer) {
 		t.Fatalf("forwarding set over a script of the owner's own: %v", err)
 	}
+	// And nothing else of the same call is changed.
+	if _, err := m.accountSet(ctx, AccountSet{Address: "ana@example.net", Aliases: ptr([]string{"sales@example.net"}), Forward: &ForwardView{}}); !errors.Is(err, ErrServer) {
+		t.Fatalf("forwarding turned off over a script of the owner's own: %v", err)
+	}
+	if v := accountOf(t, m, "ana@example.net"); len(v.Aliases) != 0 {
+		t.Fatalf("a refused forward set the aliases: %+v", v)
+	}
 }

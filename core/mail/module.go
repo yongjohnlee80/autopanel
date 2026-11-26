@@ -1435,6 +1435,13 @@ func (m *Module) accountSet(ctx context.Context, p AccountSet) (AccountView, err
 				return AccountView{}, ErrTooManyForwards
 			}
 		}
+		// An account with a script of its own is refused here, before the
+		// aliases of the same call are set (tifa, N2).
+		if st, err := c.Forward(ctx, a.ID); err != nil {
+			return AccountView{}, serverErr(err)
+		} else if st.Other {
+			return AccountView{}, with(ErrServer, "the account has a Sieve script of its own in the mail server: forwarding is set there")
+		}
 	}
 	if p.Aliases != nil {
 		if err := c.SetAliases(ctx, a.ID, want); err != nil {

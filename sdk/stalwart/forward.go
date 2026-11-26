@@ -208,8 +208,10 @@ func (c *Client) redirectLimit(ctx context.Context) (int, error) {
 		return 0, err
 	}
 	n := 1 // the server's default
-	if len(got.List) == 1 && got.List[0].MaxRedirects != nil {
-		n = *got.List[0].MaxRedirects
+	if len(got.List) == 1 {
+		if r := got.List[0].MaxRedirects; r != nil {
+			n = *r
+		}
 		if out := got.List[0].MaxOutMessages; out != nil && *out < n {
 			n = *out
 		}
