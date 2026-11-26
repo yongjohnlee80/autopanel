@@ -305,6 +305,9 @@ type Client interface {
 	// MailSetAccount disables an account or enables it again, or replaces its
 	// aliases; nil leaves that one as it is.
 	MailSetAccount(ctx context.Context, address string, disabled *bool, aliases *[]string) (mail.AccountView, error)
+	// MailSetForward has an account's mail sent on to these addresses,
+	// keeping a copy in its mailbox or not; none turns forwarding off.
+	MailSetForward(ctx context.Context, address string, to []string, keep bool) (mail.AccountView, error)
 
 	// The panel's preferences, kept by the daemon.
 	Prefs(ctx context.Context) (Prefs, error)

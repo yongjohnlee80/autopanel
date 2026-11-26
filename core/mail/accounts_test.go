@@ -5,6 +5,7 @@ import (
 	"errors"
 	"slices"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/yongjohnlee80/autopanel/internal/module"
@@ -187,5 +188,103 @@ func TestADomainHeldByAnAliasIsNotRemoved(t *testing.T) {
 	}
 	if _, err := m.domainRemove(ctx, Name{Name: "example.org"}); err != nil {
 		t.Fatalf("removing it once the alias is gone: %v", err)
+	}
+}
+
+// accountIDOf is the provider's ID of the account at address.
+func accountIDOf(t *testing.T, m *Module, address string) string {
+	t.Helper()
+	c, err := m.ready(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	as, err := c.Accounts(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, a := range as {
+		if a.Address == address {
+			return a.ID
+		}
+	}
+	t.Fatalf("no account %s", address)
+	return ""
+}
+
+// TestAnAccountsMailIsSentOn: mail.account.set forwards an account's mail to
+// an address outside mail's domains, with or without a copy kept, and turns
+// it off; the list says where and how many the server sends to; an address
+// of mail's own, one that is no address, and more than the server sends to
+// are refused before anything changes; an account with a script of its own
+// is not changed.
+func TestAnAccountsMailIsSentOn(t *testing.T) {
+	m, srv, _ := readyMail(t)
+	ctx := context.Background()
+	if _, err := m.accountAdd(ctx, AccountAsk{Address: "ana@example.net"}); err != nil {
+		t.Fatal(err)
+	}
+	if v := accountOf(t, m, "ana@example.net"); v.Forward != nil || v.ForwardOther || v.ForwardMax != 1 {
+		t.Fatalf("a new account: %+v", v)
+	}
+	v, err := m.accountSet(ctx, AccountSet{Address: "ana@example.net", Forward: &ForwardView{To: []string{" Ana.Home@Example.ORG ", "Ana.Home@example.org"}, Keep: true}})
+	if err != nil || v.Forward == nil || !slices.Equal(v.Forward.To, []string{"Ana.Home@example.org"}) || !v.Forward.Keep {
+		t.Fatalf("forwarding with a copy kept: %+v, %v", v, err)
+	}
+	if v, err = m.accountSet(ctx, AccountSet{Address: "ana@example.net", Forward: &ForwardView{To: []string{"other@example.com"}}}); err != nil || v.Forward.Keep || v.Forward.To[0] != "other@example.com" {
+		t.Fatalf("replacing it, no copy kept: %+v, %v", v, err)
+	}
+	// Refused, and what was set stays.
+	for what, tc := range map[string]struct {
+		to   []string
+		want error
+	}{
+		"an address of mail's own domain":   {[]string{"ben@example.net"}, ErrBadForward},
+		"mail's own domain in another case": {[]string{"ben@EXAMPLE.NET"}, ErrBadForward},
+		"no address":                        {[]string{"nobody"}, ErrBadForward},
+		"a quote":                           {[]string{`a"b@example.org`}, ErrBadForward},
+		"a script's command":                {[]string{`a"; discard; redirect "x@evil.example`}, ErrBadForward},
+		"a backslash":                       {[]string{`a\b@example.org`}, ErrBadForward},
+		"a space":                           {[]string{"a b@example.org"}, ErrBadForward},
+		"a newline":                         {[]string{"a\n@example.org"}, ErrBadForward},
+		"an address literal":                {[]string{"a@[192.0.2.1]"}, ErrBadForward},
+		"an address by number":              {[]string{"a@192.0.2.1"}, ErrBadForward},
+		"a domain with no dot":              {[]string{"a@localhost"}, ErrBadForward},
+		"a display name":                    {[]string{"Ana <a@example.org>"}, ErrBadForward},
+		"an address too long":               {[]string{"a@" + strings.Repeat("a", 250) + ".org"}, ErrBadForward},
+		"two addresses, a server that sends to one": {[]string{"a@example.org", "b@example.org"}, ErrTooManyForwards},
+		"six addresses": {[]string{"a@example.org", "b@example.org", "c@example.org", "d@example.org", "e@example.org", "f@example.org"}, ErrTooManyForwards},
+	} {
+		if _, err := m.accountSet(ctx, AccountSet{Address: "ana@example.net", Forward: &ForwardView{To: tc.to, Keep: true}}); !errors.Is(err, tc.want) {
+			t.Errorf("%s: %v", what, err)
+		}
+	}
+	if v := accountOf(t, m, "ana@example.net"); v.Forward == nil || v.Forward.To[0] != "other@example.com" {
+		t.Fatalf("after refused changes: %+v", v)
+	}
+	// A refused forward changes nothing else of the same call.
+	if _, err := m.accountSet(ctx, AccountSet{Address: "ana@example.net", Aliases: ptr([]string{"sales@example.net"}), Forward: &ForwardView{To: []string{"nobody"}}}); !errors.Is(err, ErrBadForward) {
+		t.Fatal(err)
+	}
+	if v := accountOf(t, m, "ana@example.net"); len(v.Aliases) != 0 {
+		t.Fatalf("a refused forward set the aliases: %+v", v)
+	}
+	// A server set to send to more.
+	srv.Redirects = 3
+	if v, err = m.accountSet(ctx, AccountSet{Address: "ana@example.net", Forward: &ForwardView{To: []string{"b@example.org", "a@example.org"}, Keep: true}}); err != nil || v.ForwardMax != 3 || !slices.Equal(v.Forward.To, []string{"a@example.org", "b@example.org"}) {
+		t.Fatalf("two addresses once the server sends to three: %+v, %v", v, err)
+	}
+	// Off; and off again.
+	for i := 0; i < 2; i++ {
+		if v, err = m.accountSet(ctx, AccountSet{Address: "ana@example.net", Forward: &ForwardView{}}); err != nil || v.Forward != nil {
+			t.Fatalf("turning it off: %+v, %v", v, err)
+		}
+	}
+	// A script of the owner's own: listed as such, and never changed.
+	srv.OwnScript(accountIDOf(t, m, "ana@example.net"), true)
+	if v := accountOf(t, m, "ana@example.net"); !v.ForwardOther || v.Forward != nil {
+		t.Fatalf("beside a script of the owner's own: %+v", v)
+	}
+	if _, err := m.accountSet(ctx, AccountSet{Address: "ana@example.net", Forward: &ForwardView{To: []string{"a@example.org"}}}); !errors.Is(err, ErrServer) {
+		t.Fatalf("forwarding set over a script of the owner's own: %v", err)
 	}
 }

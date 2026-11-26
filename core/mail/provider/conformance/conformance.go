@@ -17,6 +17,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"math/big"
 	"slices"
 	"strconv"
@@ -43,6 +44,10 @@ type Target struct {
 	Wait func(d time.Duration)
 	// Now is the server's time.
 	Now func() time.Time
+	// OwnScript makes the account forward (or file, or answer) by a script of
+	// its owner's own, as someone does in the mail server itself, and answers
+	// how to remove it again. nil: that part of the suite is not run.
+	OwnScript func(t *testing.T, accountID string) (restore func())
 }
 
 // Run runs the suite. It leaves the server as it found it, failure or not.
@@ -250,6 +255,79 @@ func Run(t *testing.T, tg Target) {
 		}
 		if got := aliases(); len(got) != 0 {
 			t.Fatalf("after setting none: %+v", got)
+		}
+	})
+
+	t.Run("Forward", func(t *testing.T) {
+		state := func() provider.ForwardState {
+			t.Helper()
+			st, err := s.Forward(ctx, id)
+			if err != nil {
+				t.Fatal(err)
+			}
+			return st
+		}
+		st := state()
+		if len(st.To) != 0 || st.Other || st.Max < 1 || st.Max > provider.MaxForwards {
+			t.Fatalf("a new account's forwarding: %+v", st)
+		}
+		if err := s.SetForward(ctx, id, provider.Forward{}); err != nil {
+			t.Fatalf("turning off what was never on: %v", err)
+		}
+		one := provider.Forward{To: []string{"elsewhere@conformance-outside.example.org"}, Keep: true}
+		if err := s.SetForward(ctx, id, one); err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = s.SetForward(context.Background(), id, provider.Forward{}) }()
+		if got := state(); !slices.Equal(got.To, one.To) || !got.Keep || got.Other {
+			t.Fatalf("after forwarding with a copy kept: %+v", got)
+		}
+		away := provider.Forward{To: []string{"other@conformance-outside.example.org"}}
+		if err := s.SetForward(ctx, id, away); err != nil {
+			t.Fatal(err)
+		}
+		if got := state(); !slices.Equal(got.To, away.To) || got.Keep {
+			t.Fatalf("after replacing it, no copy kept: %+v", got)
+		}
+		// More addresses than the server sends to are refused, and what was
+		// set stays.
+		many := provider.Forward{Keep: true}
+		for i := 0; i <= st.Max; i++ {
+			many.To = append(many.To, fmt.Sprintf("r%d@conformance-outside.example.org", i))
+		}
+		if err := s.SetForward(ctx, id, many); !errors.Is(err, provider.ErrTooManyForwards) {
+			t.Fatalf("%d addresses on a server that sends to %d: %v", len(many.To), st.Max, err)
+		}
+		if got := state(); !slices.Equal(got.To, away.To) {
+			t.Fatalf("after a refused change: %+v", got)
+		}
+		if err := s.SetForward(ctx, id, provider.Forward{}); err != nil {
+			t.Fatal(err)
+		}
+		if got := state(); len(got.To) != 0 || got.Other {
+			t.Fatalf("after turning it off: %+v", got)
+		}
+		if err := s.SetForward(ctx, id, provider.Forward{}); err != nil {
+			t.Fatalf("turning it off twice: %v", err)
+		}
+		// A script of the owner's own is never touched.
+		if tg.OwnScript == nil {
+			return
+		}
+		restore := tg.OwnScript(t, id)
+		if got := state(); !got.Other || len(got.To) != 0 {
+			t.Fatalf("beside a script of the owner's own: %+v", got)
+		}
+		var refusal *provider.Refusal
+		if err := s.SetForward(ctx, id, one); !errors.As(err, &refusal) {
+			t.Fatalf("forwarding set over a script of the owner's own: %v", err)
+		}
+		if err := s.SetForward(ctx, id, provider.Forward{}); !errors.As(err, &refusal) {
+			t.Fatalf("forwarding turned off over a script of the owner's own: %v", err)
+		}
+		restore()
+		if got := state(); got.Other {
+			t.Fatalf("after the owner's script was removed: %+v", got)
 		}
 	})
 

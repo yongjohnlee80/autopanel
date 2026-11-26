@@ -37,6 +37,10 @@ type Server struct {
 	// fail with it.
 	Fail func(method string) error
 
+	// Redirects is how many addresses the server sends one message on to;
+	// 0 is a mail server's usual one.
+	Redirects int
+
 	seq      int
 	domains  map[string]*provider.Domain
 	accounts map[string]*account
@@ -47,9 +51,11 @@ type Server struct {
 
 type account struct {
 	provider.Account
-	hash  string
-	limit int
-	apps  []*app
+	forward provider.Forward
+	other   bool // a script of the owner's own is the active one
+	hash    string
+	limit   int
+	apps    []*app
 }
 
 type app struct {
@@ -294,6 +300,68 @@ func (s *Server) SetAliases(_ context.Context, id string, aliases []provider.Ali
 	}
 	a.Aliases = slices.Clone(aliases)
 	return nil
+}
+
+// SetForward has the account's mail sent on to f.To. As a real server
+// would, it leaves a script of the owner's own alone, and sends to no more
+// addresses than it is set to.
+func (s *Server) SetForward(_ context.Context, id string, f provider.Forward) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := s.enter("SetForward"); err != nil {
+		return err
+	}
+	a, err := s.account(id)
+	if err != nil {
+		return err
+	}
+	if a.other {
+		return refuse("a script AutoPanel did not write is the account's own")
+	}
+	if len(f.To) > s.redirects() {
+		return provider.ErrTooManyForwards
+	}
+	if len(f.To) == 0 {
+		a.forward = provider.Forward{}
+		return nil
+	}
+	a.forward = provider.Forward{To: slices.Clone(f.To), Keep: f.Keep}
+	return nil
+}
+
+func (s *Server) redirects() int {
+	if s.Redirects <= 0 {
+		return 1
+	}
+	return min(s.Redirects, provider.MaxForwards)
+}
+
+// Forward answers how the account forwards.
+func (s *Server) Forward(_ context.Context, id string) (provider.ForwardState, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := s.enter("Forward"); err != nil {
+		return provider.ForwardState{}, err
+	}
+	a, err := s.account(id)
+	if err != nil {
+		return provider.ForwardState{}, err
+	}
+	st := provider.ForwardState{Max: s.redirects(), Other: a.other}
+	if !a.other {
+		st.Forward = provider.Forward{To: slices.Clone(a.forward.To), Keep: a.forward.Keep}
+	}
+	return st, nil
+}
+
+// OwnScript makes a script of the owner's own the account's active one, as
+// someone does in the mail server itself; or removes it.
+func (s *Server) OwnScript(id string, has bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if a, ok := s.accounts[id]; ok {
+		a.other = has
+	}
 }
 
 func (s *Server) RemoveAccount(_ context.Context, id string) error {
@@ -709,6 +777,20 @@ func (k keyed) SetAliases(ctx context.Context, id string, as []provider.Alias) e
 		return err
 	}
 	return k.s.SetAliases(ctx, id, as)
+}
+
+func (k keyed) SetForward(ctx context.Context, id string, f provider.Forward) error {
+	if err := k.check(ctx); err != nil {
+		return err
+	}
+	return k.s.SetForward(ctx, id, f)
+}
+
+func (k keyed) Forward(ctx context.Context, id string) (provider.ForwardState, error) {
+	if err := k.check(ctx); err != nil {
+		return provider.ForwardState{}, err
+	}
+	return k.s.Forward(ctx, id)
 }
 
 func (k keyed) RemoveAccount(ctx context.Context, id string) error {

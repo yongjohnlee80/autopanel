@@ -186,6 +186,8 @@ var tips = map[string]string{
 	"App.tipMailAccountRemove":  "autopanel.tip.mail.accountRemove",
 	"App.tipMailAccountDisable": "autopanel.tip.mail.accountDisable",
 	"App.tipMailAccountAliases": "autopanel.tip.mail.accountAliases",
+	"App.tipMailAccountForward": "autopanel.tip.mail.accountForward",
+	"App.tipMailForwardKeep":    "autopanel.tip.mail.forwardKeep",
 	"App.tipUsersAdd":           "autopanel.tip.users.add",
 	"App.tipUsersRole":          "autopanel.tip.users.role",
 	"App.tipUsersReset":         "autopanel.tip.users.reset",

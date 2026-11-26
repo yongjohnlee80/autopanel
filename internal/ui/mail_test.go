@@ -198,6 +198,24 @@ func (f *fakeClient) MailSetAccount(_ context.Context, address string, disabled 
 	return mail.AccountView{}, errors.New("no such account")
 }
 
+func (f *fakeClient) MailSetForward(_ context.Context, address string, to []string, keep bool) (mail.AccountView, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for i := range f.mail.accounts {
+		a := &f.mail.accounts[i]
+		if a.Address != address {
+			continue
+		}
+		f.mail.asks = append(f.mail.asks, "set-forward "+address+" "+strings.Join(to, ",")+" keep="+strconv.FormatBool(keep))
+		a.Forward = nil
+		if len(to) > 0 {
+			a.Forward = &mail.ForwardView{To: append([]string{}, to...), Keep: keep}
+		}
+		return *a, nil
+	}
+	return mail.AccountView{}, errors.New("no such account")
+}
+
 func (f *fakeClient) MailRemoveAccount(_ context.Context, address string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -536,6 +554,65 @@ func TestAnAccountIsDisabledAndItsAliasesSet(t *testing.T) {
 	s.Keys(t, enter)
 	waitMailAsked(t, s, f, "set-aliases ana@example.com ")
 	s.WaitForText(t, "ana@example.com has 0 aliases")
+}
+
+// TestAnAccountsMailIsForwarded: w on Mail › Accounts sets where the
+// selected account's mail is sent on to, keeping a copy; c stops keeping the
+// copy after a question, and keeps it again without one; an empty line turns
+// forwarding off; an account with a script of its own is left alone.
+func TestAnAccountsMailIsForwarded(t *testing.T) {
+	f := withMail()
+	h, s := startHost(t, f)
+	s.WaitForText(t, "CA LE staging")
+	run(t, h, h.openMailAccounts)
+	s.WaitForText(t, "ana@example.com")
+
+	s.Keys(t, decltest.Rune('c')) // nothing to keep a copy of yet
+	s.WaitForText(t, "This account does not forward")
+
+	s.Keys(t, decltest.Rune('w'))
+	s.WaitForText(t, "Send this account's mail on to")
+	s.Keys(t, decltest.Type("ana@home.example.org")...)
+	s.Keys(t, enter)
+	waitMailAsked(t, s, f, "set-forward ana@example.com ana@home.example.org keep=true")
+	s.WaitForText(t, "ana@example.com now forwards to ana@home.example.org")
+	s.WaitForText(t, "ana@home.example.org (a copy is") // the pane wraps the rest
+
+	s.Keys(t, decltest.Rune('c'))
+	s.WaitForText(t, "Stop keeping a copy of ana@example.com's forwarded mail?")
+	s.Keys(t, decltest.Type("y")...)
+	waitMailAsked(t, s, f, "set-forward ana@example.com ana@home.example.org keep=false")
+	s.WaitForText(t, "ana@home.example.org (no copy")
+
+	s.Keys(t, decltest.Rune('c')) // keeping it again asks nothing
+	waitMailAsked(t, s, f, "set-forward ana@example.com ana@home.example.org keep=true")
+	s.WaitForText(t, "ana@example.com keeps a copy of what it forwards")
+
+	s.Keys(t, decltest.Rune('w'))
+	s.WaitForText(t, "Send this account's mail on to")
+	for range len("ana@home.example.org") {
+		s.Keys(t, backspace)
+	}
+	s.Keys(t, enter)
+	waitMailAsked(t, s, f, "set-forward ana@example.com  keep=true")
+	s.WaitForText(t, "ana@example.com no longer forwards")
+
+	// A script of the owner's own: said, and nothing asked of the server.
+	f.mu.Lock()
+	f.mail.accounts[0].ForwardOther = true
+	n := len(f.mail.asks)
+	f.mu.Unlock()
+	run(t, h, h.openMailAccounts)
+	s.WaitForText(t, "set in the mail server")
+	s.Keys(t, decltest.Rune('w'))
+	s.WaitForText(t, "has a Sieve script of its own")
+	f.mu.Lock()
+	for _, ask := range f.mail.asks[n:] {
+		if strings.HasPrefix(ask, "set-forward") {
+			t.Errorf("forwarding was set beside a script of the owner's own: %s", ask)
+		}
+	}
+	f.mu.Unlock()
 }
 
 func (f *fakeClient) MailRepairCheck(context.Context) (mail.Diagnosis, error) {

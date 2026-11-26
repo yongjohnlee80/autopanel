@@ -3855,5 +3855,77 @@
         <source>A repair stopped half way and left it. Mail › Server › Repair access takes it away first.</source>
         <translation>Una reparación se detuvo a medias y lo dejó. Correo › Servidor › Reparar acceso lo quita primero.</translation>
     </message>
+    <message id="autopanel.button.mail.forward">
+        <source>Forward…</source>
+        <translation>Reenviar (&amp;W)…</translation>
+    </message>
+    <message id="autopanel.button.mail.forwardKeep">
+        <source>Keep copy</source>
+        <translation>&amp;Conservar copia</translation>
+    </message>
+    <message id="autopanel.tip.mail.accountForward">
+        <source>Send the selected account's mail on to an address outside mail's domains. Mail marked as spam is not sent on</source>
+        <translation>Reenviar el correo de la cuenta seleccionada a una dirección fuera de los dominios del correo. El correo marcado como spam no se reenvía</translation>
+    </message>
+    <message id="autopanel.tip.mail.forwardKeep">
+        <source>Keep a copy of forwarded mail in the account's mailbox, or stop keeping one</source>
+        <translation>Conservar una copia del correo reenviado en el buzón de la cuenta, o dejar de conservarla</translation>
+    </message>
+    <message id="autopanel.label.mail.forward">
+        <source>Forwarding</source>
+        <translation>Reenvío</translation>
+    </message>
+    <message id="autopanel.value.mail.forwardKeep">
+        <source>%1 (a copy is kept)</source>
+        <translation>%1 (se conserva una copia)</translation>
+    </message>
+    <message id="autopanel.value.mail.forwardNoKeep">
+        <source>%1 (no copy is kept)</source>
+        <translation>%1 (no se conserva copia)</translation>
+    </message>
+    <message id="autopanel.value.mail.forwardOther">
+        <source>set in the mail server, by a script AutoPanel did not write</source>
+        <translation>configurado en el servidor de correo, por un script que AutoPanel no escribió</translation>
+    </message>
+    <message id="autopanel.title.prompt.mailForward">
+        <source>Forward mail</source>
+        <translation>Reenviar correo</translation>
+    </message>
+    <message id="autopanel.label.prompt.mailForward">
+        <source>Send this account's mail on to (an address outside mail's domains; empty to stop):</source>
+        <translation>Reenviar el correo de esta cuenta a (una dirección fuera de los dominios del correo; vacío para detener):</translation>
+    </message>
+    <message id="autopanel.notice.mail.forwardSet">
+        <source>%1 now forwards to %2</source>
+        <translation>%1 ahora reenvía a %2</translation>
+    </message>
+    <message id="autopanel.notice.mail.forwardOff">
+        <source>%1 no longer forwards</source>
+        <translation>%1 ya no reenvía</translation>
+    </message>
+    <message id="autopanel.notice.mail.forwardOther">
+        <source>This account has a Sieve script of its own in the mail server: forwarding is set there, and AutoPanel does not change it</source>
+        <translation>Esta cuenta tiene un script Sieve propio en el servidor de correo: el reenvío se configura allí, y AutoPanel no lo cambia</translation>
+    </message>
+    <message id="autopanel.notice.mail.forwardNone">
+        <source>This account does not forward: set an address with Forward… first</source>
+        <translation>Esta cuenta no reenvía: primero indique una dirección con Reenviar…</translation>
+    </message>
+    <message id="autopanel.notice.mail.forwardKeepOn">
+        <source>%1 keeps a copy of what it forwards</source>
+        <translation>%1 conserva una copia de lo que reenvía</translation>
+    </message>
+    <message id="autopanel.notice.mail.forwardKeepOff">
+        <source>%1 keeps no copy of what it forwards</source>
+        <translation>%1 no conserva copia de lo que reenvía</translation>
+    </message>
+    <message id="autopanel.title.confirm.mailForwardNoKeep">
+        <source>Keep no copy</source>
+        <translation>No conservar copia</translation>
+    </message>
+    <message id="autopanel.question.mail.forwardNoKeep">
+        <source>Stop keeping a copy of %1's forwarded mail? Its mailbox then receives only what is marked as spam, and a message that cannot be sent on goes back to its sender.</source>
+        <translation>¿Dejar de conservar una copia del correo reenviado de %1? Su buzón recibirá entonces solo lo marcado como spam, y un mensaje que no pueda reenviarse volverá a su remitente.</translation>
+    </message>
 </context>
 </TS>

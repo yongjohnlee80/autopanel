@@ -3855,5 +3855,77 @@
         <source>A repair stopped half way and left it. Mail › Server › Repair access takes it away first.</source>
         <translation>修復が途中で止まり、これが残りました。メール › サーバー › アクセスを修復 で最初に取り除きます。</translation>
     </message>
+    <message id="autopanel.button.mail.forward">
+        <source>Forward…</source>
+        <translation>転送(&amp;W)…</translation>
+    </message>
+    <message id="autopanel.button.mail.forwardKeep">
+        <source>Keep copy</source>
+        <translation>コピーを残す(&amp;C)</translation>
+    </message>
+    <message id="autopanel.tip.mail.accountForward">
+        <source>Send the selected account's mail on to an address outside mail's domains. Mail marked as spam is not sent on</source>
+        <translation>選択したアカウントのメールを、メールのドメイン外のアドレスへ転送します。スパムと判定されたメールは転送されません</translation>
+    </message>
+    <message id="autopanel.tip.mail.forwardKeep">
+        <source>Keep a copy of forwarded mail in the account's mailbox, or stop keeping one</source>
+        <translation>転送したメールのコピーをアカウントのメールボックスに残す、または残さないようにします</translation>
+    </message>
+    <message id="autopanel.label.mail.forward">
+        <source>Forwarding</source>
+        <translation>転送</translation>
+    </message>
+    <message id="autopanel.value.mail.forwardKeep">
+        <source>%1 (a copy is kept)</source>
+        <translation>%1（コピーを残す）</translation>
+    </message>
+    <message id="autopanel.value.mail.forwardNoKeep">
+        <source>%1 (no copy is kept)</source>
+        <translation>%1（コピーを残さない）</translation>
+    </message>
+    <message id="autopanel.value.mail.forwardOther">
+        <source>set in the mail server, by a script AutoPanel did not write</source>
+        <translation>メールサーバー側で、AutoPanel が書いていないスクリプトにより設定されています</translation>
+    </message>
+    <message id="autopanel.title.prompt.mailForward">
+        <source>Forward mail</source>
+        <translation>メールの転送</translation>
+    </message>
+    <message id="autopanel.label.prompt.mailForward">
+        <source>Send this account's mail on to (an address outside mail's domains; empty to stop):</source>
+        <translation>このアカウントのメールの転送先（メールのドメイン外のアドレス。空欄で停止）：</translation>
+    </message>
+    <message id="autopanel.notice.mail.forwardSet">
+        <source>%1 now forwards to %2</source>
+        <translation>%1 は %2 へ転送します</translation>
+    </message>
+    <message id="autopanel.notice.mail.forwardOff">
+        <source>%1 no longer forwards</source>
+        <translation>%1 は転送しなくなりました</translation>
+    </message>
+    <message id="autopanel.notice.mail.forwardOther">
+        <source>This account has a Sieve script of its own in the mail server: forwarding is set there, and AutoPanel does not change it</source>
+        <translation>このアカウントにはメールサーバー上に独自の Sieve スクリプトがあります。転送はそこで設定され、AutoPanel は変更しません</translation>
+    </message>
+    <message id="autopanel.notice.mail.forwardNone">
+        <source>This account does not forward: set an address with Forward… first</source>
+        <translation>このアカウントは転送していません。まず「転送…」でアドレスを設定してください</translation>
+    </message>
+    <message id="autopanel.notice.mail.forwardKeepOn">
+        <source>%1 keeps a copy of what it forwards</source>
+        <translation>%1 は転送したメールのコピーを残します</translation>
+    </message>
+    <message id="autopanel.notice.mail.forwardKeepOff">
+        <source>%1 keeps no copy of what it forwards</source>
+        <translation>%1 は転送したメールのコピーを残しません</translation>
+    </message>
+    <message id="autopanel.title.confirm.mailForwardNoKeep">
+        <source>Keep no copy</source>
+        <translation>コピーを残さない</translation>
+    </message>
+    <message id="autopanel.question.mail.forwardNoKeep">
+        <source>Stop keeping a copy of %1's forwarded mail? Its mailbox then receives only what is marked as spam, and a message that cannot be sent on goes back to its sender.</source>
+        <translation>%1 の転送メールのコピーを残すのをやめますか？メールボックスにはスパムと判定されたものだけが届き、転送できなかったメッセージは送信者に戻ります。</translation>
+    </message>
 </context>
 </TS>

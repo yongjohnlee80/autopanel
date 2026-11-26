@@ -452,6 +452,14 @@ func (u uiClient) MailRevokeAppPassword(ctx context.Context, address, id string)
 	return u.call(ctx, "mail.apppassword.revoke", mail.AppPasswordAsk{Address: address, ID: id}, nil)
 }
 
+func (u uiClient) MailSetForward(ctx context.Context, address string, to []string, keep bool) (mail.AccountView, error) {
+	var v mail.AccountView
+	if to == nil {
+		to = []string{}
+	}
+	return v, u.call(ctx, "mail.account.set", mail.AccountSet{Address: address, Forward: &mail.ForwardView{To: to, Keep: keep}}, &v)
+}
+
 func (u uiClient) MailSetAccount(ctx context.Context, address string, disabled *bool, aliases *[]string) (mail.AccountView, error) {
 	var v mail.AccountView
 	return v, u.call(ctx, "mail.account.set", mail.AccountSet{Address: address, Disabled: disabled, Aliases: aliases}, &v)

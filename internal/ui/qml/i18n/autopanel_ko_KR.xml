@@ -3855,5 +3855,77 @@
         <source>A repair stopped half way and left it. Mail › Server › Repair access takes it away first.</source>
         <translation>복구가 중간에 멈춰 이것이 남았습니다. 메일 › 서버 › 접근 복구가 먼저 이를 제거합니다.</translation>
     </message>
+    <message id="autopanel.button.mail.forward">
+        <source>Forward…</source>
+        <translation>전달(&amp;W)…</translation>
+    </message>
+    <message id="autopanel.button.mail.forwardKeep">
+        <source>Keep copy</source>
+        <translation>사본 보관(&amp;C)</translation>
+    </message>
+    <message id="autopanel.tip.mail.accountForward">
+        <source>Send the selected account's mail on to an address outside mail's domains. Mail marked as spam is not sent on</source>
+        <translation>선택한 계정의 메일을 메일 도메인 밖의 주소로 전달합니다. 스팸으로 표시된 메일은 전달되지 않습니다</translation>
+    </message>
+    <message id="autopanel.tip.mail.forwardKeep">
+        <source>Keep a copy of forwarded mail in the account's mailbox, or stop keeping one</source>
+        <translation>전달한 메일의 사본을 계정의 메일함에 보관하거나, 보관을 중지합니다</translation>
+    </message>
+    <message id="autopanel.label.mail.forward">
+        <source>Forwarding</source>
+        <translation>전달</translation>
+    </message>
+    <message id="autopanel.value.mail.forwardKeep">
+        <source>%1 (a copy is kept)</source>
+        <translation>%1 (사본 보관)</translation>
+    </message>
+    <message id="autopanel.value.mail.forwardNoKeep">
+        <source>%1 (no copy is kept)</source>
+        <translation>%1 (사본 없음)</translation>
+    </message>
+    <message id="autopanel.value.mail.forwardOther">
+        <source>set in the mail server, by a script AutoPanel did not write</source>
+        <translation>메일 서버에서 AutoPanel이 작성하지 않은 스크립트로 설정됨</translation>
+    </message>
+    <message id="autopanel.title.prompt.mailForward">
+        <source>Forward mail</source>
+        <translation>메일 전달</translation>
+    </message>
+    <message id="autopanel.label.prompt.mailForward">
+        <source>Send this account's mail on to (an address outside mail's domains; empty to stop):</source>
+        <translation>이 계정의 메일을 전달할 주소 (메일 도메인 밖의 주소, 비우면 중지):</translation>
+    </message>
+    <message id="autopanel.notice.mail.forwardSet">
+        <source>%1 now forwards to %2</source>
+        <translation>%1의 메일을 %2(으)로 전달합니다</translation>
+    </message>
+    <message id="autopanel.notice.mail.forwardOff">
+        <source>%1 no longer forwards</source>
+        <translation>%1의 전달을 중지했습니다</translation>
+    </message>
+    <message id="autopanel.notice.mail.forwardOther">
+        <source>This account has a Sieve script of its own in the mail server: forwarding is set there, and AutoPanel does not change it</source>
+        <translation>이 계정은 메일 서버에 자체 Sieve 스크립트가 있습니다. 전달은 그곳에서 설정되며 AutoPanel은 변경하지 않습니다</translation>
+    </message>
+    <message id="autopanel.notice.mail.forwardNone">
+        <source>This account does not forward: set an address with Forward… first</source>
+        <translation>이 계정은 전달하지 않습니다. 먼저 전달…로 주소를 설정하십시오</translation>
+    </message>
+    <message id="autopanel.notice.mail.forwardKeepOn">
+        <source>%1 keeps a copy of what it forwards</source>
+        <translation>%1은(는) 전달한 메일의 사본을 보관합니다</translation>
+    </message>
+    <message id="autopanel.notice.mail.forwardKeepOff">
+        <source>%1 keeps no copy of what it forwards</source>
+        <translation>%1은(는) 전달한 메일의 사본을 보관하지 않습니다</translation>
+    </message>
+    <message id="autopanel.title.confirm.mailForwardNoKeep">
+        <source>Keep no copy</source>
+        <translation>사본 보관 안 함</translation>
+    </message>
+    <message id="autopanel.question.mail.forwardNoKeep">
+        <source>Stop keeping a copy of %1's forwarded mail? Its mailbox then receives only what is marked as spam, and a message that cannot be sent on goes back to its sender.</source>
+        <translation>%1의 전달 메일 사본 보관을 중지하시겠습니까? 이후 메일함에는 스팸으로 표시된 메일만 들어오며, 전달할 수 없는 메시지는 보낸 사람에게 돌아갑니다.</translation>
+    </message>
 </context>
 </TS>
