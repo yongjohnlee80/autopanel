@@ -65,6 +65,7 @@ type apiServer struct {
 
 	conf   atomic.Pointer[apiState]
 	apps   atomic.Pointer[map[string]appHost] // the applications' hosts (apps.go); nil when both are off
+	site   http.Handler                       // the sites' serving process, for /s/ on the app host; nil: none
 	slots  chan struct{}                      // every call in flight, on every host
 	large  chan struct{}                      // those with a larger body
 	rate   *rateTable

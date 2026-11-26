@@ -12,6 +12,10 @@ export default defineConfig({
   outDir: process.env.SITE_OUT ?? './dist',
   cacheDir: process.env.SITE_CACHE ?? '/tmp/astro-cache',
   trailingSlash: 'always',
+  // A held document is built alone and read under a path of its own (its
+  // address on the site's host, or /s/<site>/<address> on the app host): its
+  // stylesheets and scripts are under that path too.
+  base: process.env.SITE_BASE || undefined,
   build: {
     format: 'directory',
     inlineStylesheets: 'never', // a stylesheet is a file, never a <style> in the page

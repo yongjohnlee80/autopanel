@@ -270,3 +270,57 @@ func TestASessionCallReachesTheCoreAsItCame(t *testing.T) {
 		t.Fatal("a source that is no prefix")
 	}
 }
+
+// TestTheAppHostPassesASitesDocumentToTheServingProcess: GET and HEAD under
+// /s/ on the app host go to the sites' serving process, with the request's
+// host and cookies and none of the app host's own headers; nothing reaches
+// the core through the link; the admin host has no such path.
+func TestTheAppHostPassesASitesDocumentToTheServingProcess(t *testing.T) {
+	f := newAppFixture(t, &Apps{Host: appTestHost, Allow: []string{"192.0.2.0/24"}, AdminHost: adminTestHost, AdminAllow: []string{"192.0.2.0/24"}})
+	var got *http.Request
+	f.api.site = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = r
+		w.Header().Set("Content-Security-Policy", "default-src 'none'")
+		w.Header().Set("Cache-Control", "private, no-store")
+		_, _ = io.WriteString(w, "the document")
+	})
+	const doc = "/s/blog.example.com/plans/"
+	rec := f.do(appReq{method: "GET", path: doc, cookie: "abc"})
+	if rec.Code != 200 || rec.Body.String() != "the document" || got == nil || got.Host != appTestHost || got.URL.Path != doc {
+		t.Fatalf("a document on the app host: %d %q", rec.Code, rec.Body.String())
+	}
+	if c, err := got.Cookie(SessionCookie); err != nil || c.Value != "abc" {
+		t.Fatalf("the session cookie did not reach the serving process: %v", err)
+	}
+	if csp := rec.Header().Values("Content-Security-Policy"); len(csp) != 1 || csp[0] != "default-src 'none'" {
+		t.Fatalf("the policy is not the serving process's alone: %v", csp)
+	}
+	if cc := rec.Header().Values("Cache-Control"); len(cc) != 1 || cc[0] != "private, no-store" {
+		t.Fatalf("the caching is not the serving process's alone: %v", cc)
+	}
+	if rec.Header().Get("Strict-Transport-Security") == "" {
+		t.Error("no HSTS on the app host")
+	}
+	if sessions, calls := f.asked(); len(sessions) != 0 || len(calls) != 0 {
+		t.Fatalf("a document's read reached the core's link: %v %v", sessions, calls)
+	}
+	got = nil
+	for what, tc := range map[string]struct {
+		r    appReq
+		code int
+	}{
+		"a POST":                  {appReq{method: "POST", path: doc, body: "{}"}, http.StatusMethodNotAllowed},
+		"an address not let in":   {appReq{method: "GET", path: doc, from: "203.0.113.9:1"}, http.StatusForbidden},
+		"the admin host":          {appReq{method: "GET", path: doc, host: adminTestHost}, http.StatusNotFound},
+		"a path that only starts": {appReq{method: "GET", path: "/sx/blog.example.com/"}, http.StatusNotFound},
+	} {
+		if rec := f.do(tc.r); rec.Code != tc.code || got != nil {
+			t.Errorf("%s: %d, reached the serving process: %v", what, rec.Code, got != nil)
+		}
+	}
+	// With no serving process there is nothing under /s/.
+	f.api.site = nil
+	if rec := f.do(appReq{method: "GET", path: doc}); rec.Code != http.StatusNotFound {
+		t.Errorf("no serving process: %d", rec.Code)
+	}
+}

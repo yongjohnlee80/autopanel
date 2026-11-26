@@ -68,6 +68,11 @@ const (
 // siteBuild is autopanel --site-build.
 func siteBuild(stdout, stderr io.Writer) int {
 	p := defaultKitPaths()
+	base, err := buildBase(p)
+	if err != nil {
+		fmt.Fprintln(stderr, "autopanel --site-build:", err)
+		return 1
+	}
 	if err := renderFragments(p); err != nil {
 		fmt.Fprintln(stderr, "autopanel --site-build: rendering:", err)
 		return 1
@@ -79,7 +84,7 @@ func siteBuild(stdout, stderr io.Writer) int {
 	// NAPI_RS_FORCE_WASI: Astro's compiler as WebAssembly; its native build
 	// needs AVX2, which older servers lack (see the Containerfile).
 	env := []string{"HOME=/tmp", "NODE_ENV=production", "ASTRO_TELEMETRY_DISABLED=1", "NAPI_RS_FORCE_WASI=1",
-		"SITE_CONTENT=" + p.Content, "SITE_FRAGMENTS=" + p.Fragments, "SITE_OUT=" + p.Out, "SITE_CACHE=" + p.Cache}
+		"SITE_CONTENT=" + p.Content, "SITE_FRAGMENTS=" + p.Fragments, "SITE_OUT=" + p.Out, "SITE_CACHE=" + p.Cache, "SITE_BASE=" + base}
 	if err := hostcmd.Stream(context.Background(), hostcmd.Node, p.Project, env, stdout, stderr,
 		filepath.Join(p.Project, "node_modules", "astro", "bin", "astro.mjs"), "build"); err != nil {
 		fmt.Fprintln(stderr, "autopanel --site-build: astro:", err)
@@ -109,6 +114,43 @@ func siteBuild(stdout, stderr io.Writer) int {
 	}
 	return 0
 }
+
+// buildBase is the path a held document's build writes its addresses under
+// (build.json's base), "" for the public pages. It is the core's own word,
+// and is still held to a path of slugs: nothing else reaches Astro's
+// configuration.
+func buildBase(p kitPaths) (string, error) {
+	raw, err := os.ReadFile(filepath.Join(p.Content, "build.json"))
+	if err != nil {
+		return "", err
+	}
+	var in coresite.BuildInput
+	if err := json.Unmarshal(raw, &in); err != nil {
+		return "", err
+	}
+	if in.Base == "" {
+		return "", nil
+	}
+	if !strings.HasPrefix(in.Base, "/") || path.Clean(in.Base) != in.Base {
+		return "", fmt.Errorf("the build's base %q is no clean path", in.Base)
+	}
+	for _, part := range strings.Split(in.Base[1:], "/") {
+		for _, r := range part {
+			if !(r >= 'a' && r <= 'z') && !(r >= '0' && r <= '9') && r != '-' && r != '.' {
+				return "", fmt.Errorf("the build's base %q is no path of slugs", in.Base)
+			}
+		}
+		if part == "" || strings.HasPrefix(part, ".") {
+			return "", fmt.Errorf("the build's base %q is no path of slugs", in.Base)
+		}
+	}
+	return in.Base, nil
+}
+
+// pageDir is where a document's page is in the output, and so where its
+// images and its inert copy go: its address for a public document, the
+// output's root for a held one built alone.
+func pageDir(d coresite.InputDoc) string { return path.Dir(d.Page) }
 
 // renderFragments writes each document's body, rendered, where the kit reads
 // it: <fragments>/<path>.html. A Markdown document (md, xmd) is rendered by
@@ -151,7 +193,7 @@ func renderFragments(p kitPaths) error {
 		case d.Format == coresite.HTML && d.Active:
 			body, err = renderActive(in.ContentHost, d.Path, src)
 		case d.Format == coresite.HTML:
-			body, err = renderInert(p, d.Path, src)
+			body, err = renderInert(p, d, src)
 		default:
 			body, err = renderBody(d.Format, src, embeds)
 		}
@@ -212,7 +254,7 @@ func copyImages(p kitPaths) error {
 			if err != nil {
 				return err
 			}
-			to := d.Path + "/" + name
+			to := path.Join(pageDir(d), name)
 			if err := dst.MkdirAll(filepath.Dir(to), 0o755); err != nil {
 				return err
 			}
@@ -382,7 +424,8 @@ const inertDir = "_inert"
 // for copyInert, and answers the document's body: a frame of that copy with
 // sandbox="", so nothing in it runs, sends or goes anywhere, whatever the
 // cleaning missed.
-func renderInert(p kitPaths, docPath string, src []byte) (string, error) {
+func renderInert(p kitPaths, d coresite.InputDoc, src []byte) (string, error) {
+	docPath := d.Path
 	page, title, err := coresite.CleanHTML(src)
 	if err != nil {
 		return "", err
@@ -390,7 +433,7 @@ func renderInert(p kitPaths, docPath string, src []byte) (string, error) {
 	if len(page) > maxFragment {
 		return "", fmt.Errorf("its body is larger than %d bytes", maxFragment)
 	}
-	out := filepath.Join(p.Fragments, inertDir, filepath.FromSlash(docPath)+".html")
+	out := filepath.Join(p.Fragments, inertDir, filepath.FromSlash(pageDir(d)), coresite.InertPage)
 	if err := os.MkdirAll(filepath.Dir(out), 0o755); err != nil {
 		return "", err
 	}
@@ -485,7 +528,7 @@ func copyInert(p kitPaths) error {
 		if err != nil {
 			return err
 		}
-		to := strings.TrimSuffix(filepath.ToSlash(name), ".html") + "/" + coresite.InertPage
+		to := filepath.ToSlash(name) // <the page's directory>/_doc.html, as renderInert kept it
 		if err := dst.MkdirAll(filepath.Dir(to), 0o755); err != nil {
 			return err
 		}

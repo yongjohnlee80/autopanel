@@ -83,6 +83,36 @@ func (a *apiServer) appOf(name string) (appHost, bool) {
 	return h, ok
 }
 
+// sitesPrefix is where the app host serves the sites' internal and private
+// documents (core/site.AppPrefix): /s/<site host>/<address>/.
+const sitesPrefix = "/s/"
+
+// serveSiteDoc passes a member's read of a site's document to the sites'
+// serving process, which asks the core whether the session may have it. The
+// gate decides nothing here but the method and the rate: it reads no cookie.
+// The answer's policy, type and caching are the serving process's.
+func (a *apiServer) serveSiteDoc(w http.ResponseWriter, r *http.Request, client netip.Addr) {
+	h := w.Header()
+	if a.site == nil {
+		apiError(w, http.StatusNotFound, 0, "app.not_found", "not found")
+		return
+	}
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		h.Set("Allow", "GET, HEAD")
+		apiError(w, http.StatusMethodNotAllowed, 0, "app.method", "a document is read with GET")
+		return
+	}
+	if wait, ok := a.rate.take(rateKey(client)); !ok {
+		h.Set("Retry-After", strconv.Itoa(wait))
+		apiError(w, http.StatusTooManyRequests, 0, "api.rate", "too many requests; wait and try again")
+		return
+	}
+	for _, k := range []string{"Cache-Control", "X-Content-Type-Options", "Referrer-Policy", "Content-Security-Policy"} {
+		h.Del(k) // the serving process sets its own
+	}
+	a.site.ServeHTTP(w, r)
+}
+
 func (h appHost) admits(ip netip.Addr) bool {
 	return h.open || allowed(h.allow, ip)
 }
@@ -108,6 +138,10 @@ func (a *apiServer) serveApp(w http.ResponseWriter, r *http.Request, app appHost
 		return
 	}
 	path := r.URL.EscapedPath()
+	if app.kind == HostApp && strings.HasPrefix(path, sitesPrefix) {
+		a.serveSiteDoc(w, r, client)
+		return
+	}
 	if !strings.HasPrefix(path, "/v1/") {
 		apiError(w, http.StatusNotFound, 0, "app.not_found", "not found")
 		return

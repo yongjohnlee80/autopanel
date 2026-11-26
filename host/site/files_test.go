@@ -18,7 +18,7 @@ import (
 // both roles: the tests run unprivileged.
 func files(t *testing.T) Files {
 	me := Owner{os.Getuid(), os.Getgid()}
-	return Files{Dir: filepath.Join(t.TempDir(), "site"), Owner: me, Builder: me}
+	return Files{Dir: filepath.Join(t.TempDir(), "site"), Owner: me, Builder: me, Reader: me}
 }
 
 func mode(t *testing.T, p string) fs.FileMode {

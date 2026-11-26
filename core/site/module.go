@@ -13,10 +13,9 @@ import (
 	"github.com/yongjohnlee80/autopanel/internal/module"
 )
 
-// THE VERBS — sites, and documents published to them. In this step a
-// document is stored and nothing is built or served: a publish answers that
-// it is kept. Who may do what is the table in access.go, read for every call
-// from the caller the store knows now.
+// THE VERBS — sites, and documents published to them. Who may do what is the
+// table in access.go, read for every call from the caller the store knows
+// now.
 //
 // Decision: docs/decisions/site.md
 
@@ -180,7 +179,7 @@ func (m *Module) Verbs() []module.Verb {
 			Doc: "Moves a folder or a document of yours into the folder to, one you may put things into. Its address changes, and its contents'."}), m.nodeMove),
 		module.Handle(site(module.Contract{Verb: "site.doc.put", Mutates: true, Param: "{site, folder?, parents?, slug, format, body, meta?, visibility?, share?: [name], order?, active?}",
 			Result: "{slug, visibility, version, generation, served}",
-			Doc:    "Publishes a document, or a new version of one of yours. A first publish that names no level is private; an update that names none keeps its level. In this release a document is stored and not yet served."}), m.put),
+			Doc:    "Publishes a document, or a new version of one of yours. A first publish that names no level is private; an update that names none keeps its level. A public document is on the site's host once its build is live; an internal or private one is read by members at /s/<site>/<address>/ on the app host; a protected one is stored and not yet readable. served says whether it is public."}), m.put),
 		module.Handle(site(module.Contract{Verb: "site.doc.get", Param: "{site, slug}", Result: "{slug, format, visibility, share, meta, body, version}",
 			Doc: "A document as it was published: its owner's, and an administrator's, who answers for what the site holds; an administrator's read of a document not theirs is audited."}), m.get),
 		module.Handle(site(module.Contract{Verb: "site.doc.remove", Mutates: true, Param: "{site, slug}",
@@ -449,8 +448,9 @@ type Published struct {
 	Visibility string `json:"visibility"`
 	Version    int64  `json:"version"`
 	Generation int64  `json:"generation"`
-	// Served: a public document's page is made by Build; site.status says
-	// when it is live. A held document is kept and not yet served.
+	// Served: the document is public, and its page is made by Build;
+	// site.status says when it is live. A held document's own page is made by
+	// Build too, and read after the core's check.
 	Served bool  `json:"served"`
 	Build  int64 `json:"build,omitempty"`
 }
