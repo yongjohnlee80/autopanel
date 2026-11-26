@@ -248,11 +248,16 @@ func TestForwardingIsOneScriptOfAutoPanelsOwn(t *testing.T) {
 	// than AutoPanel's own five.
 	for _, tc := range []struct {
 		redirects, out, want int
-	}{{5, 5, 5}, {3, 2, 2}, {2, 9, 2}, {50, 50, provider.MaxForwards}, {0, 3, 0}} {
+	}{{5, 5, 5}, {3, 2, 2}, {2, 9, 2}, {50, 50, provider.MaxForwards}, {0, 3, 0}, {4, 0, 0}} {
 		f.limits = map[string]any{"id": "singleton", "maxRedirects": tc.redirects, "maxOutMessages": tc.out}
 		if st, err := s.Forward(ctx, "acc"); err != nil || st.Max != tc.want {
 			t.Errorf("maxRedirects %d, maxOutMessages %d: Max %d, %v; want %d", tc.redirects, tc.out, st.Max, err, tc.want)
 		}
+	}
+	// The messages a script may send, with the redirects left at their default.
+	f.limits = map[string]any{"id": "singleton", "maxOutMessages": 0}
+	if st, err := s.Forward(ctx, "acc"); err != nil || st.Max != 0 {
+		t.Errorf("maxOutMessages 0 alone: Max %d, %v; want 0", st.Max, err)
 	}
 	f.limits = map[string]any{"id": "singleton", "maxRedirects": 5, "maxOutMessages": 5}
 	if err := s.SetForward(ctx, "acc", two); err != nil {
