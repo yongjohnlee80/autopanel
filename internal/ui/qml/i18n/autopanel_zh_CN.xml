@@ -3855,5 +3855,77 @@
         <source>A repair stopped half way and left it. Mail › Server › Repair access takes it away first.</source>
         <translation>一次修复中途停止，留下了它。邮件 › 服务器 › 修复访问 会先将其移除。</translation>
     </message>
+    <message id="autopanel.button.mail.forward">
+        <source>Forward…</source>
+        <translation>转发(&amp;W)…</translation>
+    </message>
+    <message id="autopanel.button.mail.forwardKeep">
+        <source>Keep copy</source>
+        <translation>保留副本(&amp;C)</translation>
+    </message>
+    <message id="autopanel.tip.mail.accountForward">
+        <source>Send the selected account's mail on to an address outside mail's domains. Mail marked as spam is not sent on</source>
+        <translation>将所选帐户的邮件转发到邮件域之外的地址。标记为垃圾邮件的邮件不会转发</translation>
+    </message>
+    <message id="autopanel.tip.mail.forwardKeep">
+        <source>Keep a copy of forwarded mail in the account's mailbox, or stop keeping one</source>
+        <translation>在帐户的邮箱中保留已转发邮件的副本，或停止保留</translation>
+    </message>
+    <message id="autopanel.label.mail.forward">
+        <source>Forwarding</source>
+        <translation>转发</translation>
+    </message>
+    <message id="autopanel.value.mail.forwardKeep">
+        <source>%1 (a copy is kept)</source>
+        <translation>%1（保留副本）</translation>
+    </message>
+    <message id="autopanel.value.mail.forwardNoKeep">
+        <source>%1 (no copy is kept)</source>
+        <translation>%1（不保留副本）</translation>
+    </message>
+    <message id="autopanel.value.mail.forwardOther">
+        <source>set in the mail server, by a script AutoPanel did not write</source>
+        <translation>在邮件服务器中由非 AutoPanel 编写的脚本设置</translation>
+    </message>
+    <message id="autopanel.title.prompt.mailForward">
+        <source>Forward mail</source>
+        <translation>转发邮件</translation>
+    </message>
+    <message id="autopanel.label.prompt.mailForward">
+        <source>Send this account's mail on to (an address outside mail's domains; empty to stop):</source>
+        <translation>将此帐户的邮件转发到（邮件域之外的地址；留空则停止）：</translation>
+    </message>
+    <message id="autopanel.notice.mail.forwardSet">
+        <source>%1 now forwards to %2</source>
+        <translation>%1 现在转发到 %2</translation>
+    </message>
+    <message id="autopanel.notice.mail.forwardOff">
+        <source>%1 no longer forwards</source>
+        <translation>%1 不再转发</translation>
+    </message>
+    <message id="autopanel.notice.mail.forwardOther">
+        <source>This account has a Sieve script of its own in the mail server: forwarding is set there, and AutoPanel does not change it</source>
+        <translation>此帐户在邮件服务器中有自己的 Sieve 脚本：转发在那里设置，AutoPanel 不会更改它</translation>
+    </message>
+    <message id="autopanel.notice.mail.forwardNone">
+        <source>This account does not forward: set an address with Forward… first</source>
+        <translation>此帐户未转发：请先用“转发…”设置地址</translation>
+    </message>
+    <message id="autopanel.notice.mail.forwardKeepOn">
+        <source>%1 keeps a copy of what it forwards</source>
+        <translation>%1 保留其转发邮件的副本</translation>
+    </message>
+    <message id="autopanel.notice.mail.forwardKeepOff">
+        <source>%1 keeps no copy of what it forwards</source>
+        <translation>%1 不保留其转发邮件的副本</translation>
+    </message>
+    <message id="autopanel.title.confirm.mailForwardNoKeep">
+        <source>Keep no copy</source>
+        <translation>不保留副本</translation>
+    </message>
+    <message id="autopanel.question.mail.forwardNoKeep">
+        <source>Stop keeping a copy of %1's forwarded mail? Its mailbox then receives only what is marked as spam, and a message that cannot be sent on goes back to its sender.</source>
+        <translation>停止保留 %1 的转发邮件副本吗？此后其邮箱只会收到标记为垃圾邮件的邮件，无法转发的邮件将退回给发件人。</translation>
+    </message>
 </context>
 </TS>

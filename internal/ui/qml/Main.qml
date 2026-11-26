@@ -811,6 +811,8 @@ Window {
         Shortcut { sequence: "r"; onActivated: App.mailRemoveAccount(mailAccountsTable.currentIndex) }
         Shortcut { sequence: "d"; onActivated: App.mailToggleAccount(mailAccountsTable.currentIndex) }
         Shortcut { sequence: "i"; onActivated: App.mailAccountAliases(mailAccountsTable.currentIndex) }
+        Shortcut { sequence: "w"; onActivated: App.mailAccountForward(mailAccountsTable.currentIndex) }
+        Shortcut { sequence: "c"; onActivated: App.mailForwardKeep(mailAccountsTable.currentIndex) }
         Flex {
             direction: Tui.Vertical
             Split {
@@ -833,7 +835,7 @@ Window {
                 }
                 Split {
                     orientation: Tui.Vertical
-                    ratio: 0.4
+                    ratio: 0.5 // six facts, two of which may wrap
                     Frame {
                         title: qsTrId("autopanel.title.pane.details")
                         Text { text: App.mailAccountDetail; wrapMode: Tui.WordWrap }
@@ -859,6 +861,10 @@ Window {
                 Button { text: App.mailToggleText; toolTipText: App.tipMailAccountDisable; onClicked: App.mailToggleAccount(mailAccountsTable.currentIndex) }
                 Text { text: " " }
                 Button { text: qsTrId("autopanel.button.mail.aliases"); toolTipText: App.tipMailAccountAliases; onClicked: App.mailAccountAliases(mailAccountsTable.currentIndex) }
+                Text { text: " " }
+                Button { text: qsTrId("autopanel.button.mail.forward"); toolTipText: App.tipMailAccountForward; onClicked: App.mailAccountForward(mailAccountsTable.currentIndex) }
+                Text { text: " " }
+                Button { text: qsTrId("autopanel.button.mail.forwardKeep"); toolTipText: App.tipMailForwardKeep; onClicked: App.mailForwardKeep(mailAccountsTable.currentIndex) }
                 Text { text: " "; Layout.fillWidth: true }
             }
             Flex {

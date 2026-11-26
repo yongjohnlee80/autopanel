@@ -519,6 +519,34 @@ func TestStalwartConforms(t *testing.T) {
 		t.Fatal("AUTOPANEL_TEST_STALWART_IMAP is not set: the suite must be able to sign in")
 	}
 	tg.SignIn = func(user, secret string) bool { return imapSignIn(t, addr, user, secret) }
+	// A script of the owner's own, made as a mail app would make it: through
+	// the same Sieve methods, under another name.
+	c := NewClient(url, Bearer(func(context.Context) (string, error) { return key, nil }))
+	tg.OwnScript = func(t *testing.T, id string) func() {
+		t.Helper()
+		ctx := context.Background()
+		blob, err := c.upload(ctx, id, []byte("require [\"fileinto\"];\nif header :contains \"subject\" \"invoice\" { fileinto \"INBOX\"; }\n"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := c.sieveSet(ctx, id, map[string]any{"create": map[string]any{"s": map[string]any{"name": "mine", "blobId": blob}}, "onSuccessActivateScript": "#s"}); err != nil {
+			t.Fatal(err)
+		}
+		return func() {
+			scripts, err := c.sieveScripts(ctx, id)
+			if err != nil {
+				t.Fatal(err)
+			}
+			_ = c.sieveSet(ctx, id, map[string]any{"onSuccessDeactivateScript": true})
+			for _, s := range scripts {
+				if s.Name == "mine" {
+					if err := c.sieveSet(ctx, id, map[string]any{"destroy": []string{s.ID}}); err != nil {
+						t.Fatal(err)
+					}
+				}
+			}
+		}
+	}
 	conformance.Run(t, tg)
 }
 

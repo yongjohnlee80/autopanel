@@ -255,6 +255,7 @@ func (h *host) mailAccountDetail() string {
 		[2]string{"autopanel.label.mail.quota", sizeText(a.Quota)},
 		[2]string{"autopanel.label.mail.used", sizeText(a.Used)},
 		[2]string{"autopanel.label.mail.aliases", orDash(aliases)},
+		[2]string{"autopanel.label.mail.forward", forwardText(h, a)},
 		[2]string{"autopanel.label.mail.signIn", accountState(h, a.Disabled)})
 }
 
@@ -800,6 +801,100 @@ func (h *host) mailAccountAliases(row int) error {
 		})
 		return nil
 	})
+}
+
+// forwardText says where an account's mail is sent on to, and whether a
+// copy is kept; or that forwarding is not AutoPanel's to read.
+func forwardText(h *host, a mail.AccountView) string {
+	switch {
+	case a.ForwardOther:
+		return h.tr("autopanel.value.mail.forwardOther")
+	case a.Forward == nil || len(a.Forward.To) == 0:
+		return orDash("")
+	case a.Forward.Keep:
+		return h.trf("autopanel.value.mail.forwardKeep", strings.Join(a.Forward.To, ", "))
+	}
+	return h.trf("autopanel.value.mail.forwardNoKeep", strings.Join(a.Forward.To, ", "))
+}
+
+// mailAccountForward sets where the selected account's mail is sent on to,
+// as one line of addresses; an empty line turns forwarding off. A copy is
+// kept unless the account already forwards without one: Keep copy changes
+// that, and asks first.
+func (h *host) mailAccountForward(row int) error {
+	if row < 0 || row >= len(h.mail.accountList) {
+		h.say(h.tr("autopanel.notice.mail.none"))
+		return nil
+	}
+	a := h.mail.accountList[row]
+	if a.ForwardOther {
+		h.say(h.tr("autopanel.notice.mail.forwardOther"))
+		return nil
+	}
+	addr, keep, was := a.Address, true, ""
+	if a.Forward != nil {
+		keep, was = a.Forward.Keep, strings.Join(a.Forward.To, ", ")
+	}
+	return h.prompt("autopanel.title.prompt.mailForward", "autopanel.label.prompt.mailForward", was, func(text string) error {
+		to := strings.FieldsFunc(text, func(r rune) bool { return r == ',' || r == ' ' || r == ';' })
+		if h.busy {
+			h.promptRefused(h.tr("autopanel.notice.app.busy"))
+			return nil
+		}
+		h.busy = true
+		h.background(func(ctx context.Context) error {
+			_, err := h.client.MailSetForward(ctx, addr, to, keep || len(to) == 0)
+			return err
+		}, func(err error) {
+			h.busy = false
+			if err != nil {
+				h.promptRefused(h.trf("autopanel.notice.app.error", err.Error()))
+				return
+			}
+			h.promptDone()
+			if len(to) == 0 {
+				h.say(h.trf("autopanel.notice.mail.forwardOff", addr))
+			} else {
+				h.say(h.trf("autopanel.notice.mail.forwardSet", addr, strings.Join(to, ", ")))
+			}
+			h.loadMail()
+		})
+		return nil
+	})
+}
+
+// mailForwardKeep turns the copy a forwarding account keeps in its mailbox
+// off, after asking (mail that cannot be sent on then goes back to its
+// sender), or on again.
+func (h *host) mailForwardKeep(row int) error {
+	if row < 0 || row >= len(h.mail.accountList) {
+		h.say(h.tr("autopanel.notice.mail.none"))
+		return nil
+	}
+	a := h.mail.accountList[row]
+	if a.ForwardOther || a.Forward == nil || len(a.Forward.To) == 0 {
+		h.say(h.tr("autopanel.notice.mail.forwardNone"))
+		return nil
+	}
+	addr, to, keep := a.Address, a.Forward.To, !a.Forward.Keep
+	set := func() error {
+		h.change(func(ctx context.Context) error {
+			_, err := h.client.MailSetForward(ctx, addr, to, keep)
+			return err
+		}, func() {
+			if keep {
+				h.say(h.trf("autopanel.notice.mail.forwardKeepOn", addr))
+			} else {
+				h.say(h.trf("autopanel.notice.mail.forwardKeepOff", addr))
+			}
+			h.loadMail()
+		})
+		return nil
+	}
+	if keep {
+		return set()
+	}
+	return h.ask("autopanel.title.confirm.mailForwardNoKeep", h.trf("autopanel.question.mail.forwardNoKeep", addr), set)
 }
 
 func (h *host) mailRemoveAccount(row int) error {

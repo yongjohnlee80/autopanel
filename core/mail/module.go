@@ -208,6 +208,8 @@ var (
 	ErrAccountExists     = errors.New("mail: the account exists")
 	ErrAddressTaken      = errors.New("mail: the address is an account's, or another account's alias")
 	ErrTooManyAliases    = errors.New("mail: an account has at most 20 aliases")
+	ErrBadForward        = errors.New("mail: a forwarding address is an address outside mail's own domains")
+	ErrTooManyForwards   = errors.New("mail: the mail server sends a message on to fewer addresses than that")
 	ErrServer            = errors.New("mail: the mail server refused")
 	ErrAdminAccount      = errors.New("mail: that is the mail server's administrator")
 	ErrNoRecord          = errors.New("mail: no record of that name and type is held by another")
@@ -329,6 +331,8 @@ func (m *Module) Errors() []module.PublicError {
 		{Err: ErrAccountExists, Code: -32142, Name: "mail.account_exists", Message: "that account exists"},
 		{Err: ErrAddressTaken, Code: -32218, Name: "mail.address_taken", Message: "the address is an account's, or another account's alias"},
 		{Err: ErrTooManyAliases, Code: -32219, Name: "mail.too_many_aliases", Message: "an account has at most 20 aliases"},
+		{Err: ErrBadForward, Code: -32224, Name: "mail.bad_forward", Message: "a forwarding address is a mail address outside mail's own domains (inside them, an alias does it)"},
+		{Err: ErrTooManyForwards, Code: -32225, Name: "mail.too_many_forwards", Message: "the mail server sends a message on to fewer addresses than that: forward_max in mail.account.list says how many (one, unless its administrator raised it)"},
 		{Err: ErrServer, Code: -32144, Name: "mail.refused", Message: "the mail server refused the change"},
 		{Err: ErrNoRecord, Code: -32146, Name: "mail.no_record", Message: "no needed record of that name and type is held by one AutoPanel did not write"},
 		{Err: ErrNoDNS, Code: -32147, Name: "mail.no_dns", Message: "no DNS token: set one (certs.cloudflare.set) for AutoPanel to publish records"},
@@ -370,7 +374,7 @@ func (m *Module) Verbs() []module.Verb {
 		module.Handle(module.Contract{Verb: "mail.domain.list", Discloses: module.Plain, Since: 6, Result: "[{name}]", Doc: "The domains that receive mail."}, m.domainList),
 		module.Handle(change("mail.domain.add", "{name}", "Has a registry domain receive mail."), m.domainAdd),
 		module.Handle(change("mail.domain.remove", "{name}", "Stops a domain receiving mail; refused while it has accounts."), m.domainRemove),
-		module.Handle(module.Contract{Verb: "mail.account.list", Discloses: module.Plain, Since: 6, Param: "{domain?}", Result: "[{address, quota, used, aliases, disabled}]",
+		module.Handle(module.Contract{Verb: "mail.account.list", Discloses: module.Plain, Since: 6, Param: "{domain?}", Result: "[{address, quota, used, aliases, disabled, forward?: {to, keep}, forward_other?, forward_max}]",
 			Doc: "The mail accounts, of one domain or of all."}, m.accountList),
 		module.Handle(change("mail.account.add", "{address, quota?}", "Makes a mail account. Its own password is generated and told to no one: mail apps sign in with its app passwords."), m.accountAdd),
 		module.Handle(change("mail.account.lock", "{address}", "Replaces an account's own password, typed under an older AutoPanel, with one no one knows: from then on only its app passwords sign in."), m.accountLock),
@@ -382,7 +386,7 @@ func (m *Module) Verbs() []module.Verb {
 		module.Handle(change("mail.apppassword.revoke", "{address, id}", "Revokes an app password: its device stops signing in at once."), m.appPasswordRevoke),
 		module.Handle(change("mail.account.quota", "{address, quota}", "Sets an account's quota, in bytes."), m.accountQuota),
 		module.Handle(func() module.Contract {
-			c := change("mail.account.set", "{address, disabled?, aliases?: [address]}", "Disables an account or enables it again (a disabled account signs nothing in and keeps its mail), or replaces its aliases: addresses of mail's domains that deliver to it.")
+			c := change("mail.account.set", "{address, disabled?, aliases?: [address], forward?: {to: [address], keep}}", "Disables an account or enables it again (a disabled account signs nothing in and keeps its mail), replaces its aliases (addresses of mail's domains that deliver to it), or sets where its mail is sent on to: addresses outside mail's domains, with a copy kept in the mailbox when keep is true; an empty to turns forwarding off. Mail the server marks as spam is not sent on. The server sends to forward_max addresses (one, unless its administrator raised it). An account with a Sieve script of its own is not changed.")
 			c.Since = 11
 			return c
 		}(), m.accountSet),
@@ -948,6 +952,8 @@ func serverErr(err error) error {
 		return with(ErrServer, r.Why)
 	case errors.Is(err, provider.ErrOverLimit):
 		return with(ErrServer, err.Error())
+	case errors.Is(err, provider.ErrTooManyForwards):
+		return ErrTooManyForwards
 	}
 	return err
 }
@@ -1100,6 +1106,20 @@ type AccountView struct {
 	Used     int64    `json:"used"`
 	Aliases  []string `json:"aliases"`
 	Disabled bool     `json:"disabled"`
+	// Forward is where its mail is sent on to, nil when it is not.
+	// ForwardOther: forwarding is not AutoPanel's to read or set, because the
+	// account has a script of its own in the mail server. ForwardMax is how
+	// many addresses the server sends one message on to.
+	Forward      *ForwardView `json:"forward,omitempty"`
+	ForwardOther bool         `json:"forward_other,omitempty"`
+	ForwardMax   int          `json:"forward_max"`
+}
+
+// ForwardView is where an account's mail is sent on to: Keep, a copy stays
+// in its mailbox.
+type ForwardView struct {
+	To   []string `json:"to"`
+	Keep bool     `json:"keep"`
 }
 
 // DomainAsk is mail.account.list's param.
@@ -1119,7 +1139,55 @@ type AccountSet struct {
 	Address  string    `json:"address"`
 	Disabled *bool     `json:"disabled,omitempty"`
 	Aliases  *[]string `json:"aliases,omitempty"` // every alias it is to have; [] for none
+	// Forward: where its mail is sent on to; an empty to turns it off.
+	Forward *ForwardView `json:"forward,omitempty"`
 }
+
+// forwardTo checks where an account's mail is to be sent on to: each a mail
+// address with a dotted domain that is none of mail's own and no address
+// literal, holding nothing that could end the quoted string it is written
+// into; the same address twice is one. At most provider.MaxForwards.
+func (m *Module) forwardTo(ctx context.Context, c provider.Server, f ForwardView) (provider.Forward, error) {
+	ds, err := c.Domains(ctx)
+	if err != nil {
+		return provider.Forward{}, err
+	}
+	own := map[string]bool{}
+	for _, d := range ds {
+		own[strings.ToLower(d.Name)] = true
+	}
+	out := provider.Forward{Keep: f.Keep}
+	seen := map[string]bool{}
+	for _, addr := range f.To {
+		addr = strings.TrimSpace(addr)
+		local, domain, ok := strings.Cut(addr, "@")
+		domain = strings.ToLower(domain)
+		if !ok || len(addr) > 254 || !forwardLocal.MatchString(local) || strings.Contains(local, "..") ||
+			!forwardDomain.MatchString(domain) || own[domain] {
+			return provider.Forward{}, ErrBadForward
+		}
+		addr = local + "@" + domain
+		if seen[strings.ToLower(addr)] {
+			continue
+		}
+		seen[strings.ToLower(addr)] = true
+		out.To = append(out.To, addr)
+	}
+	if len(out.To) > provider.MaxForwards {
+		return provider.Forward{}, ErrTooManyForwards
+	}
+	slices.Sort(out.To)
+	return out, nil
+}
+
+// A forwarding address's parts: a local part of plain characters (no quote,
+// no backslash, no space, nothing a script could be ended with), and a
+// domain of labels with at least one dot, the last one letters: never an
+// address literal.
+var (
+	forwardLocal  = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._+=-]{0,63}$`)
+	forwardDomain = regexp.MustCompile(`^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$`)
+)
 
 // MaxAliases is how many aliases an account may have.
 const MaxAliases = 20
@@ -1177,6 +1245,15 @@ func (m *Module) accountList(ctx context.Context, p DomainAsk) ([]AccountView, e
 		v := AccountView{Address: a.Address, Quota: a.Quota, Used: a.Used, Aliases: []string{}, Disabled: a.Disabled}
 		for _, al := range a.Aliases {
 			v.Aliases = append(v.Aliases, al.Local+"@"+names[al.DomainID])
+		}
+		// One question of the server an account: how it forwards. When it
+		// cannot be read the account is still listed, with forward_max 0:
+		// nothing can be set until it can be read.
+		if st, err := c.Forward(ctx, a.ID); err == nil {
+			v.ForwardOther, v.ForwardMax = st.Other, st.Max
+			if len(st.To) > 0 {
+				v.Forward = &ForwardView{To: st.To, Keep: st.Keep}
+			}
 		}
 		out = append(out, v)
 	}
@@ -1293,7 +1370,7 @@ func (m *Module) accountSet(ctx context.Context, p AccountSet) (AccountView, err
 	if err != nil {
 		return AccountView{}, err
 	}
-	if p.Disabled == nil && p.Aliases == nil {
+	if p.Disabled == nil && p.Aliases == nil && p.Forward == nil {
 		return AccountView{}, module.ErrInvalidParams
 	}
 	a, _, err := m.find(ctx, c, local, domain)
@@ -1343,8 +1420,29 @@ func (m *Module) accountSet(ctx context.Context, p AccountSet) (AccountView, err
 			want = append(want, al)
 		}
 	}
+	var forward provider.Forward
+	if p.Forward != nil {
+		// Checked whole before anything is changed, like the aliases.
+		if forward, err = m.forwardTo(ctx, c, *p.Forward); err != nil {
+			return AccountView{}, err
+		}
+		if len(forward.To) > 0 {
+			st, err := c.Forward(ctx, a.ID)
+			if err != nil {
+				return AccountView{}, serverErr(err)
+			}
+			if !st.Other && len(forward.To) > st.Max {
+				return AccountView{}, ErrTooManyForwards
+			}
+		}
+	}
 	if p.Aliases != nil {
 		if err := c.SetAliases(ctx, a.ID, want); err != nil {
+			return AccountView{}, serverErr(err)
+		}
+	}
+	if p.Forward != nil {
+		if err := c.SetForward(ctx, a.ID, forward); err != nil {
 			return AccountView{}, serverErr(err)
 		}
 	}

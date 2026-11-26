@@ -311,6 +311,46 @@ again without someone there; phones move between networks. Revocation is the con
 **In the code:** `core/mail/module.go` (`accountSet`), `core/mail/provider/provider.go`
 (`SetDisabled`, `SetAliases`), `sdk/stalwart/jmap.go`, Mail › Accounts in the panel.
 
+## Forwarding is one Sieve script, which AutoPanel writes
+
+**Decided:** `mail.account.set` with `forward: {to, keep}` has an account's mail sent on to
+addresses outside mail's domains. Stalwart has no forwarding field: AutoPanel writes one Sieve
+script into the account, named `autopanel-forward`, and makes it the active one.
+
+- **The script is generated, never typed,** and is one fixed shape. It is read back only as that
+  shape, byte for byte: a script someone changed by hand is not AutoPanel's.
+- **A script AutoPanel did not write is never changed.** When another script is the account's
+  active one, or the one of AutoPanel's name was changed, forwarding is refused and
+  `mail.account.list` answers `forward_other`. A person's script may hold filing or vacation
+  rules that AutoPanel could neither merge nor restore.
+- **An address** is a mail address with a dotted domain that is none of mail's own (inside them,
+  an alias does it) and no address literal. It reaches the script only inside a quoted string,
+  and one with a quote, a backslash, a space or a control character is refused twice: by the
+  verb, and by the script's own writer.
+- **Spam is not sent on:** the script forwards only what the server did not mark as spam
+  (`spamtest`). Forwarded spam is sent by us. A message marked as spam stays in the mailbox, also
+  when no copy is kept.
+- **As many addresses as the server runs redirects for, at most 5.** Stalwart runs one redirect
+  a script unless its limits are raised (`maxRedirects`, `maxOutMessages`), and says nothing
+  when it drops the rest. So the figure is read from the server each time, more is refused
+  (`mail.too_many_forwards`), and when it cannot be read nothing is set. AutoPanel does not
+  raise the limit: it is the whole server's, for every user's script, and needs a restart.
+- **What a recipient sees** (measured against Stalwart v1.1.0):
+  - the envelope sender is the forwarding account's own address, so the recipient's SPF check is
+    of our domain, and a bounce comes to the account, never to the original sender;
+  - the message is not changed, so the original sender's DKIM signature still verifies; headers
+    are added above it;
+  - no ARC seal is added. A message from a domain with a strict DMARC policy and no DKIM
+    signature is therefore refused by a strict recipient.
+- **A loop ends:** the server stops a message at 50 `Received` headers. AutoPanel forwards only
+  outside, so a loop needs another server, which has a limit of its own.
+- **`mail.account.list`** asks the server once an account how it forwards. When that cannot be
+  read the account is still listed, with `forward_max` 0.
+
+**In the code:** `sdk/stalwart/forward.go` (the script, JMAP for Sieve), `core/mail/module.go`
+(`forwardTo`), `core/mail/provider/provider.go` (`SetForward`, `Forward`), the provider's
+conformance suite, Mail › Accounts in the panel.
+
 ## What AutoPanel cannot set
 
 **Decided:** two things decide whether a host's mail is accepted, and neither is AutoPanel's to

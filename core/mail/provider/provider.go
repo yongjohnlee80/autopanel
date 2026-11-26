@@ -54,6 +54,15 @@ type Server interface {
 	// to the account.
 	SetAliases(ctx context.Context, accountID string, aliases []Alias) error
 	RemoveAccount(ctx context.Context, accountID string) error
+	// SetForward has the account's mail sent on to f.To, addresses outside
+	// the server's own domains, keeping a copy in the mailbox when f.Keep; no
+	// address turns forwarding off, which is no error when it was off. Mail
+	// the server marks as spam is not sent on. Forwarding set by other means
+	// (a script the account's owner wrote) is never replaced: a Refusal.
+	// More addresses than the server sends to is ErrTooManyForwards.
+	SetForward(ctx context.Context, accountID string, f Forward) error
+	// Forward answers how the account forwards.
+	Forward(ctx context.Context, accountID string) (ForwardState, error)
 
 	// AppPasswords are an account's app passwords, never their secrets.
 	AppPasswords(ctx context.Context, accountID string) ([]AppPassword, error)
@@ -228,6 +237,26 @@ type Account struct {
 	Disabled bool    // it signs nothing in: no app password, no password
 }
 
+// Forward is where an account's mail is sent on to.
+type Forward struct {
+	To   []string // addresses outside the server's domains; none: not forwarded
+	Keep bool     // a copy stays in the mailbox
+}
+
+// ForwardState is how an account forwards.
+type ForwardState struct {
+	Forward
+	// Other: forwarding is not AutoPanel's to read or set, because the
+	// account has a script of its own in the server.
+	Other bool
+	// Max is how many addresses the server sends one message on to.
+	Max int
+}
+
+// MaxForwards is the most addresses AutoPanel forwards one account's mail
+// to, whatever the server allows.
+const MaxForwards = 5
+
 // Alias is another address of an account's.
 type Alias struct {
 	Local    string
@@ -291,6 +320,9 @@ var (
 	ErrRefused = errors.New("the mail server refused")
 	// ErrOverLimit is an app password beyond what the account may hold.
 	ErrOverLimit = errors.New("the account holds as many app passwords as it may")
+	// ErrTooManyForwards is more forwarding addresses than the server sends
+	// one message on to.
+	ErrTooManyForwards = errors.New("the mail server forwards a message to fewer addresses than that")
 	// ErrUnauthorized is a credential the server refused.
 	ErrUnauthorized = errors.New("the mail server refused AutoPanel's credential")
 	// ErrNoSecret is a sealed value that is not there (Env.Sealed).

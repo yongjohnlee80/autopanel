@@ -3855,5 +3855,77 @@
         <source>A repair stopped half way and left it. Mail › Server › Repair access takes it away first.</source>
         <translation>A repair stopped half way and left it. Mail › Server › Repair access takes it away first.</translation>
     </message>
+    <message id="autopanel.button.mail.forward">
+        <source>Forward…</source>
+        <translation>For&amp;ward…</translation>
+    </message>
+    <message id="autopanel.button.mail.forwardKeep">
+        <source>Keep copy</source>
+        <translation>Keep &amp;copy</translation>
+    </message>
+    <message id="autopanel.tip.mail.accountForward">
+        <source>Send the selected account's mail on to an address outside mail's domains. Mail marked as spam is not sent on</source>
+        <translation>Send the selected account's mail on to an address outside mail's domains. Mail marked as spam is not sent on</translation>
+    </message>
+    <message id="autopanel.tip.mail.forwardKeep">
+        <source>Keep a copy of forwarded mail in the account's mailbox, or stop keeping one</source>
+        <translation>Keep a copy of forwarded mail in the account's mailbox, or stop keeping one</translation>
+    </message>
+    <message id="autopanel.label.mail.forward">
+        <source>Forward</source>
+        <translation>Forward</translation>
+    </message>
+    <message id="autopanel.value.mail.forwardKeep">
+        <source>%1 (a copy is kept)</source>
+        <translation>%1 (a copy is kept)</translation>
+    </message>
+    <message id="autopanel.value.mail.forwardNoKeep">
+        <source>%1 (no copy is kept)</source>
+        <translation>%1 (no copy is kept)</translation>
+    </message>
+    <message id="autopanel.value.mail.forwardOther">
+        <source>set in the mail server, by a script AutoPanel did not write</source>
+        <translation>set in the mail server, by a script AutoPanel did not write</translation>
+    </message>
+    <message id="autopanel.title.prompt.mailForward">
+        <source>Forward mail</source>
+        <translation>Forward mail</translation>
+    </message>
+    <message id="autopanel.label.prompt.mailForward">
+        <source>Send this account's mail on to (an address outside mail's domains; empty to stop):</source>
+        <translation>Send this account's mail on to (an address outside mail's domains; empty to stop):</translation>
+    </message>
+    <message id="autopanel.notice.mail.forwardSet">
+        <source>%1 now forwards to %2</source>
+        <translation>%1 now forwards to %2</translation>
+    </message>
+    <message id="autopanel.notice.mail.forwardOff">
+        <source>%1 no longer forwards</source>
+        <translation>%1 no longer forwards</translation>
+    </message>
+    <message id="autopanel.notice.mail.forwardOther">
+        <source>This account has a Sieve script of its own in the mail server: forwarding is set there, and AutoPanel does not change it</source>
+        <translation>This account has a Sieve script of its own in the mail server: forwarding is set there, and AutoPanel does not change it</translation>
+    </message>
+    <message id="autopanel.notice.mail.forwardNone">
+        <source>This account does not forward: set an address with Forward… first</source>
+        <translation>This account does not forward: set an address with Forward… first</translation>
+    </message>
+    <message id="autopanel.notice.mail.forwardKeepOn">
+        <source>%1 keeps a copy of what it forwards</source>
+        <translation>%1 keeps a copy of what it forwards</translation>
+    </message>
+    <message id="autopanel.notice.mail.forwardKeepOff">
+        <source>%1 keeps no copy of what it forwards</source>
+        <translation>%1 keeps no copy of what it forwards</translation>
+    </message>
+    <message id="autopanel.title.confirm.mailForwardNoKeep">
+        <source>Keep no copy</source>
+        <translation>Keep no copy</translation>
+    </message>
+    <message id="autopanel.question.mail.forwardNoKeep">
+        <source>Stop keeping a copy of %1's forwarded mail? Its mailbox then receives only what is marked as spam, and a message that cannot be sent on goes back to its sender.</source>
+        <translation>Stop keeping a copy of %1's forwarded mail? Its mailbox then receives only what is marked as spam, and a message that cannot be sent on goes back to its sender.</translation>
+    </message>
 </context>
 </TS>

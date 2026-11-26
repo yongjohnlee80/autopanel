@@ -96,7 +96,12 @@ func (e *SetError) Error() string {
 // call sends one request of one method and decodes its answer's arguments
 // into out.
 func (c *Client) call(ctx context.Context, method string, args any, out any) error {
-	body, err := json.Marshal(map[string]any{"using": usingCaps, "methodCalls": []any{[]any{method, args, "c"}}})
+	return c.callUsing(ctx, usingCaps, method, args, out)
+}
+
+// callUsing is call with the capabilities a method of another kind needs.
+func (c *Client) callUsing(ctx context.Context, using []string, method string, args any, out any) error {
+	body, err := json.Marshal(map[string]any{"using": using, "methodCalls": []any{[]any{method, args, "c"}}})
 	if err != nil {
 		return err
 	}
