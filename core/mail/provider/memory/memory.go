@@ -37,6 +37,11 @@ type Server struct {
 	// fail with it.
 	Fail func(method string) error
 
+	// Outgoing is the queue a test fills: what waits to leave.
+	Outgoing []provider.QueuedMessage
+	// Scheduled are messages that wait and have not failed.
+	Scheduled int
+
 	// Redirects is how many addresses the server sends one message on to;
 	// 0 is a mail server's usual one.
 	Redirects int
@@ -352,6 +357,34 @@ func (s *Server) Forward(_ context.Context, id string) (provider.ForwardState, e
 		st.Forward = provider.Forward{To: slices.Clone(a.forward.To), Keep: a.forward.Keep}
 	}
 	return st, nil
+}
+
+// Queue sums the queue a test filled: Outgoing are failing, Scheduled wait.
+func (s *Server) Queue(_ context.Context, limit int) (provider.Queue, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := s.enter("Queue"); err != nil {
+		return provider.Queue{}, err
+	}
+	if limit <= 0 || limit > provider.MaxQueue {
+		limit = provider.MaxQueue
+	}
+	out := provider.Queue{Sample: []provider.QueuedMessage{}}
+	total := len(s.Outgoing) + s.Scheduled
+	out.Waiting, out.More = min(total, limit), total > limit
+	for _, m := range s.Outgoing {
+		if out.Failing == limit {
+			break
+		}
+		out.Failing++
+		if out.Oldest.IsZero() || m.Since.Before(out.Oldest) {
+			out.Oldest = m.Since
+		}
+		if len(out.Sample) < provider.MaxQueueSample {
+			out.Sample = append(out.Sample, m)
+		}
+	}
+	return out, nil
 }
 
 // OwnScript makes a script of the owner's own the account's active one, as
@@ -791,6 +824,13 @@ func (k keyed) Forward(ctx context.Context, id string) (provider.ForwardState, e
 		return provider.ForwardState{}, err
 	}
 	return k.s.Forward(ctx, id)
+}
+
+func (k keyed) Queue(ctx context.Context, limit int) (provider.Queue, error) {
+	if err := k.check(ctx); err != nil {
+		return provider.Queue{}, err
+	}
+	return k.s.Queue(ctx, limit)
 }
 
 func (k keyed) RemoveAccount(ctx context.Context, id string) error {

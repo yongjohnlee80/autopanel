@@ -263,6 +263,7 @@ type Module struct {
 	repairOpen atomic.Bool
 	repairs    repairState
 	audit      Auditor // nil: the steps of a repair are not audited
+	queued     queueCache
 }
 
 // pendingSetup is mail.setup's answers, until mail.setup.apply.
@@ -361,7 +362,7 @@ func adminChange(verb, param, doc string) module.Contract {
 
 func (m *Module) Verbs() []module.Verb {
 	return []module.Verb{
-		module.Handle(module.Contract{Verb: "mail.status", Discloses: module.Plain, Since: 6, Result: "{set_up, host, bootstrapped, stack, step, error, at, loopback, domains, ports: [{key, verdict, why, needs, by, managed, commands}]}",
+		module.Handle(module.Contract{Verb: "mail.status", Discloses: module.Plain, Since: 6, Result: "{set_up, host, bootstrapped, stack, step, error, at, loopback, domains, records_not_ok: [{domain, count}], ports: [{key, verdict, why, needs, by, managed, commands}]}",
 			Doc: "Whether mail is set up, how far the mail server's setting up got, the mail stack's state, the loopback rule's, and the mail domains."}, m.status),
 		module.Handle(adminChange("mail.setup", "{host, domain}",
 			"Answers the review of the mail stack (the mail server, pinned) for this host and first domain, and holds the answers until mail.setup.apply. It writes nothing: a setup left here leaves no trace, and may be asked again."), m.setup),
@@ -378,6 +379,8 @@ func (m *Module) Verbs() []module.Verb {
 			Doc: "The mail accounts, of one domain or of all."}, m.accountList),
 		module.Handle(change("mail.account.add", "{address, quota?}", "Makes a mail account. Its own password is generated and told to no one: mail apps sign in with its app passwords."), m.accountAdd),
 		module.Handle(change("mail.account.lock", "{address}", "Replaces an account's own password, typed under an older AutoPanel, with one no one knows: from then on only its app passwords sign in."), m.accountLock),
+		module.Handle(module.Contract{Verb: "mail.queue", Since: 12, Result: "{waiting, more, failing, oldest_at, sample: [{from, to, others, since, attempts, next_at, why}], read_at}",
+			Doc: "What waits to leave the mail server: how many messages (at most 200 are counted; more says there are more), how many of them a recipient's last attempt failed for, when the oldest was queued, and the failing ones, oldest first, each with its sender, a recipient, its attempts and the server's reason. The server is asked at most every 30 seconds (read_at). It names senders and recipients, so the read-only role does not see it."}, m.queue),
 		module.Handle(module.Contract{Verb: "mail.apppassword.list", Discloses: module.Plain, Since: 6, Param: "{address}", Result: "[{id, description, created_at, pending, expires_at}]",
 			Doc: "An account's app passwords, never their secrets. A pending one stops at expires_at unless kept."}, m.appPasswordList),
 		module.Handle(change("mail.apppassword.add", "{address, description}",
@@ -486,7 +489,17 @@ type Status struct {
 	Ports      []corefw.PortState `json:"ports"`
 	SyncedAt   int64              `json:"synced_at"` // the last DNS and certificate pass
 	SyncErrors []string           `json:"sync_errors"`
+	// RecordsNotOK are the domains with DNS records the last pass did not
+	// find as they should be, each with how many: neither ok nor left to the
+	// administrator (manual). The mail host's own records are under its name.
+	RecordsNotOK []RecordsCount `json:"records_not_ok"`
 	Progress
+}
+
+// RecordsCount is how many of a domain's records are not ok.
+type RecordsCount struct {
+	Domain string `json:"domain"`
+	Count  int    `json:"count"`
 }
 
 func (m *Module) status(ctx context.Context, _ struct{}) (Status, error) {
@@ -519,7 +532,88 @@ func (m *Module) status(ctx context.Context, _ struct{}) (Status, error) {
 	if out.SyncErrors == nil {
 		out.SyncErrors = []string{}
 	}
+	out.RecordsNotOK = []RecordsCount{}
+	for domain, records := range last.Records {
+		n := 0
+		for _, r := range records {
+			if r.State != "ok" && r.State != "manual" {
+				n++
+			}
+		}
+		if n > 0 {
+			out.RecordsNotOK = append(out.RecordsNotOK, RecordsCount{Domain: domain, Count: n})
+		}
+	}
+	slices.SortFunc(out.RecordsNotOK, func(a, b RecordsCount) int { return strings.Compare(a.Domain, b.Domain) })
 	return out, nil
+}
+
+// QueueView is mail.queue's answer: what waits to leave the mail server.
+type QueueView struct {
+	Waiting  int          `json:"waiting"`
+	More     bool         `json:"more"` // more wait than were counted
+	Failing  int          `json:"failing"`
+	OldestAt int64        `json:"oldest_at"` // 0 when nothing waits
+	Sample   []QueuedView `json:"sample"`    // the failing ones, oldest first
+	ReadAt   int64        `json:"read_at"`   // when the server was last asked
+}
+
+// QueuedView is one message that is failing to leave.
+type QueuedView struct {
+	From     string `json:"from"`
+	To       string `json:"to"`
+	Others   int    `json:"others"`
+	Since    int64  `json:"since"`
+	Attempts int    `json:"attempts"`
+	NextAt   int64  `json:"next_at"`
+	Why      string `json:"why"`
+}
+
+// queueEvery is how long an answer of the mail server's about its queue is
+// answered again without asking: a panel left open asks it twice a minute,
+// whoever watches.
+const queueEvery = 30 * time.Second
+
+// queueCache is the last answer about the queue.
+type queueCache struct {
+	mu   sync.Mutex // held across the read: two callers ask the server once
+	at   time.Time
+	view QueueView
+}
+
+func (m *Module) queue(ctx context.Context, _ struct{}) (QueueView, error) {
+	c, err := m.ready(ctx)
+	if err != nil {
+		return QueueView{}, err
+	}
+	m.queued.mu.Lock()
+	defer m.queued.mu.Unlock()
+	now := m.now()
+	if !m.queued.at.IsZero() && now.Sub(m.queued.at) < queueEvery {
+		return m.queued.view, nil
+	}
+	q, err := c.Queue(ctx, provider.MaxQueue)
+	if err != nil {
+		// Never kept: when the server answers again, the next call shows it.
+		m.queued.at = time.Time{}
+		return QueueView{}, serverErr(err)
+	}
+	v := QueueView{Waiting: q.Waiting, More: q.More, Failing: q.Failing, Sample: []QueuedView{}, ReadAt: now.Unix()}
+	if !q.Oldest.IsZero() {
+		v.OldestAt = q.Oldest.Unix()
+	}
+	for _, s := range q.Sample {
+		qv := QueuedView{From: s.From, To: s.To, Others: s.Others, Attempts: s.Attempts, Why: s.Why}
+		if !s.Since.IsZero() {
+			qv.Since = s.Since.Unix()
+		}
+		if !s.Next.IsZero() {
+			qv.NextAt = s.Next.Unix()
+		}
+		v.Sample = append(v.Sample, qv)
+	}
+	m.queued.at, m.queued.view = now, v
+	return v, nil
 }
 
 // SetupAsk is mail.setup's param.
