@@ -331,6 +331,22 @@ func Run(t *testing.T, tg Target) {
 		}
 	})
 
+	t.Run("Queue", func(t *testing.T) {
+		// A server nothing was sent from has nothing waiting to leave. (A
+		// queue that holds something needs a recipient that fails, which the
+		// suite cannot make.)
+		q, err := s.Queue(ctx, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if q.Failing > q.Waiting || len(q.Sample) > q.Failing || len(q.Sample) > provider.MaxQueueSample || q.Waiting > provider.MaxQueue {
+			t.Fatalf("the queue's figures do not agree: %+v", q)
+		}
+		if q.Waiting == 0 && (!q.Oldest.IsZero() || q.More) {
+			t.Fatalf("an empty queue: %+v", q)
+		}
+	})
+
 	t.Run("DKIM", func(t *testing.T) {
 		_, key, _ := ed25519.GenerateKey(rand.Reader)
 		der, _ := x509.MarshalPKCS8PrivateKey(key)

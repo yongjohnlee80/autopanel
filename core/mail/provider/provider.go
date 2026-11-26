@@ -63,6 +63,9 @@ type Server interface {
 	SetForward(ctx context.Context, accountID string, f Forward) error
 	// Forward answers how the account forwards.
 	Forward(ctx context.Context, accountID string) (ForwardState, error)
+	// Queue sums what waits to leave the server: at most limit messages are
+	// counted (MaxQueue when limit is 0 or more than it).
+	Queue(ctx context.Context, limit int) (Queue, error)
 
 	// AppPasswords are an account's app passwords, never their secrets.
 	AppPasswords(ctx context.Context, accountID string) ([]AppPassword, error)
@@ -236,6 +239,34 @@ type Account struct {
 	Admin    bool    // the server's administrator, AutoPanel's way in: not a mailbox
 	Disabled bool    // it signs nothing in: no app password, no password
 }
+
+// Queue is the outgoing queue, summed.
+type Queue struct {
+	Waiting int       // messages waiting to go out, of those counted
+	More    bool      // there are more than were counted
+	Failing int       // of those, messages a recipient's last attempt failed for
+	Oldest  time.Time // when the oldest waiting message was queued; zero when none
+	// Sample are the failing ones, oldest first, at most MaxQueueSample.
+	Sample []QueuedMessage
+}
+
+// QueuedMessage is one message that is failing to leave.
+type QueuedMessage struct {
+	From     string    // the envelope sender
+	To       string    // a recipient it is failing for: the first by name
+	Others   int       // how many more of its recipients are failing
+	Since    time.Time // when it was queued
+	Attempts int
+	Next     time.Time // the next attempt; zero when none is due
+	Why      string    // the reason as the server has it: printable, at most MaxQueueWhy bytes
+}
+
+// The queue's bounds.
+const (
+	MaxQueue       = 200
+	MaxQueueSample = 20
+	MaxQueueWhy    = 160
+)
 
 // Forward is where an account's mail is sent on to.
 type Forward struct {
