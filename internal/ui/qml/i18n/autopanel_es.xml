@@ -3927,5 +3927,41 @@
         <source>Stop keeping a copy of %1's forwarded mail? Its mailbox then receives only what is marked as spam, and a message that cannot be sent on goes back to its sender.</source>
         <translation>¿Dejar de conservar una copia del correo reenviado de %1? Su buzón recibirá entonces solo lo marcado como spam, y un mensaje que no pueda reenviarse volverá a su remitente.</translation>
     </message>
+    <message id="autopanel.title.widget.mail">
+        <source>Mail</source>
+        <translation>Correo</translation>
+    </message>
+    <message id="autopanel.menu.view.mail">
+        <source>&amp;Mail</source>
+        <translation>Correo (&amp;M)</translation>
+    </message>
+    <message id="autopanel.label.mailWidget.queue">
+        <source>Queue</source>
+        <translation>Cola</translation>
+    </message>
+    <message id="autopanel.label.mailWidget.oldest">
+        <source>Oldest</source>
+        <translation>Más antiguo</translation>
+    </message>
+    <message id="autopanel.label.mailWidget.records">
+        <source>Records</source>
+        <translation>Registros</translation>
+    </message>
+    <message id="autopanel.value.mailWidget.none">
+        <source>nothing waiting</source>
+        <translation>nada en espera</translation>
+    </message>
+    <message id="autopanel.value.mailWidget.waiting">
+        <source>%1 waiting, %2 failing</source>
+        <translation>%1 en espera, %2 fallando</translation>
+    </message>
+    <message id="autopanel.value.mailWidget.recordsOK">
+        <source>all ok</source>
+        <translation>todos correctos</translation>
+    </message>
+    <message id="autopanel.value.mailWidget.recordsNotOK">
+        <source>%1 not ok</source>
+        <translation>%1 no correctos</translation>
+    </message>
 </context>
 </TS>

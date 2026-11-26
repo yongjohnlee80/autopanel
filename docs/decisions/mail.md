@@ -311,6 +311,28 @@ again without someone there; phones move between networks. Revocation is the con
 **In the code:** `core/mail/module.go` (`accountSet`), `core/mail/provider/provider.go`
 (`SetDisabled`, `SetAliases`), `sdk/stalwart/jmap.go`, Mail › Accounts in the panel.
 
+## The outgoing queue is summed, and read at most twice a minute
+
+**Decided:** `mail.queue` answers what waits to leave the mail server: how many messages, how many
+of them a recipient's last attempt failed for, when the oldest was queued, and the failing ones,
+oldest first, each with its sender, a recipient, its attempts and the server's reason.
+
+- **Bounded:** at most 200 messages are counted (`more` says there are more), 20 failing ones
+  are answered, and a reason is cut at 160 bytes. What another server said is made printable: a
+  control character is a space.
+- **The mail server is asked at most every 30 seconds,** whoever asks: the core keeps the last
+  answer for that long. A failure is never kept, so the server's recovery shows at the next call.
+- **It names senders and recipients,** so the read-only role does not see it (the verb is
+  Sensitive). `mail.status` answers how many records are not ok for each domain, which every
+  role sees.
+- **Nothing is counted that the server does not keep:** there is no "delivered today". Stalwart
+  has those figures only as telemetry.
+- With Stalwart: `x:QueuedMessage/query` and one `x:QueuedMessage/get`; a recipient is failing
+  when its status is a temporary or a permanent failure.
+
+**In the code:** `core/mail/module.go` (`queue`), `core/mail/provider/provider.go` (`Queue`),
+`sdk/stalwart/queue.go`, the Mail widget (`internal/ui/widgets.go`).
+
 ## Forwarding is one Sieve script, which AutoPanel writes
 
 **Decided:** `mail.account.set` with `forward: {to, keep}` has an account's mail sent on to

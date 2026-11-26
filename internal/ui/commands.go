@@ -115,6 +115,7 @@ func (h *host) commandTable() map[string]decl.HandlerFunc {
 		"App.mailRemoveAccount":     oneRow("App.mailRemoveAccount", h.mailRemoveAccount),
 		"App.mailToggleAccount":     oneRow("App.mailToggleAccount", h.mailToggleAccount),
 		"App.mailAccountAliases":    oneRow("App.mailAccountAliases", h.mailAccountAliases),
+		"App.mailQueueMoved":        oneRow("App.mailQueueMoved", h.mailQueueMoved),
 		"App.mailAccountForward":    oneRow("App.mailAccountForward", h.mailAccountForward),
 		"App.mailForwardKeep":       oneRow("App.mailForwardKeep", h.mailForwardKeep),
 		"App.secretEntered":         oneString("App.secretEntered", h.secretEntered),

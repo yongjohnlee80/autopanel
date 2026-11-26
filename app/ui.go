@@ -377,6 +377,15 @@ func (u uiClient) MailStatus(ctx context.Context) (mail.Status, error) {
 	return s, u.call(ctx, "mail.status", nil, &s)
 }
 
+func (u uiClient) MailQueue(ctx context.Context) (mail.QueueView, bool, error) {
+	var q mail.QueueView
+	err := u.call(ctx, "mail.queue", nil, &q)
+	if errors.Is(err, auth.ErrForbidden) {
+		return mail.QueueView{}, false, nil
+	}
+	return q, err == nil, err
+}
+
 func (u uiClient) MailSetup(ctx context.Context, host, domain string) (mail.Setup, error) {
 	var s mail.Setup
 	return s, u.call(ctx, "mail.setup", mail.SetupAsk{Host: host, Domain: domain}, &s)

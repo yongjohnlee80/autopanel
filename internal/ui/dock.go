@@ -70,18 +70,22 @@ type widgetSpec struct {
 	id, view, icon, title, name string
 	edge                        string
 	size                        int
+	// away: the widget starts hidden, its icon in the dock: the screen a
+	// small terminal shows is full without it.
+	away bool
 }
 
 // widgetSpecs are the widgets, in the dock's order: as the screen reads, top
 // down. Main.qml declares their tiles in the order they take the screen.
 var widgetSpecs = []widgetSpec{
-	{"hostWidget", "", "◫", "autopanel.title.widget.host", "host", "top", 16},
-	{"stacksWidget", "stackSummaryTable", "▦", "autopanel.title.widget.stacks", "stacksWidget", "left", 45},
-	{"networkWidget", "networkTable", "⇅", "autopanel.title.widget.network", "network", "top", 22},
-	{"trafficWidget", "trafficTable", "↯", "autopanel.title.widget.traffic", "traffic", "left", 28},
-	{"certsWidget", "certsTable", "✓", "autopanel.title.widget.certs", "certs", "center", 0},
-	{"portsWidget", "portSummaryTable", "⊡", "autopanel.title.widget.ports", "ports", "top", 22},
-	{"activityWidget", "activityTable", "≡", "autopanel.title.widget.activity", "activity", "bottom", 24},
+	{"hostWidget", "", "◫", "autopanel.title.widget.host", "host", "top", 16, false},
+	{"stacksWidget", "stackSummaryTable", "▦", "autopanel.title.widget.stacks", "stacksWidget", "left", 45, false},
+	{"networkWidget", "networkTable", "⇅", "autopanel.title.widget.network", "network", "top", 22, false},
+	{"trafficWidget", "trafficTable", "↯", "autopanel.title.widget.traffic", "traffic", "left", 28, false},
+	{"certsWidget", "certsTable", "✓", "autopanel.title.widget.certs", "certs", "center", 0, false},
+	{"portsWidget", "portSummaryTable", "⊡", "autopanel.title.widget.ports", "ports", "top", 22, false},
+	{"activityWidget", "activityTable", "≡", "autopanel.title.widget.activity", "activity", "bottom", 24, false},
+	{"mailWidget", "mailQueueTable", "✉", "autopanel.title.widget.mail", "mailWidget", "right", 30, true},
 }
 
 // widgetOf is the widget of a tile's id.
@@ -114,7 +118,7 @@ func (h *host) layoutState() map[string]any {
 		p := h.place[w.id]
 		s["App."+w.name+"Edge"] = p.edge
 		s["App."+w.name+"Size"] = p.size
-		s["App."+w.name+"Shown"] = true
+		s["App."+w.name+"Shown"] = !w.away
 	}
 	return s
 }
@@ -151,12 +155,22 @@ func (h *host) resetLayout() error {
 		return err
 	}
 	for _, w := range widgetSpecs {
-		if h.hidden(w.id) {
-			_ = h.p.Call(w.id, "show")
+		if h.hidden(w.id) != w.away {
+			_ = h.p.Call(w.id, "toggle")
 		}
 	}
 	h.refreshDock()
 	return nil
+}
+
+// hideAway hides the widgets that start hidden. Once, when the screen is
+// made.
+func (h *host) hideAway() {
+	for _, w := range widgetSpecs {
+		if w.away && !h.hidden(w.id) {
+			_ = h.p.Call(w.id, "toggle")
+		}
+	}
 }
 
 // hidden reports whether the window of a panel or a widget is hidden in the

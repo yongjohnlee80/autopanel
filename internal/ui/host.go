@@ -102,6 +102,7 @@ type host struct {
 	statusShown bool // the status bar is on screen (View › Status bar)
 
 	pollEvery time.Duration // how often the screen is read again; a test's own
+	mailEvery time.Duration // how often the Mail widget is read again; a test's own
 	polling   bool          // a poll is in flight
 	polled    bool          // the poller runs
 
@@ -143,6 +144,7 @@ func newHost(ctx context.Context, c Client, version string) *host {
 		acct:        newAccountPanes(),
 		statusShown: true,
 		pollEvery:   pollEvery,
+		mailEvery:   mailEvery,
 	}
 	h.themes.Reset(themeRows(h.theme))
 	h.ownShell, h.rootShell = hostShells()
@@ -184,6 +186,7 @@ func (h *host) attach(p *tuidecl.Program) {
 	h.minimized.Observe(func() { h.p.Post(h.refreshDock) })
 	h.p.Post(func() {
 		h.retext()
+		h.hideAway()
 		h.refreshDock()
 	})
 	h.promptLogin()

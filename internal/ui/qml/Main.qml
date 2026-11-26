@@ -168,6 +168,7 @@ Window {
             MenuItem { text: qsTrId("autopanel.menu.view.certs"); checkable: true; checked: App.certsShown; onTriggered: App.toggleWidget("certsWidget") }
             MenuItem { text: qsTrId("autopanel.menu.view.ports"); checkable: true; checked: App.portsShown; onTriggered: App.toggleWidget("portsWidget") }
             MenuItem { text: qsTrId("autopanel.menu.view.activity"); checkable: true; checked: App.activityShown; onTriggered: App.toggleWidget("activityWidget") }
+            MenuItem { text: qsTrId("autopanel.menu.view.mail"); checkable: true; checked: App.mailWidgetShown; onTriggered: App.toggleWidget("mailWidget") }
             MenuSeparator {}
             MenuItem { text: qsTrId("autopanel.menu.view.reset"); onTriggered: App.resetLayout() }
         }
@@ -428,6 +429,40 @@ Window {
                     TableViewColumn { role: "port"; title: "PORT"; width: 6 }
                     TableViewColumn { role: "process"; title: "PROCESS"; width: 12 }
                     TableViewColumn { role: "use"; title: "FOR" }
+                }
+            }
+        }
+
+        // mail: whether it is ready, what waits to leave and how much of it is
+        // failing, the records not ok; the failing messages, oldest first.
+        // Enter opens Mail › Server
+        TilePanel {
+            id: mailWidget
+            heading: qsTrId("autopanel.title.widget.mail")
+            edge: App.mailWidgetEdge; size: App.mailWidgetSize
+            edges: "left right top bottom center"
+            minimumWidth: 28; minimumHeight: 6
+            onChanged: App.widgetChanged()
+            onDocked: App.widgetDocked("mailWidget", edge)
+            onResized: App.widgetResized("mailWidget", size)
+            Flex {
+                direction: Tui.Vertical
+                Text { text: App.mailWidgetError; visible: App.mailWidgetErrorShown; color: Theme.syntax.alert }
+                Text { text: App.mailWidgetState }
+                Text { text: App.mailWidgetWaiting }
+                Text { text: App.mailWidgetOldest }
+                Text { text: App.mailWidgetRecords }
+                TableView {
+                    id: mailQueueTable
+                    Layout.fillHeight: true
+                    palette.highlight: Theme.document.highlight
+                    palette.highlightedText: Theme.document.highlightedText
+                    model: App.mailWidgetQueue
+                    onCurrentIndexChanged: App.mailQueueMoved(index)
+                    onActivated: App.openMailServer()
+                    TableViewColumn { role: "from"; title: "FROM"; width: 0 }
+                    TableViewColumn { role: "to"; title: "TO"; width: 0 }
+                    TableViewColumn { role: "tries"; title: "TRIES"; width: 5 }
                 }
             }
         }

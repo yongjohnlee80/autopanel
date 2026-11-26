@@ -3,6 +3,7 @@ package ui
 import (
 	"errors"
 	"fmt"
+	"github.com/yongjohnlee80/autopanel/core/mail"
 	"strings"
 	"testing"
 	"time"
@@ -187,4 +188,74 @@ func TestViewHidesTheStatusBar(t *testing.T) {
 	s.WaitForText(t, "Status bar")
 	s.Keys(t, decltest.Rune('s'))
 	s.WaitForText(t, "CA LE staging")
+}
+
+// TestTheMailWidget: the main screen says whether mail is ready, what waits
+// to leave the mail server and how much of it is failing, how old the oldest
+// is, and how many records are not ok; a user whose role may not read the
+// queue sees the state and the records; without mail it says so and asks the
+// server nothing about a queue.
+func TestTheMailWidget(t *testing.T) {
+	f := withMail()
+	f.mail.status.RecordsNotOK = []mail.RecordsCount{{Domain: "example.com", Count: 2}}
+	f.mail.status.SyncedAt = 1
+	f.mail.queue = mail.QueueView{Waiting: 3, Failing: 1, OldestAt: time.Now().Add(-4*time.Hour - 12*time.Minute).Unix(),
+		Sample: []mail.QueuedView{{From: "ana@example.com", To: "bob@slow.example", Others: 2, Attempts: 5, Why: "connectionError: mx.slow.example: No route to host"}}}
+	h, s := openHost(t, f, 170, 56) // a screen with room for the tile's table
+	signIn(t, s)
+	// It starts hidden, its icon in the dock: View › Mail shows it.
+	s.WaitForText(t, "CA LE staging")
+	if strings.Contains(s.String(), "┌ Mail") {
+		t.Fatalf("the Mail widget is shown before it is asked for:\n%s", s)
+	}
+	run(t, h, func() error { return h.toggleWidgetNamed("mailWidget") })
+	for _, part := range []string{"┌ Mail", "3 waiting, 1", "4h 12m", "2 not ok", "ana@exam", "bob@slo"} {
+		s.WaitForText(t, part)
+	}
+
+	// Nothing waiting, every record ok.
+	f.mu.Lock()
+	f.mail.queue, f.mail.status.RecordsNotOK = mail.QueueView{Sample: []mail.QueuedView{}}, nil
+	f.mu.Unlock()
+	again := func() {
+		t.Helper()
+		run(t, h, func() error { h.wid.mailReadAt = time.Time{}; h.poll(); return nil })
+	}
+	again()
+	s.WaitForText(t, "nothing wait")
+	s.WaitForText(t, "all ok")
+	gone(t, s, "bob@slo")
+
+	// A role that may not read the queue: the state and the records, no error.
+	f.mu.Lock()
+	f.mail.queueDenied = true
+	f.mail.queue = mail.QueueView{Waiting: 9, Failing: 9}
+	f.mu.Unlock()
+	again()
+	gone(t, s, "nothing wait")
+	if strings.Contains(s.String(), "9 waiting") || strings.Contains(s.String(), "read failed") {
+		t.Fatalf("a role that may not read the queue sees it, or an error:\n%s", s)
+	}
+
+	// The mail server does not answer: a line in the widget, not a dialog.
+	f.mu.Lock()
+	f.mail.queueDenied, f.mail.queueErr = false, errors.New("mail: the mail server does not answer")
+	f.mu.Unlock()
+	again()
+	s.WaitForText(t, "read failed: mail")
+
+	// No mail: said, and the queue is not asked for.
+	f.mu.Lock()
+	f.mail.queueErr, f.mail.status = nil, mail.Status{Domains: []string{}}
+	n := len(f.mail.asks)
+	f.mu.Unlock()
+	again()
+	gone(t, s, "read failed")
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, ask := range f.mail.asks[n:] {
+		if ask == "queue" {
+			t.Fatal("the queue was asked for with no mail set up")
+		}
+	}
 }

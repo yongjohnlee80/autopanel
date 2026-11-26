@@ -12,6 +12,7 @@ import (
 	tuidecl "github.com/yongjohnlee80/golib/tui/decl"
 
 	"github.com/yongjohnlee80/autopanel/core/gate"
+	"github.com/yongjohnlee80/autopanel/core/mail"
 	"github.com/yongjohnlee80/autopanel/core/services"
 	"github.com/yongjohnlee80/autopanel/internal/sysinfo"
 )
@@ -26,6 +27,7 @@ import (
 //	Certificates  sys.status and gate.route.list: the CA in use, the hosts it serves
 //	Ports         sys.ports: the listening sockets
 //	Activity      sys.audit.list: the newest audit entries
+//	Mail          mail.status and mail.queue: its state, what waits to leave, the records not ok
 //
 // A read that fails shows in its widget, in one line, and the widget keeps
 // what it last showed: a dialog would stop the screen every few seconds. Each
@@ -43,6 +45,15 @@ const hotPercent = 85
 // widgets are the widgets' models and the last answers they show.
 type widgets struct {
 	network, stacks, domains, hosts, ports, activity *tuidecl.ListModel
+	mailQueue                                        *tuidecl.ListModel
+
+	// Mail's last answers: read less often than the rest (mailEvery), for the
+	// mail server is asked about its queue at most that often anyway.
+	mailStatus  *mail.Status
+	mailQueued  *mail.QueueView
+	mailAllowed bool // the user's role may read the queue
+	mailErr     error
+	mailReadAt  time.Time
 
 	metrics    *Metrics
 	metricsErr error
@@ -55,12 +66,13 @@ type widgets struct {
 
 func newWidgets() widgets {
 	return widgets{
-		network:  tuidecl.NewListModel("key", "name", "rx", "tx", "rxTotal", "txTotal", "errors"),
-		stacks:   tuidecl.NewListModel("key", "name", "state", "health", "memory"),
-		domains:  tuidecl.NewListModel("key", "name", "routes"),
-		hosts:    tuidecl.NewListModel("key", "host", "domain"),
-		ports:    tuidecl.NewListModel("key", "proto", "port", "process", "use"),
-		activity: tuidecl.NewListModel("key", "time", "actor", "action", "subject"),
+		network:   tuidecl.NewListModel("key", "name", "rx", "tx", "rxTotal", "txTotal", "errors"),
+		stacks:    tuidecl.NewListModel("key", "name", "state", "health", "memory"),
+		domains:   tuidecl.NewListModel("key", "name", "routes"),
+		hosts:     tuidecl.NewListModel("key", "host", "domain"),
+		ports:     tuidecl.NewListModel("key", "proto", "port", "process", "use"),
+		activity:  tuidecl.NewListModel("key", "time", "actor", "action", "subject"),
+		mailQueue: tuidecl.NewListModel("key", "from", "to", "tries", "why"),
 	}
 }
 
@@ -73,6 +85,8 @@ func (w *widgets) state() map[string]any {
 		"App.certHosts":       w.hosts,
 		"App.portSummary":     w.ports,
 		"App.activity":        w.activity,
+		"App.mailWidgetQueue": w.mailQueue,
+		"App.mailWidgetState": "", "App.mailWidgetWaiting": "", "App.mailWidgetOldest": "", "App.mailWidgetRecords": "",
 		"App.trafficRequests": "",
 		"App.certIssuer":      "",
 		"App.certChallenge":   "",
@@ -91,7 +105,7 @@ func (w *widgets) state() map[string]any {
 		"App.hostDiskValue":   "",
 		"App.hostDiskHot":     false,
 	}
-	for _, name := range []string{"host", "network", "stacksWidget", "traffic", "certs", "ports", "activity"} {
+	for _, name := range []string{"host", "network", "stacksWidget", "traffic", "certs", "ports", "activity", "mailWidget"} {
 		s["App."+name+"Error"] = ""
 		s["App."+name+"ErrorShown"] = false
 	}
@@ -353,6 +367,112 @@ func (h *host) renderActivity() {
 	_ = h.p.SetMany(h.widgetError("activity", h.wid.auditErr))
 }
 
+// mailEvery is how often the Mail widget reads: the daemon asks the mail
+// server about its queue at most this often, so asking sooner shows nothing
+// new.
+const mailEvery = 30 * time.Second
+
+// mailQueueRows are the Mail widget's rows: the messages that are failing to
+// leave, oldest first.
+func mailQueueRows(q mail.QueueView) []tuidecl.Row {
+	rows := make([]tuidecl.Row, 0, len(q.Sample))
+	for i, s := range q.Sample {
+		to := s.To
+		if s.Others > 0 {
+			to += " +" + strconv.Itoa(s.Others)
+		}
+		rows = append(rows, tuidecl.Row{"key": strconv.Itoa(i) + "/" + s.From + "/" + s.To, "from": s.From, "to": to, "tries": s.Attempts, "why": s.Why})
+	}
+	return rows
+}
+
+// agoText is how long ago at was, in the two largest units: "4h 12m".
+func agoText(at int64, now time.Time) string {
+	d := now.Sub(time.Unix(at, 0))
+	if at == 0 || d < 0 {
+		return "-"
+	}
+	switch {
+	case d >= 48*time.Hour:
+		return fmt.Sprintf("%dd %dh", int(d.Hours())/24, int(d.Hours())%24)
+	case d >= time.Hour:
+		return fmt.Sprintf("%dh %dm", int(d.Hours()), int(d.Minutes())%60)
+	case d >= time.Minute:
+		return fmt.Sprintf("%dm", int(d.Minutes()))
+	}
+	return fmt.Sprintf("%ds", int(d.Seconds()))
+}
+
+// renderMailWidget puts the Mail widget's last answers on screen: whether mail is
+// ready, what waits to leave and how much of it is failing, the oldest, and
+// the records not ok. A user whose role may not read the queue sees the
+// state and the records.
+func (h *host) renderMailWidget() {
+	vals := h.widgetError("mailWidget", h.wid.mailErr)
+	dash := orDash("")
+	state, waiting, oldest, records := dash, dash, dash, dash
+	if st := h.wid.mailStatus; st != nil {
+		switch {
+		case !st.SetUp:
+			state = h.tr("autopanel.notice.mail.notSetUp")
+		case st.Error != "":
+			state = orDash(st.Step) + " · " + st.Error
+		default:
+			state = orDash(st.Step)
+		}
+		if st.SetUp {
+			n := 0
+			for _, r := range st.RecordsNotOK {
+				n += r.Count
+			}
+			switch {
+			case st.SyncedAt == 0:
+				records = h.tr("autopanel.value.mail.never")
+			case n == 0:
+				records = h.tr("autopanel.value.mailWidget.recordsOK")
+			default:
+				records = h.trf("autopanel.value.mailWidget.recordsNotOK", n) // which domain: Mail › Domains
+			}
+		}
+	}
+	rows := []tuidecl.Row{}
+	if q := h.wid.mailQueued; q != nil && h.wid.mailAllowed {
+		count := strconv.Itoa(q.Waiting)
+		if q.More {
+			count += "+"
+		}
+		if q.Waiting == 0 {
+			waiting = h.tr("autopanel.value.mailWidget.none")
+		} else {
+			waiting = h.trf("autopanel.value.mailWidget.waiting", count, q.Failing)
+			oldest = agoText(q.OldestAt, time.Now())
+		}
+		rows = mailQueueRows(*q)
+	}
+	h.wid.mailQueue.Reset(rows)
+	// A line each, the labels to one width in the language shown.
+	lines := [][2]string{{"State", h.tr("autopanel.label.mail.state")}, {"Waiting", h.tr("autopanel.label.mailWidget.queue")},
+		{"Oldest", h.tr("autopanel.label.mailWidget.oldest")}, {"Records", h.tr("autopanel.label.mailWidget.records")}}
+	width := 0
+	for _, l := range lines {
+		width = max(width, len([]rune(l[1])))
+	}
+	for i, value := range []string{state, waiting, oldest, records} {
+		label := lines[i][1]
+		vals["App.mailWidget"+lines[i][0]] = label + strings.Repeat(" ", width-len([]rune(label))+1) + value
+	}
+	_ = h.p.SetMany(vals)
+}
+
+// mailQueueMoved shows the selected failing message's reason in the status
+// line: the row has no room for it.
+func (h *host) mailQueueMoved(row int) error {
+	if q := h.wid.mailQueued; q != nil && row >= 0 && row < len(q.Sample) && q.Sample[row].Why != "" {
+		h.say(q.Sample[row].Why)
+	}
+	return nil
+}
+
 // renderWidgets puts every widget's last answer on screen again.
 func (h *host) renderWidgets() {
 	h.renderHost()
@@ -362,6 +482,7 @@ func (h *host) renderWidgets() {
 	h.renderStackSummary()
 	h.renderPortSummary()
 	h.renderActivity()
+	h.renderMailWidget()
 }
 
 func firstErr(errs ...error) error {
@@ -411,6 +532,7 @@ func (h *host) poll() {
 	wantAudit := h.shown("activityWidget") || h.panelShown("audit")
 	wantLogins := h.panelShown("logins")
 	wantCerts := h.panelShown("certList")
+	wantMail := h.shown("mailWidget") && time.Since(h.wid.mailReadAt) >= h.mailEvery
 	var (
 		metrics                                           Metrics
 		views                                             []services.View
@@ -420,6 +542,10 @@ func (h *host) poll() {
 		certs                                             []Cert
 		metricsErr, stacksErr, portsErr, auditErr, logErr error
 		certsErr                                          error
+		mailStatus                                        mail.Status
+		mailQueued                                        mail.QueueView
+		mailAllowed                                       bool
+		mailErr                                           error
 	)
 	h.polling = true
 	h.background(func(ctx context.Context) error {
@@ -440,6 +566,11 @@ func (h *host) poll() {
 		}
 		if wantCerts {
 			certs, certsErr = h.client.Certificates(ctx)
+		}
+		if wantMail {
+			if mailStatus, mailErr = h.client.MailStatus(ctx); mailErr == nil && mailStatus.SetUp && mailStatus.Bootstrapped != 0 {
+				mailQueued, mailAllowed, mailErr = h.client.MailQueue(ctx)
+			}
 		}
 		return nil
 	}, func(error) {
@@ -481,6 +612,16 @@ func (h *host) poll() {
 		}
 		if wantCerts && certsErr == nil {
 			h.mon.lastCerts, h.mon.readAt["certList"] = orEmpty(certs), now
+		}
+		if wantMail {
+			h.wid.mailErr, h.wid.mailReadAt = mailErr, now
+			if mailErr == nil {
+				h.wid.mailStatus, h.wid.mailQueued, h.wid.mailAllowed = &mailStatus, nil, mailAllowed
+				if mailAllowed {
+					h.wid.mailQueued = &mailQueued
+				}
+			}
+			h.renderMailWidget()
 		}
 		// Only what this poll read: a panel it did not read keeps its own
 		// last error (the firewall's, the checks').

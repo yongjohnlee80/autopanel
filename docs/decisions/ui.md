@@ -16,6 +16,13 @@ last showed.
 first screen. A tile manager gives every widget a place without overlap, and the user moves and
 resizes them with Alt-drags. A table of facts about the panel itself told the user little.
 
+**The Mail widget starts hidden,** its icon in the dock; View › Mail or the icon shows it. A small
+terminal's screen is full with the other seven. It says whether mail is ready, how many messages
+wait to leave and how many of them are failing, how old the oldest is, and how many DNS records
+are not ok; its table is the failing messages, oldest first, and a row's reason shows in the
+status line. It reads every 30 seconds, not 5: the daemon asks the mail server about its queue no
+more often than that. A user whose role may not read the queue sees the state and the records.
+
 **Why a failed read stays in the widget:** the screen reads every few seconds. A dialog for each
 failure would stop the screen again and again; a line in the widget says it where it applies.
 
