@@ -328,7 +328,20 @@ the builder's container, from an image pinned by digest (`site/Containerfile`).
   - **The bounds that are AutoPanel's:** 50 diagrams and charts a document, 64 KiB a Mermaid
     diagram's source, 256 KiB a chart's spec, 4 MiB a rendered body; past any, the build fails and
     names the document. A table's (1,000 rows shown) and an embed's (1 MiB) are `Fragment`'s.
-  - An HTML document is shown as its escaped source for now: nothing of it is markup.
+  - **An `.html` document is shown as an inert copy,** in a frame that allows nothing
+    (`sandbox=""`). The copy is made by a list of what is kept:
+    - kept: text, headings, lists, tables, quotes, code, images of this site, the document's own
+      styles (a style sheet or a `style` attribute the output check's CSS rule passes);
+    - removed with what they hold: scripts, frames, objects, a form's controls, audio and video,
+      SVG and MathML, `<link>`, `<meta>` and `<base>`;
+    - removed, keeping what they hold: any other element the list does not name;
+    - removed: event attributes, and every attribute not listed for its element.
+    - **A link works only inside the document** (`#…`). The frame may go nowhere, so any other
+      address is moved to the link's `title`, where a reader can read it.
+    - The frame takes most of the window's height: without a script it cannot fit itself to what
+      it holds.
+    - An active `.html` document (its scripts running, from the content host) is not built yet:
+      it is shown as its escaped source.
 - **What it makes:**
   - the home page, a page at each document's and each folder's address, and a folder's page
     listing its public children;

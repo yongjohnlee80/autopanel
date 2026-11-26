@@ -102,12 +102,81 @@ func TestTheSitesLinkRule(t *testing.T) {
 	}
 }
 
-// TestAnHTMLDocumentStaysItsSource: no markup of an HTML document reaches the
-// page yet.
-func TestAnHTMLDocumentStaysItsSource(t *testing.T) {
+// TestAnActiveHTMLDocumentStaysItsSource: no markup of an active HTML
+// document reaches the page yet.
+func TestAnActiveHTMLDocumentStaysItsSource(t *testing.T) {
 	b, err := renderBody(coresite.HTML, []byte("<p onclick=x>hi</p>"), "")
 	if err != nil || strings.Contains(b, "<p>") || strings.Contains(b, "<p ") || !strings.Contains(b, "&lt;p onclick=x&gt;") {
 		t.Fatalf("%q, %v", b, err)
+	}
+}
+
+// TestAnHTMLDocumentIsAFrameOfItsInertCopy: the body of an .html document is
+// a frame that allows nothing; its copy, cleaned, is put beside the page; and
+// the two pass the core's output check together.
+func TestAnHTMLDocumentIsAFrameOfItsInertCopy(t *testing.T) {
+	base := t.TempDir()
+	p := kitPaths{Content: filepath.Join(base, "input"), Fragments: filepath.Join(base, "fragments"), Out: filepath.Join(base, "out")}
+	dir := filepath.Join(p.Content, "docs", "1")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	src := `<html><head><title>Q3 "report" <b></title><style>h1{color:teal}</style><script>alert(1)</script></head>` +
+		`<body><h1 onclick="alert(2)">Q3</h1><a href="https://example.com/">out</a><img src="chart.png"></body></html>`
+	if err := os.WriteFile(filepath.Join(dir, "index.html"), []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	in := coresite.BuildInput{Build: 1, Host: "blog.example.com", Docs: []coresite.InputDoc{{Slug: "q3", Path: "reports/q3", Folder: "reports",
+		Format: coresite.HTML, Source: "docs/1/index.html", Dir: "docs/1", Page: "reports/q3/index.html"}}}
+	raw, _ := json.Marshal(in)
+	if err := os.WriteFile(filepath.Join(p.Content, "build.json"), raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := renderFragments(p); err != nil {
+		t.Fatal(err)
+	}
+	frag, err := os.ReadFile(filepath.Join(p.Fragments, "reports", "q3.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	const want = `<iframe class="doc-frame" src="_doc.html" sandbox="" title="Q3 &#34;report&#34; &lt;b&gt;" loading="lazy"></iframe>` + "\n"
+	if string(frag) != want {
+		t.Fatalf("the body:\n%s\nwant:\n%s", frag, want)
+	}
+
+	// Astro's part, stood in for: the page that holds the fragment.
+	page := filepath.Join(p.Out, "reports", "q3", "index.html")
+	if err := os.MkdirAll(filepath.Dir(page), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(page, []byte(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>T</title></head><body>`+string(frag)+`</body></html>`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(p.Out, "reports", "q3", "chart.png"), []byte("\x89PNG\r\n\x1a\nrest"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := copyInert(p); err != nil {
+		t.Fatal(err)
+	}
+	inert, err := os.ReadFile(filepath.Join(p.Out, "reports", "q3", "_doc.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, gone := range []string{"script", "alert", "onclick", `href="https`} {
+		if strings.Contains(string(inert), gone) {
+			t.Errorf("the copy holds %q: %s", gone, inert)
+		}
+	}
+	if !strings.Contains(string(inert), "<h1>Q3</h1>") || !strings.Contains(string(inert), "<style>h1{color:teal}</style>") {
+		t.Errorf("the copy: %s", inert)
+	}
+	if _, err := coresite.CheckOutput(p.Out, coresite.CheckOptions{}); err != nil {
+		t.Fatalf("the output check: %v", err)
+	}
+
+	// A build with no .html document has nothing to copy.
+	if err := copyInert(kitPaths{Fragments: t.TempDir(), Out: p.Out}); err != nil {
+		t.Fatal(err)
 	}
 }
 

@@ -14,10 +14,12 @@ import (
 	"golang.org/x/net/html"
 )
 
-// inertPage is the name an .html document's cleaned copy is built as: shown
+// InertPage is the name an .html document's cleaned copy is built as: shown
 // in a frame with sandbox="", so its own styles are allowed and nothing else
 // more than a page's.
-const inertPage = "_doc.html"
+const InertPage = "_doc.html"
+
+const inertPage = InertPage
 
 // Elements no page may hold. A page is HTML and CSS: the kit's two diagram
 // scripts and the frames of section 5 are the exceptions, checked on their
