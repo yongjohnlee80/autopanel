@@ -158,6 +158,9 @@ func (m *Module) Errors() []module.PublicError {
 
 const since = 11
 
+// since12 marks a verb that arrived with migration 000012.
+func since12(c module.Contract) module.Contract { c.Since = 12; return c }
+
 func (m *Module) Verbs() []module.Verb {
 	admin := func(c module.Contract) module.Contract { c.Area, c.Since = "site.admin", since; return c }
 	site := func(c module.Contract) module.Contract { c.Area, c.Since = "site", since; return c }
@@ -184,10 +187,10 @@ func (m *Module) Verbs() []module.Verb {
 			Doc: "The folders and documents in a folder (the root when path is empty) that the caller may see listed."}), m.nodeList),
 		module.Handle(site(module.Contract{Verb: "site.node.move", Mutates: true, Param: "{site, path, to}", Result: "{path, kind, title, visibility, owner, order, build}",
 			Doc: "Moves a folder or a document of yours into the folder to, one you may put things into. Its address changes, and its contents'."}), m.nodeMove),
-		module.Handle(site(module.Contract{Verb: "site.node.protect", Mutates: true, Param: "{site, path, passphrase}",
-			Doc: "Sets the passphrase of a protected folder or document of yours (an administrator may set anyone's). Whoever gives it on the site reads the node, and what a protected folder holds that is public. A new passphrase ends every grant of the one before. At least 12 characters, and none of the common ones."}), m.protect),
-		module.Handle(site(module.Contract{Verb: "site.node.unprotect", Mutates: true, Param: "{site, path}",
-			Doc: "Removes a protected node's passphrase and ends its grants: nobody is let in until one is set again."}), m.unprotect),
+		module.Handle(since12(site(module.Contract{Verb: "site.node.protect", Mutates: true, Param: "{site, path, passphrase}",
+			Doc: "Sets the passphrase of a protected folder or document of yours (an administrator may set anyone's). Whoever gives it on the site reads the node, and what a protected folder holds that is public. A new passphrase ends every grant of the one before. At least 12 characters, and none of the common ones."})), m.protect),
+		module.Handle(since12(site(module.Contract{Verb: "site.node.unprotect", Mutates: true, Param: "{site, path}",
+			Doc: "Removes a protected node's passphrase and ends its grants: nobody is let in until one is set again."})), m.unprotect),
 		module.Handle(site(module.Contract{Verb: "site.doc.put", Mutates: true, Param: "{site, folder?, parents?, slug, format, body, meta?, visibility?, share?: [name], order?, active?}",
 			Result: "{slug, visibility, version, generation, served}",
 			Doc:    "Publishes a document, or a new version of one of yours. A first publish that names no level is private; an update that names none keeps its level. A public document is on the site's host once its build is live; an internal or private one is read by members at /s/<site>/<address>/ on the app host; a protected one is read on the site's host by whoever gives its passphrase (site.node.protect). served says whether it is public."}), m.put),
