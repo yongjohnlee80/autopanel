@@ -28,7 +28,7 @@ func TestWhoMayDoWhat(t *testing.T) {
 	want := map[string]map[string][]string{
 		ActRead: {
 			Public:    {"anonymous", "a grant", "a stale grant", "the owner", "a shared member", "another member", "an admin", "an admin owner"},
-			Protected: {"a grant", "an admin", "an admin owner"},
+			Protected: {"a grant", "the owner", "an admin", "an admin owner"}, // its owner set the passphrase
 			Internal:  {"the owner", "a shared member", "another member", "an admin", "an admin owner"},
 			Private:   {"the owner", "a shared member", "an admin", "an admin owner"},
 		},

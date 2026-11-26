@@ -428,6 +428,54 @@ func applyAndCheck(t *testing.T, db dao.DataConn) {
 	if n, err := countRows(ctx, db, "web_session"); err != nil || n != 0 {
 		t.Fatalf("%d sessions outlived their user: %v", n, err)
 	}
+	// 000012: what is built of a site and of its held nodes, a protected
+	// node's verifier, and grants. Each goes with its site or its node.
+	if err := exec("INSERT INTO app_user(name, created_at) VALUES ('held', 0)"); err != nil {
+		t.Fatal(err)
+	}
+	for _, q := range []string{
+		"INSERT INTO site(host, created_at) VALUES ('held.example.com', 0)",
+		"INSERT INTO site_node(site_id, kind, slug, visibility, created_at, updated_at) SELECT id, 'folder', '', 'public', 0, 0 FROM site WHERE host = 'held.example.com'",
+		"INSERT INTO site_node(site_id, parent_id, kind, slug, format, owner_id, visibility, created_at, updated_at) SELECT n.site_id, n.id, 'doc', 'notes', 'md', u.id, 'protected', 0, 0 FROM site_node n, app_user u WHERE n.slug = '' AND u.name = 'held' AND n.site_id = (SELECT id FROM site WHERE host = 'held.example.com')",
+		"INSERT INTO site_built(site_id, fingerprint) SELECT id, 'f' FROM site WHERE host = 'held.example.com'",
+		"INSERT INTO site_held(node_id, site_id, fingerprint, build, built_at) SELECT id, site_id, 'f', 1, 0 FROM site_node WHERE slug = 'notes'",
+		"INSERT INTO site_protect(node_id, verifier) SELECT id, 'v' FROM site_node WHERE slug = 'notes'",
+		"INSERT INTO site_grant(id_hash, site_id, node_id, generation, issued_at, expires_at) SELECT " + hash + ", site_id, id, 1, 10, 20 FROM site_node WHERE slug = 'notes'",
+	} {
+		if err := exec(q); err != nil {
+			t.Fatalf("%s: %v", q, err)
+		}
+	}
+	for what, q := range map[string]string{
+		"a second build of a node":  "INSERT INTO site_held(node_id, site_id, fingerprint, build, built_at) SELECT id, site_id, 'g', 2, 0 FROM site_node WHERE slug = 'notes'",
+		"a held build numbered 0":   "UPDATE site_held SET build = 0",
+		"an empty verifier":         "UPDATE site_protect SET verifier = ''",
+		"a grant's hash twice":      "INSERT INTO site_grant(id_hash, site_id, node_id, generation, issued_at, expires_at) SELECT " + hash + ", site_id, id, 1, 10, 20 FROM site_node WHERE slug = 'notes'",
+		"a grant that is no digest": "INSERT INTO site_grant(id_hash, site_id, node_id, generation, issued_at, expires_at) SELECT 'short', site_id, id, 1, 10, 20 FROM site_node WHERE slug = 'notes'",
+		"a grant that never was":    "INSERT INTO site_grant(id_hash, site_id, node_id, generation, issued_at, expires_at) SELECT '" + strings.Repeat("f", 32) + "', site_id, id, 1, 10, 10 FROM site_node WHERE slug = 'notes'",
+		"a grant for no node":       "INSERT INTO site_grant(id_hash, site_id, node_id, generation, issued_at, expires_at) SELECT '" + strings.Repeat("g", 32) + "', id, 999999, 1, 10, 20 FROM site WHERE host = 'held.example.com'",
+	} {
+		if err := exec(q); err == nil {
+			t.Errorf("the store accepted %s", what)
+		}
+	}
+	if err := exec("DELETE FROM site WHERE host = 'held.example.com'"); err != nil {
+		t.Fatal(err)
+	}
+	for _, table := range []string{"site_built", "site_held", "site_protect", "site_grant"} {
+		if n, err := countRows(ctx, db, table); err != nil || n != 0 {
+			t.Fatalf("%d rows of %s outlived their site: %v", n, table, err)
+		}
+	}
+	if err := exec("DELETE FROM app_user WHERE name = 'held'"); err != nil {
+		t.Fatal(err)
+	}
+	if name, err := deployments.Runner().Revert(ctx, db, 12); err != nil {
+		t.Fatalf("reverting 000012 = %q, %v", name, err)
+	}
+	if err := exec("SELECT node_id FROM site_held"); err == nil {
+		t.Fatal("the site_held table outlived its revert")
+	}
 	if name, err := deployments.Runner().Revert(ctx, db, 11); err != nil {
 		t.Fatalf("reverting 000011 = %q, %v", name, err)
 	}

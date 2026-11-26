@@ -774,10 +774,12 @@ func (ss sites) StartBuild(ctx context.Context, id int64) (snap site.Snapshot, e
 		if err := rows.Close(); err != nil {
 			return err
 		}
-		// public and path, memoised from the root down
+		// public and path, memoised from the root down; kinds are the levels
+		// a node's chain holds, which say where a held one is read
 		type seen struct {
-			public bool
-			path   string
+			public            bool
+			path              string
+			protected, member bool
 		}
 		memo := map[int64]seen{}
 		var walk func(id int64, depth int) seen
@@ -794,7 +796,9 @@ func (ss sites) StartBuild(ctx context.Context, id int64) (snap site.Snapshot, e
 				m = seen{public: r.d.Visibility == site.Public}
 			} else {
 				up := walk(r.d.Parent, depth+1)
-				m = seen{public: up.public && r.d.Visibility == site.Public, path: strings.TrimPrefix(up.path+"/"+r.d.Slug, "/")}
+				m = seen{public: up.public && r.d.Visibility == site.Public, path: strings.TrimPrefix(up.path+"/"+r.d.Slug, "/"),
+					protected: up.protected || r.d.Visibility == site.Protected,
+					member:    up.member || r.d.Visibility == site.Internal || r.d.Visibility == site.Private}
 			}
 			memo[id] = m
 			return m
@@ -806,6 +810,15 @@ func (ss sites) StartBuild(ctx context.Context, id int64) (snap site.Snapshot, e
 			}
 			m := walk(nid, 0)
 			if !m.public {
+				// A held document one kind of proof can open is built alone;
+				// a held folder has no page, and a mixed chain no reader.
+				if !r.d.IsFolder() && m.path != "" && m.protected != m.member {
+					surface := site.SurfaceApp
+					if m.protected {
+						surface = site.SurfaceSite
+					}
+					snap.Held = append(snap.Held, site.SnapDoc{Doc: r.d, Meta: r.meta, SHA256: r.sha, Path: m.path, Surface: surface})
+				}
 				continue
 			}
 			if r.d.IsFolder() {
@@ -814,24 +827,64 @@ func (ss sites) StartBuild(ctx context.Context, id int64) (snap site.Snapshot, e
 			}
 			snap.Docs = append(snap.Docs, site.SnapDoc{Doc: r.d, Meta: r.meta, SHA256: r.sha, Path: m.path})
 		}
-		for i := range snap.Docs {
-			rows, err := tx.QueryContext(ctx, ss.s.q("SELECT "+resourceCols+" FROM site_resource WHERE doc_id = ? ORDER BY name"), snap.Docs[i].Doc.ID)
-			if err != nil {
-				return err
-			}
-			for rows.Next() {
-				r, err := scanResource(rows)
+		resources := func(docs []site.SnapDoc) error {
+			for i := range docs {
+				rows, err := tx.QueryContext(ctx, ss.s.q("SELECT "+resourceCols+" FROM site_resource WHERE doc_id = ? ORDER BY name"), docs[i].Doc.ID)
 				if err != nil {
-					_ = rows.Close()
 					return err
 				}
-				snap.Docs[i].Resources = append(snap.Docs[i].Resources, r)
+				for rows.Next() {
+					r, err := scanResource(rows)
+					if err != nil {
+						_ = rows.Close()
+						return err
+					}
+					docs[i].Resources = append(docs[i].Resources, r)
+				}
+				if err := rows.Close(); err != nil {
+					return err
+				}
 			}
-			if err := rows.Close(); err != nil {
+			return nil
+		}
+		if err := resources(snap.Docs); err != nil {
+			return err
+		}
+		if err := resources(snap.Held); err != nil {
+			return err
+		}
+		// What is already built, read with the rest.
+		brows, err := tx.QueryContext(ctx, ss.s.q("SELECT fingerprint FROM site_built WHERE site_id = ?"), id)
+		if err != nil {
+			return err
+		}
+		if brows.Next() {
+			if err := brows.Scan(&snap.PublicBuilt); err != nil {
+				_ = brows.Close()
 				return err
 			}
 		}
-		return nil
+		if err := brows.Close(); err != nil {
+			return err
+		}
+		snap.HeldBuilt = map[int64]site.HeldBuild{}
+		hrows, err := tx.QueryContext(ctx, ss.s.q("SELECT "+heldCols+" FROM site_held WHERE site_id = ?"), id)
+		if err != nil {
+			return err
+		}
+		for hrows.Next() {
+			h, err := scanHeld(hrows)
+			if err != nil {
+				_ = hrows.Close()
+				return err
+			}
+			snap.HeldBuilt[h.Node] = h
+		}
+		if err := hrows.Err(); err != nil {
+			_ = hrows.Close()
+			return err
+		}
+		return hrows.Close()
 	})
 	return snap, err
 }
@@ -1038,4 +1091,87 @@ func joinedLen(base, rel string) int {
 		return len(rel)
 	}
 	return len(base) + 1 + len(rel)
+}
+
+const heldCols = "node_id, site_id, fingerprint, build, mermaid, built_at"
+
+func scanHeld(rows interface{ Scan(...any) error }) (site.HeldBuild, error) {
+	var h site.HeldBuild
+	var mermaid int64
+	err := rows.Scan(&h.Node, &h.Site, &h.Fingerprint, &h.Build, &mermaid, &h.BuiltAt)
+	h.Mermaid = mermaid != 0
+	return h, err
+}
+
+// SetPublicBuilt records the fingerprint the site's public pages were built
+// from.
+func (ss sites) SetPublicBuilt(ctx context.Context, id int64, fingerprint string) error {
+	_, err := ss.s.conn.ExecContext(ctx, ss.s.q("INSERT INTO site_built(site_id, fingerprint) VALUES (?, ?) ON CONFLICT (site_id) DO UPDATE SET fingerprint = excluded.fingerprint"), id, fingerprint)
+	return err
+}
+
+// SetHeldBuilt records what is built of a held node, replacing what was. A
+// node removed meanwhile is ErrNotFound.
+func (ss sites) SetHeldBuilt(ctx context.Context, h site.HeldBuild) error {
+	mermaid := 0
+	if h.Mermaid {
+		mermaid = 1
+	}
+	return ss.s.tx(ctx, func(tx dao.TxConn) error {
+		rows, err := tx.QueryContext(ctx, ss.s.q("SELECT 1 FROM site_node WHERE id = ? AND site_id = ?"), h.Node, h.Site)
+		if err != nil {
+			return err
+		}
+		found := rows.Next()
+		if err := rows.Close(); err != nil {
+			return err
+		}
+		if !found {
+			return site.ErrNotFound
+		}
+		_, err = tx.ExecContext(ctx, ss.s.q(`INSERT INTO site_held(node_id, site_id, fingerprint, build, mermaid, built_at) VALUES (?, ?, ?, ?, ?, ?)
+			ON CONFLICT (node_id) DO UPDATE SET fingerprint = excluded.fingerprint, build = excluded.build, mermaid = excluded.mermaid, built_at = excluded.built_at`),
+			h.Node, h.Site, h.Fingerprint, h.Build, mermaid, h.BuiltAt)
+		return err
+	})
+}
+
+// DropHeld forgets what is built of a node.
+func (ss sites) DropHeld(ctx context.Context, node int64) error {
+	_, err := ss.s.conn.ExecContext(ctx, ss.s.q("DELETE FROM site_held WHERE node_id = ?"), node)
+	return err
+}
+
+// HeldOf answers what is built of a node; ErrNotFound when nothing is.
+func (ss sites) HeldOf(ctx context.Context, node int64) (site.HeldBuild, error) {
+	rows, err := ss.s.conn.QueryContext(ctx, ss.s.q("SELECT "+heldCols+" FROM site_held WHERE node_id = ?"), node)
+	if err != nil {
+		return site.HeldBuild{}, err
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return site.HeldBuild{}, err
+		}
+		return site.HeldBuild{}, site.ErrNotFound
+	}
+	h, err := scanHeld(rows)
+	if err != nil {
+		return site.HeldBuild{}, err
+	}
+	return h, rows.Close()
+}
+
+// HasProtected reports whether the site has a protected node.
+func (ss sites) HasProtected(ctx context.Context, id int64) (bool, error) {
+	rows, err := ss.s.conn.QueryContext(ctx, ss.s.q("SELECT 1 FROM site_node WHERE site_id = ? AND visibility = 'protected' LIMIT 1"), id)
+	if err != nil {
+		return false, err
+	}
+	has := rows.Next()
+	if err := rows.Err(); err != nil {
+		_ = rows.Close()
+		return false, err
+	}
+	return has, rows.Close()
 }

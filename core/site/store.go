@@ -46,6 +46,23 @@ type Snapshot struct {
 	Build   int64
 	Folders []SnapFolder // public folders under public folders only
 	Docs    []SnapDoc    // public documents under public folders only
+	// Held are the documents that are not public in effect and that one
+	// kind of proof can open (SurfaceSite or SurfaceApp), each built alone.
+	Held []SnapDoc
+	// PublicBuilt is the fingerprint the public pages were last built from;
+	// HeldBuilt, what is built of each held node.
+	PublicBuilt string
+	HeldBuilt   map[int64]HeldBuild
+}
+
+// HeldBuild is what is built of one held node: the files of build Build,
+// made from an input of that fingerprint.
+type HeldBuild struct {
+	Node, Site  int64
+	Fingerprint string
+	Build       int64
+	Mermaid     bool
+	BuiltAt     int64
 }
 
 // SnapDoc is one public document of a snapshot, at its path.
@@ -55,6 +72,7 @@ type SnapDoc struct {
 	SHA256    string
 	Path      string // its slugs from the root, joined by /
 	Resources []Resource
+	Surface   string // a held document's: SurfaceSite or SurfaceApp
 }
 
 // SnapFolder is one public folder of a snapshot, at its path.
@@ -91,6 +109,16 @@ type Store interface {
 	StartBuild(ctx context.Context, id int64) (Snapshot, error)
 	// FinishBuild records build n's end: failure "" when it went live.
 	FinishBuild(ctx context.Context, id, n int64, failure string, at int64) (Site, error)
+	// SetPublicBuilt records the fingerprint the public pages were built
+	// from; SetHeldBuilt what is built of a held node (replacing what was);
+	// DropHeld forgets a node's; HeldOf answers a node's, ErrNotFound when
+	// nothing is built of it.
+	SetPublicBuilt(ctx context.Context, site int64, fingerprint string) error
+	SetHeldBuilt(ctx context.Context, h HeldBuild) error
+	DropHeld(ctx context.Context, node int64) error
+	HeldOf(ctx context.Context, node int64) (HeldBuild, error)
+	// HasProtected reports whether the site has a protected node.
+	HasProtected(ctx context.Context, site int64) (bool, error)
 	// TakeDown records that the live pages were taken down.
 	TakeDown(ctx context.Context, id int64) error
 	// Owed are the sites a build is owed to: asked for and not yet live or

@@ -241,6 +241,9 @@ func (m *Module) folderAdd(ctx context.Context, p FolderAsk) (NodeView, error) {
 	if err := f.Check(); err != nil {
 		return NodeView{}, err
 	}
+	if _, err := SurfaceOf(append(append([]Doc{}, parent...), f)); err != nil {
+		return NodeView{}, err
+	}
 	f, err = m.store.Create(ctx, f, Source{Meta: meta, Body: []byte{}})
 	if err != nil {
 		return NodeView{}, err
@@ -291,6 +294,17 @@ func (m *Module) folderSet(ctx context.Context, p FolderAsk) (NodeView, error) {
 			return NodeView{}, err
 		}
 	}
+	if level, err := Level(p.Visibility, &old); err == nil && level != old.Visibility {
+		all, err := m.store.Docs(ctx, s.ID)
+		if err != nil {
+			return NodeView{}, err
+		}
+		as := old
+		as.Visibility = level
+		if err := mixedUnder(all, as); err != nil {
+			return NodeView{}, err
+		}
+	}
 	d, lowered, err := m.store.Update(ctx, old.ID, func(cur Doc) (Doc, *Source, error) {
 		if cur.Owner != me.ID {
 			return Doc{}, nil, ErrNotYours
@@ -320,11 +334,11 @@ func (m *Module) folderSet(ctx context.Context, p FolderAsk) (NodeView, error) {
 	above := chain[:len(chain)-1]
 	chain = append(append([]Doc{}, above...), d)
 	v := m.view(ctx, chain, meta)
+	// What is under a folder is built again when its level changes: where
+	// a held document is read follows the levels above it.
 	withdrawn := lowered && PublicAt(above)
-	if withdrawn || PublicAt(chain) {
-		if v.Build, err = m.changed(ctx, s, withdrawn); err != nil {
-			return v, err
-		}
+	if v.Build, err = m.changed(ctx, s, withdrawn); err != nil {
+		return v, err
 	}
 	return v, nil
 }
@@ -352,9 +366,7 @@ func (m *Module) folderRemove(ctx context.Context, p FolderAsk) (struct{}, error
 	if _, err := m.store.Remove(ctx, f.ID); err != nil {
 		return struct{}{}, err
 	}
-	if PublicAt(chain) {
-		_, err = m.changed(ctx, s, true)
-	}
+	_, err = m.changed(ctx, s, PublicAt(chain))
 	return struct{}{}, err
 }
 
@@ -421,7 +433,17 @@ func (m *Module) nodeMove(ctx context.Context, p NodeAsk) (NodeView, error) {
 	if !MayPutIn(who, to) {
 		return NodeView{}, ErrNotYours
 	}
-	wasPublic := PublicAt(chain)
+	{
+		all, err := m.store.Docs(ctx, s.ID)
+		if err != nil {
+			return NodeView{}, err
+		}
+		as := n
+		as.Parent = to[len(to)-1].ID
+		if err := mixedUnder(all, as); err != nil {
+			return NodeView{}, err
+		}
+	}
 	d, lowered, err := m.store.Move(ctx, n.ID, to[len(to)-1].ID)
 	if err != nil {
 		return NodeView{}, err
@@ -434,10 +456,8 @@ func (m *Module) nodeMove(ctx context.Context, p NodeAsk) (NodeView, error) {
 		}
 	}
 	v := m.view(ctx, moved, meta)
-	if lowered || wasPublic || PublicAt(moved) {
-		if v.Build, err = m.changed(ctx, s, lowered); err != nil {
-			return v, err
-		}
+	if v.Build, err = m.changed(ctx, s, lowered); err != nil {
+		return v, err
 	}
 	return v, nil
 }

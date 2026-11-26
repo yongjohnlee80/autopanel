@@ -68,6 +68,10 @@ type Module struct {
 	// host something else serves (a route, the mail host, the API). nil: none.
 	routed func(ctx context.Context) error
 	taken  func(host string) bool
+	// sessions and isAppHost are what reading on the app host needs
+	// (read.go); nil: no held document is read there.
+	sessions  Sessions
+	isAppHost func(host string) bool
 }
 
 // SetHosts has the module keep the gate's table in step with the sites,
@@ -141,6 +145,7 @@ func (m *Module) Errors() []module.PublicError {
 		{Err: ErrTooManyNodes, Code: -32329, Name: "site.folder_full", Message: "a folder holds at most 1000 folders and documents"},
 		{Err: ErrBadPath, Code: -32330, Name: "site.bad_path", Message: "a path is slugs joined by /, with no empty part"},
 		{Err: ErrNoContentHost, Code: -32332, Name: "site.no_content_host", Message: "an html document runs its scripts only from the site's content host: set one (site.set content_host), or keep it while a document needs it"},
+		{Err: ErrMixedLevels, Code: -32333, Name: "site.mixed_levels", Message: "a protected folder or document cannot be above or below an internal or private one: a reader proves a passphrase on the site, and membership on the app host, never both at once"},
 		{Err: ErrRoot, Code: -32331, Name: "site.root", Message: "the site's root folder is not changed, moved or removed"},
 	}
 }
@@ -550,6 +555,9 @@ func (m *Module) put(ctx context.Context, p Put) (Published, error) {
 		if err := d.Check(); err != nil {
 			return Published{}, err
 		}
+		if _, err := SurfaceOf(append(append([]Doc{}, folder...), d)); err != nil {
+			return Published{}, err
+		}
 		d, err = m.store.Create(ctx, d, src)
 		if err != nil {
 			return Published{}, err
@@ -564,6 +572,13 @@ func (m *Module) put(ctx context.Context, p Put) (Published, error) {
 			return Published{}, ErrNotYours
 		}
 		return Published{}, ErrDuplicate // someone else's slug, which the caller may not even see
+	}
+	if level, err := Level(p.Visibility, &old); err == nil {
+		as := old
+		as.Visibility = level
+		if _, err := SurfaceOf(append(append([]Doc{}, folder...), as)); err != nil {
+			return Published{}, err
+		}
 	}
 	d, lowered, err := m.store.Update(ctx, old.ID, func(cur Doc) (Doc, *Source, error) {
 		if cur.Owner != me.ID { // changed hands since the read: it cannot, but the rule is the store's read
@@ -591,15 +606,13 @@ func (m *Module) put(ctx context.Context, p Put) (Published, error) {
 	return m.published(ctx, s, folder, d, PublicAt(oldChain) && !PublicAt(append(append([]Doc{}, folder...), d)) && lowered)
 }
 
-// published answers a publish into folder, asking for the build it needs:
-// when the document is public in effect, or something public was withdrawn.
+// published answers a publish into folder, asking for the build that will
+// hold it: the public pages' when it is public in effect, its own when it is
+// held. When something public was withdrawn, the pages are taken down first.
 func (m *Module) published(ctx context.Context, s Site, folder []Doc, d Doc, withdrawn bool) (Published, error) {
 	chain := append(append([]Doc{}, folder...), d)
 	p := Published{Path: pathOfChain(chain), Slug: d.Slug, Visibility: d.Visibility, Version: d.Version, Generation: d.Generation}
 	public := PublicAt(chain)
-	if !public && !withdrawn {
-		return p, nil
-	}
 	n, err := m.changed(ctx, s, withdrawn)
 	if err != nil {
 		return p, err
@@ -660,14 +673,14 @@ func (m *Module) removeDoc(ctx context.Context, p DocAsk) (struct{}, error) {
 	if !MayAt(who, ActRemove, chain) {
 		return struct{}{}, ErrNotYours
 	}
-	if _, err = m.store.Remove(ctx, d.ID); err != nil || !PublicAt(chain) {
+	if _, err = m.store.Remove(ctx, d.ID); err != nil {
 		return struct{}{}, err
 	}
 	s, err := m.store.SiteByID(ctx, d.Site)
 	if err != nil {
 		return struct{}{}, err
 	}
-	_, err = m.changed(ctx, s, true)
+	_, err = m.changed(ctx, s, PublicAt(chain)) // a held one: its files go at the build
 	return struct{}{}, err
 }
 
@@ -733,10 +746,10 @@ func (m *Module) assetPut(ctx context.Context, p AssetAsk) (AssetView, error) {
 	return AssetView{Name: r.Name, MIME: r.MIME, Size: r.Size, Build: n}, err
 }
 
-// docChanged asks for a build when a public document's files changed.
+// docChanged asks for a build when a document's files changed.
 func (m *Module) docChanged(ctx context.Context, chain []Doc) (int64, error) {
 	d := chain[len(chain)-1]
-	if !PublicAt(chain) || m.builds == nil {
+	if m.builds == nil {
 		return 0, nil
 	}
 	s, err := m.store.SiteByID(ctx, d.Site)

@@ -241,7 +241,7 @@ func (p *pageCheck) script(n *html.Node) error {
 		return errors.New("a <script> that is not deferred")
 	}
 	for _, k := range p.c.opt.KitScripts {
-		if src == k.Path && integrity == k.Integrity && integrity != "" {
+		if src == p.c.opt.Base+k.Path && integrity == k.Integrity && integrity != "" {
 			if p.scripts[src] {
 				return fmt.Errorf("the script %s twice", src)
 			}

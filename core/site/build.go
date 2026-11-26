@@ -2,12 +2,15 @@ package site
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"path"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -35,8 +38,15 @@ type Pipeline interface {
 	// TakeDown withdraws host's live pages at once: every public path
 	// answers 503 until a build is published.
 	TakeDown(host string) error
-	// Remove deletes host's pages and work.
+	// Remove deletes host's pages and work, and its held files.
 	Remove(host string) error
+	// PublishHeld makes the named files of the checked output, and the named
+	// directories whole, node's held files of build: nothing else a job
+	// wrote is kept.
+	PublishHeld(job Job, node, build int64, files, dirs []string) error
+	// SweepHeld removes every held directory of host that is not a kept
+	// node's build (keep: node → build).
+	SweepHeld(host string, keep map[int64]int64) error
 }
 
 // Job is one build's directories, as the pipeline knows them.
@@ -69,6 +79,9 @@ type Manifest struct {
 // Kit is what the core knows of the site kit's image: the scripts a diagram
 // page may load.
 type Kit struct {
+	// Image is the kit's image, by digest: another image builds every page
+	// again.
+	Image   string
 	Scripts []KitScript
 }
 
@@ -78,9 +91,13 @@ type BuildInput struct {
 	Build int64  `json:"build"`
 	Host  string `json:"host"` // the site's host: its canonical addresses, its feed's and its sitemap's
 	// ContentHost is where an active .html document's frame loads it from.
-	ContentHost string        `json:"content_host,omitempty"`
-	Folders     []InputFolder `json:"folders"`
-	Docs        []InputDoc    `json:"docs"`
+	ContentHost string `json:"content_host,omitempty"`
+	// Held: the build is one held document's, alone; its page is at the
+	// output's root, and every address it writes is under Base.
+	Held    bool          `json:"held,omitempty"`
+	Base    string        `json:"base,omitempty"`
+	Folders []InputFolder `json:"folders"`
+	Docs    []InputDoc    `json:"docs"`
 }
 
 // InputFolder is one public folder of a build: its page at Page lists its
@@ -106,6 +123,8 @@ type InputDoc struct {
 	Dir     string          `json:"dir"`
 	Page    string          `json:"page"`
 	Mermaid bool            `json:"mermaid,omitempty"`
+
+	sha string // its source's SHA-256: the core's own, never the build's
 }
 
 // PagePath is where a node's page is in the output: at its address, as
@@ -271,6 +290,178 @@ func (b *Builds) build(ctx context.Context, snap Snapshot) error {
 	if err != nil {
 		return err
 	}
+	// The public pages, unless they are already built from this very input.
+	if fp := b.publicFingerprint(snap); fp != snap.PublicBuilt || s.Down || s.LiveBuild == 0 {
+		if err := b.buildPublic(ctx, snap, config); err != nil {
+			return err
+		}
+		if err := b.store.SetPublicBuilt(ctx, s.ID, fp); err != nil {
+			return err
+		}
+	}
+	// Each held document alone, when what is built of it is not from this
+	// input. One that fails keeps what it had, and the others are still built.
+	keep := map[int64]int64{}
+	var failed []string
+	for _, sd := range snap.Held {
+		id := sd.Doc.ID
+		fp := b.heldFingerprint(s, sd)
+		was, built := snap.HeldBuilt[id]
+		if built && was.Fingerprint == fp {
+			keep[id] = was.Build
+			continue
+		}
+		err := b.buildHeld(ctx, snap, sd, config, fp)
+		switch {
+		case errors.Is(err, ErrSuperseded), errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
+			return err
+		case errors.Is(err, ErrNotFound): // removed while it was built
+		case err != nil:
+			// The reason may quote the document: it goes to the log the owner
+			// and an administrator read, never to the site's status.
+			b.log.Warn("site: a held document's build failed", "site", s.Host, "node", id, "err", err)
+			failed = append(failed, strconv.FormatInt(id, 10))
+			if built {
+				keep[id] = was.Build
+			}
+		default:
+			keep[id] = snap.Build
+		}
+	}
+	for id := range snap.HeldBuilt {
+		if _, ok := keep[id]; !ok {
+			if err := b.store.DropHeld(ctx, id); err != nil {
+				return err
+			}
+		}
+	}
+	if err := b.pipe.SweepHeld(s.Host, keep); err != nil {
+		return err
+	}
+	if len(failed) > 0 {
+		return fmt.Errorf("the build of %d held document(s) failed (node %s): see the core's log", len(failed), strings.Join(failed, ", "))
+	}
+	return nil
+}
+
+// fingerprint is the SHA-256 of what a build reads, as JSON.
+func fingerprint(v any) string {
+	raw, _ := json.Marshal(v)
+	sum := sha256.Sum256(raw)
+	return hex.EncodeToString(sum[:])
+}
+
+type fpDoc struct {
+	Path, Format, Meta, SHA string
+	Order                   int
+	Active                  bool
+	Resources               [][2]string
+}
+
+func fpOf(sd SnapDoc) fpDoc {
+	d := fpDoc{Path: sd.Path, Format: sd.Doc.Format, Meta: sd.Meta, SHA: sd.SHA256, Order: sd.Doc.Order, Active: sd.Doc.Active}
+	for _, r := range sd.Resources {
+		d.Resources = append(d.Resources, [2]string{r.Name, r.SHA256})
+	}
+	return d
+}
+
+// publicFingerprint names the public pages' whole input: the configuration,
+// the kit, the generation, and every public folder and document.
+func (b *Builds) publicFingerprint(snap Snapshot) string {
+	type folder struct {
+		Path, Meta string
+		Order      int
+	}
+	in := struct {
+		Config, ContentHost, Host string
+		Kit                       Kit
+		Gen                       int64
+		Folders                   []folder
+		Docs                      []fpDoc
+	}{Config: snap.Site.Config, ContentHost: snap.Site.ContentHost, Host: snap.Site.Host, Kit: b.kit, Gen: snap.Site.SecurityGen}
+	for _, f := range snap.Folders {
+		in.Folders = append(in.Folders, folder{f.Path, f.Meta, f.Doc.Order})
+	}
+	for _, d := range snap.Docs {
+		in.Docs = append(in.Docs, fpOf(d))
+	}
+	return fingerprint(in)
+}
+
+// heldFingerprint names one held document's input: itself, where it is read
+// (its base changes with its address and its surface), the configuration
+// and the kit. Who may read it is not in it: the page does not hold that.
+func (b *Builds) heldFingerprint(s Site, sd SnapDoc) string {
+	return fingerprint(struct {
+		Config, Host, Base string
+		Kit                Kit
+		Doc                fpDoc
+	}{s.Config, s.Host, HeldBase(s.Host, sd), b.kit, fpOf(sd)})
+}
+
+// HeldBase is the path a held document's page, its stylesheets and its files
+// are all under, on the host it is read at: its own address on the site's
+// host, or /s/<site host>/<address> on the app host.
+func HeldBase(host string, sd SnapDoc) string {
+	if sd.Surface == SurfaceApp {
+		return AppPrefix + host + "/" + sd.Path
+	}
+	return "/" + sd.Path
+}
+
+// AppPrefix is where the app host serves the sites' internal and private
+// documents: /s/<site host>/<address>/.
+const AppPrefix = "/s/"
+
+// writeDoc writes one document's source and files into the job's input, and
+// answers its entry in the build's index.
+func (b *Builds) writeDoc(ctx context.Context, job Job, sd SnapDoc, page string) (InputDoc, error) {
+	d := sd.Doc
+	dir := "docs/" + sd.Path
+	src, err := b.store.Source(ctx, d.ID)
+	if err != nil {
+		return InputDoc{}, err
+	}
+	if src.SHA256 != sd.SHA256 {
+		return InputDoc{}, ErrSuperseded
+	}
+	source := dir + "/index." + map[string]string{Markdown: "md", XMD: "x.md", HTML: "html"}[d.Format]
+	if err := b.pipe.Input(job, source, src.Body); err != nil {
+		return InputDoc{}, err
+	}
+	for _, r := range sd.Resources {
+		got, data, err := b.store.ResourceData(ctx, d.ID, r.Name)
+		if err != nil || got.SHA256 != r.SHA256 {
+			return InputDoc{}, ErrSuperseded
+		}
+		if err := b.pipe.Input(job, dir+"/"+r.Name, data); err != nil {
+			return InputDoc{}, err
+		}
+	}
+	var meta json.RawMessage
+	if sd.Meta != "" {
+		meta = json.RawMessage(sd.Meta)
+	}
+	folder := ""
+	if i := strings.LastIndex(sd.Path, "/"); i >= 0 {
+		folder = sd.Path[:i]
+	}
+	return InputDoc{Slug: d.Slug, Path: sd.Path, Folder: folder, Format: d.Format, Order: d.Order, Active: d.Active,
+		Meta: meta, Source: source, Dir: dir, Page: page, Mermaid: hasMermaid(src.Body, sd.Resources), sha: src.SHA256}, nil
+}
+
+func (b *Builds) kitManifest() (hashes, scripts []string) {
+	for _, k := range b.kit.Scripts {
+		hashes = append(hashes, k.Integrity)
+		scripts = append(scripts, strings.TrimPrefix(k.Path, "/"))
+	}
+	return hashes, scripts
+}
+
+// buildPublic builds the site's public pages and swaps them live.
+func (b *Builds) buildPublic(ctx context.Context, snap Snapshot, config Config) error {
+	s := snap.Site
 	job, err := b.pipe.Prepare(s.Host)
 	if err != nil {
 		return err
@@ -282,66 +473,25 @@ func (b *Builds) build(ctx context.Context, snap Snapshot) error {
 	}
 	var mermaid []string
 	for _, sd := range snap.Docs {
-		d := sd.Doc
-		dir := "docs/" + sd.Path
-		src, err := b.store.Source(ctx, d.ID)
+		doc, err := b.writeDoc(ctx, job, sd, PagePath(sd.Path))
 		if err != nil {
 			return err
 		}
-		if src.SHA256 != sd.SHA256 {
-			return ErrSuperseded
-		}
-		source := dir + "/index." + map[string]string{Markdown: "md", XMD: "x.md", HTML: "html"}[d.Format]
-		if err := b.pipe.Input(job, source, src.Body); err != nil {
-			return err
-		}
-		for _, r := range sd.Resources {
-			got, data, err := b.store.ResourceData(ctx, d.ID, r.Name)
-			if err != nil || got.SHA256 != r.SHA256 {
-				return ErrSuperseded
-			}
-			if err := b.pipe.Input(job, dir+"/"+r.Name, data); err != nil {
-				return err
-			}
-		}
-		if d.Active {
+		if doc.Active {
 			if s.ContentHost == "" {
 				return fmt.Errorf("%s runs its scripts, and the site has no content host", sd.Path)
 			}
-			active[sd.Path] = src.SHA256
+			active[sd.Path] = doc.sha
 		}
-		page := PagePath(sd.Path)
-		draws := hasMermaid(src.Body, sd.Resources)
-		if draws {
-			mermaid = append(mermaid, page)
+		if doc.Mermaid {
+			mermaid = append(mermaid, doc.Page)
 		}
-		var meta json.RawMessage
-		if sd.Meta != "" {
-			meta = json.RawMessage(sd.Meta)
-		}
-		folder := ""
-		if i := strings.LastIndex(sd.Path, "/"); i >= 0 {
-			folder = sd.Path[:i]
-		}
-		in.Docs = append(in.Docs, InputDoc{Slug: d.Slug, Path: sd.Path, Folder: folder, Format: d.Format, Order: d.Order,
-			Active: d.Active, Meta: meta, Source: source, Dir: dir, Page: page, Mermaid: draws})
+		in.Docs = append(in.Docs, doc)
 	}
-	index, err := json.Marshal(in)
-	if err != nil {
+	if err := b.writeIndex(job, in, config); err != nil {
 		return err
 	}
-	if err := b.pipe.Input(job, "build.json", index); err != nil {
-		return err
-	}
-	if err := b.pipe.Input(job, "site.json", []byte(config.JSON())); err != nil {
-		return err
-	}
-
-	log, runErr := b.pipe.Run(ctx, job)
-	out, err := b.pipe.TakeAway(job)
-	if runErr != nil {
-		return fmt.Errorf("the builder: %v\n%s", runErr, log)
-	}
+	out, err := b.run(ctx, job)
 	if err != nil {
 		return err
 	}
@@ -364,12 +514,84 @@ func (b *Builds) build(ctx context.Context, snap Snapshot) error {
 	if now.SecurityGen != s.SecurityGen {
 		return ErrSuperseded // something public was withdrawn while it ran: its output may hold it
 	}
-	hashes := make([]string, 0, len(b.kit.Scripts))
-	scripts := make([]string, 0, len(b.kit.Scripts))
-	for _, k := range b.kit.Scripts {
-		hashes = append(hashes, k.Integrity)
-		scripts = append(scripts, strings.TrimPrefix(k.Path, "/"))
-	}
+	hashes, scripts := b.kitManifest()
 	return b.pipe.Publish(job, Manifest{Build: snap.Build, SecurityGen: s.SecurityGen, Mermaid: mermaid,
 		ScriptHashes: hashes, Scripts: scripts, Host: s.Host, ContentHost: s.ContentHost})
+}
+
+func (b *Builds) writeIndex(job Job, in BuildInput, config Config) error {
+	index, err := json.Marshal(in)
+	if err != nil {
+		return err
+	}
+	if err := b.pipe.Input(job, "build.json", index); err != nil {
+		return err
+	}
+	return b.pipe.Input(job, "site.json", []byte(config.JSON()))
+}
+
+// run runs the builder on job and answers where its output is, closed to it.
+func (b *Builds) run(ctx context.Context, job Job) (string, error) {
+	log, runErr := b.pipe.Run(ctx, job)
+	out, err := b.pipe.TakeAway(job)
+	if runErr != nil {
+		return "", fmt.Errorf("the builder: %v\n%s", runErr, log)
+	}
+	return out, err
+}
+
+// HeldPage is a held document's page, at the root of its own directory.
+const HeldPage = "index.html"
+
+// heldDirs are the kit's own files of a held build, copied whole after the
+// output check has read each of them.
+var heldDirs = []string{"_astro", "_kit"}
+
+// buildHeld builds one held document alone, in a workspace of its own: the
+// build sees this document, its files, the site's configuration and the kit,
+// and nothing of any other document. Of its checked output the core keeps
+// the files it expects (the page, the look, the inert copy, the document's
+// images, the kit's own) and nothing else.
+func (b *Builds) buildHeld(ctx context.Context, snap Snapshot, sd SnapDoc, config Config, fp string) error {
+	s := snap.Site
+	if sd.Doc.Active {
+		return ErrActiveHeld
+	}
+	job, err := b.pipe.Prepare(s.Host)
+	if err != nil {
+		return err
+	}
+	doc, err := b.writeDoc(ctx, job, sd, HeldPage)
+	if err != nil {
+		return err
+	}
+	base := HeldBase(s.Host, sd)
+	in := BuildInput{Build: snap.Build, Host: s.Host, Held: true, Base: base, Folders: []InputFolder{}, Docs: []InputDoc{doc}}
+	if err := b.writeIndex(job, in, config); err != nil {
+		return err
+	}
+	out, err := b.run(ctx, job)
+	if err != nil {
+		return err
+	}
+	if _, err := CheckOutput(out, CheckOptions{
+		Mermaid:    func(p string) bool { return doc.Mermaid && path.Clean(p) == HeldPage },
+		KitScripts: b.kit.Scripts,
+		Base:       base,
+	}); err != nil {
+		return err
+	}
+	files := []string{HeldPage, "look.css"}
+	if sd.Doc.Format == HTML {
+		files = append(files, InertPage)
+	}
+	for _, r := range sd.Resources {
+		if strings.HasPrefix(r.MIME, "image/") {
+			files = append(files, r.Name)
+		}
+	}
+	if err := b.pipe.PublishHeld(job, sd.Doc.ID, snap.Build, files, heldDirs); err != nil {
+		return err
+	}
+	return b.store.SetHeldBuilt(ctx, HeldBuild{Node: sd.Doc.ID, Site: s.ID, Fingerprint: fp, Build: snap.Build, Mermaid: doc.Mermaid, BuiltAt: b.now().Unix()})
 }
