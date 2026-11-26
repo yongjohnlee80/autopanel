@@ -134,6 +134,7 @@ func (f Files) WriteContent(w Work, name string, data []byte) error {
 	// The modes are set, not asked for: the core's unit runs with a umask
 	// that would leave the input readable by root alone, and the builder,
 	// another user, must read it.
+	var dirs error
 	if dir := path.Dir(name); dir != "." {
 		if err := root.MkdirAll(dir, 0o755); err != nil {
 			return err
@@ -141,24 +142,21 @@ func (f Files) WriteContent(w Work, name string, data []byte) error {
 		made := ""
 		for _, part := range strings.Split(dir, "/") {
 			made = path.Join(made, part)
-			if err := root.Chmod(made, 0o755); err != nil {
-				return err
-			}
+			dirs = errors.Join(dirs, root.Chmod(made, 0o755))
 		}
 	}
-	file, err := root.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|unix.O_NOFOLLOW, 0o644)
+	return errors.Join(dirs, writeFile(root, name, data, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|unix.O_NOFOLLOW))
+}
+
+// writeFile writes data to name under root and sets its mode to 0644,
+// whatever the process's umask: a file another user must read.
+func writeFile(root *os.Root, name string, data []byte, flag int) error {
+	file, err := root.OpenFile(name, flag, 0o644)
 	if err != nil {
 		return err
 	}
-	if _, err := file.Write(data); err != nil {
-		file.Close()
-		return err
-	}
-	if err := file.Chmod(0o644); err != nil {
-		file.Close()
-		return err
-	}
-	return file.Close()
+	_, werr := file.Write(data)
+	return errors.Join(werr, file.Chmod(0o644), file.Close())
 }
 
 // TakeAway ends the builder's hold on the work directory once the build has
