@@ -74,6 +74,21 @@ func SiteRoute(id int64, host string) Route {
 	return Route{ID: RouteID(-id), Host: host, PathPrefix: "/", Upstream: SiteUpstream}
 }
 
+// contentRouteBase sets a site's content host's route apart from the site's
+// own: -(id) is the site's, -(contentRouteBase + id) its content host's.
+const contentRouteBase = 1 << 40
+
+// SiteRoutes are the routes the core makes for the site of id: its host, and
+// its content host when it has one. Both lead to the serving process, which
+// tells them apart by name.
+func SiteRoutes(id int64, host, contentHost string) []Route {
+	rs := []Route{SiteRoute(id, host)}
+	if contentHost != "" {
+		rs = append(rs, Route{ID: RouteID(-(contentRouteBase + id)), Host: contentHost, PathPrefix: "/", Upstream: SiteUpstream})
+	}
+	return rs
+}
+
 // IsSite reports whether r is a site's route.
 func (r Route) IsSite() bool { return r.Upstream == SiteUpstream && r.ID < 0 }
 

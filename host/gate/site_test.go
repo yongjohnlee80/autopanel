@@ -32,6 +32,45 @@ func TestOnlyTheCoreMakesASitesRoute(t *testing.T) {
 	}
 }
 
+// A site with a content host has two routes, of different IDs, both the
+// core's and both to the serving process: the gate holds each name (so each
+// gets a certificate) and routes each.
+func TestASitesContentHostIsRoutedToo(t *testing.T) {
+	rs := core.SiteRoutes(3, "blog.example.com", "content.example.com")
+	if len(rs) != 2 || rs[0] != core.SiteRoute(3, "blog.example.com") || rs[0].ID == rs[1].ID {
+		t.Fatalf("the routes: %+v", rs)
+	}
+	for _, r := range rs {
+		if n, err := r.Normalize(); err != nil || n != r || !r.IsSite() {
+			t.Fatalf("%+v: %+v, %v", r, n, err)
+		}
+	}
+	if one := core.SiteRoutes(3, "blog.example.com", ""); len(one) != 1 {
+		t.Fatalf("a site with no content host: %+v", one)
+	}
+	// Two sites' routes never share an ID, a content host's included.
+	all := append(rs, core.SiteRoutes(4, "docs.example.com", "files.example.com")...)
+	snap, err := Build(all, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	table := core.NewTable[http.Handler]()
+	table.Swap(snap)
+	seen := map[core.RouteID]bool{}
+	for _, r := range all {
+		if seen[r.ID] {
+			t.Fatalf("an ID twice: %d", r.ID)
+		}
+		seen[r.ID] = true
+		if !table.Holds(r.Host) {
+			t.Errorf("the gate does not hold %s", r.Host)
+		}
+		if got, _, ok := table.Match(r.Host, "/guides/calc/"); !ok || got.ID != r.ID {
+			t.Errorf("%s is not routed: %+v, %v", r.Host, got, ok)
+		}
+	}
+}
+
 // The gate serves a site's route from the socket it was told at its start,
 // whatever the route says; with none, the answer is 503.
 func TestASitesRouteIsServedFromItsSocket(t *testing.T) {
