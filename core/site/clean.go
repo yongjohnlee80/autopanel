@@ -212,10 +212,12 @@ func (c *cleaner) attrs(n *html.Node, own []string) []html.Attribute {
 			if !contains(own, key) {
 				continue
 			}
-			if v := stripURL(a.Val); !strings.HasPrefix(v, "#") {
+			v := stripURL(a.Val)
+			if !strings.HasPrefix(v, "#") {
 				elsewhere = v
 				continue
 			}
+			a.Val = v
 		case key == "src":
 			if !contains(own, key) || !localURL(a.Val) {
 				continue

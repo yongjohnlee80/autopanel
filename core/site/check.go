@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -38,7 +39,17 @@ type CheckOptions struct {
 	// ContentHost is where an active .html document is served from; "" when
 	// the site has none.
 	ContentHost string
+	// Active are the site's active .html documents by the core's record: a
+	// document's address → its source's SHA-256, in hex. Each must be in the
+	// output under ActiveDir, byte for byte; nothing else may be there.
+	Active map[string]string
 }
+
+// ActiveDir is where a build puts the active .html documents: each as
+// <ActiveDir>/<address>/index.html, its source as it was published. The
+// serving process answers the content host from this directory alone, and
+// never serves it on the site's own host.
+const ActiveDir = "_active"
 
 // KitScript is one script the kit ships: its path on the site and its
 // Subresource Integrity value.
@@ -101,6 +112,11 @@ func CheckOutput(dir string, opt CheckOptions) (CheckReport, error) {
 	for _, name := range names {
 		if err := c.check(name); err != nil {
 			return CheckReport{}, err
+		}
+	}
+	for doc := range c.opt.Active {
+		if !c.exists(activeFile(doc)) {
+			return CheckReport{}, refuse(activeFile(doc), "an active document the build did not make")
 		}
 	}
 	return c.report, nil
@@ -219,6 +235,9 @@ func (c *checker) check(rel string) error {
 		return err
 	}
 	c.report.Files++
+	if rel == ActiveDir || strings.HasPrefix(rel, ActiveDir+"/") {
+		return c.checkActive(rel, data)
+	}
 	switch ext {
 	case ".html":
 		c.report.Pages++
@@ -273,3 +292,25 @@ func (c *checker) kitScript(rel string, data []byte) bool {
 // exists reports whether the walk found rel: once the walk is done, the disk
 // is not asked again.
 func (c *checker) exists(rel string) bool { _, ok := c.files[rel]; return ok }
+
+func activeFile(doc string) string { return ActiveDir + "/" + doc + "/index.html" }
+
+// checkActive passes a file under ActiveDir only when it is an active
+// document of the core's record, as it was published: the one place a build
+// may put markup the check does not read, so it must be the bytes the core
+// already holds, and nothing a build made.
+func (c *checker) checkActive(rel string, data []byte) error {
+	doc, ok := strings.CutSuffix(strings.TrimPrefix(rel, ActiveDir+"/"), "/index.html")
+	if !ok || c.opt.ContentHost == "" {
+		return refuse(rel, "a file among the active documents that is none")
+	}
+	want, ok := c.opt.Active[doc]
+	if !ok {
+		return refuse(rel, "an active document the site does not have")
+	}
+	sum := sha256.Sum256(data)
+	if hex.EncodeToString(sum[:]) != want {
+		return refuse(rel, "an active document that is not what was published")
+	}
+	return nil
+}

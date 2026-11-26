@@ -340,8 +340,23 @@ the builder's container, from an image pinned by digest (`site/Containerfile`).
       address is moved to the link's `title`, where a reader can read it.
     - The frame takes most of the window's height: without a script it cannot fit itself to what
       it holds.
-    - An active `.html` document (its scripts running, from the content host) is not built yet:
-      it is shown as its escaped source.
+  - **An active `.html` document runs its scripts, from the content host only.** `active: true`
+    at publish; public documents only.
+    - Its page on the site holds a frame of `https://<content host>/<address>/` with
+      `sandbox="allow-scripts"`: the document has no origin, so it reads no page, cookie or
+      storage of the site's.
+    - The content host serves the document as it was published, and nothing else of the site. It
+      sets no cookie and answers with
+      `Content-Security-Policy: sandbox allow-scripts; default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; form-action 'none'; base-uri 'none'`,
+      on a direct load as in a frame. So the document loads nothing from anywhere: its scripts,
+      styles and images are its own, inline.
+    - The build puts each active document under `_active/`, and the output check passes a file
+      there only when it is, byte for byte, what the core holds. The site's own host serves
+      nothing under `_active/`.
+    - **A site needs a content host first** (`site.set` with `content_host`): without one an
+      active document is refused, and the content host is not cleared while a document needs it.
+    - A script can still navigate its own frame, and so send what it holds elsewhere. What it
+      holds is the document, which is public.
 - **What it makes:**
   - the home page, a page at each document's and each folder's address, and a folder's page
     listing its public children;

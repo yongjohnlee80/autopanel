@@ -22,18 +22,21 @@ func served(t *testing.T) (Server, Files) {
 		t.Fatal(err)
 	}
 	pages := map[string]string{
-		"index.html":       "<h1>home</h1>",
-		"a/index.html":     "<h1>a</h1>",
-		"d/index.html":     `<pre class="mermaid">graph TD; A--&gt;B</pre>`,
-		"doc/_doc.html":    "<p>inert</p>",
-		"s.css":            "body{}",
-		"p.png":            "\x89PNG\r\n\x1a\nrest",
-		"x.js":             "alert(1)", // never passes the check; the server must not serve it either
-		"_kit/m.js":        "/* the kit's */",
-		"feed.xml":         "<rss/>",
-		"robots.txt":       "User-agent: *\n",
-		".hidden.html":     "<p>hidden</p>",
-		"a/.also-hidden/x": "x",
+		"index.html":                     "<h1>home</h1>",
+		"a/index.html":                   "<h1>a</h1>",
+		"d/index.html":                   `<pre class="mermaid">graph TD; A--&gt;B</pre>`,
+		"doc/_doc.html":                  "<p>inert</p>",
+		"_active/app/index.html":         "<script>run()</script>",
+		"_active/guides/calc/index.html": "<script>calc()</script>",
+		"_active/app/extra.html":         "<p>never served</p>",
+		"s.css":                          "body{}",
+		"p.png":                          "\x89PNG\r\n\x1a\nrest",
+		"x.js":                           "alert(1)", // never passes the check; the server must not serve it either
+		"_kit/m.js":                      "/* the kit's */",
+		"feed.xml":                       "<rss/>",
+		"robots.txt":                     "User-agent: *\n",
+		".hidden.html":                   "<p>hidden</p>",
+		"a/.also-hidden/x":               "x",
 	}
 	for name, data := range pages {
 		p := filepath.Join(w.Out, filepath.FromSlash(name))
@@ -51,7 +54,7 @@ func served(t *testing.T) (Server, Files) {
 		t.Fatal(err)
 	}
 	m := Manifest{Build: 7, SecurityGen: 1, Mermaid: []string{"d/index.html"},
-		ScriptHashes: []string{"sha256-AAAA", "sha256-BBBB"}, Scripts: []string{"_kit/m.js"}, ContentHost: "content.example.com"}
+		ScriptHashes: []string{"sha256-AAAA", "sha256-BBBB"}, Scripts: []string{"_kit/m.js"}, Host: "blog.example.com", ContentHost: "content.example.com"}
 	if err := f.WriteManifest(w, m); err != nil {
 		t.Fatal(err)
 	}
@@ -59,6 +62,9 @@ func served(t *testing.T) (Server, Files) {
 		t.Fatal("a manifest written twice")
 	}
 	if _, err := f.Swap(w); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.LinkContent("blog.example.com", "content.example.com"); err != nil {
 		t.Fatal(err)
 	}
 	return Server{Dir: f.Dir}, f
@@ -227,5 +233,93 @@ func TestATakenDownSiteAnswers503UntilItsNextBuild(t *testing.T) {
 	}
 	if res := get(s, "GET", "new.example.com", "/"); res.StatusCode != 404 {
 		t.Fatalf("a removed site: %d", res.StatusCode)
+	}
+}
+
+// TestTheContentHostServesActiveDocumentsAlone: the content host answers an
+// active document at its address under the policy that sandboxes it, and
+// nothing else of the site; the site's own host answers none of them; a
+// content host the site no longer names stops answering.
+func TestTheContentHostServesActiveDocumentsAlone(t *testing.T) {
+	s, f := served(t)
+	const content, blog = "content.example.com", "blog.example.com"
+	for _, target := range []string{"/app/", "/guides/calc/"} {
+		res := get(s, "GET", content, target)
+		csp := res.Header.Get("Content-Security-Policy")
+		if res.StatusCode != 200 || !strings.Contains(body(t, res), "<script>") || !strings.HasPrefix(csp, "sandbox allow-scripts; default-src 'none'") ||
+			strings.Contains(csp, "allow-same-origin") || !strings.HasPrefix(res.Header.Get("Content-Type"), "text/html") {
+			t.Fatalf("%s: %d %q", target, res.StatusCode, csp)
+		}
+		if res.Header.Get("Set-Cookie") != "" || res.Header.Get("Access-Control-Allow-Origin") != "" || res.Header.Get("X-Content-Type-Options") != "nosniff" {
+			t.Fatalf("%s: headers %v", target, res.Header)
+		}
+	}
+	if res := get(s, "GET", content, "/app"); res.StatusCode != http.StatusMovedPermanently || res.Header.Get("Location") != "/app/" {
+		t.Fatalf("without its slash: %d %q", res.StatusCode, res.Header.Get("Location"))
+	}
+	for _, target := range []string{"/", "/a/", "/index.html", "/app/extra.html", "/app/index.html", "/guides/", "/s.css", "/_kit/m.js",
+		"/doc/_doc.html", "/_active/app/", "/app/../a/", "/.site.json", "/nothere/"} {
+		if res := get(s, "GET", content, target); res.StatusCode != http.StatusNotFound {
+			t.Errorf("the content host answers %s: %d", target, res.StatusCode)
+		}
+	}
+	for _, target := range []string{"/_active/app/", "/_active/app/index.html", "/_active/", "/_active"} {
+		if res := get(s, "GET", blog, target); res.StatusCode != http.StatusNotFound {
+			t.Errorf("the site's host answers %s: %d", target, res.StatusCode)
+		}
+	}
+	if res := get(s, "POST", content, "/app/"); res.StatusCode != http.StatusMethodNotAllowed {
+		t.Errorf("a POST: %d", res.StatusCode)
+	}
+
+	// Taken down with its site.
+	if err := f.TakeDown(blog); err != nil {
+		t.Fatal(err)
+	}
+	if res := get(s, "GET", content, "/app/"); res.StatusCode != http.StatusServiceUnavailable {
+		t.Errorf("the content host of a site taken down: %d", res.StatusCode)
+	}
+}
+
+// TestAContentHostIsALinkToItsSite: one link a site; a new name replaces the
+// old; a site's own pages are never replaced by a link; removing the site
+// removes it.
+func TestAContentHostIsALinkToItsSite(t *testing.T) {
+	s, f := served(t)
+	const blog = "blog.example.com"
+	if err := f.LinkContent(blog, "content.example.com"); err != nil { // again: nothing to do
+		t.Fatal(err)
+	}
+	if err := f.LinkContent(blog, "files.example.com"); err != nil {
+		t.Fatal(err)
+	}
+	if res := get(s, "GET", "content.example.com", "/app/"); res.StatusCode != http.StatusNotFound {
+		t.Errorf("the old content host: %d", res.StatusCode)
+	}
+	// The manifest still names the old one until the next build: the new name
+	// answers nothing before it.
+	if res := get(s, "GET", "files.example.com", "/app/"); res.StatusCode != http.StatusNotFound {
+		t.Errorf("a content host the build does not name: %d", res.StatusCode)
+	}
+	if err := f.LinkContent(blog, blog); err == nil {
+		t.Error("a site as its own content host")
+	}
+	if err := f.LinkContent("other.example.com", blog); err == nil {
+		t.Error("a link over a site's pages")
+	}
+	if err := f.LinkContent(blog, ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Lstat(filepath.Join(f.Dir, "files.example.com")); err == nil {
+		t.Error("the link stayed")
+	}
+	if err := f.LinkContent(blog, "content.example.com"); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Remove(blog); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Lstat(filepath.Join(f.Dir, "content.example.com")); err == nil {
+		t.Error("a removed site's content host stayed")
 	}
 }

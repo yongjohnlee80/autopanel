@@ -57,8 +57,13 @@ type Manifest struct {
 	ScriptHashes []string `json:"script_hashes,omitempty"`
 	// Scripts are the kit's scripts' paths: the only .js the serving process
 	// serves.
-	Scripts     []string `json:"scripts,omitempty"`
-	ContentHost string   `json:"content_host,omitempty"`
+	Scripts []string `json:"scripts,omitempty"`
+	// Host is the site's own host, and ContentHost the one its active .html
+	// documents are served from: the serving process answers the content
+	// host from the directory ActiveDir of this site's pages, and nothing of
+	// that directory on the site's host.
+	Host        string `json:"host,omitempty"`
+	ContentHost string `json:"content_host,omitempty"`
 }
 
 // Kit is what the core knows of the site kit's image: the scripts a diagram
@@ -70,10 +75,12 @@ type Kit struct {
 // BuildInput is the build's index (build.json): what the kit lays out, at
 // the paths the core chose.
 type BuildInput struct {
-	Build   int64         `json:"build"`
-	Host    string        `json:"host"` // the site's host: its canonical addresses, its feed's and its sitemap's
-	Folders []InputFolder `json:"folders"`
-	Docs    []InputDoc    `json:"docs"`
+	Build int64  `json:"build"`
+	Host  string `json:"host"` // the site's host: its canonical addresses, its feed's and its sitemap's
+	// ContentHost is where an active .html document's frame loads it from.
+	ContentHost string        `json:"content_host,omitempty"`
+	Folders     []InputFolder `json:"folders"`
+	Docs        []InputDoc    `json:"docs"`
 }
 
 // InputFolder is one public folder of a build: its page at Page lists its
@@ -268,7 +275,8 @@ func (b *Builds) build(ctx context.Context, snap Snapshot) error {
 	if err != nil {
 		return err
 	}
-	in := BuildInput{Build: snap.Build, Host: s.Host, Folders: []InputFolder{}, Docs: []InputDoc{}}
+	in := BuildInput{Build: snap.Build, Host: s.Host, ContentHost: s.ContentHost, Folders: []InputFolder{}, Docs: []InputDoc{}}
+	active := map[string]string{} // an active document's address → its source's SHA-256
 	for _, f := range snap.Folders {
 		in.Folders = append(in.Folders, InputFolder{Path: f.Path, Title: titleOf(f.Meta), Order: f.Doc.Order, Page: PagePath(f.Path)})
 	}
@@ -295,6 +303,12 @@ func (b *Builds) build(ctx context.Context, snap Snapshot) error {
 			if err := b.pipe.Input(job, dir+"/"+r.Name, data); err != nil {
 				return err
 			}
+		}
+		if d.Active {
+			if s.ContentHost == "" {
+				return fmt.Errorf("%s runs its scripts, and the site has no content host", sd.Path)
+			}
+			active[sd.Path] = src.SHA256
 		}
 		page := PagePath(sd.Path)
 		draws := hasMermaid(src.Body, sd.Resources)
@@ -339,6 +353,7 @@ func (b *Builds) build(ctx context.Context, snap Snapshot) error {
 		Mermaid:     func(p string) bool { return pages[path.Clean(p)] },
 		KitScripts:  b.kit.Scripts,
 		ContentHost: s.ContentHost,
+		Active:      active,
 	}); err != nil {
 		return err
 	}
@@ -356,5 +371,5 @@ func (b *Builds) build(ctx context.Context, snap Snapshot) error {
 		scripts = append(scripts, strings.TrimPrefix(k.Path, "/"))
 	}
 	return b.pipe.Publish(job, Manifest{Build: snap.Build, SecurityGen: s.SecurityGen, Mermaid: mermaid,
-		ScriptHashes: hashes, Scripts: scripts, ContentHost: s.ContentHost})
+		ScriptHashes: hashes, Scripts: scripts, Host: s.Host, ContentHost: s.ContentHost})
 }

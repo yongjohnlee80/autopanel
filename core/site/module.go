@@ -51,6 +51,10 @@ var (
 	ErrBadMeta     = errors.New("site: a document's front matter is a JSON object")
 	ErrBadData     = errors.New("site: a file's data is base64")
 	ErrHostTaken   = errors.New("site: that host is a site's, or a site's content host")
+	// ErrNoContentHost: an .html document may run its scripts only from the
+	// site's content host, and the site has none; or the content host is being
+	// cleared while a document still runs its scripts.
+	ErrNoContentHost = errors.New("site: an html document runs its scripts only from the site's content host, and the site has none")
 )
 
 // Module is site.*.
@@ -136,6 +140,7 @@ func (m *Module) Errors() []module.PublicError {
 		{Err: ErrPathTooLong, Code: -32328, Name: "site.path_too_long", Message: "an address is at most 255 bytes"},
 		{Err: ErrTooManyNodes, Code: -32329, Name: "site.folder_full", Message: "a folder holds at most 1000 folders and documents"},
 		{Err: ErrBadPath, Code: -32330, Name: "site.bad_path", Message: "a path is slugs joined by /, with no empty part"},
+		{Err: ErrNoContentHost, Code: -32332, Name: "site.no_content_host", Message: "an html document runs its scripts only from the site's content host: set one (site.set content_host), or keep it while a document needs it"},
 		{Err: ErrRoot, Code: -32331, Name: "site.root", Message: "the site's root folder is not changed, moved or removed"},
 	}
 }
@@ -362,6 +367,17 @@ func (m *Module) set(ctx context.Context, p SiteSet) (SiteConfigView, error) {
 			}
 		}
 	}
+	if content == "" && s.ContentHost != "" {
+		ds, err := m.store.Docs(ctx, s.ID)
+		if err != nil {
+			return SiteConfigView{}, err
+		}
+		for _, d := range ds {
+			if d.Active {
+				return SiteConfigView{}, ErrNoContentHost
+			}
+		}
+	}
 	if s, err = m.store.SetSite(ctx, s.ID, config, content); err != nil {
 		return SiteConfigView{}, err
 	}
@@ -505,6 +521,9 @@ func (m *Module) put(ctx context.Context, p Put) (Published, error) {
 	probe := Doc{Parent: 1, Kind: KindDoc, Slug: p.Slug, Format: p.Format, Owner: me.ID, Visibility: Private, Order: p.Order}
 	if err := probe.Check(); err != nil {
 		return Published{}, err
+	}
+	if p.Active && s.ContentHost == "" {
+		return Published{}, ErrNoContentHost
 	}
 	if _, err := SplitPath(strings.Trim(p.Folder, "/") + "/" + p.Slug); err != nil {
 		return Published{}, err

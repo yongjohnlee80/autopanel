@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"image/color"
 	"os"
@@ -26,7 +27,10 @@ const (
 	scriptMermaid   = `<script src="/_kit/mermaid.12.1.0.js" integrity="sha256-AAAA" defer></script>`
 	scriptStart     = `<script src="/_kit/mermaid-start.js" integrity="sha256-BBBB" defer></script>`
 	contentHostName = "content.example.org"
+	activeDoc       = `<html><body><script>document.body.textContent = "hi"</script><form><input></form></body></html>`
 )
+
+var activeSum = func() string { s := sha256.Sum256([]byte(activeDoc)); return hex.EncodeToString(s[:]) }()
 
 func page(body string) string { return pageHead + body + pageTail }
 
@@ -61,6 +65,14 @@ func options(mermaidPages ...string) CheckOptions {
 	}
 }
 
+// goodOptions are what the core knows of goodSite: its diagram page and its
+// active document.
+func goodOptions() CheckOptions {
+	opt := options("a/index.html")
+	opt.Active = map[string]string{"active": activeSum}
+	return opt
+}
+
 // A good site: what the kit makes, with a chart, prose about markup, a feed,
 // a sitemap and a diagram page.
 func goodSite() map[string]string {
@@ -76,26 +88,27 @@ func goodSite() map[string]string {
 			`<img src="./https:/x/photo.png" alt="a folder named like a scheme">` +
 			`<table><tr><td align="left">a</td></tr><tr><td colspan="1">… 1200 more rows</td></tr></table>` +
 			`</article>`),
-		"https:/x/photo.png": pngBytes,
-		"a/index.html":       page(`<pre class="mermaid">graph TD; A--&gt;B</pre>` + scriptMermaid + scriptStart),
-		"a/photo.png":        pngBytes,
-		"a/photo.webp":       "RIFF\x00\x00\x00\x00WEBPVP8 ",
-		"photo.png":          pngBytes,
-		"favicon.png":        pngBytes,
-		"_astro/site.css":    `/* the kit */ :root{--accent:#0b6e4f} body{font-family:serif;background:url(/_astro/bg.png) no-repeat} @font-face{font-family:K;src:url("/_astro/k.woff2") format("woff2")} a::after{content:"url(http://x)"}`,
-		"_astro/bg.png":      pngBytes,
-		"_astro/k.woff2":     "wOF2rest",
-		"robots.txt":         "User-agent: *\nAllow: /\n",
-		"feed.xml":           `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/"><channel><title>T</title><link>https://example.org/</link><description>&lt;p&gt;d&lt;/p&gt;</description><item><title>A</title><link>https://example.org/a/</link><guid>https://example.org/a/</guid><pubDate>Sat, 21 Nov 2026 00:00:00 GMT</pubDate><dc:creator>me</dc:creator></item></channel></rss>`,
-		"sitemap.xml":        `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://example.org/</loc><lastmod>2026-11-21</lastmod></url></urlset>`,
-		"doc/index.html":     page(`<iframe src="_doc.html" sandbox="" title="the document" loading="lazy"></iframe>`),
-		"doc/_doc.html":      `<!doctype html><html><head><style>p{color:red} .x{background:url(img.png)}</style></head><body><p style="margin:0">inert</p></body></html>`,
-		"active/index.html":  page(`<iframe src="https://content.example.org/d/1/" sandbox="allow-scripts" title="t"></iframe>`),
+		"https:/x/photo.png":        pngBytes,
+		"a/index.html":              page(`<pre class="mermaid">graph TD; A--&gt;B</pre>` + scriptMermaid + scriptStart),
+		"a/photo.png":               pngBytes,
+		"a/photo.webp":              "RIFF\x00\x00\x00\x00WEBPVP8 ",
+		"photo.png":                 pngBytes,
+		"favicon.png":               pngBytes,
+		"_astro/site.css":           `/* the kit */ :root{--accent:#0b6e4f} body{font-family:serif;background:url(/_astro/bg.png) no-repeat} @font-face{font-family:K;src:url("/_astro/k.woff2") format("woff2")} a::after{content:"url(http://x)"}`,
+		"_astro/bg.png":             pngBytes,
+		"_astro/k.woff2":            "wOF2rest",
+		"robots.txt":                "User-agent: *\nAllow: /\n",
+		"feed.xml":                  `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/"><channel><title>T</title><link>https://example.org/</link><description>&lt;p&gt;d&lt;/p&gt;</description><item><title>A</title><link>https://example.org/a/</link><guid>https://example.org/a/</guid><pubDate>Sat, 21 Nov 2026 00:00:00 GMT</pubDate><dc:creator>me</dc:creator></item></channel></rss>`,
+		"sitemap.xml":               `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://example.org/</loc><lastmod>2026-11-21</lastmod></url></urlset>`,
+		"doc/index.html":            page(`<iframe src="_doc.html" sandbox="" title="the document" loading="lazy"></iframe>`),
+		"doc/_doc.html":             `<!doctype html><html><head><style>p{color:red} .x{background:url(img.png)}</style></head><body><p style="margin:0">inert</p></body></html>`,
+		"active/index.html":         page(`<iframe src="https://content.example.org/active/" sandbox="allow-scripts" title="t"></iframe>`),
+		"_active/active/index.html": activeDoc,
 	}
 }
 
 func TestAGoodSitePasses(t *testing.T) {
-	rep, err := CheckOutput(site(t, goodSite()), options("a/index.html"))
+	rep, err := CheckOutput(site(t, goodSite()), goodOptions())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -165,63 +178,66 @@ func TestTheCanvasRepertoirePasses(t *testing.T) {
 
 func TestHostilePagesAreRefused(t *testing.T) {
 	cases := map[string]string{
-		"a script":                         `<script>alert(1)</script>`,
-		"a script by src":                  `<script src="/x.js"></script>`,
-		"an event attribute":               `<img src="a.png" onerror="alert(1)">`,
-		"an event attribute, upper case":   `<IMG SRC="a.png" ONERROR="alert(1)">`,
-		"a style attribute":                `<p style="color:red">x</p>`,
-		"a style element":                  `<style>p{}</style>`,
-		"a frame without a sandbox":        `<iframe src="_doc.html"></iframe>`,
-		"the inert frame allowing scripts": `<iframe src="_doc.html" sandbox="allow-scripts"></iframe>`,
-		"the inert frame same-origin":      `<iframe src="_doc.html" sandbox="allow-same-origin"></iframe>`,
-		"a frame of another host":          `<iframe src="https://evil.example/" sandbox=""></iframe>`,
-		"the content host, same-origin":    `<iframe src="https://content.example.org/" sandbox="allow-scripts allow-same-origin"></iframe>`,
-		"a frame with srcdoc":              `<iframe srcdoc="&lt;script&gt;x&lt;/script&gt;" sandbox=""></iframe>`,
-		"a frame of a missing document":    `<iframe src="nothere/_doc.html" sandbox=""></iframe>`,
-		"a form":                           `<form action="/x"><button>go</button></form>`,
-		"an input":                         `<input type="image" src="https://evil.example/x.png">`,
-		"a checkbox that is enabled":       `<input type="checkbox">`,
-		"a disabled text input":            `<input type="text" disabled>`,
-		"a checkbox with a form":           `<input type="checkbox" disabled form="f">`,
-		"a checkbox with an event":         `<input type="checkbox" disabled onclick="x()">`,
-		"a formaction":                     `<button formaction="https://evil.example/">x</button>`,
-		"a base":                           `<base href="https://evil.example/">`,
-		"a refresh":                        `<meta http-equiv="refresh" content="0;url=https://evil.example/">`,
-		"a policy of the page's own":       `<meta http-equiv="Content-Security-Policy" content="default-src *">`,
-		"a preconnect":                     `<link rel="preconnect" href="https://evil.example/">`,
-		"a remote stylesheet":              `<link rel="stylesheet" href="https://evil.example/x.css">`,
-		"a protocol-relative stylesheet":   `<link rel="stylesheet" href="//evil.example/x.css">`,
-		"a remote image":                   `<img src="https://evil.example/x.png">`,
-		"a protocol-relative image":        `<img src="//evil.example/x.png">`,
-		"a backslash image":                `<img src="\\evil.example\x.png">`,
-		"a data image":                     `<img src="data:image/png;base64,AAAA">`,
-		"a remote srcset":                  `<img src="a.png" srcset="a.png 1x, https://evil.example/b.png 2x">`,
-		"a javascript link":                `<a href="javascript:alert(1)">x</a>`,
-		"a javascript link, encoded":       `<a href="&#106;avascript:alert(1)">x</a>`,
-		"a javascript link, tabbed":        "<a href=\"java\tscript:alert(1)\">x</a>",
-		"a javascript link, spaced":        `<a href="  JavaScript:alert(1)">x</a>`,
-		"a data link":                      `<a href="data:text/html,x">x</a>`,
-		"a ping":                           `<a href="/x" ping="https://evil.example/">x</a>`,
-		"an object":                        `<object data="x.swf"></object>`,
-		"an embed":                         `<embed src="x.swf">`,
-		"a template":                       `<template><script>x</script></template>`,
-		"a noscript":                       `<noscript><img src="https://evil.example/t.png"></noscript>`,
-		"a video":                          `<video src="/v.mp4"></video>`,
-		"MathML":                           `<math><mi>x</mi></math>`,
-		"an SVG script":                    `<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>`,
-		"an SVG foreignObject":             `<svg><foreignObject><p>x</p></foreignObject></svg>`,
-		"an SVG use":                       `<svg><use href="#a"/></svg>`,
-		"an SVG image":                     `<svg><image href="x.png" width="1" height="1"/></svg>`,
-		"an SVG link":                      `<svg><a href="https://evil.example/"><text>x</text></a></svg>`,
-		"an SVG event":                     `<svg onload="alert(1)"></svg>`,
-		"an SVG style":                     `<svg><style>*{}</style></svg>`,
-		"an SVG animation":                 `<svg><rect><set attributeName="x" to="1"/></rect></svg>`,
-		"an SVG remote fill":               `<svg><rect fill="url(https://evil.example/#g)"/></svg>`,
-		"an SVG title":                     `<svg><title>t</title></svg>`,
-		"an SVG xlink":                     `<svg><rect xlink:href="#a"/></svg>`,
-		"an SVG of another namespace":      `<svg xmlns="http://evil.example/ns"></svg>`,
-		"a style attribute in an SVG":      `<svg><rect style="fill:red"/></svg>`,
-		"a diagram script off its page":    scriptMermaid,
+		"a script":                             `<script>alert(1)</script>`,
+		"a script by src":                      `<script src="/x.js"></script>`,
+		"an event attribute":                   `<img src="a.png" onerror="alert(1)">`,
+		"an event attribute, upper case":       `<IMG SRC="a.png" ONERROR="alert(1)">`,
+		"a style attribute":                    `<p style="color:red">x</p>`,
+		"a style element":                      `<style>p{}</style>`,
+		"a frame without a sandbox":            `<iframe src="_doc.html"></iframe>`,
+		"the inert frame allowing scripts":     `<iframe src="_doc.html" sandbox="allow-scripts"></iframe>`,
+		"the inert frame same-origin":          `<iframe src="_doc.html" sandbox="allow-same-origin"></iframe>`,
+		"a frame of another host":              `<iframe src="https://evil.example/" sandbox=""></iframe>`,
+		"the content host, same-origin":        `<iframe src="https://content.example.org/" sandbox="allow-scripts allow-same-origin"></iframe>`,
+		"the content host, no active document": `<iframe src="https://content.example.org/d/1/" sandbox="allow-scripts"></iframe>`,
+		"the content host, a query":            `<iframe src="https://content.example.org/active/?x=1" sandbox="allow-scripts"></iframe>`,
+		"the content host, another path":       `<iframe src="https://content.example.org/active/x/" sandbox="allow-scripts"></iframe>`,
+		"a frame with srcdoc":                  `<iframe srcdoc="&lt;script&gt;x&lt;/script&gt;" sandbox=""></iframe>`,
+		"a frame of a missing document":        `<iframe src="nothere/_doc.html" sandbox=""></iframe>`,
+		"a form":                               `<form action="/x"><button>go</button></form>`,
+		"an input":                             `<input type="image" src="https://evil.example/x.png">`,
+		"a checkbox that is enabled":           `<input type="checkbox">`,
+		"a disabled text input":                `<input type="text" disabled>`,
+		"a checkbox with a form":               `<input type="checkbox" disabled form="f">`,
+		"a checkbox with an event":             `<input type="checkbox" disabled onclick="x()">`,
+		"a formaction":                         `<button formaction="https://evil.example/">x</button>`,
+		"a base":                               `<base href="https://evil.example/">`,
+		"a refresh":                            `<meta http-equiv="refresh" content="0;url=https://evil.example/">`,
+		"a policy of the page's own":           `<meta http-equiv="Content-Security-Policy" content="default-src *">`,
+		"a preconnect":                         `<link rel="preconnect" href="https://evil.example/">`,
+		"a remote stylesheet":                  `<link rel="stylesheet" href="https://evil.example/x.css">`,
+		"a protocol-relative stylesheet":       `<link rel="stylesheet" href="//evil.example/x.css">`,
+		"a remote image":                       `<img src="https://evil.example/x.png">`,
+		"a protocol-relative image":            `<img src="//evil.example/x.png">`,
+		"a backslash image":                    `<img src="\\evil.example\x.png">`,
+		"a data image":                         `<img src="data:image/png;base64,AAAA">`,
+		"a remote srcset":                      `<img src="a.png" srcset="a.png 1x, https://evil.example/b.png 2x">`,
+		"a javascript link":                    `<a href="javascript:alert(1)">x</a>`,
+		"a javascript link, encoded":           `<a href="&#106;avascript:alert(1)">x</a>`,
+		"a javascript link, tabbed":            "<a href=\"java\tscript:alert(1)\">x</a>",
+		"a javascript link, spaced":            `<a href="  JavaScript:alert(1)">x</a>`,
+		"a data link":                          `<a href="data:text/html,x">x</a>`,
+		"a ping":                               `<a href="/x" ping="https://evil.example/">x</a>`,
+		"an object":                            `<object data="x.swf"></object>`,
+		"an embed":                             `<embed src="x.swf">`,
+		"a template":                           `<template><script>x</script></template>`,
+		"a noscript":                           `<noscript><img src="https://evil.example/t.png"></noscript>`,
+		"a video":                              `<video src="/v.mp4"></video>`,
+		"MathML":                               `<math><mi>x</mi></math>`,
+		"an SVG script":                        `<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>`,
+		"an SVG foreignObject":                 `<svg><foreignObject><p>x</p></foreignObject></svg>`,
+		"an SVG use":                           `<svg><use href="#a"/></svg>`,
+		"an SVG image":                         `<svg><image href="x.png" width="1" height="1"/></svg>`,
+		"an SVG link":                          `<svg><a href="https://evil.example/"><text>x</text></a></svg>`,
+		"an SVG event":                         `<svg onload="alert(1)"></svg>`,
+		"an SVG style":                         `<svg><style>*{}</style></svg>`,
+		"an SVG animation":                     `<svg><rect><set attributeName="x" to="1"/></rect></svg>`,
+		"an SVG remote fill":                   `<svg><rect fill="url(https://evil.example/#g)"/></svg>`,
+		"an SVG title":                         `<svg><title>t</title></svg>`,
+		"an SVG xlink":                         `<svg><rect xlink:href="#a"/></svg>`,
+		"an SVG of another namespace":          `<svg xmlns="http://evil.example/ns"></svg>`,
+		"a style attribute in an SVG":          `<svg><rect style="fill:red"/></svg>`,
+		"a diagram script off its page":        scriptMermaid,
 	}
 	for name, body := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -459,5 +475,36 @@ func TestOnlyTheKitsScriptsPassAsFiles(t *testing.T) {
 		if _, err := CheckOutput(site(t, files), opt); !errors.Is(err, ErrOutput) {
 			t.Errorf("%s: %v", name, err)
 		}
+	}
+}
+
+// TestActiveDocumentsAreTheCoresOwnBytes: under the active directory a build
+// may put only the active documents the core has, as they were published;
+// each must be there; and without a content host there is no such directory.
+func TestActiveDocumentsAreTheCoresOwnBytes(t *testing.T) {
+	change := func(f func(map[string]string)) map[string]string {
+		files := goodSite()
+		f(files)
+		return files
+	}
+	cases := map[string]map[string]string{
+		"an active document changed by the build": change(func(f map[string]string) { f["_active/active/index.html"] = activeDoc + "<script>more()</script>" }),
+		"a document the site does not have":       change(func(f map[string]string) { f["_active/other/index.html"] = activeDoc }),
+		"another file beside it":                  change(func(f map[string]string) { f["_active/active/extra.html"] = activeDoc }),
+		"a script beside it":                      change(func(f map[string]string) { f["_active/active/x.js"] = "x()" }),
+		"a file at the top":                       change(func(f map[string]string) { f["_active/index.html"] = activeDoc }),
+		"an active document not built":            change(func(f map[string]string) { delete(f, "_active/active/index.html") }),
+	}
+	for name, files := range cases {
+		if _, err := CheckOutput(site(t, files), goodOptions()); !errors.Is(err, ErrOutput) {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+	opt := goodOptions()
+	opt.ContentHost = ""
+	files := goodSite()
+	delete(files, "active/index.html")
+	if _, err := CheckOutput(site(t, files), opt); !errors.Is(err, ErrOutput) {
+		t.Errorf("an active document with no content host: %v", err)
 	}
 }

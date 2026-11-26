@@ -66,7 +66,7 @@ func TestTheInertCopyKeepsNothingThatActs(t *testing.T) {
 	files := goodSite()
 	files["doc/_doc.html"] = got
 	files["doc/chart.png"], files["doc/hero.png"] = pngBytes, pngBytes
-	if _, err := CheckOutput(site(t, files), options("a/index.html")); err != nil {
+	if _, err := CheckOutput(site(t, files), goodOptions()); err != nil {
 		t.Fatalf("the output check refuses the copy: %v", err)
 	}
 }

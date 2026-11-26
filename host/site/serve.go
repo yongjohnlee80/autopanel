@@ -82,6 +82,11 @@ func pagePolicy(m Manifest, mermaid bool) string {
 	return p
 }
 
+// activePolicy is the content host's, on a direct load as in a frame: the
+// document is sandboxed with scripts and without an origin, loads nothing
+// from anywhere, and sends no form.
+const activePolicy = "sandbox allow-scripts; default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; form-action 'none'; base-uri 'none'"
+
 const inertPolicy = "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'self'; base-uri 'none'; form-action 'none'"
 
 // Server is the serving process: it reads the live pages of every site and
@@ -111,9 +116,19 @@ func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.refuse(w, http.StatusNotFound)
 		return
 	}
-	root, err := os.OpenRoot(path.Join(s.Dir, host))
+	// A content host is a link to its site's pages: it answers that site's
+	// active documents, and nothing else of it.
+	site, content := host, false
+	if target, err := os.Readlink(path.Join(s.Dir, host)); err == nil {
+		if hostName(target) != nil {
+			s.refuse(w, http.StatusNotFound)
+			return
+		}
+		site, content = target, true
+	}
+	root, err := os.OpenRoot(path.Join(s.Dir, site))
 	if err != nil {
-		if (Files{Dir: s.Dir}).IsDown(host) {
+		if (Files{Dir: s.Dir}).IsDown(site) {
 			// Taken down when something public was withdrawn: every path, until
 			// a build passes. Not a missing page, so nothing caches it as one.
 			h.Set("Retry-After", "30")
@@ -125,7 +140,18 @@ func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer root.Close()
 	m := readManifest(root)
+	if content {
+		if m.ContentHost != host || m.Host != site {
+			s.refuse(w, http.StatusNotFound)
+			return
+		}
+		s.serveActive(w, r, root, m)
+		return
+	}
 	name, redirect, ok := pageName(root, r.URL.Path)
+	if first, _, _ := strings.Cut(strings.TrimPrefix(path.Clean(r.URL.Path), "/"), "/"); first == coresite.ActiveDir {
+		ok = false // the active documents are the content host's alone
+	}
 	if !ok {
 		s.refuse(w, http.StatusNotFound)
 		return
@@ -164,6 +190,47 @@ func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.Set("Content-Security-Policy", pagePolicy(m, contains(m.Mermaid, name)))
 	}
 	h.Set("Content-Type", ctype)
+	h.Set("Cache-Control", "public, max-age=300")
+	h.Set("ETag", fmt.Sprintf(`"%x-%x-%x"`, m.Build, info.Size(), info.ModTime().UnixNano()))
+	http.ServeContent(w, r, "", info.ModTime(), f)
+}
+
+// serveActive answers the content host: an active document at its address,
+// with a slash, under the policy that sandboxes it. It sets no cookie and no
+// CORS header, and serves no other file.
+func (s Server) serveActive(w http.ResponseWriter, r *http.Request, root *os.Root, m Manifest) {
+	h := w.Header()
+	p := r.URL.Path
+	clean := path.Clean(p)
+	if !strings.HasPrefix(p, "/") || clean == "/" || strings.Contains(p, "\\") || strings.ContainsRune(p, 0) {
+		s.refuse(w, http.StatusNotFound)
+		return
+	}
+	for _, part := range strings.Split(strings.TrimPrefix(clean, "/"), "/") {
+		if strings.HasPrefix(part, ".") || strings.HasPrefix(part, "_") {
+			s.refuse(w, http.StatusNotFound)
+			return
+		}
+	}
+	name := coresite.ActiveDir + clean + "/index.html"
+	f, err := root.OpenFile(name, os.O_RDONLY|unix.O_NOFOLLOW|unix.O_NONBLOCK, 0)
+	if err != nil {
+		s.refuse(w, http.StatusNotFound)
+		return
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil || !info.Mode().IsRegular() {
+		s.refuse(w, http.StatusNotFound)
+		return
+	}
+	if p != clean+"/" {
+		h.Set("Content-Security-Policy", activePolicy)
+		http.Redirect(w, r, clean+"/", http.StatusMovedPermanently)
+		return
+	}
+	h.Set("Content-Security-Policy", activePolicy)
+	h.Set("Content-Type", "text/html; charset=utf-8")
 	h.Set("Cache-Control", "public, max-age=300")
 	h.Set("ETag", fmt.Sprintf(`"%x-%x-%x"`, m.Build, info.Size(), info.ModTime().UnixNano()))
 	http.ServeContent(w, r, "", info.ModTime(), f)

@@ -271,7 +271,11 @@ func TestASitesConfiguration(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = st.Close() })
-	m := site.NewModule(st.Sites(), people{"user:root": {ID: 1, Name: "root", Admin: true}})
+	ann, err := st.Users().AddUser(ctx, "ann", auth.RoleOperator, nil, "v", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := site.NewModule(st.Sites(), people{"user:root": {ID: 1, Name: "root", Admin: true}, "user:ann": {ID: ann.ID, Name: "ann"}})
 	for _, h := range []string{"blog.example.com", "docs.example.com"} {
 		if _, err := call[site.SiteView](t, m, "user:root", "site.add", site.SiteAsk{Host: h}); err != nil {
 			t.Fatal(err)
@@ -293,9 +297,23 @@ func TestASitesConfiguration(t *testing.T) {
 	if v, _ := call[site.SiteConfigView](t, m, "user:root", "site.get", site.SiteAsk{Host: "blog.example.com"}); v.Config.Title != "Notes" || v.ContentHost != "content.example.com" {
 		t.Fatalf("after a refusal: %+v", v)
 	}
+	// An active document needs the content host: while one is there, the
+	// host is not cleared; without a host, none is published.
+	if _, err := call[site.Published](t, m, "user:ann", "site.doc.put", site.Put{Site: "blog.example.com", Slug: "calc", Format: "html", Body: "<script>x()</script>", Visibility: "public", Active: true}); err != nil {
+		t.Fatalf("an active document: %v", err)
+	}
+	if _, err := call[site.SiteConfigView](t, m, "user:root", "site.set", site.SiteSet{Host: "blog.example.com", ContentHost: str("")}); !errors.Is(err, site.ErrNoContentHost) {
+		t.Fatalf("clearing the content host an active document needs: %v", err)
+	}
+	if _, err := call[site.Published](t, m, "user:ann", "site.doc.put", site.Put{Site: "blog.example.com", Slug: "calc", Format: "html", Body: "<p>now inert</p>", Visibility: "public"}); err != nil {
+		t.Fatalf("making it inert: %v", err)
+	}
 	// Leaving the configuration out keeps it; an empty content host clears it.
 	if v, err := call[site.SiteConfigView](t, m, "user:root", "site.set", site.SiteSet{Host: "blog.example.com", ContentHost: str("")}); err != nil || v.Config.Title != "Notes" || v.ContentHost != "" {
 		t.Fatalf("clearing the content host: %+v, %v", v, err)
+	}
+	if _, err := call[site.Published](t, m, "user:ann", "site.doc.put", site.Put{Site: "blog.example.com", Slug: "calc", Format: "html", Body: "<script>x()</script>", Visibility: "public", Active: true}); !errors.Is(err, site.ErrNoContentHost) {
+		t.Fatalf("an active document with no content host: %v", err)
 	}
 	for what, tc := range map[string]struct {
 		host, content string

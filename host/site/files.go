@@ -25,6 +25,7 @@ type Owner struct{ UID, GID int }
 // Files is the site's directories:
 //
 //	<Dir>/<host>/                the live pages of a site; the serving process reads them
+//	<Dir>/<content host>         a link to <host>: where its active .html documents are served from
 //	<Dir>/.work/<host>/content/  a build's input, the core's, read-only to the build
 //	<Dir>/.work/<host>/out/      a build's output, the builder's user's until TakeAway
 //
@@ -284,6 +285,57 @@ func (f Files) Swap(w Work) (first bool, err error) {
 	return first, nil
 }
 
+// LinkContent makes content the name by which the serving process answers
+// host's active documents: a link <Dir>/<content> to host's pages, made in
+// one rename. Any other link to host is removed, so a content host a site no
+// longer has stops answering. content "" removes them all. A name that is a
+// site's own pages is never replaced.
+func (f Files) LinkContent(host, content string) error {
+	if err := hostName(host); err != nil {
+		return err
+	}
+	entries, err := os.ReadDir(f.Dir)
+	if err != nil {
+		return err
+	}
+	for _, e := range entries {
+		if e.Type()&fs.ModeSymlink == 0 || e.Name() == content {
+			continue
+		}
+		if target, err := os.Readlink(path.Join(f.Dir, e.Name())); err == nil && target == host {
+			if err := os.Remove(path.Join(f.Dir, e.Name())); err != nil {
+				return err
+			}
+		}
+	}
+	if content == "" {
+		return nil
+	}
+	if err := hostName(content); err != nil || content == host {
+		return ErrBadHost
+	}
+	link := path.Join(f.Dir, content)
+	if info, err := os.Lstat(link); err == nil {
+		if info.Mode()&fs.ModeSymlink == 0 {
+			return fmt.Errorf("site: %s is a site's pages, not a content host", link)
+		}
+		if target, err := os.Readlink(link); err == nil && target == host {
+			return nil
+		}
+	}
+	if err := os.MkdirAll(path.Join(f.Dir, workDir, host), 0o755); err != nil {
+		return err
+	}
+	tmp := path.Join(f.Dir, workDir, host, "content-link")
+	if err := os.Remove(tmp); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	if err := os.Symlink(host, tmp); err != nil {
+		return err
+	}
+	return os.Rename(tmp, link)
+}
+
 // TakeDown withdraws host's live pages at once: one rename moves them off
 // the name the serving process reads, then they are deleted, and an empty
 // marker is left by which the serving process answers 503 for every path of
@@ -343,6 +395,9 @@ func (f Files) Remove(host string) error {
 		if err := os.RemoveAll(p); err != nil {
 			return err
 		}
+	}
+	if err := f.LinkContent(host, ""); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return err
 	}
 	return os.RemoveAll(path.Join(f.Dir, host))
 }
