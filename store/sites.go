@@ -1175,3 +1175,141 @@ func (ss sites) HasProtected(ctx context.Context, id int64) (bool, error) {
 	}
 	return has, rows.Close()
 }
+
+// SetProtect sets a protected node's verifier. The generation rises, so a
+// grant of the passphrase before opens nothing; the node's grants are
+// removed too.
+func (ss sites) SetProtect(ctx context.Context, node int64, verifier string) (gen int64, err error) {
+	err = ss.s.tx(ctx, func(tx dao.TxConn) error {
+		d, err := ss.oneDoc(ctx, tx, "SELECT "+docCols+" FROM site_node WHERE id = ?", node)
+		if err != nil {
+			return err
+		}
+		rows, err := tx.QueryContext(ctx, ss.s.q(`INSERT INTO site_protect(node_id, verifier, generation) VALUES (?, ?, 1)
+			ON CONFLICT (node_id) DO UPDATE SET verifier = excluded.verifier, generation = site_protect.generation + 1 RETURNING generation`), node, verifier)
+		if err != nil {
+			return err
+		}
+		if rows.Next() {
+			err = rows.Scan(&gen)
+		}
+		if cerr := rows.Close(); err == nil {
+			err = cerr
+		}
+		if err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(ctx, ss.s.q("DELETE FROM site_grant WHERE node_id = ?"), node); err != nil {
+			return err
+		}
+		subject, err := ss.subject(ctx, tx, d)
+		if err != nil {
+			return err
+		}
+		return ss.audit(ctx, tx, "site.node.protect", subject, "a passphrase was set")
+	})
+	return gen, err
+}
+
+// ClearProtect removes a node's passphrase and ends its grants.
+func (ss sites) ClearProtect(ctx context.Context, node int64) error {
+	return ss.s.tx(ctx, func(tx dao.TxConn) error {
+		d, err := ss.oneDoc(ctx, tx, "SELECT "+docCols+" FROM site_node WHERE id = ?", node)
+		if err != nil {
+			return err
+		}
+		for _, q := range []string{"DELETE FROM site_grant WHERE node_id = ?", "DELETE FROM site_protect WHERE node_id = ?"} {
+			if _, err := tx.ExecContext(ctx, ss.s.q(q), node); err != nil {
+				return err
+			}
+		}
+		subject, err := ss.subject(ctx, tx, d)
+		if err != nil {
+			return err
+		}
+		return ss.audit(ctx, tx, "site.node.unprotect", subject, "the passphrase was removed")
+	})
+}
+
+// ProtectOf answers a node's verifier and its protection's generation.
+func (ss sites) ProtectOf(ctx context.Context, node int64) (verifier string, gen int64, err error) {
+	rows, err := ss.s.conn.QueryContext(ctx, ss.s.q("SELECT verifier, generation FROM site_protect WHERE node_id = ?"), node)
+	if err != nil {
+		return "", 0, err
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return "", 0, err
+		}
+		return "", 0, site.ErrNotFound
+	}
+	if err := rows.Scan(&verifier, &gen); err != nil {
+		return "", 0, err
+	}
+	return verifier, gen, rows.Close()
+}
+
+// AddGrant keeps a grant: the site's expired ones go first, and its oldest
+// when it would hold more than max.
+func (ss sites) AddGrant(ctx context.Context, g site.Grant, max int, now int64) error {
+	return ss.s.tx(ctx, func(tx dao.TxConn) error {
+		if _, err := tx.ExecContext(ctx, ss.s.q("DELETE FROM site_grant WHERE site_id = ? AND expires_at <= ?"), g.Site, now); err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(ctx, ss.s.q("INSERT INTO site_grant(id_hash, site_id, node_id, generation, issued_at, expires_at) VALUES (?, ?, ?, ?, ?, ?)"),
+			g.IDHash[:], g.Site, g.Node, g.Generation, g.Issued, g.Expires); err != nil {
+			return err
+		}
+		_, err := tx.ExecContext(ctx, ss.s.q(`DELETE FROM site_grant WHERE site_id = ? AND id_hash IN (
+			SELECT id_hash FROM site_grant WHERE site_id = ? ORDER BY issued_at DESC, id_hash LIMIT 1000000000 OFFSET ?)`), g.Site, g.Site, max)
+		return err
+	})
+}
+
+// GrantsOf answers the grants of those hashes that have not expired.
+func (ss sites) GrantsOf(ctx context.Context, hashes [][32]byte, now int64) ([]site.Grant, error) {
+	var out []site.Grant
+	for _, h := range hashes {
+		rows, err := ss.s.conn.QueryContext(ctx, ss.s.q("SELECT id_hash, site_id, node_id, generation, issued_at, expires_at FROM site_grant WHERE id_hash = ? AND expires_at > ?"), h[:], now)
+		if err != nil {
+			return nil, err
+		}
+		for rows.Next() {
+			var g site.Grant
+			var id []byte
+			if err := rows.Scan(&id, &g.Site, &g.Node, &g.Generation, &g.Issued, &g.Expires); err != nil {
+				_ = rows.Close()
+				return nil, err
+			}
+			copy(g.IDHash[:], id)
+			out = append(out, g)
+		}
+		if err := rows.Err(); err != nil {
+			_ = rows.Close()
+			return nil, err
+		}
+		if err := rows.Close(); err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
+}
+
+// EndGrants ends every grant of a node.
+func (ss sites) EndGrants(ctx context.Context, node int64) error {
+	_, err := ss.s.conn.ExecContext(ctx, ss.s.q("DELETE FROM site_grant WHERE node_id = ?"), node)
+	return err
+}
+
+// NoteUnlock writes the audit entry of an attempt to unlock a node: the
+// node and the address, never the passphrase.
+func (ss sites) NoteUnlock(ctx context.Context, d site.Doc, client string) error {
+	return ss.s.tx(ctx, func(tx dao.TxConn) error {
+		subject, err := ss.subject(ctx, tx, d)
+		if err != nil {
+			return err
+		}
+		return ss.audit(ctx, tx, "site.unlock", subject, "an attempt from "+client)
+	})
+}

@@ -26,6 +26,8 @@ type ReadAsk struct {
 	// grant cookies. One or the other, by the surface.
 	Session string   `json:"session,omitempty"`
 	Grants  []string `json:"grants,omitempty"`
+	// Unlock is the unlock form's cookie, when the browser has one.
+	Unlock string `json:"unlock,omitempty"`
 }
 
 // The answers.
@@ -33,6 +35,7 @@ const (
 	ReadFile     = "file"     // serve File, as Kind
 	ReadMissing  = "missing"  // the missing page: no such node, no reader, not allowed, not built
 	ReadRedirect = "redirect" // to Location: the address with its slash, said only to a reader who may read it
+	ReadUnlock   = "unlock"   // a protected address, and no grant for it: show Form, with SetCookie when given
 )
 
 // What a held file is served as.
@@ -57,6 +60,10 @@ type ReadAnswer struct {
 	// Protected: the site has a protected node, so a miss on its host is
 	// worth asking about. Meaningful on SurfaceSite alone.
 	Protected bool `json:"protected,omitempty"`
+	// Form is the unlock form's page, and SetCookie the form's cookie when a
+	// new one was made (ReadUnlock).
+	Form      string `json:"form,omitempty"`
+	SetCookie string `json:"set_cookie,omitempty"`
 }
 
 // HeldFile is a held file's path under the held root: name among node's
@@ -101,7 +108,7 @@ func (m *Module) MayReadPath(ctx context.Context, ask ReadAsk) ReadAnswer {
 			return missing // before anything is looked up: no session learns what exists
 		}
 	case SurfaceSite:
-		// A grant opens a protected node; grants are the next slice's.
+		// A grant opens a protected node: looked up once the site is known.
 	default:
 		return missing
 	}
@@ -113,6 +120,7 @@ func (m *Module) MayReadPath(ctx context.Context, ask ReadAsk) ReadAnswer {
 		if has, err := m.store.HasProtected(ctx, s.ID); err == nil {
 			missing.Protected = has
 		}
+		who.Granted = m.granted(ctx, s.ID, ask.Grants)
 	}
 	if !strings.HasPrefix(rest, "/") || strings.Contains(rest, "\\") || strings.ContainsRune(rest, 0) || len(rest) > MaxPath+MaxResourceName+8 {
 		return missing
@@ -153,6 +161,12 @@ func (m *Module) MayReadPath(ctx context.Context, ask ReadAsk) ReadAnswer {
 		return missing // public (a static page), the other surface's, or a chain nobody can prove
 	}
 	if !MayAt(who, ActRead, chain) {
+		// A protected address shows its unlock form: protected means gated,
+		// not hidden. Only for the page itself, with or without its slash;
+		// one of its files without a grant is missing.
+		if locked, ok := lock(who, chain); ok && ask.Surface == SurfaceSite && name == "" {
+			return m.unlockForm(ctx, s, locked, clean+"/", ask.Unlock, false)
+		}
 		return missing
 	}
 	if ByAdminOnlyAt(who, ActRead, chain) {

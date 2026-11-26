@@ -74,7 +74,7 @@ func serveSiteAuth(ctx context.Context, sm *coresite.Module, log *slog.Logger) e
 		_ = checked.Close()
 	}()
 	go func() {
-		if err := hostsite.ServeAuth(checked, sm.MayReadPath); err != nil && ctx.Err() == nil {
+		if err := hostsite.ServeAuth(checked, sm); err != nil && ctx.Err() == nil {
 			log.Error("site: the auth socket stopped", "err", err)
 		}
 	}()

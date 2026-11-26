@@ -331,6 +331,11 @@ func (m *Module) folderSet(ctx context.Context, p FolderAsk) (NodeView, error) {
 	if err != nil {
 		return NodeView{}, err
 	}
+	if old.Visibility == Protected && d.Visibility != Protected {
+		if err := m.store.EndGrants(ctx, d.ID); err != nil { // it left protected: what its passphrase gave ends
+			return NodeView{}, err
+		}
+	}
 	above := chain[:len(chain)-1]
 	chain = append(append([]Doc{}, above...), d)
 	v := m.view(ctx, chain, meta)

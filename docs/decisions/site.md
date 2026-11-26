@@ -25,7 +25,7 @@ grows with the feature. So far the rules and the storage exist; nothing is built
   | --- | --- | --- |
   | `public` | the site's own host | nothing |
   | `internal`, `private` | `https://<app host>/s/<site host>/<address>/` | a member's session |
-  | `protected` | the site's own host | a passphrase (not built yet: a protected document is stored and built, and nobody reads it) |
+  | `protected` | the site's own host | its passphrase, given once at the address |
 
 **In the code:** `core/site/doc.go` (`Level`, `Doc.Check`).
 
@@ -342,6 +342,45 @@ pages, and served only after the core has answered that the reader may have it.
 **In the code:** `core/site/surface.go`, `core/site/read.go`, `core/site/build.go` (`buildHeld`),
 `host/site/held.go`, `host/site/auth.go`, `host/site/serve.go` (`held`), `app/siteauth.go`,
 `host/gate/apps.go` (`serveSiteDoc`); migration 000012.
+
+## A protected node is opened by its passphrase
+
+**Decided:** a protected folder or document is read by whoever gives its passphrase on the site.
+Protected means gated, not hidden: its address shows a form.
+
+- **Setting it:** `site.node.protect {site, path, passphrase}`, by the node's owner or an
+  administrator, on the control socket only (never the HTTPS API, never a browser session).
+  `site.node.unprotect` removes it. At least 12 characters and none of the common ones. The store
+  keeps an Argon2id verifier, never the passphrase. Until one is set, nobody is let in.
+- **A grant:** giving the passphrase puts an opaque value in a cookie
+  (`__Host-ap_g0` to `g7`: `Secure`, `HttpOnly`, `SameSite=Lax`, 12 hours); the store keeps its
+  hash, the node, and the passphrase's generation. A browser keeps eight; a ninth takes the
+  place of the oldest. A site keeps 20,000; expired ones are removed.
+- **What a grant opens:** the node it was given for. A protected folder's grant opens what the
+  folder holds that is public. A protected document inside a protected folder has a passphrase
+  of its own, asked of a reader who is past the folder's.
+- **What ends a grant:** 12 hours; a new passphrase, or its removal; the node leaving
+  `protected`. A document moved out of the folder is no longer opened by the folder's grant,
+  because a grant is judged against the tree as it is at each request.
+- **The form** is the core's own page, with nothing of the node in it. It is bound to the node,
+  its passphrase's generation and the browser it was given to (a cookie, `__Host-ap_u`): a form
+  made for another node, another passphrase or another browser is refused. The form's key is
+  made when the core starts, so a form does not outlive it.
+- **The post** (`POST /_unlock/<node>` on the site's host, 4 KiB at most) is refused unless it
+  comes from the site's own page (`Origin`, and `Sec-Fetch-Site` when sent).
+- **Limits:**
+  - 5 attempts a minute from one address, and from one IPv6 /64;
+  - one passphrase is checked at a time, with 8 waiting; more are told to try again shortly.
+    This is apart from the login's own, so unlocks cannot delay a login;
+  - 30 failures in an hour on one node slow it to one attempt a minute for everyone new. **A
+    reader who is in stays in:** no number of failures locks the node.
+- **Every attempt is written to the audit log before the passphrase is tried:** the node and the
+  address, never the passphrase. If the entry cannot be written, it is not tried.
+- Nothing of a passphrase is in an address, a build's input, a status, an error or a log.
+- **A bearer:** whoever holds the cookie reads, as whoever knows the passphrase does.
+
+**In the code:** `core/site/protect.go`, `core/site/read.go`, `host/site/serve.go` (`unlock`,
+`form`); `core/site/protect_test.go`.
 
 ## The gate reaches a site through a route only the core makes
 

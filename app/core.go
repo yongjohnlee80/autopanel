@@ -396,6 +396,7 @@ func CoreContext(ctx context.Context, cfg Config, log *slog.Logger, gc GateContr
 		}
 		return &coresite.User{ID: u.ID, Admin: u.Role == auth.RoleAdmin}
 	}, func(h string) bool { return h != "" && h == apiMod.appHostOf(hostgate.HostApp) })
+	siteMod.SetWeak(func(pass string) bool { return auth.Weak("", pass) })
 	if err := serveSiteAuth(ctx, siteMod, log); err != nil {
 		return fmt.Errorf("the site's auth socket: %w", err)
 	}
