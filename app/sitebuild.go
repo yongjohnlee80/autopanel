@@ -47,14 +47,22 @@ func (p *sitePipeline) prepare(ctx context.Context) error {
 		uid, _ := strconv.Atoi(u.Uid)
 		gid, _ := strconv.Atoi(u.Gid)
 		p.files.Builder = Owner{UID: uid, GID: gid}
-		// The held files are the serving process's group's to read; with no
-		// such group they stay root's alone, and held pages answer as missing.
-		if g, err := user.LookupGroup(siteUser); err == nil {
-			rg, _ := strconv.Atoi(g.Gid)
-			p.files.Reader = Owner{GID: rg}
-		}
+		p.files.Reader = groupOwner(siteUser)
 	})
 	return p.ready
+}
+
+// groupOwner is the group of that name, as the owner of what its members
+// read: the held files are the serving process's group's. With no such group
+// it is root's (0): the files stay root's alone, and held pages answer as
+// missing.
+func groupOwner(name string) Owner {
+	g, err := user.LookupGroup(name)
+	if err != nil {
+		return Owner{}
+	}
+	gid, _ := strconv.Atoi(g.Gid)
+	return Owner{GID: gid}
 }
 
 func (p *sitePipeline) Prepare(host string) (coresite.Job, error) {

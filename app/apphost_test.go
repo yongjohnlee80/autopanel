@@ -579,3 +579,38 @@ func TestTheSessionVerbsAreExactlyThese(t *testing.T) {
 		t.Fatal("a self-service verb is kept from the app host")
 	}
 }
+
+// TestTheSitesReadersAreTheAppHostsSessions: the site finds a member by the
+// app host's session cookie, as the browser login would: a session of the
+// admin host, a cookie nobody has and a disabled user are nobody.
+func TestTheSitesReadersAreTheAppHostsSessions(t *testing.T) {
+	f := newAppCore(t)
+	ctx := context.Background()
+	sessions, isAppHost := siteReaders(f.m)
+	if !isAppHost(webHost) || isAppHost(adminHost) || isAppHost("") || isAppHost("blog.example.com") {
+		t.Fatal("which host is the applications'")
+	}
+	vera, _ := f.signIn(t, hostgate.HostApp, "vera")
+	ada, _ := f.signIn(t, hostgate.HostApp, "ada")
+	if u := sessions(ctx, webHost, vera); u == nil || u.ID != f.ids["vera"] || u.Admin {
+		t.Fatalf("a member's session: %+v", u)
+	}
+	if u := sessions(ctx, webHost, ada); u == nil || u.ID != f.ids["ada"] || !u.Admin {
+		t.Fatalf("an administrator's session: %+v", u)
+	}
+	onAdmin, _ := f.signIn(t, hostgate.HostAdmin, "ada")
+	for what, cookie := range map[string]string{"no cookie": "", "a cookie nobody has": "nobodys-cookie", "a session of the admin host": onAdmin} {
+		if u := sessions(ctx, webHost, cookie); u != nil {
+			t.Errorf("%s is a reader: %+v", what, u)
+		}
+	}
+	if err := f.st.Users().SetDisabled(ctx, f.ids["vera"], true); err != nil {
+		t.Fatal(err)
+	}
+	if u := sessions(ctx, webHost, vera); u != nil {
+		t.Errorf("a disabled user's session is a reader: %+v", u)
+	}
+	if s, _ := siteReaders(&apiModule{}); s(ctx, webHost, ada) != nil {
+		t.Error("a core with no sessions found a reader")
+	}
+}

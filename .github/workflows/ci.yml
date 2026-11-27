@@ -135,12 +135,12 @@ jobs:
           bad=$(grep -rniE '<script|client:[a-z]|is:inline|[[:space:]]on[a-z]+=' site/src \
             | grep -vF 'site/src/layouts/Base.astro:' \
             || true)
-          kitline=$(grep -cF '{mermaid && kit.scripts.map((s) => <script is:inline src={s.path} integrity={s.integrity} defer></script>)}' site/src/layouts/Base.astro || true)
-          other=$(grep -niE '<script|client:[a-z]|is:inline|[[:space:]]on[a-z]+=' site/src/layouts/Base.astro | grep -vF 'kit.scripts.map((s) => <script is:inline src={s.path} integrity={s.integrity} defer></script>' || true)
+          kitline=$(grep -cF '{mermaid && kit.scripts.map((s) => <script is:inline src={own(s.path)} integrity={s.integrity} defer></script>)}' site/src/layouts/Base.astro || true)
+          other=$(grep -niE '<script|client:[a-z]|is:inline|[[:space:]]on[a-z]+=' site/src/layouts/Base.astro | grep -vF 'kit.scripts.map((s) => <script is:inline src={own(s.path)} integrity={s.integrity} defer></script>' || true)
           if [ "$kitline" -gt 1 ] || [ -n "$other" ]; then
             echo "the layout holds a script other than the kit's: $other"; exit 1
           fi
-          raw=$(grep -rni 'set:html' site/src | grep -vE 'set:html=\{fragment\((named|doc)\)\}' || true)
+          raw=$(grep -rni 'set:html' site/src | grep -vE 'set:html=\{fragment\((named|doc|only)\)\}' || true)
           if [ -n "$bad$raw" ]; then
             printf '%s\n%s\n' "$bad" "$raw"
             echo "the kit's sources hold a script, or raw HTML other than a rendered body"

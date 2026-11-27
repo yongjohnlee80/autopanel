@@ -154,3 +154,50 @@ func TestASitesConnectionIsBoundedAsAnUpstreams(t *testing.T) {
 		t.Fatalf("the site transport: %+v", siteTransport)
 	}
 }
+
+// A member's read of a site's document, on the app host, goes to the same
+// serving process: its host and its cookie arrive, and the client's address
+// is the gate's word.
+func TestTheAppHostsDocumentsGoToTheServingProcess(t *testing.T) {
+	sock := filepath.Join(t.TempDir(), "site.sock")
+	l, err := net.Listen("unix", sock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		c, _ := r.Cookie("__Host-ap_session")
+		value := ""
+		if c != nil {
+			value = c.Value
+		}
+		_, _ = io.WriteString(w, r.Host+" "+r.URL.Path+" "+value+" "+r.Header.Get("X-Forwarded-For"))
+	})}
+	go func() { _ = srv.Serve(l) }()
+	t.Cleanup(func() { _ = srv.Close() })
+	old := siteSocket.Load()
+	SetSiteSocket(sock)
+	t.Cleanup(func() {
+		if old != nil {
+			SetSiteSocket(*old)
+		} else {
+			SetSiteSocket("")
+		}
+	})
+	h := siteDocs(func() Trusted { return Trusted{} })
+	req := httptest.NewRequest("GET", "https://app.example.com/s/blog.example.com/plans/", nil)
+	req.RemoteAddr = "203.0.113.7:4000"
+	req.Header.Set("Cookie", "__Host-ap_session=abc")
+	req.Header.Set("X-Forwarded-For", "198.51.100.1") // a client's own claim: dropped
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if rec.Code != 200 || rec.Body.String() != "app.example.com /s/blog.example.com/plans/ abc 203.0.113.7" {
+		t.Fatalf("through the serving process: %d %q", rec.Code, rec.Body.String())
+	}
+	SetSiteSocket("")
+	siteTransport.CloseIdleConnections() // the connection kept from the request before
+	rec = httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest("GET", "https://app.example.com/s/blog.example.com/plans/", nil))
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("with no serving process: %d", rec.Code)
+	}
+}
