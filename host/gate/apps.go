@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	core "github.com/yongjohnlee80/autopanel/core/gate"
 )
 
 // THE APPLICATIONS' HOSTS — the app host (mail and drive) and the admin host
@@ -111,6 +113,20 @@ func (a *apiServer) serveSiteDoc(w http.ResponseWriter, r *http.Request, client 
 		h.Del(k) // the serving process sets its own
 	}
 	a.site.ServeHTTP(w, r)
+}
+
+// siteDocs passes a request to the sites' serving process, at the socket the
+// core named, as a site's route does: the same proxy, with the sources
+// trusted now to say who the client is.
+func siteDocs(trusted func() Trusted) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		p, err := NewProxy(core.SiteRoute(1, "site.local"), trusted(), nil)
+		if err != nil {
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
+		p.ServeHTTP(w, r)
+	})
 }
 
 func (h appHost) admits(ip netip.Addr) bool {
