@@ -213,6 +213,25 @@ func TestTheMailWidget(t *testing.T) {
 		s.WaitForText(t, part)
 	}
 
+	// A failing message's reason shows in the status line when its row is
+	// selected; a row that is none says nothing.
+	run(t, h, func() error { return h.mailQueueMoved(0) })
+	s.WaitForText(t, "mx.slow.example: No route to host")
+	run(t, h, func() error { return h.mailQueueMoved(7) })
+
+	// More waiting than were counted, a setting up that failed, and records
+	// never read yet.
+	f.mu.Lock()
+	f.mail.queue.More = true
+	f.mail.status.Error, f.mail.status.SyncedAt = "the stack did not start", 0
+	f.mu.Unlock()
+	run(t, h, func() error { h.wid.mailReadAt = time.Time{}; h.poll(); return nil })
+	s.WaitForText(t, "3+ waiting")
+	s.WaitForText(t, "ready · the") // the tile cuts the rest
+	f.mu.Lock()
+	f.mail.status.Error, f.mail.status.SyncedAt = "", 1
+	f.mu.Unlock()
+
 	// Nothing waiting, every record ok.
 	f.mu.Lock()
 	f.mail.queue, f.mail.status.RecordsNotOK = mail.QueueView{Sample: []mail.QueuedView{}}, nil
@@ -257,5 +276,26 @@ func TestTheMailWidget(t *testing.T) {
 		if ask == "queue" {
 			t.Fatal("the queue was asked for with no mail set up")
 		}
+	}
+}
+
+// TestHowLongAgo: the age of the oldest waiting message, in its two largest
+// units.
+func TestHowLongAgo(t *testing.T) {
+	now := time.Unix(1_800_000_000, 0)
+	for d, want := range map[time.Duration]string{
+		30 * time.Second: "30s", 5 * time.Minute: "5m", 4*time.Hour + 12*time.Minute: "4h 12m",
+		47 * time.Hour: "47h 0m", 3*24*time.Hour + 5*time.Hour: "3d 5h", -time.Minute: "-",
+	} {
+		if got := agoText(now.Add(-d).Unix(), now); got != want {
+			t.Errorf("%v ago: %q; want %q", d, got, want)
+		}
+	}
+	if got := agoText(0, now); got != "-" {
+		t.Errorf("no time: %q", got)
+	}
+	rows := mailQueueRows(mail.QueueView{Sample: []mail.QueuedView{{From: "a@x.example", To: "b@y.example", Attempts: 2}, {From: "a@x.example", To: "c@y.example", Others: 3}}})
+	if len(rows) != 2 || rows[0]["to"] != "b@y.example" || rows[1]["to"] != "c@y.example +3" || rows[0]["key"] == rows[1]["key"] {
+		t.Errorf("the rows: %v", rows)
 	}
 }
